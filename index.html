@@ -5631,9 +5631,7 @@ window.onload=function(){
           },10000);
           return;
         }
-        const authType=DB.g('authType')||'';
-        if(!authType){applyAuthState();showLoginScreen();}
-        else{applyAuthState();}
+        applyAuthState();
       }
       setTimeout(function(){
         var ls=document.getElementById('loadingScreen');
