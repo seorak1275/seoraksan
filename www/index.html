@@ -1644,35 +1644,72 @@ function hideLoginScreen(){
   ls.style.transition='opacity .4s';ls.style.opacity='0';
   setTimeout(()=>{if(ls.parentNode)ls.parentNode.removeChild(ls);},400);
 }
-function openKakaoLogin(){
-  if(!window.Kakao||!Kakao.isInitialized())return;
-  Kakao.Auth.login({
-    success:function(authObj){
-      Kakao.API.request({
-        url:'/v2/user/me',
-        success:function(res){
-          const prof=(res.kakao_account?.profile)||{};
-          const name=prof.nickname||'';
-          const img=prof.profile_image_url||'';
-          const u=DB.g('currentUser')||{};
-          u.name=name;u.kakaoImg=img;
-          DB.s('currentUser',u);DB.s('authType','kakao');
-          applyAuthState();hideLoginScreen();
-          try{renderSettings();}catch(e){}
-          toast('✅ 안녕하세요, '+name+'님!');
-        },
-        fail:function(){toast('❌ 프로필 조회 실패');}
-      });
+// 카카오 로그인 성공 후 프로필 조회 공통
+function _kakaoGetProfile(){
+  Kakao.API.request({
+    url:'/v2/user/me',
+    success:function(res){
+      const prof=(res.kakao_account?.profile)||{};
+      const u=DB.g('currentUser')||{};
+      u.name=prof.nickname||'';u.kakaoImg=prof.profile_image_url||'';
+      DB.s('currentUser',u);DB.s('authType','kakao');
+      applyAuthState();hideLoginScreen();
+      try{renderSettings();}catch(e){}
+      toast('✅ 안녕하세요, '+u.name+'님!');
     },
-    fail:function(err){toast('❌ 카카오 로그인 실패');}
+    fail:function(){toast('❌ 프로필 조회 실패');}
   });
 }
-function handleKakaoRedirect(){
+// APK 리다이렉트용 URI (hostname과 일치)
+const _KAKAO_RDR='https://109yoon.github.io/';
+function openKakaoLogin(){
+  if(!window.Kakao||!Kakao.isInitialized()){toast('⚠️ 카카오 SDK 초기화 중...');return;}
+  if(window.Capacitor){
+    // APK: 전체 페이지 리다이렉트 방식 (팝업은 Capacitor 웹뷰에서 동작 안 함)
+    Kakao.Auth.authorize({redirectUri:_KAKAO_RDR});
+  } else {
+    // 웹: 팝업 방식
+    Kakao.Auth.login({
+      success:function(){_kakaoGetProfile();},
+      fail:function(err){toast('❌ 카카오 로그인 실패');}
+    });
+  }
+}
+async function handleKakaoRedirect(){
+  // 1. 해시에 access_token (implicit grant 방식)
+  const hash=new URLSearchParams(location.hash.replace(/^#/,''));
+  const hashToken=hash.get('access_token');
+  if(hashToken){
+    history.replaceState(null,'',location.origin+location.pathname);
+    if(window.Kakao&&Kakao.isInitialized()){Kakao.Auth.setAccessToken(hashToken);_kakaoGetProfile();}
+    return true;
+  }
+  // 2. 쿼리에 authorization code
   const params=new URLSearchParams(location.search);
   const code=params.get('code');
   if(!code)return false;
   history.replaceState(null,'',location.origin+location.pathname);
-  return false;
+  toast('🔐 카카오 로그인 처리 중...');
+  try{
+    const body=`grant_type=authorization_code&client_id=${KAKAO_KEY}&redirect_uri=${encodeURIComponent(_KAKAO_RDR)}&code=${code}`;
+    const CH=window.Capacitor?.Plugins?.CapacitorHttp;
+    let td;
+    if(CH){
+      // 네이티브 HTTP → CORS 없음
+      const r=await CH.request({method:'POST',url:'https://kauth.kakao.com/oauth/token',headers:{'Content-Type':'application/x-www-form-urlencoded'},data:body});
+      td=typeof r.data==='string'?JSON.parse(r.data):r.data;
+    } else {
+      const r=await fetch('https://kauth.kakao.com/oauth/token',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body});
+      td=await r.json();
+    }
+    if(!td?.access_token)throw new Error(td?.error_description||'토큰 없음');
+    Kakao.Auth.setAccessToken(td.access_token);
+    _kakaoGetProfile();
+  }catch(e){
+    toast('❌ 로그인 실패: '+e.message);
+    showLoginScreen();
+  }
+  return true;
 }
 function kakaoLogout(){
   function _clearKakao(){
@@ -5100,7 +5137,7 @@ window.onload=function(){
       function checkAuth(){
         updateUserUI();
         const authType=DB.g('authType');
-        if(!authType){DB.s('authType','guest');applyAuthState();}
+        if(!authType){showLoginScreen();}
       }
       setTimeout(function(){
         var ls=document.getElementById('loadingScreen');
@@ -5166,7 +5203,7 @@ window.onload=function(){
   initFirebase(function(){
     initDB();
     // 카카오 리다이렉트 코드 처리 (로그인 후 돌아왔을 때)
-    if(location.search.includes('code=')){handleKakaoRedirect();}
+    if(location.search.includes('code=')||location.hash.includes('access_token')){handleKakaoRedirect();}
     if(window._KR){ initMaps(); } else { window._KCB=function(){initMaps();}; }
     updateSummary();updateUserUI();renderHotSearch();
     const d=new Date();const days=['일','월','화','수','목','금','토'];
