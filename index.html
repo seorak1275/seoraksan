@@ -1674,20 +1674,12 @@ function _kakaoGetProfile(token){
   });
 }
 // APK 리다이렉트용 URI (capacitor.config hostname과 일치)
-const _KAKAO_RDR='https://109yoon.github.io/';
+// APK: hostname 루트, 웹: GitHub Pages 경로
+const _KAKAO_RDR=window.Capacitor?'https://109yoon.github.io/':'https://109yoon.github.io/seoraksan/';
 function openKakaoLogin(){
-  if(!window.Kakao||!Kakao.isInitialized()){toast('⚠️ 카카오 SDK 로딩 중...');return;}
-  if(window.Capacitor){
-    // APK: implicit grant — 토큰이 해시(#access_token)로 바로 반환됨, 별도 교환 불필요
-    const uri=encodeURIComponent(_KAKAO_RDR);
-    location.href=`https://kauth.kakao.com/oauth/authorize?client_id=${KAKAO_KEY}&redirect_uri=${uri}&response_type=token&scope=profile_nickname,profile_image`;
-  } else {
-    // 웹: SDK 팝업 방식
-    Kakao.Auth.login({
-      success:function(auth){_kakaoGetProfile(auth.access_token);},
-      fail:function(err){toast('❌ 카카오 로그인 실패: '+(err?.error_description||''));}
-    });
-  }
+  // 팝업 방식 대신 전체 페이지 리다이렉트 — 팝업 차단 문제 없음
+  const uri=encodeURIComponent(_KAKAO_RDR);
+  location.href=`https://kauth.kakao.com/oauth/authorize?client_id=${KAKAO_KEY}&redirect_uri=${uri}&response_type=token&scope=profile_nickname,profile_image`;
 }
 async function handleKakaoRedirect(){
   // APK implicit grant 복귀: #access_token=XXX
