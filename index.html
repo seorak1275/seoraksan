@@ -4231,20 +4231,15 @@ function renderAdmCtrl(){
   const ongoing=res.filter(r=>r.status==='ongoing').length;
   const badFac=facs.filter(f=>f.status!=='ok').length;
   const pending=DB.g('pendingUsers')||[];
-  const pendingHtml=pending.length?`
-    <div style="background:#0d1e30;border:1px solid rgba(254,200,0,.3);border-radius:12px;padding:14px 16px;">
-      <div style="font-size:13px;font-weight:700;color:#fee200;margin-bottom:8px;">👤 접속 승인 요청 (${pending.length}명)</div>
-      ${pending.map(p=>`<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid rgba(255,255,255,.05);">
-        ${p.kakaoImg?`<img src="${p.kakaoImg}" style="width:30px;height:30px;border-radius:50%;object-fit:cover;">` : `<div style="width:30px;height:30px;border-radius:50%;background:#1a3a5a;display:flex;align-items:center;justify-content:center;font-size:13px;">👤</div>`}
-        <div style="flex:1;min-width:0;"><div style="font-size:12px;font-weight:600;color:#e0edf8;">${p.name||'이름없음'}</div><div style="font-size:10px;color:#5a8aaa;">${p.email||p.id}</div></div>
-        <button onclick="admApproveUser('${p.id}')" style="background:rgba(39,174,96,.2);color:#2ecc71;border:1px solid rgba(39,174,96,.35);padding:5px 10px;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;margin-right:4px;">승인</button>
-        <button onclick="admRejectUser('${p.id}')" style="background:rgba(192,57,43,.15);color:#e74c3c;border:1px solid rgba(192,57,43,.3);padding:5px 10px;border-radius:6px;font-size:11px;cursor:pointer;">거절</button>
-      </div>`).join('')}
-    </div>`:''
+  const approved=DB.g('approvedUsers')||[];
+  const pendingColor=pending.length?'#fee200':'#4fa8d0';
   document.getElementById('admCtrlWrap').innerHTML=`
     <div style="display:flex;flex-direction:column;gap:10px;padding:4px 0;">
-      ${pendingHtml}
-      <div onclick="admCtrlSector('rescue')" style="background:#0d1e30;border:1px solid rgba(192,57,43,.35);border-radius:12px;padding:14px 16px;cursor:pointer;display:flex;align-items:center;justify-content:space-between;active:opacity:.8;">
+      <div onclick="admCtrlSector('users')" style="background:#0d1e30;border:1px solid rgba(254,200,0,${pending.length?.4:.15});border-radius:12px;padding:14px 16px;cursor:pointer;display:flex;align-items:center;justify-content:space-between;">
+        <div><div style="font-size:13px;font-weight:700;color:#f0e060;">👤 접속 승인</div><div style="font-size:11px;color:#8a9cb8;margin-top:4px;">대기 <b style="color:${pendingColor};">${pending.length}명</b> · 승인완료 ${approved.length}명</div></div>
+        <div style="display:flex;align-items:center;gap:6px;">${pending.length?`<div style="background:#fee200;color:#191919;font-size:10px;font-weight:800;padding:2px 7px;border-radius:10px;">${pending.length}</div>`:''}<div style="color:rgba(255,255,255,.3);font-size:16px;">›</div></div>
+      </div>
+      <div onclick="admCtrlSector('rescue')" style="background:#0d1e30;border:1px solid rgba(192,57,43,.35);border-radius:12px;padding:14px 16px;cursor:pointer;display:flex;align-items:center;justify-content:space-between;">
         <div><div style="font-size:13px;font-weight:700;color:#e8c0c0;">🚨 재난구조</div><div style="font-size:11px;color:#8a9cb8;margin-top:4px;">진행중 <b style="color:${ongoing?'#e74c3c':'#4fa8d0'};">${ongoing}건</b> · 전체 ${res.length}건 · 위험상황 ${haz.length}건</div></div>
         <div style="color:rgba(255,255,255,.3);font-size:16px;">›</div>
       </div>
@@ -4258,11 +4253,31 @@ function renderAdmCtrl(){
       </div>
     </div>`;
 }
+}
 function admCtrlSector(sector){
   const facs=DB.g('facilities')||[];const res=DB.g('rescues')||[];const haz=DB.g('hazards')||[];const wikis=DB.g('wikis')||[];
   const back=`<button onclick="renderAdmCtrl()" style="background:none;border:none;color:#4fa8d0;font-size:12px;cursor:pointer;padding:0 0 10px;display:block;">← 뒤로</button>`;
   let html=back;
-  if(sector==='rescue'){
+  if(sector==='users'){
+    const pending=DB.g('pendingUsers')||[];
+    const approved=DB.g('approvedUsers')||[];
+    html+=`<div class="sec-label">⏳ 승인 대기 (${pending.length}명)</div>`;
+    html+=pending.length?pending.map(p=>`<div class="adm-row">
+      <div style="display:flex;align-items:center;gap:8px;flex:1;min-width:0;">
+        ${p.kakaoImg?`<img src="${p.kakaoImg}" style="width:32px;height:32px;border-radius:50%;object-fit:cover;flex-shrink:0;">`:`<div style="width:32px;height:32px;border-radius:50%;background:#1a3a5a;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0;">👤</div>`}
+        <div style="min-width:0;"><div class="adm-name">${p.name||'이름없음'}</div><div class="adm-meta">${p.email||p.id} · ${p.requestedAt||''}</div></div>
+      </div>
+      <div class="adm-btns">
+        <button class="abtn" onclick="admApproveUser('${p.id}')">승인</button>
+        <button class="abtn del" onclick="admRejectUser('${p.id}')">거절</button>
+      </div>
+    </div>`).join(''):`<div class="muted" style="font-size:12px;padding:5px 0;">대기중인 요청 없음</div>`;
+    html+=`<div class="sec-label">✅ 승인 완료 (${approved.length}명)</div>`;
+    html+=approved.length?approved.slice().reverse().map(a=>`<div class="adm-row">
+      <div style="flex:1;min-width:0;"><div class="adm-name">👤 ${a.name||'이름없음'}</div><div class="adm-meta">${a.email||a.id} · 승인일 ${a.approvedAt||'-'}</div></div>
+      <button class="abtn del" onclick="if(confirm('승인 취소?')){const ap=DB.g('approvedUsers')||[];DB.s('approvedUsers',ap.filter(x=>x.id!=='${a.id}'));admCtrlSector('users');}">취소</button>
+    </div>`).join(''):`<div class="muted" style="font-size:12px;padding:5px 0;">없음</div>`;
+  } else if(sector==='rescue'){
     html+=`<div class="sec-label">🚨 진행중 구조</div>`;
     html+=res.filter(r=>r.status==='ongoing').map(r=>{const ti=RES_TYPES[r.type]||RES_TYPES['기타'];return`<div class="adm-row"><div class="adm-info"><div class="adm-name">${ti.ico} ${r.title}</div><div class="adm-meta">${r.type} · ${r.date} · ${r.vName||'미상'}</div></div><div class="adm-btns"><button class="abtn" onclick="admEndRes(${r.id})">종료</button><button class="abtn del" onclick="admDelRes(${r.id})">삭제</button></div></div>`;}).join('')||'<div class="muted" style="font-size:12px;padding:5px 0;">진행중 없음</div>';
     html+=`<div class="sec-label">⚠️ 위험상황</div>`;
