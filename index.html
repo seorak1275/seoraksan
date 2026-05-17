@@ -5194,16 +5194,24 @@ function autoGenTitle(returnOnly=false){
   const type  = document.getElementById('r_type')?.value||'안전사고';
   const nation= document.getElementById('r_vNat')?.value||'알수없음';
   const gender= document.getElementById('r_vGender')?.value||'';
-  const parts=[];
-  if(loc)     parts.push(loc.slice(0,12)+(loc.length>12?'...':''));
-  if(type!=='안전사고') parts.push(type);
-  if(cause&&cause!=='실족') parts.push(cause);
-  if(sev)     parts.push('KTAS'+sev.replace('KTAS ','').split('(')[0].trim());
-  if(nation==='외국인'){
-    const gLabel=(gender&&gender!=='알수없음')?'('+gender+')':'';
-    parts.push('외국인'+gLabel);
+  const d=new Date();const mm=pad(d.getMonth()+1),dd=pad(d.getDate());
+  // 법정탐방로 자동입력(인근 약 Xm) → MM-DD (약 Xm) 형식
+  const signM=/인근 \(약 (\d+)m\)/.exec(loc);
+  let title;
+  if(signM){
+    title=mm+'-'+dd+' (약 '+signM[1]+'m)';
+  } else {
+    const parts=[];
+    if(loc)     parts.push(loc.slice(0,12)+(loc.length>12?'...':''));
+    if(type!=='안전사고') parts.push(type);
+    if(cause&&cause!=='실족') parts.push(cause);
+    if(sev)     parts.push('KTAS'+sev.replace('KTAS ','').split('(')[0].trim());
+    if(nation==='외국인'){
+      const gLabel=(gender&&gender!=='알수없음')?'('+gender+')':'';
+      parts.push('외국인'+gLabel);
+    }
+    title=parts.join(' · ')||today()+' '+type;
   }
-  const title=parts.join(' · ')||today()+' '+type;
   if(returnOnly) return title;
   const el=document.getElementById('r_title');
   if(el&&(!el.dataset.userEdited)){
