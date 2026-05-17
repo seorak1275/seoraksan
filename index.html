@@ -1678,13 +1678,8 @@ const _KAKAO_APK_RDR='https://109yoon.github.io/';
 const _KAKAO_WEB_RDR='https://109yoon.github.io/seoraksan/';
 function openKakaoLogin(){
   const rdr=window.Capacitor?_KAKAO_APK_RDR:_KAKAO_WEB_RDR;
-  // SDK 초기화 여부 무관하게 항상 리다이렉트로 동작 (팝업 차단 없음)
-  if(window.Kakao&&Kakao.isInitialized()){
-    Kakao.Auth.authorize({redirectUri:rdr,scope:'profile_nickname,profile_image'});
-  } else {
-    // SDK 미로드 시 REST API키로 직접 리다이렉트
-    location.href='https://kauth.kakao.com/oauth/authorize?client_id='+KAKAO_REST_KEY+'&redirect_uri='+encodeURIComponent(rdr)+'&response_type=code&scope=profile_nickname,profile_image';
-  }
+  // SDK authorize는 JS키를 client_id로 써서 REST키 토큰교환과 불일치 → 항상 REST키로 직접 리다이렉트
+  location.href='https://kauth.kakao.com/oauth/authorize?client_id='+KAKAO_REST_KEY+'&redirect_uri='+encodeURIComponent(rdr)+'&response_type=code&scope=profile_nickname,profile_image';
 }
 async function handleKakaoRedirect(){
   // APK authorization code 복귀: ?code=XXX
