@@ -1670,7 +1670,7 @@ async function _kakaoGetProfile(token){
   }catch(e){toast('❌ 프로필 조회 실패');showLoginScreen();}
 }
 // APK 리다이렉트용 URI (capacitor.config hostname과 일치)
-const _KAKAO_RDR='https://109yoon.github.io/seoraksan/';
+const _KAKAO_RDR='https://109yoon.github.io/';
 function openKakaoLogin(){
   if(!window.Kakao||!Kakao.isInitialized()){toast('⚠️ 카카오 SDK 로딩 중...');return;}
   if(window.Capacitor){
