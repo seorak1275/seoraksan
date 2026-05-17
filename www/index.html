@@ -1675,33 +1675,41 @@ function _kakaoGetProfile(token){
   });
 }
 const _KAKAO_APK_RDR='https://109yoon.github.io/';
+const _KAKAO_WEB_RDR='https://109yoon.github.io/seoraksan/';
 function openKakaoLogin(){
-  if(!window.Kakao||!Kakao.isInitialized()){toast('카카오 SDK 초기화 실패');return;}
-  if(window.Capacitor){
-    // APK: authorization code 방식 리다이렉트 → handleKakaoRedirect에서 CapacitorHttp로 토큰 교환
-    Kakao.Auth.authorize({redirectUri:_KAKAO_APK_RDR,scope:'profile_nickname,profile_image'});
+  const rdr=window.Capacitor?_KAKAO_APK_RDR:_KAKAO_WEB_RDR;
+  // SDK 초기화 여부 무관하게 항상 리다이렉트로 동작 (팝업 차단 없음)
+  if(window.Kakao&&Kakao.isInitialized()){
+    Kakao.Auth.authorize({redirectUri:rdr,scope:'profile_nickname,profile_image'});
   } else {
-    // 웹: SDK 팝업 방식 (내부에서 토큰 처리)
-    Kakao.Auth.login({
-      scope:'profile_nickname,profile_image',
-      success:function(auth){_kakaoGetProfile(auth.access_token);},
-      fail:function(err){toast('❌ 카카오 로그인 실패: '+(err?.error_description||JSON.stringify(err)));}
-    });
+    // SDK 미로드 시 REST API키로 직접 리다이렉트
+    location.href='https://kauth.kakao.com/oauth/authorize?client_id='+KAKAO_REST_KEY+'&redirect_uri='+encodeURIComponent(rdr)+'&response_type=code&scope=profile_nickname,profile_image';
   }
 }
 async function handleKakaoRedirect(){
   // APK authorization code 복귀: ?code=XXX
   const params=new URLSearchParams(location.search);
   const code=params.get('code');
-  if(code&&window.Capacitor){
+  if(code){
     history.replaceState(null,'',location.origin+location.pathname);
+    const rdr=window.Capacitor?_KAKAO_APK_RDR:_KAKAO_WEB_RDR;
+    const body=`grant_type=authorization_code&client_id=${KAKAO_REST_KEY}&redirect_uri=${encodeURIComponent(rdr)}&code=${code}`;
     try{
-      const resp=await window.Capacitor.Plugins.CapacitorHttp.request({
-        method:'POST',url:'https://kauth.kakao.com/oauth/token',
-        headers:{'Content-Type':'application/x-www-form-urlencoded'},
-        data:`grant_type=authorization_code&client_id=${KAKAO_REST_KEY}&redirect_uri=${encodeURIComponent(_KAKAO_APK_RDR)}&code=${code}`
-      });
-      const d=typeof resp.data==='string'?JSON.parse(resp.data):resp.data;
+      let d;
+      if(window.Capacitor){
+        // APK: CapacitorHttp (CORS 우회)
+        const resp=await window.Capacitor.Plugins.CapacitorHttp.request({
+          method:'POST',url:'https://kauth.kakao.com/oauth/token',
+          headers:{'Content-Type':'application/x-www-form-urlencoded'},data:body
+        });
+        d=typeof resp.data==='string'?JSON.parse(resp.data):resp.data;
+      } else {
+        // 웹: fetch 시도
+        const resp=await fetch('https://kauth.kakao.com/oauth/token',{
+          method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body
+        });
+        d=await resp.json();
+      }
       if(d.access_token){await _kakaoGetProfile(d.access_token);return true;}
       toast('❌ 토큰 오류: '+(d.error_description||JSON.stringify(d)));
     }catch(e){toast('❌ 토큰 교환 실패: '+e.message);}
