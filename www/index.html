@@ -1384,7 +1384,23 @@ function nowDT(){
 function toast(m,dur=2200){const t=document.getElementById('toast');t.textContent=m;t.classList.add('on');setTimeout(()=>t.classList.remove('on'),dur);}
 function closeDB(){document.querySelectorAll('.dbcard').forEach(c=>c.classList.remove('on'));}
 function closeM(id){document.getElementById(id).classList.remove('on');}
-function prevImg(inp,pid){if(inp.files&&inp.files[0]){const r=new FileReader();r.onload=e=>document.getElementById(pid).innerHTML=`<img src="${e.target.result}">`;r.readAsDataURL(inp.files[0]);}}
+function prevImg(inp,pid){
+  if(!inp.files||!inp.files[0])return;
+  const r=new FileReader();
+  r.onload=e=>{
+    const img=new Image();
+    img.onload=()=>{
+      const MAX=1024;
+      let w=img.width,h=img.height;
+      if(w>MAX||h>MAX){if(w>h){h=Math.round(h*MAX/w);w=MAX;}else{w=Math.round(w*MAX/h);h=MAX;}}
+      const cv=document.createElement('canvas');cv.width=w;cv.height=h;
+      cv.getContext('2d').drawImage(img,0,0,w,h);
+      document.getElementById(pid).innerHTML=`<img src="${cv.toDataURL('image/jpeg',0.75)}">`;
+    };
+    img.src=e.target.result;
+  };
+  r.readAsDataURL(inp.files[0]);
+}
 function fillSel(id,arr){document.getElementById(id).innerHTML=arr.map(v=>`<option value="${v}">${v}</option>`).join('');}
 const SC=s=>s==='ok'?'#27ae60':s==='warn'?'#e67e22':'#c0392b';
 const SL=s=>s==='ok'?'양호':s==='warn'?'보수필요':'파손위험';
@@ -1580,7 +1596,12 @@ let curApp='',curTab=1;
 const haptic=()=>{};
 // ── View transitions ──
 let _prevApp='home';
+let _reportDirty=false;
 function showV(id,dir){
+  if(id!=='v-report'&&_reportDirty&&document.getElementById('v-report')?.classList.contains('on')){
+    if(!confirm('저장하지 않은 내용이 있습니다.\n이동하시겠습니까?'))return;
+    _reportDirty=false;
+  }
   document.querySelectorAll('.view').forEach(v=>{v.classList.remove('on','slide-back','slide-up');});
   const el=document.getElementById(id);
   if(!el)return;
@@ -2731,8 +2752,10 @@ function addPhase(){
 
 
 
+let _isSubmitting=false;
 function submitNBoFromForm(){
-  const res=DB.g('rescues')||[];const idx=res.findIndex(x=>x.id===curResId);if(idx===-1)return;
+  if(_isSubmitting)return;_isSubmitting=true;
+  const res=DB.g('rescues')||[];const idx=res.findIndex(x=>x.id===curResId);if(idx===-1){_isSubmitting=false;return;}
   if(!res[idx].reports)res[idx].reports=[];
   const members=[...document.querySelectorAll('#memChkGrid .chk-grid .chk-box.on')].map(b=>{
     const txt=b.closest('.chk-item')?.querySelector('.chk-txt');
@@ -2802,6 +2825,7 @@ function submitNBoFromForm(){
   _ttInlineEntries=[];
   const phaseNum=res[idx].reports.length;
   pushNoti(`📋 ${phaseNum+1}보: ${res[idx].title}`,'📋','info',{app:'rescue',tab:2,id:res[idx].id});
+  _reportDirty=false;_isSubmitting=false;
   toast(`✅ ${phaseNum+1}보 저장 완료`);
   renderPhaseBar(phaseNum-1,phaseNum);
   renderTimeline(res[idx],'brief');
@@ -3048,6 +3072,7 @@ function submitNBo(){
 // 1보 폼
 // ══════════════════════════════════════════
 function render1BoForm(prefill=null){
+  _reportDirty=false;
   const ms=sortStaff(getStaff());
   const curUserName=(DB.g('currentUser')||{}).name||'';
   const hdTeam=getHwandonghaTeam();
@@ -3456,8 +3481,10 @@ function render1BoForm(prefill=null){
   initInjuries(p);
   initFireAgencies(p);
   initFormMiniMap(p.lat,p.lng);
-  // 폼 열릴 때 GPS·법정탐방로 기본값이면 즉시 자동 표기
   setTimeout(_tryAutoFillSign, 100);
+  // 입력 감지 → 폼 이탈 경고용 dirty 플래그
+  const repWrap=document.getElementById('repContent');
+  if(repWrap){repWrap.addEventListener('input',()=>{_reportDirty=true;},{once:true});}
 }
 
 function openTimelineTab(){
@@ -3800,7 +3827,8 @@ function openInspModal(){
   document.getElementById('modalInsp').classList.add('on');closeDB();
 }
 function submitInsp(){
-  const facs=DB.g('facilities')||[];const idx=facs.findIndex(x=>x.id===selFacId);if(idx===-1)return;
+  if(_isSubmitting)return;_isSubmitting=true;
+  const facs=DB.g('facilities')||[];const idx=facs.findIndex(x=>x.id===selFacId);if(idx===-1){_isSubmitting=false;return;}
   const ns=document.getElementById('inspStatus').value;
   const note=document.getElementById('inspNote').value;
   const author=document.getElementById('inspAuthor').value;
@@ -3814,7 +3842,7 @@ function submitInsp(){
   if(ns==='bad')pushNoti(`점검 위험: ${facs[idx].name}`,'🚨','fac_bad',{app:'inspect',tab:2,id:selFacId});
   else if(ns==='warn')pushNoti(`보수필요: ${facs[idx].name}`,'⚠️','fac_warn',{app:'inspect',tab:2,id:selFacId});
   syncToSheets('inspection',h);
-  try{renderInspectMap();}catch(e){}closeM('modalInsp');toast('✅ 점검 저장');updateSummary();
+  _isSubmitting=false;try{renderInspectMap();}catch(e){}closeM('modalInsp');toast('✅ 점검 저장');updateSummary();
 }
 function openHistModal(){
   const f=(DB.g('facilities')||[]).find(x=>x.id===selFacId);if(!f)return;
@@ -3862,7 +3890,8 @@ function openEditFac(id){
   initFacMiniMap(f.lat,f.lng);
 }
 function submitAddFac(){
-  const name=document.getElementById('facNameIn').value.trim();if(!name){toast('⚠️ 명칭 입력');return;}
+  if(_isSubmitting)return;_isSubmitting=true;
+  const name=document.getElementById('facNameIn').value.trim();if(!name){_isSubmitting=false;toast('⚠️ 명칭 입력');return;}
   let gs=document.getElementById('facGpsIn').value;
   if(!gs&&_mapFacMiniLocked)gs=_mapFacMiniLocked.getLat().toFixed(5)+','+_mapFacMiniLocked.getLng().toFixed(5);
   let lat=null,lng=null;
@@ -3876,12 +3905,12 @@ function submitAddFac(){
     if(idx!==-1){facs[idx]={...facs[idx],type:document.getElementById('facTypeSel').value,name,loc:document.getElementById('facLocIn').value,status,lat,lng,install:document.getElementById('facInstall').value,note:document.getElementById('facNote').value,author:document.getElementById('facAuthor').value,...(photo?{photo}:{})};}
     DB.s('facilities',facs);
     try{renderInspectMap();}catch(e){}try{renderFacList();}catch(e){}
-    closeM('modalAddFac');toast('✅ 수정 완료');updateSummary();_editFacId=null;
+    _editFacId=null;_isSubmitting=false;closeM('modalAddFac');toast('✅ 수정 완료');updateSummary();
   }else{
     facs.push({id:Date.now(),type:document.getElementById('facTypeSel').value,name,loc:document.getElementById('facLocIn').value,status,lat,lng,install:document.getElementById('facInstall').value,note:document.getElementById('facNote').value,author:document.getElementById('facAuthor').value,photo});
     DB.s('facilities',facs);
     if(status==='bad')pushNoti(`위험 시설물: ${name}`,'🚨','fac_bad',{app:'inspect',tab:2});
-    try{renderInspectMap();}catch(e){}closeM('modalAddFac');toast('✅ 시설물 등록');updateSummary();
+    _isSubmitting=false;try{renderInspectMap();}catch(e){}closeM('modalAddFac');toast('✅ 시설물 등록');updateSummary();
   }
 }
 function goFacOnMap(id){
