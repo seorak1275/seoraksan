@@ -1752,22 +1752,24 @@ function _checkAdminCode(code,kakaoId){
 }
 function isGuest(){ return false; }
 function isLoggedIn(){ return true; }
+var _hideLoginTimer=null;
 function showLoginScreen(){
+  if(_hideLoginTimer){clearTimeout(_hideLoginTimer);_hideLoginTimer=null;}
   const ls=document.getElementById('loginScreen');
   if(!ls)return;
-  ls.style.pointerEvents='auto';
   ls.style.transition='';
   ls.style.opacity='1';
   ls.style.display='flex';
+  ls.style.pointerEvents='auto';
 }
 function hideLoginScreen(){
   const ls=document.getElementById('loginScreen');
   if(!ls)return;
-  ls.style.pointerEvents='none'; // 즉시 클릭 차단 해제
+  ls.style.pointerEvents='none';
   ls.style.transition='opacity .35s';
   ls.style.opacity='0';
-  // removeChild 대신 display:none 으로 숨김 — 재사용 가능하게 유지
-  setTimeout(()=>{ls.style.display='none';ls.style.transition='';},380);
+  if(_hideLoginTimer)clearTimeout(_hideLoginTimer);
+  _hideLoginTimer=setTimeout(()=>{_hideLoginTimer=null;ls.style.display='none';ls.style.transition='';},380);
 }
 // 카카오 로그인 성공 후 프로필 조회 공통
 function _kakaoGetProfile(token){
@@ -5622,9 +5624,15 @@ window.onload=function(){
       if(barEl)barEl.style.width='100%';
       function checkAuth(){
         updateUserUI();
-        if(window._processingAuth)return; // 카카오 리다이렉트 처리 중엔 스킵
+        if(window._processingAuth){
+          // 카카오 리다이렉트 처리 중 — 10초 안전 타임아웃
+          setTimeout(function(){
+            if(window._processingAuth){window._processingAuth=false;showLoginScreen();}
+          },10000);
+          return;
+        }
         const authType=DB.g('authType')||'';
-        if(!authType){showLoginScreen();}
+        if(!authType){applyAuthState();showLoginScreen();}
         else{applyAuthState();}
       }
       setTimeout(function(){
