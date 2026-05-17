@@ -1652,22 +1652,26 @@ function hideLoginScreen(){
   setTimeout(()=>{if(ls.parentNode)ls.parentNode.removeChild(ls);},400);
 }
 // 카카오 로그인 성공 후 프로필 조회 공통
-async function _kakaoGetProfile(token){
-  try{
-    // token이 있으면 직접 fetch, 없으면 SDK 내부 토큰 사용
-    const res=await fetch('https://kapi.kakao.com/v2/user/me',{
-      headers:{Authorization:'Bearer '+(token||Kakao.Auth.getAccessToken()||'')}
-    });
-    const data=await res.json();
-    if(data.code&&data.code<0)throw new Error(data.msg||'API 오류');
-    const prof=(data.kakao_account?.profile)||{};
-    const u=DB.g('currentUser')||{};
-    u.name=prof.nickname||'';u.kakaoImg=prof.profile_image_url||'';
-    DB.s('currentUser',u);DB.s('authType','kakao');
-    applyAuthState();hideLoginScreen();
-    try{renderSettings();}catch(e){}
-    toast('✅ 안녕하세요, '+u.name+'님!');
-  }catch(e){toast('❌ 프로필 조회 실패');showLoginScreen();}
+function _kakaoGetProfile(token){
+  // 외부 토큰이 있으면 SDK에 주입 (implicit grant 복귀 시)
+  if(token){try{Kakao.Auth.setAccessToken(token);}catch(e){}}
+  // SDK 내장 요청 사용 (CORS 자동 처리)
+  Kakao.API.request({
+    url:'/v2/user/me',
+    success:function(res){
+      const prof=(res.kakao_account?.profile)||{};
+      const u=DB.g('currentUser')||{};
+      u.name=prof.nickname||'';u.kakaoImg=prof.profile_image_url||'';
+      DB.s('currentUser',u);DB.s('authType','kakao');
+      applyAuthState();hideLoginScreen();
+      try{renderSettings();}catch(e){}
+      toast('✅ 안녕하세요, '+u.name+'님!');
+    },
+    fail:function(err){
+      toast('❌ 프로필 조회 실패: '+(err?.msg||JSON.stringify(err)||''));
+      showLoginScreen();
+    }
+  });
 }
 // APK 리다이렉트용 URI (capacitor.config hostname과 일치)
 const _KAKAO_RDR='https://109yoon.github.io/';
