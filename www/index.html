@@ -507,7 +507,7 @@ body.guest-mode .guest-hide{display:none!important;}
     <div id="loadBar" style="height:100%;width:0%;background:linear-gradient(90deg,#4fa8d0,#27ae60);border-radius:2px;transition:width .5s ease;"></div>
   </div>
   <div id="loadTip" style="margin-top:16px;font-size:12px;color:#4a7090;text-align:center;padding:0 32px;line-height:1.7;max-width:300px;min-height:40px;transition:opacity .3s;"></div>
-
+  <button id="loadStartBtn" onclick="window._loadStartTapped&&window._loadStartTapped()" style="display:none;margin-top:32px;padding:16px 48px;background:#4fa8d0;color:#fff;border:none;border-radius:16px;font-size:17px;font-weight:800;letter-spacing:1px;pointer-events:auto;box-shadow:0 4px 20px rgba(79,168,208,.4);">탭하여 시작</button>
 </div>
 <script>
 // 로딩 화면 팁·바 애니메이션: window.onload 이전에 즉시 시작
@@ -5621,7 +5621,6 @@ window.onload=function(){
       function checkAuth(){
         updateUserUI();
         if(window._processingAuth){
-          // 카카오 리다이렉트 처리 중 — 10초 안전 타임아웃
           setTimeout(function(){
             if(window._processingAuth){window._processingAuth=false;showLoginScreen();}
           },10000);
@@ -5629,19 +5628,21 @@ window.onload=function(){
         }
         applyAuthState();
       }
-      setTimeout(function(){
+      function _doStart(){
         var ls=document.getElementById('loadingScreen');
         if(ls){
-          ls.style.pointerEvents='none';
-          ls.style.transition='opacity .6s';ls.style.opacity='0';
-          setTimeout(function(){
-            if(ls.parentNode)ls.parentNode.removeChild(ls);
-            checkAuth();
-          },600);
-        } else {
-          checkAuth();
-        }
-      },400);
+          ls.style.transition='opacity .4s';ls.style.opacity='0';
+          setTimeout(function(){if(ls.parentNode)ls.parentNode.removeChild(ls);checkAuth();},400);
+        } else {checkAuth();}
+      }
+      // 버튼 표시 — 터치 확인용
+      var btn=document.getElementById('loadStartBtn');
+      if(btn){
+        btn.style.display='block';
+        window._loadStartTapped=function(){btn.style.display='none';_doStart();};
+      } else {
+        setTimeout(_doStart,400);
+      }
     };
     // 3초 폴백: initFirebase가 느릴 경우 강제 전환
     setTimeout(function(){if(window._hideLoading)window._hideLoading();},3000);
