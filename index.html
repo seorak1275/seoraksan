@@ -507,8 +507,9 @@ body.guest-mode .guest-hide{display:none!important;}
     <div id="loadBar" style="height:100%;width:0%;background:linear-gradient(90deg,#4fa8d0,#27ae60);border-radius:2px;transition:width .5s ease;"></div>
   </div>
   <div id="loadTip" style="margin-top:16px;font-size:12px;color:#4a7090;text-align:center;padding:0 32px;line-height:1.7;max-width:300px;min-height:40px;transition:opacity .3s;"></div>
-  <button id="loadStartBtn" onclick="window._loadStartTapped&&window._loadStartTapped()" style="display:none;margin-top:32px;padding:16px 48px;background:#4fa8d0;color:#fff;border:none;border-radius:16px;font-size:17px;font-weight:800;letter-spacing:1px;pointer-events:auto;box-shadow:0 4px 20px rgba(79,168,208,.4);">탭하여 시작</button>
 </div>
+<!-- 시작 버튼: 로딩화면과 완전 독립, 터치 진단용 -->
+<button id="loadStartBtn" onclick="window._loadStartTapped&&window._loadStartTapped()" style="display:none;position:fixed;bottom:80px;left:50%;transform:translateX(-50%);z-index:10000;padding:18px 56px;background:#4fa8d0;color:#fff;border:none;border-radius:18px;font-size:18px;font-weight:900;letter-spacing:1px;pointer-events:auto;box-shadow:0 6px 28px rgba(79,168,208,.5);white-space:nowrap;">탭하여 시작</button>
 <script>
 // 로딩 화면 팁·바 애니메이션: window.onload 이전에 즉시 시작
 (function(){
@@ -526,17 +527,26 @@ body.guest-mode .guest-hide{display:none!important;}
     prog=Math.min(prog+Math.random()*12+3,88);
     if(barEl)barEl.style.width=prog+'%';
   },500);
-  // 2초 절대 타임아웃: window.onload가 정의한 _hideLoading이 있으면 위임, 없으면 직접 처리
-  window._safeLoadingTimer=setTimeout(function(){
-    if(window._hideLoading){window._hideLoading();return;}
-    if(window._hideLoadingDone)return;
-    window._hideLoadingDone=true;
+  // 2초 후 무조건 시작버튼 표시 (window.onload 여부 무관)
+  setTimeout(function(){
+    if(window._hideLoadingDone)return; // 이미 완료됐으면 스킵
+    if(window._hideLoading){window._hideLoading();return;} // _hideLoading 있으면 위임
+    // _hideLoading 없을 때도 버튼 직접 표시
     clearInterval(window._loadTipTimer);clearInterval(window._loadBarTimer);
     if(barEl)barEl.style.width='100%';
-    var ls=document.getElementById('loadingScreen');
-    if(ls){ls.style.transition='opacity .4s';ls.style.opacity='0';setTimeout(function(){if(ls.parentNode)ls.parentNode.removeChild(ls);},400);}
-    if(window.applyAuthState)window.applyAuthState();
+    window._showLoadStartBtn();
   },2000);
+  window._showLoadStartBtn=function(){
+    var btn=document.getElementById('loadStartBtn');
+    if(!btn||btn.style.display!=='none')return;
+    btn.style.display='block';
+    window._loadStartTapped=window._loadStartTapped||function(){
+      btn.style.display='none';
+      var ls=document.getElementById('loadingScreen');
+      if(ls){ls.style.transition='opacity .4s';ls.style.opacity='0';setTimeout(function(){if(ls.parentNode)ls.parentNode.removeChild(ls);},400);}
+      if(window.applyAuthState)window.applyAuthState();
+    };
+  };
 })();
 </script>
 
@@ -5636,13 +5646,13 @@ window.onload=function(){
         } else {checkAuth();}
       }
       // 버튼 표시 — 터치 확인용
-      var btn=document.getElementById('loadStartBtn');
-      if(btn){
-        btn.style.display='block';
-        window._loadStartTapped=function(){btn.style.display='none';_doStart();};
-      } else {
-        setTimeout(_doStart,400);
-      }
+      window._loadStartTapped=function(){
+        var btn=document.getElementById('loadStartBtn');
+        if(btn)btn.style.display='none';
+        _doStart();
+      };
+      if(window._showLoadStartBtn)window._showLoadStartBtn();
+      else{var btn=document.getElementById('loadStartBtn');if(btn){btn.style.display='block';}else{setTimeout(_doStart,400);}}
     };
     // 3초 폴백: initFirebase가 느릴 경우 강제 전환
     setTimeout(function(){if(window._hideLoading)window._hideLoading();},3000);
