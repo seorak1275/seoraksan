@@ -1670,7 +1670,7 @@ document.addEventListener('touchend',e=>{
 },{passive:true});
 function goHome(){showV('v-home');document.getElementById('appHdr').style.display='none';document.getElementById('bnav').style.display='none';closeDB();updateSummary();}
 function openApp(mode){
-  if(_isPending()&&['rescue','inspect','admin','stats'].includes(mode)){
+  if(_isPending()&&['rescue','admin','stats'].includes(mode)){
     toast('⏳ 관리자 승인 후 이용 가능합니다.');return;
   }
   curApp=mode;
