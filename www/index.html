@@ -24,6 +24,7 @@
 <script src="https://t1.kakaocdn.net/kakao_js_sdk/2.7.2/kakao.min.js" crossorigin="anonymous"></script>
 <script>
 var KAKAO_KEY='4ba2cd810d516a4f336d4dee5fa5eba5';
+var KAKAO_REST_KEY='d5ee24777205f468c21e83b2b908c726';
 if(window.Kakao&&!Kakao.isInitialized()) Kakao.init(KAKAO_KEY);
 (function(){var s=document.createElement('script');s.src='//dapi.kakao.com/v2/maps/sdk.js?appkey='+KAKAO_KEY+'&libraries=services&autoload=false';s.onload=function(){kakao.maps.load(function(){window._KR=true;if(window._KCB)window._KCB();});};document.head.appendChild(s);})();
 </script>
@@ -1673,16 +1674,40 @@ function _kakaoGetProfile(token){
     }
   });
 }
-// APK 리다이렉트용 URI (capacitor.config hostname과 일치)
-// APK: hostname 루트, 웹: GitHub Pages 경로
-const _KAKAO_RDR=window.Capacitor?'https://109yoon.github.io/':'https://109yoon.github.io/seoraksan/';
+const _KAKAO_APK_RDR='https://109yoon.github.io/';
 function openKakaoLogin(){
-  // 팝업 방식 대신 전체 페이지 리다이렉트 — 팝업 차단 문제 없음
-  const uri=encodeURIComponent(_KAKAO_RDR);
-  location.href=`https://kauth.kakao.com/oauth/authorize?client_id=${KAKAO_KEY}&redirect_uri=${uri}&response_type=token&scope=profile_nickname,profile_image`;
+  if(!window.Kakao||!Kakao.isInitialized()){toast('카카오 SDK 초기화 실패');return;}
+  if(window.Capacitor){
+    // APK: authorization code 방식 리다이렉트 → handleKakaoRedirect에서 CapacitorHttp로 토큰 교환
+    Kakao.Auth.authorize({redirectUri:_KAKAO_APK_RDR,scope:'profile_nickname,profile_image'});
+  } else {
+    // 웹: SDK 팝업 방식 (내부에서 토큰 처리)
+    Kakao.Auth.login({
+      scope:'profile_nickname,profile_image',
+      success:function(auth){_kakaoGetProfile(auth.access_token);},
+      fail:function(err){toast('❌ 카카오 로그인 실패: '+(err?.error_description||JSON.stringify(err)));}
+    });
+  }
 }
 async function handleKakaoRedirect(){
-  // APK implicit grant 복귀: #access_token=XXX
+  // APK authorization code 복귀: ?code=XXX
+  const params=new URLSearchParams(location.search);
+  const code=params.get('code');
+  if(code&&window.Capacitor){
+    history.replaceState(null,'',location.origin+location.pathname);
+    try{
+      const resp=await window.Capacitor.Plugins.CapacitorHttp.request({
+        method:'POST',url:'https://kauth.kakao.com/oauth/token',
+        headers:{'Content-Type':'application/x-www-form-urlencoded'},
+        data:`grant_type=authorization_code&client_id=${KAKAO_REST_KEY}&redirect_uri=${encodeURIComponent(_KAKAO_APK_RDR)}&code=${code}`
+      });
+      const d=typeof resp.data==='string'?JSON.parse(resp.data):resp.data;
+      if(d.access_token){await _kakaoGetProfile(d.access_token);return true;}
+      toast('❌ 토큰 오류: '+(d.error_description||JSON.stringify(d)));
+    }catch(e){toast('❌ 토큰 교환 실패: '+e.message);}
+    return false;
+  }
+  // 호환: #access_token=XXX (implicit grant 잔존 처리)
   const hash=new URLSearchParams(location.hash.replace(/^#/,''));
   const token=hash.get('access_token');
   if(token){
@@ -1690,11 +1715,6 @@ async function handleKakaoRedirect(){
     await _kakaoGetProfile(token);
     return true;
   }
-  // authorization code 방식 (미사용, 호환 유지)
-  const params=new URLSearchParams(location.search);
-  const code=params.get('code');
-  if(!code)return false;
-  history.replaceState(null,'',location.origin+location.pathname);
   return false;
 }
 function kakaoLogout(){
