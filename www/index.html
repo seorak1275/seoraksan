@@ -489,6 +489,8 @@ input[type="date"]::-webkit-calendar-picker-indicator{
 }
 
 /* ══ 로그인 화면 ══ */
+#loginScreen{transition:opacity .3s ease;}
+#loginScreen button{touch-action:manipulation;-webkit-tap-highlight-color:transparent;}
 
 /* ══ 게스트 배지 ══ */
 #guestBadge{display:none;background:rgba(255,165,0,.12);border:1px solid rgba(255,165,0,.3);color:#f0a500;font-size:10px;font-weight:700;padding:3px 8px;border-radius:20px;margin-left:6px;}
@@ -499,7 +501,7 @@ body.guest-mode .guest-hide{display:none!important;}
 
 </style>
 
-<div id="loadingScreen" style="position:fixed;inset:0;background:#060d1a;z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;">
+<div id="loadingScreen" style="position:fixed;inset:0;background:#060d1a;z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;pointer-events:none;">
   <img src="data:image/png;base64,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" style="width:70px;height:70px;object-fit:contain;mix-blend-mode:screen;filter:brightness(1.3);" alt="설악산">
   <div style="margin-top:12px;font-size:13px;font-weight:700;color:#e0edf8;letter-spacing:.5px;">설악산국립공원</div>
   <div style="font-size:10px;color:#3a6a8a;letter-spacing:1px;margin-top:2px;">SEORAKSAN NATIONAL PARK</div>
@@ -526,7 +528,7 @@ body.guest-mode .guest-hide{display:none!important;}
     prog=Math.min(prog+Math.random()*12+3,88);
     if(barEl)barEl.style.width=prog+'%';
   },500);
-  // 6초 절대 타임아웃: window.onload가 정의한 _hideLoading이 있으면 위임, 없으면 직접 처리
+  // 8초 절대 타임아웃: window.onload가 정의한 _hideLoading이 있으면 위임, 없으면 직접 처리
   window._safeLoadingTimer=setTimeout(function(){
     if(window._hideLoading){window._hideLoading();return;}
     if(window._hideLoadingDone)return;
@@ -534,13 +536,14 @@ body.guest-mode .guest-hide{display:none!important;}
     clearInterval(window._loadTipTimer);clearInterval(window._loadBarTimer);
     if(barEl)barEl.style.width='100%';
     var ls=document.getElementById('loadingScreen');
-    if(!ls)return;
-    ls.style.pointerEvents='none';ls.style.transition='opacity .5s';ls.style.opacity='0';
+    if(ls){ls.style.transition='opacity .5s';ls.style.opacity='0';
+      setTimeout(function(){ls.style.display='none';},500);}
+    // 반드시 인증 상태 확인 — checkAuth가 전역에 등록되어 있으면 호출
     setTimeout(function(){
-      if(ls.parentNode)ls.parentNode.removeChild(ls);
-      if(window.updateUserUI) window.updateUserUI();
-    },500);
-  },6000);
+      if(window._checkAuth){window._checkAuth();}
+      else if(window.updateUserUI){window.updateUserUI();}
+    },550);
+  },8000);
 })();
 </script>
 
@@ -574,7 +577,7 @@ body.guest-mode .guest-hide{display:none!important;}
     <div style="border-top:1px solid rgba(255,255,255,.05);margin:0 24px;padding:16px 0 0;display:flex;flex-direction:column;align-items:center;gap:5px;">
       <div style="font-size:10px;color:#1e3a52;font-weight:600;">오류 및 문의</div>
       <div style="font-size:12px;color:#3a6a8a;font-weight:700;">📞 010-9360-8848 &nbsp;윤태종</div>
-      <div style="font-size:10px;color:#152a3a;margin-top:4px;">설악산 현장관리 v1.2 &nbsp;·&nbsp; 설악산국립공원사무소</div>
+      <div style="font-size:10px;color:#152a3a;margin-top:4px;">설악산 현장관리 v1.3 &nbsp;·&nbsp; 설악산국립공원사무소</div>
     </div>
   </div>
 </div>
@@ -1606,7 +1609,7 @@ function initMaps(){
     kakao.maps.event.addListener(mapI,'center_changed',()=>{
       try{const ic=mapI.getCenter();window._lastInspectCoord={lat:ic.getLat(),lng:ic.getLng()};}catch(e){}
     });
-    if(window._hideLoading)setTimeout(window._hideLoading,600);
+    // 지도 초기화 완료 — 로딩 해제는 initFirebase 콜백이 담당하므로 여기서는 폴백으로만
   }
   if(window._KR)doInit();else window._KCB=doInit;
 }
@@ -1754,14 +1757,24 @@ function isGuest(){ return false; }
 function isLoggedIn(){ return true; }
 function showLoginScreen(){
   const ls=document.getElementById('loginScreen');
-  if(ls){ls.style.display='flex';ls.style.opacity='1';}
+  if(!ls)return;
+  ls.style.pointerEvents='auto';
+  ls.style.opacity='0';
+  ls.style.display='flex';
+  // 강제 reflow 후 fade in (requestAnimationFrame 2회로 display change 반영 보장)
+  requestAnimationFrame(function(){
+    requestAnimationFrame(function(){
+      ls.style.opacity='1';
+    });
+  });
 }
 function hideLoginScreen(){
   const ls=document.getElementById('loginScreen');
-  if(!ls)return;
+  if(!ls||ls.style.display==='none')return;
   ls.style.pointerEvents='none'; // 즉시 클릭 차단 해제
-  ls.style.transition='opacity .35s';ls.style.opacity='0';
-  setTimeout(()=>{try{if(ls.parentNode)ls.parentNode.removeChild(ls);}catch(e){}},400);
+  ls.style.opacity='0';
+  // removeChild 대신 display:none — DOM에 보존하여 재표시 가능
+  setTimeout(()=>{ls.style.display='none';},380);
 }
 // 카카오 로그인 성공 후 프로필 조회 공통
 function _kakaoGetProfile(token){
@@ -1916,6 +1929,7 @@ function getAddTeamMembers(){
 
 // 변경이력
 const _CL=[
+  {ver:'v1.3',date:'2026.05.17',summary:'먹통 버그 완전 수정·로딩·로그인 안정성 대폭 개선',items:['로딩화면 pointer-events:none 초기화로 클릭 차단 원천 해소','checkAuth 전역 함수화로 모든 경로에서 인증 상태 확인','로그인 화면 removeChild→display:none 전환(재표시 가능)','로딩 해제 경쟁 조건(race condition) 수정','절대 타임아웃 8초로 연장·확실한 폴백 처리','지도 초기화와 로딩 해제 분리로 중복 호출 제거']},
   {ver:'v1.2',date:'2026.05.15',summary:'카카오 로그인·팀기능 개선·타임라인 자동선택 등 6건',items:['카카오 로그인 / 게스트 / 개발자 모드','공단 초동 출동팀 자동체크 (본인 이름)','추가팀 복수 지원 (추가1팀·2팀·3팀)','소방 유관기관 동적 추가 기능','타임라인 누가 항목 자동선택','환동해산악구조대 당직팀 자동계산']},
   {ver:'v1.1',date:'2026.05.10',summary:'타임라인 개편·유관기관 추가·APK 자동화·버그 수정',items:['구조 타임라인 카테고리 정리','유관기관 출동 섹션 추가','APK 빌드 자동화 (GitHub Actions)','무한 로그인 버그 수정']},
   {ver:'v1.0',date:'2026.05.01',summary:'설악산 현장관리 앱 최초 출시',items:['설악산 현장관리 앱 최초 출시','재난/구조 접수 및 보고 기능','시설물 점검 관리','설악위키 기능','카카오 지도 연동']},
@@ -4738,6 +4752,7 @@ async function fetchWeather(force){
   if(_weatherFetching)return;
   if(!force&&_lastWeather&&Date.now()-_weatherFetchedAt<600000)return; // 10분 캐시
   _weatherFetching=true;
+  if(force){const m=document.getElementById('hwMain');if(m)m.textContent='날씨 갱신 중...';}
   try{
     const r=await fetch('https://api.open-meteo.com/v1/forecast?latitude=38.119&longitude=128.465&current=temperature_2m,wind_speed_10m,weather_code,precipitation&wind_speed_unit=ms&timezone=Asia%2FSeoul');
     const d=await r.json();
@@ -4746,7 +4761,10 @@ async function fetchWeather(force){
     _lastWeather={temp:Math.round(c.temperature_2m??0),wind:Math.round((c.wind_speed_10m??0)*10)/10,prec:Math.round((c.precipitation??0)*10)/10,code,ico:_WMO_ICO[code]||'🌤️',desc:_WMO_KO[code]||'',fetchedAt:new Date()};
     _weatherFetchedAt=Date.now();
     _renderWeatherWidget();
-  }catch(e){}
+    if(force)toast('날씨 갱신됨');
+  }catch(e){
+    if(force){const m=document.getElementById('hwMain');if(m)m.textContent='날씨 조회 실패 (재시도하려면 탭)';}
+  }
   _weatherFetching=false;
 }
 function _renderWeatherWidget(){
@@ -5604,6 +5622,15 @@ document.addEventListener('input',e=>{
 });
 
 
+// ── 전역 인증 상태 확인 함수 (로딩 완료 후 항상 호출됨) ──
+window._checkAuth=function(){
+  try{updateUserUI();}catch(e){}
+  if(window._processingAuth)return; // 카카오 리다이렉트 처리 중엔 스킵
+  const authType=DB.g('authType')||'';
+  if(!authType){showLoginScreen();}
+  else{applyAuthState();}
+};
+
 window.onload=function(){
   // ── 로딩 화면 ── (애니메이션은 loadingScreen 직후 인라인 스크립트에서 이미 시작됨)
   (function(){
@@ -5614,29 +5641,21 @@ window.onload=function(){
       clearInterval(window._loadTipTimer);clearInterval(window._loadBarTimer);
       var barEl=document.getElementById('loadBar');
       if(barEl)barEl.style.width='100%';
-      function checkAuth(){
-        updateUserUI();
-        if(window._processingAuth)return; // 카카오 리다이렉트 처리 중엔 스킵
-        const authType=DB.g('authType')||'';
-        if(!authType){showLoginScreen();}
-        else{applyAuthState();}
-      }
       setTimeout(function(){
         var ls=document.getElementById('loadingScreen');
         if(ls){
-          ls.style.pointerEvents='none';
-          ls.style.transition='opacity .6s';ls.style.opacity='0';
+          ls.style.transition='opacity .5s';ls.style.opacity='0';
           setTimeout(function(){
-            if(ls.parentNode)ls.parentNode.removeChild(ls);
-            checkAuth();
-          },600);
+            ls.style.display='none';
+            window._checkAuth();
+          },520);
         } else {
-          checkAuth();
+          window._checkAuth();
         }
-      },400);
+      },300);
     };
-    // 3초 폴백: initFirebase가 느릴 경우 강제 전환
-    setTimeout(function(){if(window._hideLoading)window._hideLoading();},3000);
+    // 4초 폴백: initFirebase가 느릴 경우 강제 전환
+    setTimeout(function(){if(window._hideLoading)window._hideLoading();},4000);
   })();
 
   // 뒤로가기 처리 (Android 하드웨어 버튼 + popstate)
