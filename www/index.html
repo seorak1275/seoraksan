@@ -1670,6 +1670,9 @@ document.addEventListener('touchend',e=>{
 },{passive:true});
 function goHome(){showV('v-home');document.getElementById('appHdr').style.display='none';document.getElementById('bnav').style.display='none';closeDB();updateSummary();}
 function openApp(mode){
+  if(_isPending()&&['rescue','inspect','admin','stats'].includes(mode)){
+    toast('⏳ 관리자 승인 후 이용 가능합니다.');return;
+  }
   curApp=mode;
   document.querySelectorAll('.view').forEach(v=>v.classList.remove('on'));
   document.getElementById('appHdr').style.display='block';
@@ -1719,6 +1722,9 @@ function switchTab(idx,el){
 // ══════════════════════════════════════════
 // 인증 (로그인 / 게스트 / 로그아웃)
 // ══════════════════════════════════════════
+const _ADMIN_EMAIL='yraphael@naver.com';
+function _isPending(){return DB.g('authType')==='pending';}
+function _isApproved(){const t=DB.g('authType')||'';return t==='kakao'||t==='admin'||t==='dev';}
 function isGuest(){ return false; }
 function isLoggedIn(){ return true; }
 function showLoginScreen(){
@@ -1733,17 +1739,40 @@ function hideLoginScreen(){
 }
 // 카카오 로그인 성공 후 프로필 조회 공통
 function _kakaoGetProfile(token){
-  // 외부 토큰이 있으면 SDK에 주입 (implicit grant 복귀 시)
   if(token){try{Kakao.Auth.setAccessToken(token);}catch(e){}}
   Kakao.API.request({url:'/v2/user/me'})
     .then(function(res){
       const prof=(res.kakao_account?.profile)||{};
+      const email=(res.kakao_account?.email)||'';
+      const kakaoId=String(res.id||'');
       const u=DB.g('currentUser')||{};
-      u.name=prof.nickname||'';u.kakaoImg=prof.profile_image_url||'';
-      DB.s('currentUser',u);DB.s('authType','kakao');
+      u.name=prof.nickname||'';
+      u.kakaoImg=prof.profile_image_url||'';
+      u.kakaoEmail=email;
+      u.kakaoId=kakaoId;
+      DB.s('currentUser',u);
+      // 관리자 or 승인된 사용자 여부 확인
+      const isAdmin=email===_ADMIN_EMAIL;
+      const approvedList=DB.g('approvedUsers')||[];
+      const isApproved=isAdmin||approvedList.some(a=>a.id===kakaoId);
+      if(isAdmin){
+        DB.s('authType','admin');
+      } else if(isApproved){
+        DB.s('authType','kakao');
+      } else {
+        DB.s('authType','pending');
+        // pendingUsers에 등록 (중복 방지)
+        const pending=DB.g('pendingUsers')||[];
+        if(!pending.some(p=>p.id===kakaoId)){
+          pending.push({id:kakaoId,name:u.name,email,kakaoImg:u.kakaoImg,requestedAt:now()});
+          DB.s('pendingUsers',pending);
+          pushNoti(`접속 승인 요청: ${u.name}${email?' ('+email+')':''}`, '👤','user_pending',{app:'admin'});
+        }
+      }
       applyAuthState();hideLoginScreen();
       try{renderSettings();}catch(e){}
-      toast('✅ 안녕하세요, '+u.name+'님!');
+      const msg=isAdmin?'관리자로 로그인':isApproved?'환영합니다':'접속 승인 대기 중입니다. 관리자 승인 후 이용 가능합니다.';
+      toast('✅ 안녕하세요, '+u.name+'님! '+msg);
     })
     .catch(function(err){
       toast('❌ 프로필 조회 실패: '+(err?.msg||JSON.stringify(err)||''));
@@ -1755,10 +1784,10 @@ const _KAKAO_WEB_RDR='https://109yoon.github.io/seoraksan/';
 function openKakaoLogin(){
   if(window.Capacitor){
     // APK: REST키로 리다이렉트 → CapacitorHttp로 토큰 교환
-    location.href='https://kauth.kakao.com/oauth/authorize?client_id='+KAKAO_REST_KEY+'&redirect_uri='+encodeURIComponent(_KAKAO_APK_RDR)+'&response_type=code&scope=profile_nickname,profile_image';
+    location.href='https://kauth.kakao.com/oauth/authorize?client_id='+KAKAO_REST_KEY+'&redirect_uri='+encodeURIComponent(_KAKAO_APK_RDR)+'&response_type=code&scope=profile_nickname,profile_image,account_email';
   } else {
     // 웹: JS키로 리다이렉트 (authorize·exchange 모두 JS키로 일치시킴)
-    location.href='https://kauth.kakao.com/oauth/authorize?client_id='+KAKAO_KEY+'&redirect_uri='+encodeURIComponent(_KAKAO_WEB_RDR)+'&response_type=code&scope=profile_nickname,profile_image';
+    location.href='https://kauth.kakao.com/oauth/authorize?client_id='+KAKAO_KEY+'&redirect_uri='+encodeURIComponent(_KAKAO_WEB_RDR)+'&response_type=code&scope=profile_nickname,profile_image,account_email';
   }
 }
 async function handleKakaoRedirect(){
@@ -1804,28 +1833,26 @@ async function handleKakaoRedirect(){
 }
 function kakaoLogout(){
   function _clearKakao(){
-    const u=DB.g('currentUser')||{};
-    delete u.kakaoImg;DB.s('currentUser',u);
-    DB.s('authType','guest');
-    applyAuthState();try{renderSettings();}catch(e){}
+    DB.s('currentUser',{});
+    DB.s('authType','');
+    try{if(window.Kakao&&Kakao.Auth)Kakao.Auth.setAccessToken('');}catch(e){}
     toast('✅ 로그아웃');
+    setTimeout(()=>{location.reload();},600);
   }
   if(window.Kakao&&Kakao.Auth&&Kakao.Auth.getAccessToken()){
-    Kakao.Auth.logout(_clearKakao);
+    try{Kakao.Auth.logout(_clearKakao);}catch(e){_clearKakao();}
   } else {_clearKakao();}
 }
-function doGuest(){
-  DB.s('authType','guest');
-  applyAuthState();hideLoginScreen();
-}
 function applyAuthState(){
-  document.body.classList.remove('guest-mode');
+  const authType=DB.g('authType')||'';
+  const isPending=authType==='pending';
+  document.body.classList.toggle('guest-mode', isPending||authType==='guest'||!authType);
   const ua=document.getElementById('headerUserArea');
   const un=document.getElementById('headerUserName');
   const up=document.getElementById('headerUserPhoto');
   const u=DB.g('currentUser')||{};
   if(ua) ua.style.display='flex';
-  if(un) un.textContent=u.name||'';
+  if(un) un.textContent=isPending?(u.name?u.name+' (승인대기)':''): (u.name||'');
   if(up){
     if(u.kakaoImg) up.innerHTML=`<img src="${u.kakaoImg}" style="width:100%;height:100%;object-fit:cover;" onerror="this.parentElement.textContent='👤'">`;
     else up.textContent=u.name?u.name.charAt(0):'👤';
@@ -4164,12 +4191,44 @@ function admTab(tab,el){
   document.getElementById('adm-'+tab).classList.add('on');
   ({ctrl:renderAdmCtrl,members:renderAdmMembers,cat:renderAdmCat,sheets:renderAdmSheets,sys:renderAdmSys,staff:renderAdmMembers})[tab]?.();
 }
+function admApproveUser(kakaoId){
+  const pending=DB.g('pendingUsers')||[];
+  const user=pending.find(p=>p.id===kakaoId);
+  if(!user)return;
+  const approved=DB.g('approvedUsers')||[];
+  if(!approved.some(a=>a.id===kakaoId)){
+    approved.push({id:kakaoId,name:user.name,email:user.email,approvedAt:now()});
+    DB.s('approvedUsers',approved);
+  }
+  DB.s('pendingUsers',pending.filter(p=>p.id!==kakaoId));
+  pushNoti(`접속 승인 완료: ${user.name}`, '✅','user_approved',{app:'admin'});
+  toast('✅ 승인 완료: '+user.name);
+  renderAdmCtrl();
+}
+function admRejectUser(kakaoId){
+  const pending=DB.g('pendingUsers')||[];
+  DB.s('pendingUsers',pending.filter(p=>p.id!==kakaoId));
+  toast('🗑️ 거절 완료');
+  renderAdmCtrl();
+}
 function renderAdmCtrl(){
   const facs=DB.g('facilities')||[];const res=DB.g('rescues')||[];const haz=DB.g('hazards')||[];const wikis=DB.g('wikis')||[];
   const ongoing=res.filter(r=>r.status==='ongoing').length;
   const badFac=facs.filter(f=>f.status!=='ok').length;
+  const pending=DB.g('pendingUsers')||[];
+  const pendingHtml=pending.length?`
+    <div style="background:#0d1e30;border:1px solid rgba(254,200,0,.3);border-radius:12px;padding:14px 16px;">
+      <div style="font-size:13px;font-weight:700;color:#fee200;margin-bottom:8px;">👤 접속 승인 요청 (${pending.length}명)</div>
+      ${pending.map(p=>`<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid rgba(255,255,255,.05);">
+        ${p.kakaoImg?`<img src="${p.kakaoImg}" style="width:30px;height:30px;border-radius:50%;object-fit:cover;">` : `<div style="width:30px;height:30px;border-radius:50%;background:#1a3a5a;display:flex;align-items:center;justify-content:center;font-size:13px;">👤</div>`}
+        <div style="flex:1;min-width:0;"><div style="font-size:12px;font-weight:600;color:#e0edf8;">${p.name||'이름없음'}</div><div style="font-size:10px;color:#5a8aaa;">${p.email||p.id}</div></div>
+        <button onclick="admApproveUser('${p.id}')" style="background:rgba(39,174,96,.2);color:#2ecc71;border:1px solid rgba(39,174,96,.35);padding:5px 10px;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;margin-right:4px;">승인</button>
+        <button onclick="admRejectUser('${p.id}')" style="background:rgba(192,57,43,.15);color:#e74c3c;border:1px solid rgba(192,57,43,.3);padding:5px 10px;border-radius:6px;font-size:11px;cursor:pointer;">거절</button>
+      </div>`).join('')}
+    </div>`:''
   document.getElementById('admCtrlWrap').innerHTML=`
     <div style="display:flex;flex-direction:column;gap:10px;padding:4px 0;">
+      ${pendingHtml}
       <div onclick="admCtrlSector('rescue')" style="background:#0d1e30;border:1px solid rgba(192,57,43,.35);border-radius:12px;padding:14px 16px;cursor:pointer;display:flex;align-items:center;justify-content:space-between;active:opacity:.8;">
         <div><div style="font-size:13px;font-weight:700;color:#e8c0c0;">🚨 재난구조</div><div style="font-size:11px;color:#8a9cb8;margin-top:4px;">진행중 <b style="color:${ongoing?'#e74c3c':'#4fa8d0'};">${ongoing}건</b> · 전체 ${res.length}건 · 위험상황 ${haz.length}건</div></div>
         <div style="color:rgba(255,255,255,.3);font-size:16px;">›</div>
@@ -5407,8 +5466,9 @@ window.onload=function(){
       if(barEl)barEl.style.width='100%';
       function checkAuth(){
         updateUserUI();
-        const authType=DB.g('authType');
+        const authType=DB.g('authType')||'';
         if(!authType){showLoginScreen();}
+        else{applyAuthState();}
       }
       setTimeout(function(){
         var ls=document.getElementById('loadingScreen');
