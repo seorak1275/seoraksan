@@ -122,6 +122,11 @@ button{-webkit-tap-highlight-color:transparent;touch-action:manipulation;}
 .home-chips::-webkit-scrollbar{display:none;}
 .weather-strip{display:flex;align-items:center;gap:8px;padding:7px 10px;background:#0a1a2a;border-radius:9px;flex-shrink:0;margin-top:6px;border:1px solid rgba(79,168,208,.1);}
 .weather-ico{font-size:18px;line-height:1;}
+.weather-alert-wrap{display:none;margin-top:5px;flex-direction:column;gap:4px;}
+.w-alert{display:flex;align-items:center;gap:7px;padding:6px 10px;border-radius:8px;font-size:11px;font-weight:700;}
+.w-alert-경보{background:rgba(192,57,43,.18);border:1px solid rgba(192,57,43,.4);color:#ff8a80;}
+.w-alert-주의보{background:rgba(230,126,34,.15);border:1px solid rgba(230,126,34,.35);color:#ffa040;}
+.w-alert-예비특보{background:rgba(241,196,15,.12);border:1px solid rgba(241,196,15,.3);color:#f0d040;}
 .weather-tmp{font-size:15px;font-weight:800;color:#e0edf8;}
 .weather-info{font-size:10px;color:#3a6a8a;flex:1;}
 .weather-wind{font-size:10px;color:#3a6a8a;}
@@ -654,7 +659,9 @@ body.guest-mode .guest-hide{display:none!important;}
     <span class="weather-tmp" id="wTmp">--°</span>
     <span class="weather-info" id="wDesc">속초</span>
     <span class="weather-wind" id="wWind"></span>
+    <span id="wRegions" style="font-size:9px;color:#3a6a8a;margin-left:auto;"></span>
   </div>
+  <div id="weatherAlertWrap" class="weather-alert-wrap"></div>
 
   <!-- 4칸 메인 메뉴 -->
   <div class="home-menu" style="flex:1;min-height:0;">
@@ -750,6 +757,7 @@ body.guest-mode .guest-hide{display:none!important;}
     <button class="map-ctrl" onclick="toggleMapType('inspect')">위성/일반</button>
     <button class="fab-gps" onclick="gpsTo('inspect')">📍</button>
     <button class="fab" style="background:#0c4838;color:#fff;" onclick="openAddFac()">＋</button>
+    <div id="inspectCoords" style="position:absolute;bottom:130px;left:10px;background:rgba(0,0,0,.6);color:#8ab4cc;font-size:10px;padding:3px 8px;border-radius:5px;z-index:9;pointer-events:none;font-family:monospace;backdrop-filter:blur(4px);letter-spacing:.3px;">--</div>
     <div class="nomap-banner" id="nomapI">📍 API 키 설정 후 지도 사용 가능 — 목록탭 이용</div>
     <div class="dbcard" id="facPopup">
       <button class="dbclose" onclick="closeDB()">×</button><div class="dbhandle"></div>
@@ -1481,6 +1489,14 @@ function initMaps(){
     }
     kakao.maps.event.addListener(mapR,'center_changed',saveMapCenter);
     saveMapCenter();
+    function saveInspectCenter(){
+      try{
+        const ci=document.getElementById('inspectCoords');
+        if(ci){const c=mapI.getCenter();ci.textContent=c.getLat().toFixed(5)+', '+c.getLng().toFixed(5);}
+      }catch(e){}
+    }
+    kakao.maps.event.addListener(mapI,'center_changed',saveInspectCenter);
+    saveInspectCenter();
     if(window._hideLoading)setTimeout(window._hideLoading,600);
   }
   if(window._KR)doInit();else window._KCB=doInit;
@@ -3912,8 +3928,30 @@ function openGuide(key){const g=GUIDES[key];if(!g)return;document.getElementById
 // 홈 요약
 // ══════════════════════════════════════════
 function kakaoLogin(){
-  var rdr=encodeURIComponent('https://109yoon.github.io/seoraksan/');
-  location.href='https://kauth.kakao.com/oauth/authorize?client_id='+KAKAO_KEY+'&redirect_uri='+rdr+'&response_type=code';
+  if(!window.Kakao||!Kakao.isInitialized()){toast('⚠️ 카카오 SDK 로드 중... 잠시 후 다시 시도하세요');return;}
+  Kakao.Auth.login({
+    success:function(auth){
+      Kakao.API.request({
+        url:'/v2/user/me',
+        success:function(res){
+          const u=DB.g('currentUser')||{};
+          const prof=(res.kakao_account&&res.kakao_account.profile)||{};
+          DB.s('currentUser',Object.assign({},u,{
+            kakaoId:String(res.id),
+            kakaoImg:prof.profile_image_url||prof.thumbnail_image_url||'',
+            name:u.name||prof.nickname||''
+          }));
+          DB.s('authType','kakao');
+          if(window.hideLoginScreen)window.hideLoginScreen();
+          updateUserUI();
+          _checkAndRequireProfile();
+          toast('✅ 카카오 로그인 완료');
+        },
+        fail:function(e){toast('⚠️ 프로필 조회 실패: '+(e.msg||e));}
+      });
+    },
+    fail:function(e){toast('⚠️ 카카오 로그인 실패');}
+  });
 }
 function kakaoLogout(){
   var u=DB.g('currentUser')||{};
@@ -3960,22 +3998,82 @@ function devLogin(){
   _checkAndRequireProfile();
 }
 var _weatherFetched=false;
+// 지역별 좌표: 설악산 영향권 5개 지점
+var _WEATHER_REGIONS=[
+  {name:'속초',lat:38.21,lng:128.59},
+  {name:'인제',lat:38.06,lng:128.17},
+  {name:'양양',lat:38.08,lng:128.62},
+  {name:'고성',lat:38.38,lng:128.47},
+  {name:'설악',lat:38.13,lng:128.41}
+];
 function fetchWeather(){
   if(_weatherFetched)return;
   _weatherFetched=true;
-  fetch('https://api.open-meteo.com/v1/forecast?latitude=38.13&longitude=128.41&current_weather=true&wind_speed_unit=ms&timezone=Asia%2FSeoul')
-    .then(function(r){return r.json();})
-    .then(function(d){
-      const cw=d.current_weather;if(!cw)return;
-      const code=cw.weathercode;
-      const ico=code===0?'☀️':code<=2?'🌤️':code===3?'☁️':code<=48?'🌫️':code<=55?'🌦️':code<=65?'🌧️':code<=77?'🌨️':code<=82?'🌧️':code<=86?'🌨️':'⛈️';
+  // 속초 기준 현재 날씨 + 설악·속초·인제·양양·고성 12h 예보 동시 조회
+  var baseUrl='https://api.open-meteo.com/v1/forecast';
+  var regionParams=_WEATHER_REGIONS.map(function(r){
+    return baseUrl+'?latitude='+r.lat+'&longitude='+r.lng+'&hourly=precipitation,snowfall,windgusts_10m,wind_speed_10m&wind_speed_unit=ms&timezone=Asia%2FSeoul&forecast_hours=24';
+  });
+  var currentUrl=baseUrl+'?latitude=38.21&longitude=128.59&current_weather=true&wind_speed_unit=ms&timezone=Asia%2FSeoul';
+  Promise.all([fetch(currentUrl).then(function(r){return r.json();})].concat(regionParams.map(function(u){return fetch(u).then(function(r){return r.json();});})))
+    .then(function(results){
+      var cur=results[0];var regResults=results.slice(1);
+      // ── 현재 날씨 표시 ──
+      var cw=cur.current_weather;if(!cw)return;
+      var code=cw.weathercode;
+      var ico=code===0?'☀️':code<=2?'🌤️':code===3?'☁️':code<=48?'🌫️':code<=55?'🌦️':code<=65?'🌧️':code<=77?'🌨️':code<=82?'🌧️':code<=86?'🌨️':'⛈️';
       document.getElementById('wIco').textContent=ico;
       document.getElementById('wTmp').textContent=Math.round(cw.temperature)+'°';
       document.getElementById('wDesc').textContent='속초 · '+(['맑음','대체로맑음','구름조금','흐림','안개','이슬비','비','눈','소나기','뇌우'][code===0?0:code<=1?1:code<=2?2:code<=3?3:code<=48?4:code<=55?5:code<=65?6:code<=77?7:code<=82?8:8]||'');
       document.getElementById('wWind').textContent='💨 '+Math.round(cw.windspeed)+'m/s';
       var ws=document.getElementById('weatherStrip');if(ws)ws.style.display='flex';
+      // ── 지역별 특보 판정 ──
+      var alertMap={};// {지역: {level, reasons[]}}
+      regResults.forEach(function(d,i){
+        var rName=_WEATHER_REGIONS[i].name;
+        var h=d.hourly;if(!h)return;
+        var precip=h.precipitation||[];var snow=h.snowfall||[];var gust=h.windgusts_10m||[];var wind=h.wind_speed_10m||[];
+        var sum12Precip=precip.slice(0,12).reduce(function(a,b){return a+b;},0);
+        var sum12Snow=snow.slice(0,12).reduce(function(a,b){return a+b;},0);
+        var maxHourPrecip=Math.max.apply(null,precip.slice(0,12));
+        var maxGust=Math.max.apply(null,gust.slice(0,12));
+        var maxWind=Math.max.apply(null,wind.slice(0,12));
+        var reasons=[];var level='';
+        // 호우 (기상청 기준)
+        if(maxHourPrecip>=50||sum12Precip>=110){level='경보';reasons.push('호우경보(12h'+sum12Precip.toFixed(0)+'mm)');}
+        else if(maxHourPrecip>=30||sum12Precip>=70){if(level!=='경보')level='주의보';reasons.push('호우주의보');}
+        // 강풍 (기상청 기준)
+        if(maxGust>=26||maxWind>=21){level='경보';reasons.push('강풍경보(돌풍'+maxGust.toFixed(0)+'m/s)');}
+        else if(maxGust>=20||maxWind>=14){if(level!=='경보')level='주의보';reasons.push('강풍주의보');}
+        // 대설
+        if(sum12Snow>=20){level='경보';reasons.push('대설경보('+sum12Snow.toFixed(0)+'cm)');}
+        else if(sum12Snow>=5){if(level!=='경보')level='주의보';reasons.push('대설주의보');}
+        if(reasons.length>0)alertMap[rName]={level,reasons};
+      });
+      _renderWeatherAlerts(alertMap);
     })
     .catch(function(){});
+}
+function _renderWeatherAlerts(alertMap){
+  var wrap=document.getElementById('weatherAlertWrap');if(!wrap)return;
+  var entries=Object.entries(alertMap);
+  if(!entries.length){wrap.innerHTML='';wrap.style.display='none';return;}
+  // 경보 먼저, 주의보 나중
+  entries.sort(function(a,b){return a[1].level==='경보'&&b[1].level!=='경보'?-1:1;});
+  // 같은 특보를 가진 지역끼리 묶기
+  var grouped={};
+  entries.forEach(function(e){
+    var key=e[1].reasons.join('/');
+    if(!grouped[key])grouped[key]={level:e[1].level,regions:[],reasons:e[1].reasons};
+    grouped[key].regions.push(e[0]);
+  });
+  wrap.innerHTML=Object.values(grouped).map(function(g){
+    var ico=g.reasons.some(function(r){return r.includes('호우');})?'🌧️':g.reasons.some(function(r){return r.includes('강풍');})?'💨':g.reasons.some(function(r){return r.includes('대설');})?'❄️':'⚠️';
+    var regionStr=g.regions.join('·');
+    var reasonStr=g.reasons.map(function(r){return r.replace('경보','').replace('주의보','');}).join(', ');
+    return'<div class="w-alert w-alert-'+g.level+'">'+ico+' <b>'+g.level+'</b> '+regionStr+' — '+reasonStr+'</div>';
+  }).join('');
+  wrap.style.display='flex';
 }
 function updateSummary(){
   const res=DB.g('rescues')||[];const facs=DB.g('facilities')||[];
