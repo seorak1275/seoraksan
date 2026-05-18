@@ -25,6 +25,8 @@
 var KAKAO_KEY='4ba2cd810d516a4f336d4dee5fa5eba5';
 if(window.Kakao&&!Kakao.isInitialized()) Kakao.init(KAKAO_KEY);
 (function(){var s=document.createElement('script');s.src='//dapi.kakao.com/v2/maps/sdk.js?appkey='+KAKAO_KEY+'&libraries=services&autoload=false';s.onload=function(){kakao.maps.load(function(){window._KR=true;if(window._KCB)window._KCB();});};document.head.appendChild(s);})();
+// 카카오 redirect 콜백: ?code= 파라미터 조기 감지
+(function(){var p=new URLSearchParams(location.search);var c=p.get('code');if(c){history.replaceState(null,'',location.pathname);window._kakaoAuthCode=c;}})();
 </script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
@@ -2190,21 +2192,20 @@ function saveUser(){
   if(!rank){toast('⚠️ 직위를 선택해주세요');return;}
   if(!confirm(`"${realName}"은(는) 닉네임이 아닌 실제 이름이 맞나요?\n실명으로 등록됩니다.`))return;
   const existing=DB.g('currentUser')||{};
-  const admin=isAdminUser(existing);
-  const newStatus=admin?'approved':(existing.approvalStatus||'pending');
-  const saved={...existing,realName,name,dept,rank,approvalStatus:newStatus};
+  const saved={...existing,realName,name,dept,rank,approvalStatus:'approved'};
   DB.s('currentUser',saved);
-  if(newStatus==='pending')_submitPendingApproval(saved);
+  // 관리자에게 새 가입자 알림 (승인 불필요, 기록만)
+  _notifyNewJoiner(saved);
   window._requireProfile=false;
   closeM('modalUser');updateUserUI();
-  toast(newStatus==='approved'?'✅ 저장: '+name:'✅ 등록 완료. 관리자 승인 대기 중');
+  toast('✅ 저장: '+name);
   try{renderSettings();}catch(e){}
-  if(newStatus==='pending')setTimeout(showPendingScreen,300);
 }
-function _submitPendingApproval(u){
-  const pending=(DB.g('pendingUsers')||[]).filter(p=>p.id!==String(u.kakaoId||u.name));
-  pending.push({id:String(u.kakaoId||u.name||Date.now()),realName:u.realName,name:u.name,dept:u.dept,rank:u.rank,kakaoId:u.kakaoId||null,kakaoImg:u.kakaoImg||null,submittedAt:Date.now(),approved:false});
-  DB.s('pendingUsers',pending);
+function _notifyNewJoiner(u){
+  // 관리자 설정 화면에 새 가입자 뱃지용 기록 (승인 불필요)
+  const list=(DB.g('pendingUsers')||[]).filter(function(p){return p.id!==String(u.kakaoId||u.name);});
+  list.push({id:String(u.kakaoId||u.name||Date.now()),realName:u.realName,name:u.name,dept:u.dept,rank:u.rank,kakaoId:u.kakaoId||null,kakaoImg:u.kakaoImg||null,submittedAt:Date.now(),approved:true,seen:false});
+  DB.s('pendingUsers',list);
 }
 function showPendingScreen(){
   const u=DB.g('currentUser')||{};
@@ -2233,34 +2234,22 @@ function enterApprovalCode(){
   }
 }
 function _renderPendingList(){
-  const pending=(DB.g('pendingUsers')||[]).filter(p=>!p.approved);
-  if(!pending.length)return'<div style="font-size:11px;color:#4a7090;padding:8px 0;">대기 중인 신청이 없습니다</div>';
-  return pending.map(u=>`<div style="background:#060d1a;border:1px solid rgba(79,168,208,.15);border-radius:8px;padding:10px;margin-bottom:8px;">
-    <div style="font-size:12px;color:#e0edf8;font-weight:700;">${u.realName||u.name} <span style="font-weight:400;color:#7a9cb8;">· ${u.dept} · ${u.rank}</span></div>
-    <div style="font-size:10px;color:#4a7090;margin-top:2px;">닉네임: ${u.name} · ${u.submittedAt?new Date(u.submittedAt).toLocaleDateString('ko-KR'):''}</div>
-    <div style="display:flex;gap:6px;margin-top:7px;">
-      <button onclick="_approveUser('${u.id}')" style="flex:1;background:rgba(39,174,96,.2);color:#7ec8a0;border:1px solid rgba(39,174,96,.3);padding:6px;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;">✅ 승인</button>
-      <button onclick="_rejectUser('${u.id}')" style="flex:1;background:rgba(255,80,80,.1);color:#ff8a80;border:1px solid rgba(255,80,80,.2);padding:6px;border-radius:6px;font-size:11px;cursor:pointer;">❌ 거절</button>
-    </div>
-  </div>`).join('');
+  var list=(DB.g('pendingUsers')||[]).slice().reverse().slice(0,20);
+  if(!list.length)return'<div style="font-size:11px;color:#4a7090;padding:8px 0;">새 가입자 없음</div>';
+  return list.map(function(u){return'<div style="background:#060d1a;border:1px solid rgba(79,168,208,.15);border-radius:8px;padding:10px;margin-bottom:7px;'+(u.seen?'opacity:.55':'')+'">'+(!u.seen?'<div style="font-size:9px;color:#4fa8d0;font-weight:700;margin-bottom:4px;">NEW</div>':'')+
+    '<div style="font-size:12px;color:#e0edf8;font-weight:700;">'+(u.realName||u.name)+' <span style="font-weight:400;color:#7a9cb8;">· '+(u.dept||'')+' · '+(u.rank||'')+'</span></div>'+
+    '<div style="font-size:10px;color:#4a7090;margin-top:2px;">닉네임: '+u.name+' · '+(u.submittedAt?new Date(u.submittedAt).toLocaleDateString('ko-KR'):'')+' 가입</div>'+
+    '<button onclick="_markSeen(\''+u.id+'\')" style="margin-top:6px;background:rgba(79,168,208,.1);color:#4fa8d0;border:1px solid rgba(79,168,208,.2);padding:5px 10px;border-radius:6px;font-size:10px;cursor:pointer;">확인 완료</button>'+
+  '</div>';}).join('');
 }
-function _approveUser(id){
-  const pending=DB.g('pendingUsers')||[];
-  const idx=pending.findIndex(p=>p.id===id);
-  if(idx<0)return;
-  pending[idx].approved=true;
-  DB.s('pendingUsers',pending);
-  const approved=DB.g('approvedUsers')||{};
-  approved[id]=true;
-  DB.s('approvedUsers',approved);
+function _markSeen(id){
+  var list=DB.g('pendingUsers')||[];
+  var idx=list.findIndex(function(p){return p.id===id;});
+  if(idx>=0){list[idx].seen=true;DB.s('pendingUsers',list);}
   renderSettings();
-  toast('✅ 승인 완료: '+pending[idx].realName);
 }
-function _rejectUser(id){
-  if(!confirm('이 신청을 거절하시겠습니까?'))return;
-  DB.s('pendingUsers',(DB.g('pendingUsers')||[]).filter(p=>p.id!==id));
-  renderSettings();
-  toast('❌ 거절 완료');
+function _getUnseenCount(){
+  return(DB.g('pendingUsers')||[]).filter(function(p){return!p.seen;}).length;
 }
 function setAdminCode(){
   const code=(document.getElementById('adminCodeInp')||{}).value.trim();
@@ -3858,18 +3847,13 @@ function renderSettings(){
       ${(()=>{if(u.kakaoImg||u.kakaoId){return`<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;"><img src="${u.kakaoImg||''}" style="width:36px;height:36px;border-radius:50%;object-fit:cover;background:#1a3a5a;" onerror="this.style.display='none'"><div style="font-size:12px;color:#b8d4e8;"><b style="color:#e0edf8;">${u.name||''}</b> 님으로 연결됨</div></div><button onclick="kakaoLogout()" style="width:100%;background:rgba(255,80,80,.12);color:#ff8a80;border:1px solid rgba(255,80,80,.25);padding:9px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;">🚪 카카오 로그아웃</button>`;}return`<div style="font-size:11px;color:#7a9cb8;margin-bottom:8px;">카카오 계정으로 로그인하면 작성자 정보가 자동 설정됩니다.</div><button onclick="kakaoLogin()" style="width:100%;background:rgba(254,229,0,.18);color:#f0d900;border:1px solid rgba(254,229,0,.3);padding:9px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;">💬 카카오로 로그인</button>`;})()}
     </div>
     ${admin?`<div class="scard" style="margin-bottom:8px;border:1px solid rgba(126,200,160,.2);">
-      <div class="stitle">🔧 관리자 패널</div>
-      <div style="font-size:11px;color:#7a9cb8;margin-bottom:6px;">승인 코드 — 대원에게 카카오톡으로 전달하세요</div>
-      <div style="display:flex;gap:6px;margin-bottom:14px;">
-        <input id="adminCodeInp" class="fi" value="${approvalCode}" style="flex:1;font-family:monospace;font-size:13px;letter-spacing:1px;">
-        <button onclick="setAdminCode()" style="background:#1a4a6e;color:#fff;border:none;padding:8px 14px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;">저장</button>
-      </div>
+      <div class="stitle">🔧 관리자 패널${_getUnseenCount()>0?` <span style="background:#c0392b;color:#fff;font-size:10px;padding:1px 7px;border-radius:20px;margin-left:6px;font-weight:700;">${_getUnseenCount()}</span>`:''}</div>
       <div style="font-size:11px;color:#7a9cb8;margin-bottom:8px;">관리자 카카오 ID 추가</div>
       <div style="display:flex;gap:6px;margin-bottom:14px;">
         <input id="adminKakaoIdInp" class="fi" placeholder="카카오 숫자 ID" style="flex:1;">
         <button onclick="addAdminKakaoId()" style="background:#1a4a6e;color:#fff;border:none;padding:8px 14px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;">추가</button>
       </div>
-      <div style="font-size:11px;color:#7a9cb8;margin-bottom:8px;">신청 대기 목록</div>
+      <div style="font-size:11px;color:#7a9cb8;margin-bottom:8px;">새 가입자 알림</div>
       <div id="settingsPendingList">${_renderPendingList()}</div>
     </div>`:''}
     <div class="scard" style="margin-bottom:8px;">
@@ -3953,29 +3937,42 @@ function openGuide(key){const g=GUIDES[key];if(!g)return;document.getElementById
 // 홈 요약
 // ══════════════════════════════════════════
 function kakaoLogin(){
-  if(!window.Kakao||!Kakao.isInitialized()){toast('⚠️ 카카오 SDK 로드 중... 잠시 후 다시 시도하세요');return;}
-  Kakao.Auth.login({
-    success:function(auth){
-      Kakao.API.request({
-        url:'/v2/user/me',
-        success:function(res){
-          const u=DB.g('currentUser')||{};
-          const prof=(res.kakao_account&&res.kakao_account.profile)||{};
-          DB.s('currentUser',Object.assign({},u,{
-            kakaoId:String(res.id),
-            kakaoImg:prof.profile_image_url||prof.thumbnail_image_url||'',
-            name:u.name||prof.nickname||''
-          }));
-          DB.s('authType','kakao');
-          if(window.hideLoginScreen)window.hideLoginScreen();
-          updateUserUI();
-          _checkAndRequireProfile();
-          toast('✅ 카카오 로그인 완료');
-        },
-        fail:function(e){toast('⚠️ 프로필 조회 실패: '+(e.msg||e));}
-      });
-    },
-    fail:function(e){toast('⚠️ 카카오 로그인 실패');}
+  if(!window.Kakao||!Kakao.isInitialized()){toast('⚠️ 카카오 SDK 오류');return;}
+  // redirect 방식: WebView·앱 환경에서도 안정적으로 작동
+  Kakao.Auth.authorize({redirectUri:'https://109yoon.github.io/seoraksan/'});
+}
+function _handleKakaoCode(code){
+  // ?code= 로 돌아왔을 때 토큰 교환 후 프로필 저장
+  fetch('https://kauth.kakao.com/oauth/token',{
+    method:'POST',
+    headers:{'Content-Type':'application/x-www-form-urlencoded;charset=utf-8'},
+    body:'grant_type=authorization_code&client_id='+KAKAO_KEY+'&redirect_uri='+encodeURIComponent('https://109yoon.github.io/seoraksan/')+'&code='+encodeURIComponent(code)
+  })
+  .then(function(r){return r.json();})
+  .then(function(tok){
+    if(!tok.access_token)throw new Error(tok.error_description||'토큰 오류');
+    if(window.Kakao&&Kakao.Auth)Kakao.Auth.setAccessToken(tok.access_token);
+    return fetch('https://kapi.kakao.com/v2/user/me',{headers:{Authorization:'Bearer '+tok.access_token}});
+  })
+  .then(function(r){return r.json();})
+  .then(function(res){
+    var u=DB.g('currentUser')||{};
+    var prof=(res.kakao_account&&res.kakao_account.profile)||{};
+    DB.s('currentUser',Object.assign({},u,{
+      kakaoId:String(res.id),
+      kakaoImg:prof.profile_image_url||prof.thumbnail_image_url||'',
+      name:u.name||prof.nickname||''
+    }));
+    DB.s('authType','kakao');
+    if(window._hideLoading)window._hideLoading();
+    if(window.hideLoginScreen)window.hideLoginScreen();
+    updateUserUI();
+    _checkAndRequireProfile();
+    toast('✅ 카카오 로그인 완료');
+  })
+  .catch(function(e){
+    if(window._hideLoading)window._hideLoading();
+    toast('⚠️ 카카오 로그인 실패: '+e.message);
   });
 }
 function kakaoLogout(){
@@ -3993,21 +3990,12 @@ function _checkAndRequireProfile(){
   var u=DB.g('currentUser')||{};
   var authType=DB.g('authType');
   var isKakao=authType==='kakao';
-  // 카카오 로그인만 실명 포함 전체 프로필 요구, 게스트/개발자는 이름·소속·직위만
+  // 카카오는 실명 포함 필수, 게스트/개발자는 소속·직위만
   if(isKakao&&(!u.dept||!u.rank||!u.realName)){
     window._requireProfile=true;setTimeout(function(){openChangeUser();},300);return;
   }
   if(!isKakao&&(!u.dept||!u.rank)){
     window._requireProfile=true;setTimeout(function(){openChangeUser();},300);return;
-  }
-  if(isKakao&&u.approvalStatus!=='approved'&&!isAdminUser(u)){
-    var approved=DB.g('approvedUsers')||{};
-    var uid=String(u.kakaoId||u.name||'');
-    if(uid&&approved[uid]){
-      DB.s('currentUser',Object.assign({},u,{approvalStatus:'approved'}));
-    }else{
-      setTimeout(showPendingScreen,300);
-    }
   }
 }
 function guestLogin(){
@@ -5126,6 +5114,8 @@ window.onload=function(){
     updateSummary();updateUserUI();renderHotSearch();fetchWeather();
     const d=new Date();const days=['일','월','화','수','목','금','토'];
     document.getElementById('homeDate').textContent=d.getFullYear()+'년 '+(d.getMonth()+1)+'월 '+d.getDate()+'일 ('+days[d.getDay()]+')';
+    // 카카오 redirect 콜백 처리
+    if(window._kakaoAuthCode){var _kc=window._kakaoAuthCode;window._kakaoAuthCode=null;_handleKakaoCode(_kc);return;}
     // Firebase 준비 완료 시 즉시 로딩 해제 (3초 폴백보다 빠르면 여기서 처리됨)
     if(window._hideLoading) window._hideLoading();
   });
