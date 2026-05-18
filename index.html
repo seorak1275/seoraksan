@@ -127,6 +127,19 @@ button{-webkit-tap-highlight-color:transparent;touch-action:manipulation;}
 .w-alert-경보{background:rgba(192,57,43,.18);border:1px solid rgba(192,57,43,.4);color:#ff8a80;}
 .w-alert-주의보{background:rgba(230,126,34,.15);border:1px solid rgba(230,126,34,.35);color:#ffa040;}
 .w-alert-예비특보{background:rgba(241,196,15,.12);border:1px solid rgba(241,196,15,.3);color:#f0d040;}
+.weather-strip{cursor:pointer;touch-action:manipulation;}
+.weather-strip:active{opacity:.75;}
+#modalWeather .mbox{max-height:85vh;overflow-y:auto;}
+.wdetail-region{background:#060d1a;border:1px solid rgba(79,168,208,.15);border-radius:11px;padding:13px 14px;margin-bottom:8px;}
+.wdetail-rname{font-size:11px;font-weight:700;color:#4fa8d0;margin-bottom:8px;letter-spacing:.5px;}
+.wdetail-row{display:flex;align-items:center;gap:10px;}
+.wdetail-ico{font-size:28px;line-height:1;}
+.wdetail-main{flex:1;}
+.wdetail-tmp{font-size:22px;font-weight:800;color:#e0edf8;}
+.wdetail-desc{font-size:11px;color:#7a9cb8;margin-top:1px;}
+.wdetail-meta{display:flex;gap:10px;margin-top:6px;font-size:11px;color:#4a7090;}
+.wdetail-alert{margin-top:7px;padding:6px 9px;border-radius:7px;font-size:11px;font-weight:700;}
+.wdetail-loading{text-align:center;padding:24px;font-size:12px;color:#4a7090;}
 .weather-tmp{font-size:15px;font-weight:800;color:#e0edf8;}
 .weather-info{font-size:10px;color:#3a6a8a;flex:1;}
 .weather-wind{font-size:10px;color:#3a6a8a;}
@@ -542,16 +555,9 @@ body.guest-mode .guest-hide{display:none!important;}
 <div id="loginScreen" style="display:none;position:fixed;inset:0;background:#060d1a;z-index:10000;flex-direction:column;align-items:center;justify-content:center;padding:24px;pointer-events:none;">
   <div class="ls-sub">SEORAKSAN FIELD MANAGEMENT</div>
   <div class="ls-divider"></div>
-  <div class="ls-desc">카카오 계정으로 로그인하면<br>작성자 정보가 자동 설정됩니다.<br>게스트는 <b style="color:#e0edf8;">보기 전용</b>으로 이용 가능합니다.</div>
+  <div class="ls-desc">설악산국립공원 공무원 전용 앱입니다.<br>카카오 계정으로 로그인 후<br>관리자 승인이 필요합니다.</div>
   <button class="ls-btn ls-kakao" onclick="kakaoLogin()">
     💬 카카오로 로그인
-  </button>
-  <button class="ls-btn ls-guest" onclick="guestLogin()">
-    👁 게스트로 보기
-  </button>
-  <div class="ls-guest-note">게스트 모드: 등록·수정·삭제 불가</div>
-  <button class="ls-btn ls-dev" onclick="devLogin()" style="margin-top:8px;background:#1a2a1a;color:#7ec8a0;border:1px solid #2a4a2a;font-size:12px;padding:10px;">
-    🛠 개발자 모드
   </button>
   <div style="margin-top:20px;text-align:center;">
     <div onclick="openChangelog()" style="cursor:pointer;display:inline-block;padding:6px 14px;background:rgba(79,168,208,.07);border:1px solid rgba(79,168,208,.15);border-radius:20px;">
@@ -571,6 +577,22 @@ body.guest-mode .guest-hide{display:none!important;}
   <div id="pendingUserInfo" style="background:#0a1a2a;border:1px solid rgba(79,168,208,.2);border-radius:12px;padding:14px 18px;margin-bottom:22px;width:100%;max-width:320px;text-align:left;font-size:12px;color:#b8d4e8;line-height:2.1;"></div>
   <button onclick="enterApprovalCode()" style="width:100%;max-width:320px;background:#1a4a6e;color:#fff;border:none;padding:13px;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;margin-bottom:10px;touch-action:manipulation;">🔑 승인 코드 입력</button>
   <button onclick="kakaoLogout()" style="width:100%;max-width:320px;background:rgba(255,80,80,.1);color:#ff8a80;border:1px solid rgba(255,80,80,.2);padding:11px;border-radius:10px;font-size:13px;cursor:pointer;touch-action:manipulation;">← 로그아웃</button>
+</div>
+
+<!-- 날씨 상세 모달 -->
+<div id="modalWeather" class="modal">
+  <div class="mbox">
+    <div class="mhdr">
+      <span class="mtitle">🌤️ 설악산 권역 날씨</span>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <button onclick="refreshWeatherDetail()" style="background:none;border:none;color:#4fa8d0;font-size:18px;cursor:pointer;padding:0 4px;line-height:1;">↻</button>
+        <button class="mclose" onclick="closeM('modalWeather')">×</button>
+      </div>
+    </div>
+    <div id="weatherDetailBody">
+      <div class="wdetail-loading">날씨 불러오는 중...</div>
+    </div>
+  </div>
 </div>
 
 <!-- 변경이력 모달 -->
@@ -654,14 +676,14 @@ body.guest-mode .guest-hide{display:none!important;}
   </div>
 
   <!-- 날씨 -->
-  <div id="weatherStrip" class="weather-strip" style="display:none;">
+  <div id="weatherStrip" class="weather-strip" style="display:none;" onclick="openWeatherDetail()">
     <span class="weather-ico" id="wIco">☀️</span>
     <span class="weather-tmp" id="wTmp">--°</span>
     <span class="weather-info" id="wDesc">속초</span>
     <span class="weather-wind" id="wWind"></span>
-    <span id="wRegions" style="font-size:9px;color:#3a6a8a;margin-left:auto;"></span>
+    <span style="font-size:10px;color:#3a6a8a;margin-left:auto;">▸</span>
   </div>
-  <div id="weatherAlertWrap" class="weather-alert-wrap"></div>
+  <div id="weatherAlertWrap" class="weather-alert-wrap" onclick="openWeatherDetail()" style="cursor:pointer;touch-action:manipulation;"></div>
 
   <!-- 4칸 메인 메뉴 -->
   <div class="home-menu" style="flex:1;min-height:0;">
@@ -4074,6 +4096,89 @@ function _renderWeatherAlerts(alertMap){
     return'<div class="w-alert w-alert-'+g.level+'">'+ico+' <b>'+g.level+'</b> '+regionStr+' — '+reasonStr+'</div>';
   }).join('');
   wrap.style.display='flex';
+}
+var _wDetailCache=null;
+var _wDetailFetching=false;
+function openWeatherDetail(){
+  document.getElementById('modalWeather').classList.add('on');
+  if(_wDetailCache){_renderWeatherDetail(_wDetailCache);return;}
+  _fetchWeatherDetail();
+}
+function refreshWeatherDetail(){
+  _wDetailCache=null;
+  document.getElementById('weatherDetailBody').innerHTML='<div class="wdetail-loading">날씨 새로고침 중...</div>';
+  _fetchWeatherDetail();
+}
+function _fetchWeatherDetail(){
+  if(_wDetailFetching)return;
+  _wDetailFetching=true;
+  var base='https://api.open-meteo.com/v1/forecast';
+  Promise.all(_WEATHER_REGIONS.map(function(r){
+    return fetch(base+'?latitude='+r.lat+'&longitude='+r.lng+'&current_weather=true&hourly=precipitation,snowfall,windgusts_10m,wind_speed_10m,weathercode,temperature_2m&wind_speed_unit=ms&timezone=Asia%2FSeoul&forecast_hours=24')
+      .then(function(res){return res.json();})
+      .then(function(d){return{region:r.name,data:d};});
+  }))
+  .then(function(results){
+    _wDetailFetching=false;
+    _wDetailCache=results;
+    _renderWeatherDetail(results);
+  })
+  .catch(function(){
+    _wDetailFetching=false;
+    document.getElementById('weatherDetailBody').innerHTML='<div class="wdetail-loading">날씨 데이터를 불러오지 못했습니다. ↻ 를 눌러 재시도하세요.</div>';
+  });
+}
+function _renderWeatherDetail(results){
+  var WC=['맑음','대체로맑음','구름조금','흐림','안개','이슬비','비','눈','소나기','뇌우'];
+  function wcode(c){return c===0?0:c<=1?1:c<=2?2:c<=3?3:c<=48?4:c<=55?5:c<=65?6:c<=77?7:c<=82?8:8;}
+  function wico(c){return c===0?'☀️':c<=2?'🌤️':c===3?'☁️':c<=48?'🌫️':c<=55?'🌦️':c<=65?'🌧️':c<=77?'🌨️':c<=82?'🌧️':c<=86?'🌨️':'⛈️';}
+  var html='<div style="font-size:10px;color:#3a6a8a;margin-bottom:10px;text-align:right;">'+new Date().toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'})+' 기준 (Open-Meteo)</div>';
+  var anyAlert=false;
+  results.forEach(function(item){
+    var r=item.region;var d=item.data;
+    var cw=d.current_weather||{};var h=d.hourly||{};
+    var code=cw.weathercode||0;
+    var precip=h.precipitation||[];var snow=h.snowfall||[];var gust=h.windgusts_10m||[];var wind=h.wind_speed_10m||[];
+    var sum12p=precip.slice(0,12).reduce(function(a,b){return a+b;},0);
+    var sum12s=snow.slice(0,12).reduce(function(a,b){return a+b;},0);
+    var maxGust=Math.max.apply(null,gust.slice(0,12).concat([0]));
+    var maxWind=Math.max.apply(null,wind.slice(0,12).concat([0]));
+    // 특보 판정
+    var alerts=[];
+    if((h.precipitation||[]).slice(0,12).some(function(v){return v>=50;})||sum12p>=110)alerts.push({lv:'경보',msg:'호우경보 (12h '+sum12p.toFixed(0)+'mm)'});
+    else if((h.precipitation||[]).slice(0,12).some(function(v){return v>=30;})||sum12p>=70)alerts.push({lv:'주의보',msg:'호우주의보 (12h '+sum12p.toFixed(0)+'mm)'});
+    if(maxGust>=26||maxWind>=21)alerts.push({lv:'경보',msg:'강풍경보 (돌풍 '+maxGust.toFixed(0)+'m/s)'});
+    else if(maxGust>=20||maxWind>=14)alerts.push({lv:'주의보',msg:'강풍주의보 (돌풍 '+maxGust.toFixed(0)+'m/s)'});
+    if(sum12s>=20)alerts.push({lv:'경보',msg:'대설경보 ('+sum12s.toFixed(0)+'cm)'});
+    else if(sum12s>=5)alerts.push({lv:'주의보',msg:'대설주의보 ('+sum12s.toFixed(0)+'cm)'});
+    if(alerts.length)anyAlert=true;
+    var alertHtml=alerts.map(function(a){
+      return'<div class="wdetail-alert w-alert-'+a.lv+'" style="display:flex;align-items:center;gap:6px;">⚠️ <b>'+a.lv+'</b> — '+a.msg+'</div>';
+    }).join('');
+    // 12h 최대 강수 바
+    var maxP=Math.max.apply(null,precip.slice(0,12).concat([0]));
+    var rainBar=maxP>0?'<div style="margin-top:6px;"><div style="font-size:10px;color:#4a7090;margin-bottom:2px;">12h 최대 시간 강수: <b style="color:#e0edf8;">'+maxP.toFixed(1)+'mm</b></div></div>':'';
+    html+='<div class="wdetail-region">'
+      +'<div class="wdetail-rname">'+r+'</div>'
+      +'<div class="wdetail-row">'
+        +'<div class="wdetail-ico">'+wico(code)+'</div>'
+        +'<div class="wdetail-main">'
+          +'<div class="wdetail-tmp">'+(cw.temperature!==undefined?Math.round(cw.temperature):'-')+'°</div>'
+          +'<div class="wdetail-desc">'+WC[wcode(code)]+'</div>'
+        +'</div>'
+      +'</div>'
+      +'<div class="wdetail-meta">'
+        +'<span>💨 '+(cw.windspeed!==undefined?Math.round(cw.windspeed):'-')+'m/s</span>'
+        +(maxGust>0?'<span>돌풍 '+maxGust.toFixed(0)+'m/s</span>':'')
+        +(sum12p>0?'<span>🌧️ 12h '+sum12p.toFixed(0)+'mm</span>':'')
+        +(sum12s>0?'<span>❄️ 12h '+sum12s.toFixed(0)+'cm</span>':'')
+      +'</div>'
+      +rainBar
+      +alertHtml
+      +'</div>';
+  });
+  if(!anyAlert)html+='<div style="text-align:center;padding:10px 0;font-size:12px;color:#27ae60;">✅ 현재 발효 중인 특보 없음</div>';
+  document.getElementById('weatherDetailBody').innerHTML=html;
 }
 function updateSummary(){
   const res=DB.g('rescues')||[];const facs=DB.g('facilities')||[];
