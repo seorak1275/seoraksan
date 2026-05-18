@@ -3698,8 +3698,7 @@ function renderSettings(){
     </div>
     <div class="scard" style="margin-bottom:8px;">
       <div class="stitle">💬 카카오 로그인</div>
-      <div style="font-size:11px;color:#7a9cb8;margin-bottom:8px;">카카오 계정으로 로그인하면 작성자 정보가 자동 설정됩니다.</div>
-      <button onclick="openKakaoLogin()" style="width:100%;background:rgba(254,229,0,.12);color:#f0d900;border:1px solid rgba(254,229,0,.3);padding:9px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;">💬 카카오 로그인 (준비중)</button>
+      ${(()=>{const u=DB.g('currentUser')||{};if(u.kakaoImg||u.kakaoId){return`<div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;"><img src="${u.kakaoImg||''}" style="width:36px;height:36px;border-radius:50%;object-fit:cover;background:#1a3a5a;" onerror="this.style.display='none'"><div style="font-size:12px;color:#b8d4e8;"><b style="color:#e0edf8;">${u.name||''}</b> 님으로 연결됨</div></div><div style="font-size:10px;color:#3a6a8a;">카카오 계정이 연결되어 있습니다.</div>`;}return`<div style="font-size:11px;color:#7a9cb8;margin-bottom:8px;">카카오 계정으로 로그인하면 작성자 정보가 자동 설정됩니다.</div><button onclick="kakaoLogin()" style="width:100%;background:rgba(254,229,0,.18);color:#f0d900;border:1px solid rgba(254,229,0,.3);padding:9px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;">💬 카카오로 로그인</button>`;})()}
     </div>
     <div class="scard" style="margin-bottom:8px;">
       <div class="stitle">🔔 알림 설정</div>
