@@ -1497,6 +1497,10 @@ function gpsTo(mode){
     const ll=new kakao.maps.LatLng(p.coords.latitude,p.coords.longitude);
     const m=mode==='inspect'?mapI:mapR;
     m.setCenter(ll);m.setLevel(4);
+    // 하단 탭바 높이만큼 보정: GPS 점이 십자선 위치에 오도록 아래로 pan
+    const bnavEl=document.getElementById('bnav');
+    const bnavH=(bnavEl&&bnavEl.style.display!=='none')?bnavEl.offsetHeight:0;
+    if(bnavH>0){setTimeout(()=>{try{m.panBy(0,Math.round(bnavH/2));}catch(e){}},50);}
     if(myOv)myOv.setMap(null);
     const el=document.createElement('div');
     el.style.cssText='width:18px;height:18px;border-radius:50%;background:#4fa8d0;border:3px solid #fff;box-shadow:0 0 10px rgba(79,168,208,.8),0 2px 6px rgba(0,0,0,.5);';
