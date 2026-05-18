@@ -830,7 +830,7 @@ body.guest-mode .guest-hide{display:none!important;}
 <!-- ══ 모달: 작성자 설정 ══ -->
 <div id="modalUser" class="modal">
   <div class="mbox">
-    <div class="mhdr"><span class="mtitle">👤 작성자 설정</span><button class="mclose" onclick="closeM('modalUser')">×</button></div>
+    <div class="mhdr"><span class="mtitle">👤 작성자 설정</span><button class="mclose" id="modalUserClose" onclick="if(window._requireProfile){toast('⚠️ 소속과 직위를 선택해주세요');}else{closeM('modalUser');}">×</button></div>
     <div id="kakaoUserBanner" style="display:none;background:rgba(254,229,0,.1);border:1px solid rgba(254,229,0,.3);border-radius:8px;padding:9px 11px;margin-bottom:11px;font-size:11px;color:#f0d900;">
       💬 카카오 계정으로 로그인됨 — 이름·소속만 확인하세요
     </div>
@@ -2122,9 +2122,13 @@ function saveUser(){
   if(!name){toast('⚠️ 이름 입력');return;}
   const dept=document.getElementById('uDeptIn').value;
   const rank=getSelPills('rankPills')[0]||'';
+  if(!dept){toast('⚠️ 소속 과/분소를 선택해주세요');return;}
+  if(!rank){toast('⚠️ 직위를 선택해주세요');return;}
+  window._requireProfile=false;
   const existing=DB.g('currentUser')||{};
   DB.s('currentUser',{...existing,name,dept,rank});
   closeM('modalUser');updateUserUI();toast('✅ 저장: '+name);
+  try{renderSettings();}catch(e){}
 }
 function updateUserUI(){
   const u=DB.g('currentUser')||{};
@@ -3698,7 +3702,7 @@ function renderSettings(){
     </div>
     <div class="scard" style="margin-bottom:8px;">
       <div class="stitle">💬 카카오 로그인</div>
-      ${(()=>{const u=DB.g('currentUser')||{};if(u.kakaoImg||u.kakaoId){return`<div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;"><img src="${u.kakaoImg||''}" style="width:36px;height:36px;border-radius:50%;object-fit:cover;background:#1a3a5a;" onerror="this.style.display='none'"><div style="font-size:12px;color:#b8d4e8;"><b style="color:#e0edf8;">${u.name||''}</b> 님으로 연결됨</div></div><div style="font-size:10px;color:#3a6a8a;">카카오 계정이 연결되어 있습니다.</div>`;}return`<div style="font-size:11px;color:#7a9cb8;margin-bottom:8px;">카카오 계정으로 로그인하면 작성자 정보가 자동 설정됩니다.</div><button onclick="kakaoLogin()" style="width:100%;background:rgba(254,229,0,.18);color:#f0d900;border:1px solid rgba(254,229,0,.3);padding:9px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;">💬 카카오로 로그인</button>`;})()}
+      ${(()=>{const u=DB.g('currentUser')||{};if(u.kakaoImg||u.kakaoId){return`<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;"><img src="${u.kakaoImg||''}" style="width:36px;height:36px;border-radius:50%;object-fit:cover;background:#1a3a5a;" onerror="this.style.display='none'"><div style="font-size:12px;color:#b8d4e8;"><b style="color:#e0edf8;">${u.name||''}</b> 님으로 연결됨</div></div><button onclick="kakaoLogout()" style="width:100%;background:rgba(255,80,80,.12);color:#ff8a80;border:1px solid rgba(255,80,80,.25);padding:9px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;">🚪 카카오 로그아웃</button>`;}return`<div style="font-size:11px;color:#7a9cb8;margin-bottom:8px;">카카오 계정으로 로그인하면 작성자 정보가 자동 설정됩니다.</div><button onclick="kakaoLogin()" style="width:100%;background:rgba(254,229,0,.18);color:#f0d900;border:1px solid rgba(254,229,0,.3);padding:9px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;">💬 카카오로 로그인</button>`;})()}
     </div>
     <div class="scard" style="margin-bottom:8px;">
       <div class="stitle">🔔 알림 설정</div>
@@ -3784,15 +3788,34 @@ function kakaoLogin(){
   var rdr=encodeURIComponent('https://109yoon.github.io/seoraksan/');
   location.href='https://kauth.kakao.com/oauth/authorize?client_id='+KAKAO_KEY+'&redirect_uri='+rdr+'&response_type=code';
 }
+function kakaoLogout(){
+  var u=DB.g('currentUser')||{};
+  delete u.kakaoImg;delete u.kakaoId;
+  DB.s('currentUser',u);
+  DB.s('authType','');
+  if(window.showLoginScreen)window.showLoginScreen();
+  updateUserUI();
+  try{renderSettings();}catch(e){}
+  toast('로그아웃 됐습니다');
+}
+function _checkAndRequireProfile(){
+  var u=DB.g('currentUser')||{};
+  if(!u.dept||!u.rank){
+    window._requireProfile=true;
+    setTimeout(function(){openChangeUser();},300);
+  }
+}
 function guestLogin(){
   if(typeof DB!=='undefined')DB.s('authType','guest');
   if(window.hideLoginScreen)window.hideLoginScreen();
   updateUserUI();
+  _checkAndRequireProfile();
 }
 function devLogin(){
   if(typeof DB!=='undefined')DB.s('authType','dev');
   if(window.hideLoginScreen)window.hideLoginScreen();
   updateUserUI();
+  _checkAndRequireProfile();
 }
 var _weatherFetched=false;
 function fetchWeather(){
@@ -4661,6 +4684,7 @@ window.onload=function(){
         updateUserUI();
         var authType=typeof DB!=='undefined'?DB.g('authType'):'';
         if(!authType){showLoginScreen();}
+        else{_checkAndRequireProfile();}
       }
       setTimeout(function(){
         var ls=document.getElementById('loadingScreen');
