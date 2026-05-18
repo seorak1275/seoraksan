@@ -534,6 +534,7 @@ body.guest-mode .guest-hide{display:none!important;}
 })();
 </script>
 
+<div id="loginScreen" style="display:none;position:fixed;inset:0;background:#060d1a;z-index:10000;flex-direction:column;align-items:center;justify-content:center;padding:24px;pointer-events:none;">
   <div class="ls-sub">SEORAKSAN FIELD MANAGEMENT</div>
   <div class="ls-divider"></div>
   <div class="ls-desc">카카오 계정으로 로그인하면<br>작성자 정보가 자동 설정됩니다.<br>게스트는 <b style="color:#e0edf8;">보기 전용</b>으로 이용 가능합니다.</div>
@@ -3780,6 +3781,20 @@ function openGuide(key){const g=GUIDES[key];if(!g)return;document.getElementById
 // ══════════════════════════════════════════
 // 홈 요약
 // ══════════════════════════════════════════
+function kakaoLogin(){
+  var rdr=encodeURIComponent('https://109yoon.github.io/seoraksan/');
+  location.href='https://kauth.kakao.com/oauth/authorize?client_id='+KAKAO_KEY+'&redirect_uri='+rdr+'&response_type=code';
+}
+function guestLogin(){
+  if(typeof DB!=='undefined')DB.s('authType','guest');
+  if(window.hideLoginScreen)window.hideLoginScreen();
+  updateUserUI();
+}
+function devLogin(){
+  if(typeof DB!=='undefined')DB.s('authType','dev');
+  if(window.hideLoginScreen)window.hideLoginScreen();
+  updateUserUI();
+}
 var _weatherFetched=false;
 function fetchWeather(){
   if(_weatherFetched)return;
@@ -4623,8 +4638,30 @@ window.onload=function(){
       clearInterval(window._loadTipTimer);clearInterval(window._loadBarTimer);
       var barEl=document.getElementById('loadBar');
       if(barEl)barEl.style.width='100%';
+      var _hlTimer=null;
+      window.showLoginScreen=function showLoginScreen(){
+        if(_hlTimer){clearTimeout(_hlTimer);_hlTimer=null;}
+        var ls=document.getElementById('loginScreen');
+        if(!ls)return;
+        ls.style.opacity='0';
+        ls.style.display='flex';
+        ls.style.pointerEvents='none';
+        requestAnimationFrame(function(){requestAnimationFrame(function(){
+          ls.style.transition='opacity .3s';ls.style.opacity='1';ls.style.pointerEvents='auto';
+        });});
+      }
+      window.hideLoginScreen=function hideLoginScreen(){
+        var ls=document.getElementById('loginScreen');
+        if(!ls||ls.style.display==='none')return;
+        ls.style.pointerEvents='none';
+        ls.style.transition='opacity .3s';ls.style.opacity='0';
+        if(_hlTimer)clearTimeout(_hlTimer);
+        _hlTimer=setTimeout(function(){_hlTimer=null;ls.style.display='none';ls.style.transition='';},350);
+      }
       function checkAuth(){
         updateUserUI();
+        var authType=typeof DB!=='undefined'?DB.g('authType'):'';
+        if(!authType){showLoginScreen();}
       }
       setTimeout(function(){
         var ls=document.getElementById('loadingScreen');
