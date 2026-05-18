@@ -120,6 +120,11 @@ button{-webkit-tap-highlight-color:transparent;touch-action:manipulation;}
 .home-alert-text{flex:1;font-size:11px;font-weight:700;color:#ff8a80;line-height:1.4;}
 .home-chips{display:flex;gap:5px;overflow-x:auto;flex-shrink:0;}
 .home-chips::-webkit-scrollbar{display:none;}
+.weather-strip{display:flex;align-items:center;gap:8px;padding:7px 10px;background:#0a1a2a;border-radius:9px;flex-shrink:0;margin-top:6px;border:1px solid rgba(79,168,208,.1);}
+.weather-ico{font-size:18px;line-height:1;}
+.weather-tmp{font-size:15px;font-weight:800;color:#e0edf8;}
+.weather-info{font-size:10px;color:#3a6a8a;flex:1;}
+.weather-wind{font-size:10px;color:#3a6a8a;}
 .hchip{display:flex;align-items:center;gap:7px;padding:8px 12px;border-radius:9px;flex-shrink:0;cursor:pointer;}
 .hchip-num{font-size:17px;font-weight:800;line-height:1;}
 .hchip-lbl{font-size:9px;font-weight:600;opacity:.8;margin-top:1px;}
@@ -630,6 +635,14 @@ body.guest-mode .guest-hide{display:none!important;}
     <div class="hchip hchip-g" onclick="openApp('inspect')">
       <div><div class="hchip-num" id="hs-ft">0</div><div class="hchip-lbl">전체시설</div></div>
     </div>
+  </div>
+
+  <!-- 날씨 -->
+  <div id="weatherStrip" class="weather-strip" style="display:none;">
+    <span class="weather-ico" id="wIco">☀️</span>
+    <span class="weather-tmp" id="wTmp">--°</span>
+    <span class="weather-info" id="wDesc">속초</span>
+    <span class="weather-wind" id="wWind"></span>
   </div>
 
   <!-- 4칸 메인 메뉴 -->
@@ -3767,6 +3780,24 @@ function openGuide(key){const g=GUIDES[key];if(!g)return;document.getElementById
 // ══════════════════════════════════════════
 // 홈 요약
 // ══════════════════════════════════════════
+var _weatherFetched=false;
+function fetchWeather(){
+  if(_weatherFetched)return;
+  _weatherFetched=true;
+  fetch('https://api.open-meteo.com/v1/forecast?latitude=38.13&longitude=128.41&current_weather=true&wind_speed_unit=ms&timezone=Asia%2FSeoul')
+    .then(function(r){return r.json();})
+    .then(function(d){
+      const cw=d.current_weather;if(!cw)return;
+      const code=cw.weathercode;
+      const ico=code===0?'☀️':code<=2?'🌤️':code===3?'☁️':code<=48?'🌫️':code<=55?'🌦️':code<=65?'🌧️':code<=77?'🌨️':code<=82?'🌧️':code<=86?'🌨️':'⛈️';
+      document.getElementById('wIco').textContent=ico;
+      document.getElementById('wTmp').textContent=Math.round(cw.temperature)+'°';
+      document.getElementById('wDesc').textContent='속초 · '+(['맑음','대체로맑음','구름조금','흐림','안개','이슬비','비','눈','소나기','뇌우'][code===0?0:code<=1?1:code<=2?2:code<=3?3:code<=48?4:code<=55?5:code<=65?6:code<=77?7:code<=82?8:8]||'');
+      document.getElementById('wWind').textContent='💨 '+Math.round(cw.windspeed)+'m/s';
+      var ws=document.getElementById('weatherStrip');if(ws)ws.style.display='flex';
+    })
+    .catch(function(){});
+}
 function updateSummary(){
   const res=DB.g('rescues')||[];const facs=DB.g('facilities')||[];
   const og=res.filter(r=>r.status==='ongoing');const bad=facs.filter(f=>f.status==='bad');const warn=facs.filter(f=>f.status==='warn');const ok=facs.filter(f=>f.status==='ok');
@@ -4633,7 +4664,7 @@ window.onload=function(){
   initFirebase(function(){
     initDB();
     if(window._KR){ initMaps(); } else { window._KCB=function(){initMaps();}; }
-    updateSummary();updateUserUI();renderHotSearch();
+    updateSummary();updateUserUI();renderHotSearch();fetchWeather();
     const d=new Date();const days=['일','월','화','수','목','금','토'];
     document.getElementById('homeDate').textContent=d.getFullYear()+'년 '+(d.getMonth()+1)+'월 '+d.getDate()+'일 ('+days[d.getDay()]+')';
     // Firebase 준비 완료 시 즉시 로딩 해제 (3초 폴백보다 빠르면 여기서 처리됨)
