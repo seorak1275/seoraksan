@@ -1100,6 +1100,9 @@ body.guest-mode .guest-hide{display:none!important;}
       <button class="btn btn-blue" style="flex:1;" onclick="openInspModalFromDetail()">📝 점검일지</button>
       <button class="btn btn-ghost" style="flex:1;" onclick="openHistModalFromDetail()">📖 이력 보기</button>
     </div>
+    <div id="facDetailMapBtn" style="margin-top:7px;display:none;">
+      <button class="btn" style="width:100%;background:rgba(79,168,208,.1);color:#4fa8d0;border:1px solid rgba(79,168,208,.3);" onclick="viewOnFacMap()">🗺️ 지도에서 보기</button>
+    </div>
   </div>
 </div>
 
@@ -1597,7 +1600,15 @@ function gpsFromPhone(id){
 // ══════════════════════════════════════════
 let curApp='';
 function showV(id){document.querySelectorAll('.view').forEach(v=>v.classList.remove('on'));document.getElementById(id).classList.add('on');}
-function goHome(){showV('v-home');document.getElementById('appHdr').style.display='none';document.getElementById('bnav').style.display='none';closeDB();updateSummary();history.pushState({view:'home'},'','');}
+function goHome(){
+  const ov=document.getElementById('adminLoginOverlay');
+  if(ov)ov.style.display='none';
+  showV('v-home');
+  document.getElementById('appHdr').style.display='none';
+  document.getElementById('bnav').style.display='none';
+  closeDB();updateSummary();
+  history.pushState({view:'home'},'','');
+}
 function viewOnMap(lat,lng){
   openApp('rescue');
   setTimeout(function(){
@@ -1614,7 +1625,6 @@ function openRescueAtCoord(){
 }
 function openApp(mode){
   curApp=mode;
-  history.pushState({view:mode},'','');
   document.querySelectorAll('.view').forEach(v=>v.classList.remove('on'));
   document.getElementById('appHdr').style.display='block';
   const bn=document.getElementById('bnav');
@@ -1623,15 +1633,17 @@ function openApp(mode){
     document.getElementById('topTitle').textContent='재난/구조 관리';
     document.getElementById('nvl2').textContent='목록';
     showV('v-rescue-map');bn.style.display='flex';setNv();updateRescueCross();
+    history.pushState({view:mode},'','');
     rMaps();setTimeout(()=>{try{renderRescueMap();if(mapR){if(!window._mapRInited){window._mapRInited=true;if(navigator.geolocation){navigator.geolocation.getCurrentPosition(p=>{try{mapR.setCenter(new kakao.maps.LatLng(p.coords.latitude,p.coords.longitude));}catch(e){}},()=>{try{mapR.setCenter(new kakao.maps.LatLng(DC.lat,DC.lng));}catch(e){}},{timeout:6000,maximumAge:30000});}else{mapR.setCenter(new kakao.maps.LatLng(DC.lat,DC.lng));}}}}catch(e){document.getElementById('nomapR').style.display='block';renderResList();}},130);
   } else if(mode==='inspect'){
     document.getElementById('topTitle').textContent='시설물 점검';
     document.getElementById('nvl2').textContent='목록';
     showV('v-inspect-map');bn.style.display='flex';setNv();
+    history.pushState({view:mode},'','');
     rMaps();setTimeout(()=>{try{renderInspectMap();if(mapI)mapI.setCenter(new kakao.maps.LatLng(DC.lat,DC.lng));}catch(e){document.getElementById('nomapI').style.display='block';renderFacList();}},130);
   } else if(mode==='wiki'){
     document.getElementById('topTitle').textContent='설악위키';
-    bn.style.display='none';showV('v-wiki');renderHotSearch();renderWikiList('');
+    bn.style.display='none';showV('v-wiki');history.pushState({view:mode},'','');renderHotSearch();renderWikiList('');
   } else if(mode==='admin'){
     if(localStorage.getItem('_adminAuthed')!=='1'){
       const ov=document.getElementById('adminLoginOverlay');
@@ -1640,13 +1652,13 @@ function openApp(mode){
       return;
     }
     document.getElementById('topTitle').textContent='관리자 전용';
-    bn.style.display='none';showV('v-admin');admTab('ctrl',document.querySelector('.adm-tab'));
+    bn.style.display='none';showV('v-admin');history.pushState({view:mode},'','');admTab('ctrl',document.querySelector('.adm-tab'));
   } else if(mode==='settings'){
     document.getElementById('topTitle').textContent='내 설정';
-    bn.style.display='none';showV('v-settings');_settingsTab='info';document.getElementById('stab-info').classList.add('on');document.getElementById('stab-noti').classList.remove('on');document.getElementById('stab-info-sec').classList.add('on');document.getElementById('stab-noti-sec').classList.remove('on');renderSettings();
+    bn.style.display='none';showV('v-settings');history.pushState({view:mode},'','');_settingsTab='info';document.getElementById('stab-info').classList.add('on');document.getElementById('stab-noti').classList.remove('on');document.getElementById('stab-info-sec').classList.add('on');document.getElementById('stab-noti-sec').classList.remove('on');renderSettings();
   } else if(mode==='stats'){
     document.getElementById('topTitle').textContent='전체 통계';
-    bn.style.display='none';showV('v-stats');renderFullStats();
+    bn.style.display='none';showV('v-stats');history.pushState({view:mode},'','');renderFullStats();
   }
 }
 function switchTab(idx,el){
@@ -3621,9 +3633,21 @@ function openFacDetail(id){
       <b style="color:#c0d8ec;">최근 점검:</b> ${lastInsp?lastInsp.date+' ('+SL(lastInsp.status)+')':'없음'}<br>
       ${f.note?`<b style="color:#c0d8ec;">비고:</b> ${f.note}`:''}
     </div>`;
+  const mapBtn=document.getElementById('facDetailMapBtn');
+  if(mapBtn)mapBtn.style.display=(f.lat&&f.lng)?'block':'none';
   document.getElementById('modalFacDetail').classList.add('on');
   // 지도 핀에서 왔을 때도 동일하게 작동
   document.getElementById('facPopup').classList.remove('on');
+}
+function viewOnFacMap(){
+  const f=(DB.g('facilities')||[]).find(x=>x.id===selFacId);
+  if(!f||!f.lat)return;
+  closeM('modalFacDetail');
+  if(curApp!=='inspect'){openApp('inspect');}
+  else{switchTab(1,document.getElementById('nv1'));}
+  setTimeout(function(){
+    try{if(mapI){mapI.setCenter(new kakao.maps.LatLng(f.lat,f.lng));mapI.setLevel(4);}renderInspectMap();}catch(e){}
+  },200);
 }
 function openFacPopup(id){openFacDetail(id);}
 
