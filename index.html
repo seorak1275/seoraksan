@@ -4219,6 +4219,11 @@ function _handleKakaoCode(code){
     var u=DB.g('currentUser')||{};
     var prof=(res.kakao_account&&res.kakao_account.profile)||{};
     var kakaoId=String(res.id);
+    // deletedKakaoIds에서 제거 (탈퇴 후 재가입 시 강제 로그아웃 방지)
+    var deletedIds=DB.g('deletedKakaoIds')||[];
+    if(deletedIds.includes(kakaoId)){
+      DB.s('deletedKakaoIds',deletedIds.filter(function(id){return id!==kakaoId;}));
+    }
     // pendingUsers를 유일한 승인 기준으로 사용
     var pendingList=DB.g('pendingUsers')||[];
     var pendingEntry=pendingList.find(function(p){return String(p.id)===kakaoId;});
