@@ -1532,14 +1532,14 @@ function clearNotis(){DB.s('notis',[]);updateBell();closeNoti();toast('🗑️ �
 let mapI,mapR,iOvs=[],rOvs=[],iEls=[],rEls=[],myOv=null,mapIType='hybrid',mapRType='hybrid';
 function _pinSz(level){
   if(level<=4) return {sz:34,fs:15,bw:2.5,numFs:6,numPad:'1px 3px'};
-  if(level<=6) return {sz:30,fs:13,bw:2,  numFs:6,numPad:'1px 3px'};
-  if(level<=8) return {sz:26,fs:11,bw:2,  numFs:6,numPad:'1px 3px'};
-  if(level<=9) return {sz:22,fs:10,bw:1.5,numFs:5,numPad:'1px 2px'};
-  if(level<=10)return {sz:16,fs:8, bw:1.5,numFs:5,numPad:'1px 2px'};
-  if(level<=11)return {sz:12,fs:6, bw:1,  numFs:4,numPad:'0px 2px'};
-  if(level<=12)return {sz:9, fs:5, bw:1,  numFs:3,numPad:'0px 1px'};
-  if(level<=13)return {sz:7, fs:4, bw:0.5,numFs:3,numPad:'0px 1px'};
-  return              {sz:5, fs:3, bw:0.5,numFs:2,numPad:'0px 1px'};
+  if(level<=5) return {sz:28,fs:12,bw:2,  numFs:5,numPad:'1px 2px'};
+  if(level<=6) return {sz:23,fs:10,bw:2,  numFs:5,numPad:'1px 2px'};
+  if(level<=7) return {sz:18,fs:8, bw:1.5,numFs:4,numPad:'1px 2px'};
+  if(level<=8) return {sz:13,fs:6, bw:1,  numFs:4,numPad:'0px 2px'};
+  if(level<=9) return {sz:8, fs:5, bw:1,  numFs:3,numPad:'0px 2px'};
+  if(level<=12)return {sz:5, fs:4, bw:0.5,numFs:3,numPad:'0px 1px'};
+  if(level<=13)return {sz:4, fs:3, bw:0.5,numFs:2,numPad:'0px 1px'};
+  return              {sz:3, fs:2, bw:0.5,numFs:2,numPad:'0px 1px'};
 }
 function _scaleOvs(els,level){
   const s=_pinSz(level);
