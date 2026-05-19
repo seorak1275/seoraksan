@@ -2505,6 +2505,7 @@ function setResF(f){resFilter=f;renderResList();}
 // 재난 통계
 // ══════════════════════════════════════════
 function renderRescueStats(){
+  document.getElementById('topTitle').textContent='재난/구조 관리';
   if(!window._rescueStatTab)window._rescueStatTab='rescue';
   const tab=window._rescueStatTab;
   const rsTabR=document.getElementById('rsTabRescue');
