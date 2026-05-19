@@ -588,7 +588,10 @@ body.guest-mode .guest-hide{display:none!important;}
   <div style="font-size:17px;font-weight:800;color:#4fa8d0;margin-bottom:10px;letter-spacing:.3px;">승인 대기 중</div>
   <div style="font-size:12px;color:#7a9cb8;line-height:1.8;margin-bottom:22px;">관리자 승인 후 이용 가능합니다<br>관리자에게 승인 코드를 요청하세요</div>
   <div id="pendingUserInfo" style="background:#0a1a2a;border:1px solid rgba(79,168,208,.2);border-radius:12px;padding:14px 18px;margin-bottom:22px;width:100%;max-width:320px;text-align:left;font-size:12px;color:#b8d4e8;line-height:2.1;"></div>
-  <button onclick="enterApprovalCode()" style="width:100%;max-width:320px;background:#1a4a6e;color:#fff;border:none;padding:13px;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;margin-bottom:10px;touch-action:manipulation;">🔑 승인 코드 입력</button>
+  <div style="width:100%;max-width:320px;margin-bottom:10px;">
+    <input id="approvalCodeInput" type="text" class="fi" placeholder="승인 코드 입력" style="width:100%;font-size:15px;letter-spacing:2px;text-align:center;margin-bottom:8px;" onkeydown="if(event.key==='Enter')enterApprovalCode()">
+    <button onclick="enterApprovalCode()" style="width:100%;background:#1a4a6e;color:#fff;border:none;padding:13px;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;touch-action:manipulation;">🔑 승인 확인</button>
+  </div>
   <button onclick="kakaoLogout()" style="width:100%;max-width:320px;background:rgba(255,80,80,.1);color:#ff8a80;border:1px solid rgba(255,80,80,.2);padding:11px;border-radius:10px;font-size:13px;cursor:pointer;touch-action:manipulation;">← 로그아웃</button>
 </div>
 
@@ -2282,12 +2285,18 @@ function hidePendingScreen(){
   if(el)el.style.display='none';
 }
 function enterApprovalCode(){
-  const code=prompt('관리자로부터 받은 승인 코드를 입력하세요:');
-  if(!code)return;
+  const inp=document.getElementById('approvalCodeInput');
+  const code=(inp?inp.value:'').trim();
+  if(!code){toast('⚠️ 승인 코드를 입력해주세요');return;}
   const adminCode=DB.g('adminApprovalCode')||'SEORAKSAN';
-  if(code.trim()===adminCode){
+  if(code===adminCode){
     const u=DB.g('currentUser')||{};
     DB.s('currentUser',{...u,approvalStatus:'approved'});
+    // pendingUsers에도 승인 상태 반영
+    const list=DB.g('pendingUsers')||[];
+    const idx=list.findIndex(function(p){return p.id===String(u.kakaoId||u.name);});
+    if(idx>=0){list[idx].approvalStatus='approved';DB.s('pendingUsers',list);}
+    if(inp)inp.value='';
     hidePendingScreen();
     toast('✅ 승인 완료! 이용하실 수 있습니다.');
     updateUserUI();
