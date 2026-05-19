@@ -4188,8 +4188,8 @@ function openGuide(key){const g=GUIDES[key];if(!g)return;document.getElementById
 // ══════════════════════════════════════════
 function kakaoLogin(){
   if(!window.Kakao||!Kakao.isInitialized()){toast('⚠️ 카카오 SDK 오류');return;}
-  // redirect 방식: WebView·앱 환경에서도 안정적으로 작동
-  Kakao.Auth.authorize({redirectUri:'https://109yoon.github.io/seoraksan/'});
+  // throughTalk:false → 브라우저 OAuth 강제 (앱 인텐트 차단)
+  Kakao.Auth.authorize({redirectUri:'https://109yoon.github.io/seoraksan/',throughTalk:false});
 }
 function _handleKakaoCode(code){
   // ?code= 로 돌아왔을 때 토큰 교환 후 프로필 저장
