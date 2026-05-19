@@ -3677,7 +3677,14 @@ function viewOnFacMap(){
   else{switchTab(1,document.getElementById('nv1'));}
   setTimeout(function(){
     try{if(mapI){mapI.setCenter(new kakao.maps.LatLng(f.lat,f.lng));mapI.setLevel(4);}renderInspectMap();}catch(e){}
-  },200);
+    // 하단 팝업 표시
+    const hist=(DB.g('history')||[]).filter(h=>h.facId===f.id);
+    const last=hist.length?hist[hist.length-1]:null;
+    document.getElementById('facPopTitle').textContent=f.type.split(' ')[0]+' '+f.name;
+    document.getElementById('facPopMeta').innerHTML=`<span style="color:${SC(f.status)};font-weight:700;">${SL(f.status)}</span> · ${f.loc||'-'}<br>최근 점검: ${last?last.date+' ('+SL(last.status)+')':'없음'}`;
+    document.getElementById('resPopup').classList.remove('on');
+    document.getElementById('facPopup').classList.add('on');
+  },220);
 }
 function openFacPopup(id){openFacDetail(id);}
 
