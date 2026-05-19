@@ -1701,13 +1701,13 @@ function openApp(mode){
     document.getElementById('nvl2').textContent='목록';
     showV('v-rescue-map');bn.style.display='flex';setNv();updateRescueCross();
     history.pushState({view:mode},'','');
-    rMaps();setTimeout(()=>{try{renderRescueMap();if(mapR){if(!window._mapRInited){window._mapRInited=true;if(navigator.geolocation){navigator.geolocation.getCurrentPosition(p=>{try{mapR.setCenter(new kakao.maps.LatLng(p.coords.latitude,p.coords.longitude));}catch(e){}},()=>{try{mapR.setCenter(new kakao.maps.LatLng(DC.lat,DC.lng));}catch(e){}},{timeout:6000,maximumAge:30000});}else{mapR.setCenter(new kakao.maps.LatLng(DC.lat,DC.lng));}}}}catch(e){document.getElementById('nomapR').style.display='block';renderResList();}},130);
+    rMaps();setTimeout(()=>{try{renderRescueMap();if(mapR&&!window._mapRInited){window._mapRInited=true;mapR.setCenter(new kakao.maps.LatLng(DC.lat,DC.lng));mapR.setLevel(9);}}catch(e){document.getElementById('nomapR').style.display='block';renderResList();}},130);
   } else if(mode==='inspect'){
     document.getElementById('topTitle').textContent='시설물 점검';
     document.getElementById('nvl2').textContent='목록';
     showV('v-inspect-map');bn.style.display='flex';setNv();updateInspectCross();
     history.pushState({view:mode},'','');
-    rMaps();setTimeout(()=>{try{renderInspectMap();if(mapI){if(!window._mapIInited){window._mapIInited=true;if(navigator.geolocation){navigator.geolocation.getCurrentPosition(p=>{try{mapI.setCenter(new kakao.maps.LatLng(p.coords.latitude,p.coords.longitude));}catch(e){}},()=>{try{mapI.setCenter(new kakao.maps.LatLng(DC.lat,DC.lng));}catch(e){}},{timeout:6000,maximumAge:30000});}else{mapI.setCenter(new kakao.maps.LatLng(DC.lat,DC.lng));}}else{mapI.setCenter(new kakao.maps.LatLng(DC.lat,DC.lng));}}}catch(e){document.getElementById('nomapI').style.display='block';renderFacList();}},130);
+    rMaps();setTimeout(()=>{try{renderInspectMap();if(mapI&&!window._mapIInited){window._mapIInited=true;mapI.setCenter(new kakao.maps.LatLng(DC.lat,DC.lng));mapI.setLevel(9);}}catch(e){document.getElementById('nomapI').style.display='block';renderFacList();}},130);
   } else if(mode==='wiki'){
     document.getElementById('topTitle').textContent='설악위키';
     bn.style.display='none';showV('v-wiki');history.pushState({view:mode},'','');renderHotSearch();renderWikiList('');
