@@ -785,6 +785,7 @@ body.guest-mode .guest-hide{display:none!important;}
     <button class="map-ctrl" onclick="toggleMapType('inspect')">위성/일반</button>
     <button class="fab-gps" onclick="gpsTo('inspect')">📍</button>
     <button class="fab" style="background:#0c4838;color:#fff;" onclick="openAddFac()">＋</button>
+    <div id="inspMapFBar" style="position:absolute;top:46px;left:8px;right:8px;z-index:10;pointer-events:none;display:flex;flex-direction:column;gap:4px;"></div>
     <div id="inspectCoords" style="position:absolute;bottom:130px;left:10px;background:rgba(0,0,0,.6);color:#8ab4cc;font-size:10px;padding:3px 8px;border-radius:5px;z-index:9;pointer-events:none;font-family:monospace;backdrop-filter:blur(4px);letter-spacing:.3px;">--</div>
     <div class="nomap-banner" id="nomapI">📍 API 키 설정 후 지도 사용 가능 — 목록탭 이용</div>
     <div class="dbcard" id="facPopup">
@@ -3571,11 +3572,31 @@ function submitHazard(){
 // ══════════════════════════════════════════
 // 시설물
 // ══════════════════════════════════════════
-let selFacId=null,facStatusF='전체',facTypeF='전체',facLocF='전체';
+let selFacId=null,facStatusF='전체',facTypeF='전체',facLocF='전체',facMapStatusF='전체',facMapTypeF='전체';
 function renderInspectMap(){
   if(!mapI){document.getElementById('nomapI').style.display='block';return;}
   iOvs.forEach(o=>{try{o.setMap(null);}catch(e){}});iOvs=[];
-  (DB.g('facilities')||[]).forEach(f=>{
+  const facs=DB.g('facilities')||[];
+  const sMap={'전체':null,'양호':'ok','요주의':'warn','위험':'bad'};
+  const sCol={'전체':'rgba(200,220,240,.6)','양호':'#27ae60','요주의':'#e67e22','위험':'#c0392b'};
+  const types=['전체',...new Set(facs.map(f=>f.type.split(' ').slice(1).join(' ')||f.type))];
+  const mpill=(v,cur,col,ev)=>`<div style="padding:3px 9px;border-radius:20px;font-size:10px;font-weight:700;cursor:pointer;white-space:nowrap;flex-shrink:0;pointer-events:auto;border:1.5px solid ${v===cur?col:'rgba(255,255,255,.18)'};color:${v===cur?col:'rgba(255,255,255,.5)'};background:${v===cur?col+'28':'rgba(5,12,25,.75)'};backdrop-filter:blur(6px);" onclick="${ev}">${v}</div>`;
+  const bpill=(v,cur,ev)=>`<div style="padding:3px 9px;border-radius:20px;font-size:10px;font-weight:700;cursor:pointer;white-space:nowrap;flex-shrink:0;pointer-events:auto;border:1.5px solid ${v===cur?'rgba(79,168,208,.7)':'rgba(255,255,255,.18)'};color:${v===cur?'#4fa8d0':'rgba(255,255,255,.5)'};background:${v===cur?'rgba(79,168,208,.18)':'rgba(5,12,25,.75)'};backdrop-filter:blur(6px);" onclick="${ev}">${v}</div>`;
+  const fbar=document.getElementById('inspMapFBar');
+  if(fbar){
+    fbar.innerHTML=`
+      <div style="display:flex;gap:4px;overflow-x:auto;-webkit-overflow-scrolling:touch;pointer-events:auto;">
+        ${['전체','양호','요주의','위험'].map(v=>mpill(v,facMapStatusF,sCol[v],`setMapFacF('s','${v}')`)).join('')}
+        <div style="width:1px;background:rgba(255,255,255,.12);flex-shrink:0;margin:0 1px;"></div>
+        ${types.map(v=>bpill(v,facMapTypeF,`setMapFacF('t','${v}')`)).join('')}
+      </div>`;
+  }
+  const filtered=facs.filter(f=>{
+    const sOk=!sMap[facMapStatusF]||f.status===sMap[facMapStatusF];
+    const tOk=facMapTypeF==='전체'||f.type.includes(facMapTypeF);
+    return sOk&&tOk;
+  });
+  filtered.forEach(f=>{
     if(!f.lat||!f.lng)return;
     const el=document.createElement('div');el.className=`mpin p-${f.status}${f.status==='bad'?' blink':''}`;el.innerHTML=f.type.split(' ')[0];
     el.onclick=e=>{e.stopPropagation();openFacFromMap(f.id);};
@@ -3583,6 +3604,7 @@ function renderInspectMap(){
     ov.setMap(mapI);iOvs.push(ov);
   });
 }
+function setMapFacF(t,v){if(t==='s')facMapStatusF=v;else facMapTypeF=v;renderInspectMap();}
 function openFacFromMap(id){
   const f=(DB.g('facilities')||[]).find(x=>x.id===id);if(!f)return;
   selFacId=id;
