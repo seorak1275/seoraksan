@@ -2634,7 +2634,6 @@ function submitNBoFromForm(){
     return txt?txt.textContent.trim().split(' ')[0]:'';
   }).filter(Boolean);
   const extraMembers=[..._extraDispatch];
-  const addTeam=getAddTeamMembers();
   const phaseData={
     repTime: now(),
     type: document.getElementById('r_type')?.value||res[idx].type,
@@ -3433,7 +3432,6 @@ function submit1Bo(){
     return txt?txt.textContent.trim().split(' ')[0]:'';
   }).filter(Boolean);
   const extraMembers=[..._extraDispatch];
-  const addTeam=getAddTeamMembers();
   // 현재 날짜/시간
   const nowStr=now();
   const r={
