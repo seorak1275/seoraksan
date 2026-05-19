@@ -176,6 +176,7 @@ button{-webkit-tap-highlight-color:transparent;touch-action:manipulation;}
 .map-ctrl{position:absolute;top:10px;left:10px;background:rgba(11,28,48,.85);color:#4fa8d0;border:1px solid rgba(79,168,208,.22);border-radius:7px;padding:5px 9px;font-size:11px;font-weight:600;cursor:pointer;z-index:10;}
 .nomap-banner{position:absolute;top:10px;left:50%;transform:translateX(-50%);background:rgba(11,28,48,.92);color:#c0d8ec;padding:8px 14px;border-radius:8px;font-size:11px;z-index:12;border:1px solid rgba(79,168,208,.2);white-space:nowrap;display:none;}
 .mpin{width:34px;height:34px;border-radius:50%;background:#0b1c30;display:flex;align-items:center;justify-content:center;font-size:15px;cursor:pointer;border:2.5px solid;box-shadow:0 3px 8px rgba(0,0,0,.8);}
+.mpin-sm{width:20px;height:20px;border-radius:50%;background:#0b2a3f;display:flex;align-items:center;justify-content:center;font-size:10px;cursor:pointer;border:1.5px solid #4fa8d0;box-shadow:0 2px 5px rgba(0,0,0,.7);opacity:.9;}
 .p-ok{border-color:#27ae60;}.p-warn{border-color:#e67e22;}.p-bad{border-color:#c0392b;}
 .p-acc{border-color:#c0392b;background:#c0392b;color:#fff;}.p-rock{border-color:#7d3c98;background:#7d3c98;color:#fff;}
 .p-tree{border-color:#ca6f1e;background:#ca6f1e;color:#fff;}.p-fire{border-color:#a93226;background:#a93226;color:#fff;}
@@ -1379,7 +1380,7 @@ function initDB(){
     {name:'양지석',dept:'특수산악구조대',rank:'주임'},
     {name:'윤태종',dept:'특수산악구조대',rank:'주임'},
   ]);
-  if(!DB.g('catFac'))     DB.s('catFac',['🪧 위치표지판','🛤️ 데크/계단','🌉 교량','🏠 대피소','🛡️ 안전난간','🪵 목재계단','🚿 계곡시설']);
+  if(!DB.g('catFac'))     DB.s('catFac',['🪧 위치표지판','🪧 다목적위치표지판','🛤️ 데크/계단','🌉 교량','🏠 대피소','🛡️ 안전난간','🪵 목재계단','🚿 계곡시설']);
   if(!DB.g('wikiCats'))   DB.s('wikiCats',['지형','안전','장비','법령','응급','탐방로','시설','동식물','기상']);
   if(!DB.g('facilities')) DB.s('facilities',[
     {id:1,type:'🌉 교량',name:'설악-01 출렁다리',loc:'소공원 입구',status:'bad',lat:38.170,lng:128.480,install:'2025-05-10',note:'강철 와이어 부식',author:'손경완'},
@@ -2364,11 +2365,10 @@ function renderRescueMap(){
     const ov=new kakao.maps.CustomOverlay({position:new kakao.maps.LatLng(h.lat,h.lng),content:el,clickable:true});
     ov.setMap(mapR);rOvs.push(ov);
   });
-  // 위치표지판 — 구조 위치 파악용 참조 마커
-  (DB.g('facilities')||[]).filter(f=>f.lat&&f.lng&&f.type&&f.type.includes('위치표지')).forEach(f=>{
+  // 위치표지판 — 구조 위치 파악용 참조 마커 (소형)
+  (DB.g('facilities')||[]).filter(f=>f.lat&&f.lng&&f.type&&(f.type.includes('위치표지')||f.type.includes('다목적'))).forEach(f=>{
     const el=document.createElement('div');
-    el.className='mpin';
-    el.style.cssText='border-color:#4fa8d0;background:#0b2a3f;opacity:.85;font-size:13px;';
+    el.className='mpin-sm';
     el.innerHTML='🪧';
     el.title=f.name||'위치표지판';
     el.onclick=e=>{e.stopPropagation();toast('📍 '+f.name+(f.loc?' · '+f.loc:''));};
@@ -3828,20 +3828,36 @@ function admEndRes(id){const res=DB.g('rescues')||[];const i=res.findIndex(x=>x.
 function admDelRes(id){if(!confirm('삭제?'))return;DB.s('rescues',(DB.g('rescues')||[]).filter(r=>r.id!==id));renderAdmCtrl();try{renderRescueMap();}catch(e){}toast('🗑️ 삭제');updateSummary();}
 function renderAdmMembers(){
   const staff=sortStaff(getStaff());
-  const byDept={};
-  staff.forEach(s=>{if(!byDept[s.dept])byDept[s.dept]=[];byDept[s.dept].push(s);});
-  let html=`<div style="font-size:10px;color:#3a6a8a;margin-bottom:8px;font-weight:600;">전체 직원 (${staff.length}명)</div>`;
-  DEPTS.forEach(dept=>{
-    if(!byDept[dept]||!byDept[dept].length)return;
-    html+=`<div style="font-size:10px;color:#4fa8d0;font-weight:700;padding:6px 0 4px;">${dept}</div>`;
-    html+=byDept[dept].map(s=>`<div class="adm-row"><div class="adm-info"><div class="adm-name">👤 ${s.name}</div><div class="adm-meta">${s.rank} · ${s.dept}</div></div><button class="abtn del" onclick="delStaff('${s.name}')">삭제</button></div>`).join('');
-  });
-  // 소속 미지정
-  const etc=staff.filter(s=>!DEPTS.includes(s.dept));
-  if(etc.length){html+=`<div style="font-size:10px;color:#4fa8d0;font-weight:700;padding:6px 0 4px;">기타</div>`;html+=etc.map(s=>`<div class="adm-row"><div class="adm-info"><div class="adm-name">👤 ${s.name}</div><div class="adm-meta">${s.rank||'-'} · ${s.dept||'미지정'}</div></div><button class="abtn del" onclick="delStaff('${s.name}')">삭제</button></div>`).join('');}
+  const pending=DB.g('pendingUsers')||[];
+  // 사용 중인 과/분소만 필터 칩으로
+  const usedDepts=DEPTS.filter(d=>staff.some(s=>s.dept===d)||pending.some(p=>p.dept===d));
+  const chips=['전체',...usedDepts];
+  let html=`<div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:10px;">
+    ${chips.map(d=>`<div onclick="setAdmMemberFilter('${d}')" style="padding:4px 10px;border-radius:20px;font-size:10px;font-weight:700;cursor:pointer;${d===_admMemberFilter?'background:#1a4a6e;color:#4fa8d0;':'background:#0b1c30;color:#4a7090;border:1px solid #1a3a5a;'}">${d}</div>`).join('')}
+  </div>`;
+  const fpending=_admMemberFilter==='전체'?pending:pending.filter(p=>p.dept===_admMemberFilter);
+  const fstaff=_admMemberFilter==='전체'?staff:staff.filter(s=>s.dept===_admMemberFilter);
+  html+=`<div style="font-size:10px;color:#3a6a8a;font-weight:600;margin-bottom:8px;">전체 ${fpending.length+fstaff.length}명 (앱가입 ${fpending.length}명 · 직원 ${fstaff.length}명)</div>`;
+  if(fpending.length){
+    html+=`<div style="font-size:10px;color:#4fa8d0;font-weight:700;padding:4px 0 6px;">📱 앱 가입자</div>`;
+    html+=fpending.slice().reverse().map(u=>`<div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid rgba(255,255,255,.05);">`
+      +(u.kakaoImg?`<img src="${u.kakaoImg}" style="width:28px;height:28px;border-radius:50%;object-fit:cover;flex-shrink:0;" onerror="this.style.display='none'">`
+        :`<div style="width:28px;height:28px;border-radius:50%;background:#1a3a5a;display:flex;align-items:center;justify-content:center;font-size:12px;flex-shrink:0;">👤</div>`)
+      +`<div style="flex:1;min-width:0;"><div style="font-size:12px;font-weight:700;color:#e0edf8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${u.realName||u.name||'이름없음'}</div>`
+      +`<div style="font-size:10px;color:#4a7090;margin-top:1px;">${u.dept||''}${u.rank?' · '+u.rank:''} · ${u.approvalStatus==='approved'?'<span style="color:#7ec8a0;">✅승인</span>':'<span style="color:#e67e22;">⏳대기</span>'}</div></div>`
+      +`<button onclick="deleteUser('${u.id}')" style="flex-shrink:0;background:rgba(192,57,43,.15);color:#ff8a80;border:1px solid rgba(192,57,43,.25);border-radius:6px;padding:4px 9px;font-size:10px;cursor:pointer;">삭제</button></div>`
+    ).join('');
+  }
+  if(fstaff.length){
+    html+=`<div style="font-size:10px;color:#4fa8d0;font-weight:700;padding:${fpending.length?'10px':'4px'} 0 6px;">👤 직원</div>`;
+    html+=fstaff.map(s=>`<div class="adm-row"><div class="adm-info"><div class="adm-name">👤 ${s.name}</div><div class="adm-meta">${s.rank||'-'} · ${s.dept||'미지정'}</div></div><button class="abtn del" onclick="delStaff('${s.name}')">삭제</button></div>`).join('');
+  }
+  if(!fpending.length&&!fstaff.length)html+=`<div style="font-size:11px;color:#4a7090;padding:8px 0;">해당 과/분소 인원 없음</div>`;
   html+=`<button class="btn btn-ghost" style="width:100%;padding:9px;border-radius:8px;margin-top:6px;font-size:12px;" onclick="addStaff()">＋ 직원 추가</button>`;
   document.getElementById('admMembersWrap').innerHTML=html;
 }
+var _admMemberFilter='전체';
+function setAdmMemberFilter(f){_admMemberFilter=f;renderAdmMembers();}
 function addStaff(){
   const name=prompt('직원 이름:');if(!name?.trim())return;
   const deptIdx=prompt('소속 과/분소 번호:\n'+DEPTS.map((d,i)=>`${i+1}. ${d}`).join('\n'));
@@ -3887,19 +3903,6 @@ function renderAdmSys(){
       <div class="stitle">👥 새 가입자 알림${unseenCnt>0?` <span style="background:#c0392b;color:#fff;font-size:10px;padding:1px 7px;border-radius:20px;margin-left:6px;font-weight:700;">${unseenCnt}</span>`:''}</div>
       ${_renderPendingList()}
     </div>
-    <div class="scard" style="margin-bottom:8px;">
-      <div class="stitle">👥 전체 가입 인원 <span style="background:#1a4a6e;color:#4fa8d0;font-size:10px;padding:1px 8px;border-radius:20px;margin-left:6px;font-weight:700;">${(DB.g('pendingUsers')||[]).length}명</span></div>
-      ${(function(){var list=DB.g('pendingUsers')||[];if(!list.length)return'<div style="font-size:11px;color:#4a7090;padding:4px 0;">가입 인원 없음</div>';
-        return list.slice().reverse().map(function(u){return'<div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid rgba(255,255,255,.05);">'
-          +(u.kakaoImg?'<img src="'+u.kakaoImg+'" style="width:28px;height:28px;border-radius:50%;object-fit:cover;flex-shrink:0;" onerror="this.style.display=\'none\'">'
-            :'<div style="width:28px;height:28px;border-radius:50%;background:#1a3a5a;display:flex;align-items:center;justify-content:center;font-size:12px;flex-shrink:0;">👤</div>')
-          +'<div style="flex:1;min-width:0;">'
-            +'<div style="font-size:12px;font-weight:700;color:#e0edf8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+(u.realName||u.name||'이름없음')+'</div>'
-            +'<div style="font-size:10px;color:#4a7090;margin-top:1px;">'+(u.dept||'')+(u.rank?' · '+u.rank:'')+(u.submittedAt?' · '+new Date(u.submittedAt).toLocaleDateString('ko-KR'):'')+' 가입</div>'
-          +'</div>'
-          +'<button onclick="deleteUser(\''+u.id+'\')" style="flex-shrink:0;background:rgba(192,57,43,.15);color:#ff8a80;border:1px solid rgba(192,57,43,.25);border-radius:6px;padding:4px 9px;font-size:10px;cursor:pointer;">삭제</button>'
-          +'</div>';}).join('');})()}
-    </div>
     <div class="scard" style="margin-bottom:8px;"><div class="stitle">📊 데이터 현황</div>
       <div style="font-size:12px;color:#b8d4e8;line-height:2.1;">시설물 <b>${(DB.g('facilities')||[]).length}개</b> · 점검이력 <b>${(DB.g('history')||[]).length}건</b><br>구조이력 <b>${(DB.g('rescues')||[]).length}건</b> · 위험상황 <b>${(DB.g('hazards')||[]).length}건</b><br>위키 <b>${(DB.g('wikis')||[]).length}건</b> · 대원 <b>${(DB.g('members')||[]).length}명</b></div>
     </div>
@@ -3922,6 +3925,7 @@ function deleteUser(id){
   }
   DB.s('pendingUsers',list.filter(function(p){return p.id!==id;}));
   renderAdmSys();
+  try{renderAdmMembers();}catch(e){}
   toast('🗑️ 삭제 완료');
 }
 function _checkDeletedUser(){
