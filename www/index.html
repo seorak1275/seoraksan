@@ -905,7 +905,7 @@ body.guest-mode .guest-hide{display:none!important;}
 <!-- ══ 모달: 작성자 설정 ══ -->
 <div id="modalUser" class="modal">
   <div class="mbox">
-    <div class="mhdr"><span class="mtitle">👤 작성자 설정</span><button class="mclose" id="modalUserClose" onclick="if(window._requireProfile){toast('⚠️ 이름·소속·직위를 모두 입력해주세요');}else{closeM('modalUser');}">×</button></div>
+    <div class="mhdr"><span class="mtitle" id="modalUserTitle">👤 작성자 설정</span><button class="mclose" id="modalUserClose" onclick="if(window._requireProfile){toast('⚠️ 이름·소속·직위를 모두 입력해주세요');}else{closeM('modalUser');}">×</button></div>
     <div id="kakaoUserBanner" style="display:none;background:rgba(254,229,0,.1);border:1px solid rgba(254,229,0,.3);border-radius:8px;padding:9px 11px;margin-bottom:11px;font-size:11px;color:#f0d900;">
       💬 카카오 계정으로 로그인됨 — 이름·소속만 확인하세요
     </div>
@@ -931,6 +931,11 @@ body.guest-mode .guest-hide{display:none!important;}
       <span class="fl">이름 <span style="color:#c0392b;">*</span></span>
       <div style="font-size:11px;color:#4fa8d0;margin-bottom:6px;line-height:1.5;">카카오 닉네임이 자동 입력되어 있습니다.<br>실제 이름으로 수정해주세요.</div>
       <input type="text" id="uNameIn" class="fi" placeholder="실제 이름 입력">
+    </div>
+    <div class="fg" id="uCodeWrap" style="display:none;">
+      <span class="fl">승인 코드 <span style="color:#c0392b;">*</span></span>
+      <div style="font-size:11px;color:#4a7090;margin-bottom:6px;">관리자에게 받은 승인 코드를 입력하세요</div>
+      <input type="text" id="uCodeIn" class="fi" placeholder="승인 코드 입력" style="letter-spacing:2px;text-transform:uppercase;" onkeydown="if(event.key==='Enter')saveUser()">
     </div>
     <button class="btn-submit" style="background:#1a4a6e;color:#fff;" onclick="saveUser()">저장</button>
   </div>
@@ -2233,8 +2238,17 @@ function selTTActor(el,actor){
 // ══════════════════════════════════════════
 function openChangeUser(){
   const u=DB.g('currentUser')||{};
+  const authType=DB.g('authType');
+  const needsCode=authType==='kakao'&&u.approvalStatus!=='approved'&&!isAdminUser(u);
+  const titleEl=document.getElementById('modalUserTitle');
+  if(titleEl)titleEl.textContent=needsCode?'🆕 가입 신청':'👤 작성자 설정';
+  const codeWrap=document.getElementById('uCodeWrap');
+  if(codeWrap){codeWrap.style.display=needsCode?'block':'none';}
+  const codeIn=document.getElementById('uCodeIn');
+  if(codeIn)codeIn.value='';
   document.getElementById('uNameIn').value=u.realName||u.name||'';
   const ds=document.getElementById('uDeptIn');if(ds&&u.dept)ds.value=u.dept;
+  document.querySelectorAll('#rankPills .pill').forEach(p=>p.classList.remove('on'));
   if(u.rank){document.querySelectorAll('#rankPills .pill').forEach(p=>{if(p.textContent===u.rank)p.classList.add('on');});}
   const banner=document.getElementById('kakaoUserBanner');
   if(banner)banner.style.display=u.kakao?'block':'none';
@@ -2287,13 +2301,32 @@ function saveUser(){
   const authType=DB.g('authType');
   const admin=isAdminUser(existing);
   const alreadyApproved=existing.approvalStatus==='approved';
-  const newStatus=(admin||alreadyApproved||authType!=='kakao')?'approved':'pending';
+  const needsCode=authType==='kakao'&&!alreadyApproved&&!admin;
+  let newStatus;
+  if(admin||alreadyApproved||authType!=='kakao'){
+    newStatus='approved';
+  }else{
+    const codeWrap=document.getElementById('uCodeWrap');
+    const codeVisible=codeWrap&&codeWrap.style.display!=='none';
+    if(codeVisible){
+      const codeIn=document.getElementById('uCodeIn');
+      const code=(codeIn?codeIn.value:'').trim().toUpperCase();
+      if(!code){toast('⚠️ 승인 코드를 입력해주세요');return;}
+      const adminCode=(DB.g('adminApprovalCode')||'SEORAKSAN').toUpperCase();
+      if(code!==adminCode){toast('❌ 올바르지 않은 코드입니다');return;}
+      newStatus='approved';
+    }else{
+      newStatus='pending';
+    }
+  }
   const saved={...existing,realName:name,name,dept,rank,approvalStatus:newStatus};
   DB.s('currentUser',saved);
   _notifyNewJoiner(saved);
   window._requireProfile=false;
-  closeM('modalUser');updateUserUI();
-  toast('✅ 저장: '+name);
+  closeM('modalUser');
+  hidePendingScreen();
+  updateUserUI();
+  toast(newStatus==='approved'?'✅ 승인 완료! 이용하실 수 있습니다.':'✅ 저장: '+name);
   try{renderSettings();}catch(e){}
 }
 function _notifyNewJoiner(u){
@@ -4066,7 +4099,7 @@ function renderSettings(){
       </div>
       <div class="scard" style="margin-bottom:8px;">
         <div class="stitle">💬 카카오 로그인</div>
-        ${(()=>{if(u.kakaoImg||u.kakaoId){return`<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;"><img src="${u.kakaoImg||''}" style="width:36px;height:36px;border-radius:50%;object-fit:cover;background:#1a3a5a;" onerror="this.style.display='none'"><div style="font-size:12px;color:#b8d4e8;"><b style="color:#e0edf8;">${u.name||''}</b> 님으로 연결됨</div></div><button onclick="kakaoLogout()" style="width:100%;background:rgba(255,80,80,.12);color:#ff8a80;border:1px solid rgba(255,80,80,.25);padding:9px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;">🚪 카카오 로그아웃</button>`;}return`<div style="font-size:11px;color:#7a9cb8;margin-bottom:8px;">카카오 계정으로 로그인하면 작성자 정보가 자동 설정됩니다.</div><button onclick="kakaoLogin()" style="width:100%;background:rgba(254,229,0,.18);color:#f0d900;border:1px solid rgba(254,229,0,.3);padding:9px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;">💬 카카오로 로그인</button>`;})()}
+        ${(()=>{if(u.kakaoImg||u.kakaoId){return`<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;"><img src="${u.kakaoImg||''}" style="width:36px;height:36px;border-radius:50%;object-fit:cover;background:#1a3a5a;" onerror="this.style.display='none'"><div style="font-size:12px;color:#b8d4e8;"><b style="color:#e0edf8;">${u.name||''}</b> 님으로 연결됨</div></div><button onclick="kakaoLogout()" style="width:100%;background:rgba(255,80,80,.12);color:#ff8a80;border:1px solid rgba(255,80,80,.25);padding:9px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;margin-bottom:6px;">🚪 카카오 로그아웃</button><button onclick="withdrawAccount()" style="width:100%;background:rgba(180,20,20,.12);color:#cc4444;border:1px solid rgba(180,20,20,.25);padding:8px;border-radius:8px;font-size:11px;font-weight:600;cursor:pointer;">🗑️ 회원탈퇴</button>`;}return`<div style="font-size:11px;color:#7a9cb8;margin-bottom:8px;">카카오 계정으로 로그인하면 작성자 정보가 자동 설정됩니다.</div><button onclick="kakaoLogin()" style="width:100%;background:rgba(254,229,0,.18);color:#f0d900;border:1px solid rgba(254,229,0,.3);padding:9px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;">💬 카카오로 로그인</button>`;})()}
       </div>
       <a href="https://github.com/109yoon/seoraksan/releases/latest" target="_blank" style="display:flex;align-items:center;gap:10px;background:#0b1c30;border:1px solid rgba(79,168,208,.18);border-radius:10px;padding:11px 13px;text-decoration:none;flex-shrink:0;">
         <span style="font-size:18px;">📱</span>
@@ -4231,13 +4264,32 @@ function kakaoLogout(){
   try{renderSettings();}catch(e){}
   toast('로그아웃 됐습니다');
 }
+function withdrawAccount(){
+  if(!confirm('정말 회원탈퇴 하시겠습니까?\n탈퇴 후 재가입 시 승인코드가 다시 필요합니다.'))return;
+  var u=DB.g('currentUser')||{};
+  var kakaoId=String(u.kakaoId||'');
+  // pendingUsers에서 제거
+  if(kakaoId){
+    var list=DB.g('pendingUsers')||[];
+    DB.s('pendingUsers',list.filter(function(p){return String(p.id)!==kakaoId&&String(p.kakaoId||'')!==kakaoId;}));
+    // deletedKakaoIds에 추가해 재로그인 시 코드 재요청
+    var deleted=DB.g('deletedKakaoIds')||[];
+    if(!deleted.includes(kakaoId)){deleted.push(kakaoId);DB.s('deletedKakaoIds',deleted);}
+  }
+  DB.s('currentUser',{});
+  DB.s('authType','');
+  hidePendingScreen();
+  if(window.showLoginScreen)window.showLoginScreen();
+  updateUserUI();
+  toast('탈퇴 처리되었습니다');
+}
 function _checkAndRequireProfile(){
   var u=DB.g('currentUser')||{};
   var authType=DB.g('authType');
   var isKakao=authType==='kakao';
-  // 카카오 미승인 → 대기화면(코드입력) 먼저 — 프로필 미완성이어도 코드 입력 가능
+  // 카카오 미승인 → 프로필 모달(코드 입력 포함)로 바로 이동
   if(isKakao&&u.approvalStatus!=='approved'&&!isAdminUser(u)){
-    setTimeout(showPendingScreen,300);return;
+    window._requireProfile=true;setTimeout(function(){openChangeUser();},300);return;
   }
   // 승인됨 + 프로필 미완성 → 프로필 입력
   if(isKakao&&(!u.dept||!u.rank||!u.name)){
