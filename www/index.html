@@ -3887,7 +3887,7 @@ function renderAdmSys(){
       ${_renderPendingList()}
     </div>
     <div class="scard" style="margin-bottom:8px;"><div class="stitle">📊 데이터 현황</div>
-      <div style="font-size:12px;color:#b8d4e8;line-height:2.1;">시설물 <b>${(DB.g('facilities')||[]).length}개</b> · 점검이력 <b>${(DB.g('history')||[]).length}건</b><br>구조이력 <b>${(DB.g('rescues')||[]).length}건</b> · 위험상황 <b>${(DB.g('hazards')||[]).length}건</b><br>위키 <b>${(DB.g('wikis')||[]).length}건</b> · 대원 <b>${(DB.g('members')||[]).length}명</b></div>
+      <div style="font-size:12px;color:#b8d4e8;line-height:2.1;">총 가입 인원 <b style="color:#7ec8a0;">${(DB.g('pendingUsers')||[]).length}명</b><br>시설물 <b>${(DB.g('facilities')||[]).length}개</b> · 점검이력 <b>${(DB.g('history')||[]).length}건</b><br>구조이력 <b>${(DB.g('rescues')||[]).length}건</b> · 위험상황 <b>${(DB.g('hazards')||[]).length}건</b><br>위키 <b>${(DB.g('wikis')||[]).length}건</b> · 대원 <b>${(DB.g('members')||[]).length}명</b></div>
     </div>
     <div class="scard"><div class="stitle" style="color:#c0392b;">⚠️ 위험 작업</div>
       <div style="display:flex;flex-direction:column;gap:7px;">
@@ -3919,7 +3919,7 @@ function renderSettings(){
         <div class="stitle">👤 내 계정</div>
         <div style="font-size:12px;color:#b8d4e8;line-height:2.0;">이름: <b>${u.realName||u.name||'미설정'}</b><br>소속: <b>${u.dept||'미설정'}</b><br>직위: <b>${u.rank||'미설정'}</b>${u.kakaoId?`<br><span style="color:#4a7090;font-size:10px;">카카오ID: ${u.kakaoId}</span>`:''}</div>
         <div style="display:flex;align-items:center;gap:6px;margin-top:6px;margin-bottom:8px;">
-          <div style="font-size:11px;color:${u.approvalStatus==='approved'?'#7ec8a0':'#e67e22'};">● ${u.approvalStatus==='approved'?'승인됨':DB.g('authType')==='dev'?'관리자':'승인 대기'}</div>
+          <div style="font-size:11px;color:${u.approvalStatus==='approved'?'#7ec8a0':localStorage.getItem('_adminAuthed')==='1'?'#c4b5fd':'#e67e22'};">● ${u.approvalStatus==='approved'?'승인됨':localStorage.getItem('_adminAuthed')==='1'?'관리자':DB.g('authType')==='dev'?'관리자':'승인 대기'}</div>
         </div>
         <button onclick="openChangeUser()" style="width:100%;background:#1a4a6e;color:#fff;border:none;padding:9px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;">✏️ 계정 수정</button>
       </div>
