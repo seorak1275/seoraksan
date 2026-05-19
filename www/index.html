@@ -650,7 +650,7 @@ body.guest-mode .guest-hide{display:none!important;}
   </div>
 
   <!-- 긴급 알림 배너 (진행중 구조 시 표시) -->
-  <div id="homeAlertBanner" class="home-alert" style="display:none;" onclick="openApp('rescue')">
+  <div id="homeAlertBanner" class="home-alert" style="display:none;" onclick="openRescueAtCoord()">
     <span class="home-alert-ico">🚨</span>
     <div class="home-alert-text" id="homeAlertText">구조 진행중</div>
     <span style="font-size:11px;color:rgba(255,138,128,.6);">→</span>
@@ -1597,9 +1597,24 @@ function gpsFromPhone(id){
 // ══════════════════════════════════════════
 let curApp='';
 function showV(id){document.querySelectorAll('.view').forEach(v=>v.classList.remove('on'));document.getElementById(id).classList.add('on');}
-function goHome(){showV('v-home');document.getElementById('appHdr').style.display='none';document.getElementById('bnav').style.display='none';closeDB();updateSummary();}
+function goHome(){showV('v-home');document.getElementById('appHdr').style.display='none';document.getElementById('bnav').style.display='none';closeDB();updateSummary();history.pushState({view:'home'},'','');}
+function viewOnMap(lat,lng){
+  openApp('rescue');
+  setTimeout(function(){
+    try{
+      if(mapR){mapR.setCenter(new kakao.maps.LatLng(lat,lng));mapR.setLevel(4);}
+      renderRescueMap();
+    }catch(e){}
+  },200);
+}
+function openRescueAtCoord(){
+  const og=(DB.g('rescues')||[]).filter(function(r){return r.status==='ongoing'&&r.lat&&r.lng;});
+  if(og.length){viewOnMap(og[0].lat,og[0].lng);}
+  else{openApp('rescue');}
+}
 function openApp(mode){
   curApp=mode;
+  history.pushState({view:mode},'','');
   document.querySelectorAll('.view').forEach(v=>v.classList.remove('on'));
   document.getElementById('appHdr').style.display='block';
   const bn=document.getElementById('bnav');
@@ -2420,6 +2435,7 @@ function renderResList(){
     html+=fr.slice().reverse().map(r=>{
       const isOg=r.status==='ongoing';const ti=RES_TYPES[r.type]||RES_TYPES['기타'];
       const totalPh=(r.reports||[]).length+1;
+      const hasCoord=!!(r.lat&&r.lng);
       return `<div class="lcard" onclick="openResListDetail(${r.id})">
         <div class="lico" style="background:${isOg?ti.color:'#1a3a1a'};border:none;color:#fff;">${ti.ico}</div>
         <div class="linfo"><div class="lname">🚨 ${r.title}</div>
@@ -2428,7 +2444,7 @@ function renderResList(){
         </div>
         <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex-shrink:0;">
           <span class="lbadge" style="background:${isOg?'rgba(192,57,43,.15)':'rgba(39,174,96,.15)'};color:${isOg?'#c0392b':'#27ae60'};">${isOg?'진행중':'종료'}</span>
-          <span style="font-size:9px;color:#4fa8d0;">${totalPh}보 보기 →</span>
+          ${hasCoord?`<span onclick="event.stopPropagation();viewOnMap(${r.lat},${r.lng})" style="font-size:10px;color:#4fa8d0;cursor:pointer;padding:2px 6px;border:1px solid rgba(79,168,208,.3);border-radius:6px;">🗺️ 지도</span>`:''}
         </div>
       </div>`;
     }).join('');
@@ -5282,6 +5298,18 @@ window.onload=function(){
       goHome();
     }
   }, false);
+  // 웹 브라우저 뒤로가기 버튼
+  window.addEventListener('popstate', function(e){
+    const homeActive=document.getElementById('v-home').classList.contains('on');
+    if(!homeActive){
+      showV('v-home');
+      document.getElementById('appHdr').style.display='none';
+      document.getElementById('bnav').style.display='none';
+      closeDB();updateSummary();
+    }
+  });
+  // 초기 history 항목 세팅
+  history.replaceState({view:'home'},'','');
 
   initFirebase(function(){
     initDB();
