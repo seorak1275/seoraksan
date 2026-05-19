@@ -1733,18 +1733,43 @@ function closeChangelog(){
 // 추가팀 복수 지원
 let _extraTeams=[]; // [{teamName, members:[]}]
 let _extraTeamCollapsed=[];
+let _extraTeamOtherOpen=[]; // 다른 과 패널 열림 여부
+let _extraTeamOtherFilter=[]; // 다른 과 패널 선택된 dept
 function initExtraTeams(prefill){
   _extraTeams=(prefill&&prefill.extraTeams)?prefill.extraTeams.map(t=>({...t})):[];
   _extraTeamCollapsed=_extraTeams.map(()=>false);
+  _extraTeamOtherOpen=_extraTeams.map(()=>false);
+  _extraTeamOtherFilter=_extraTeams.map(()=>'');
   renderExtraTeams();
 }
 function addExtraTeam(){
   const teamNum=_extraTeams.length+1;
   _extraTeams.push({teamName:`추가${teamNum}팀`,members:[]});
+  _extraTeamCollapsed.push(false);
+  _extraTeamOtherOpen.push(false);
+  _extraTeamOtherFilter.push('');
   renderExtraTeams();
 }
 function removeExtraTeam(idx){
   _extraTeams.splice(idx,1);
+  _extraTeamCollapsed.splice(idx,1);
+  _extraTeamOtherOpen.splice(idx,1);
+  _extraTeamOtherFilter.splice(idx,1);
+  renderExtraTeams();
+}
+function toggleExtraTeamOther(ti){
+  _extraTeamOtherOpen[ti]=!_extraTeamOtherOpen[ti];
+  if(_extraTeamOtherOpen[ti]&&!_extraTeamOtherFilter[ti]){
+    // 기본: 현재 내 과 제외 첫 번째 DEPT
+    const curDept=(DB.g('currentUser')||{}).dept||'';
+    const staff=getStaff();
+    const first=DEPTS.find(d=>d!==curDept&&staff.some(s=>s.dept===d))||'';
+    _extraTeamOtherFilter[ti]=first;
+  }
+  renderExtraTeams();
+}
+function setExtraTeamOtherFilter(ti,dept){
+  _extraTeamOtherFilter[ti]=dept;
   renderExtraTeams();
 }
 function _collapseSection(fullId,summaryId,editBtnId,summaryHtml){
@@ -1819,6 +1844,11 @@ function renderExtraTeams(){
   if(!wrap) return;
   const staff=sortStaff(getStaff());
   const deptMap={};staff.forEach(s=>{deptMap[s.name]=s.dept;});
+  const curDept=(DB.g('currentUser')||{}).dept||'';
+  // 내 과 직원
+  const myStaff=staff.filter(s=>s.dept===curDept);
+  // 다른 과 목록
+  const otherDepts=[...new Set(DEPTS.filter(d=>d!==curDept&&staff.some(s=>s.dept===d)))];
   wrap.innerHTML=_extraTeams.map((t,ti)=>{
     const collapsed=!!_extraTeamCollapsed[ti];
     const byDept={};
@@ -1826,29 +1856,49 @@ function renderExtraTeams(){
     const depts=Object.keys(byDept);
     const summaryHtml=t.members.length===0?'<span style="color:#4a7090;">(미선택)</span>':
       depts.length===1
-        ?`<b style="color:#7ec8a0;">${DEPT_SHORT[depts[0]]||depts[0]} ${t.members.length}명(${t.members.join(', ')}) 출동</b>`
-        :depts.map(d=>`<b style="color:#7ec8a0;">${DEPT_SHORT[d]||d} ${byDept[d].length}명(${byDept[d].join(', ')}) 출동</b>`).join('<br>');
+        ?`<b style="color:#7ec8a0;">${DEPT_SHORT[depts[0]]||depts[0]} ${t.members.length}명 (${t.members.join(', ')}) 출동</b>`
+        :depts.map(d=>`<b style="color:#7ec8a0;">${DEPT_SHORT[d]||d} ${byDept[d].length}명 (${byDept[d].join(', ')})</b>`).join('<br>');
+    const otherOpen=!!_extraTeamOtherOpen[ti];
+    const otherFilt=_extraTeamOtherFilter[ti]||otherDepts[0]||'';
+    const otherStaff=staff.filter(s=>s.dept===otherFilt);
     return `<div style="margin-bottom:8px;padding:10px;background:#060d1a;border-radius:8px;border:1px solid rgba(126,200,163,.2);">
       <div style="display:flex;align-items:center;gap:6px;margin-bottom:${collapsed?0:8}px;">
         ${collapsed
           ?`<span style="font-size:11px;flex:1;">${summaryHtml}</span>`
           :`<input type="text" value="${t.teamName}" oninput="_extraTeams[${ti}].teamName=this.value"
-              style="flex:1;background:transparent;border:none;border-bottom:1px solid rgba(126,200,163,.3);color:#7ec8a0;font-size:12px;font-weight:700;outline:none;padding:2px 0;">`
-        }
+              style="flex:1;background:transparent;border:none;border-bottom:1px solid rgba(126,200,163,.3);color:#7ec8a0;font-size:12px;font-weight:700;outline:none;padding:2px 0;">`}
         ${collapsed
           ?`<button onclick="editExtraTeam(${ti})" style="background:rgba(79,168,208,.12);border:1px solid rgba(79,168,208,.25);color:#4fa8d0;border-radius:6px;font-size:11px;padding:4px 10px;cursor:pointer;">✏️ 수정</button>`
-          :`<button onclick="removeExtraTeam(${ti})" style="background:rgba(192,57,43,.1);border:none;color:#c0392b;font-size:11px;padding:3px 8px;border-radius:5px;cursor:pointer;">삭제</button>`
-        }
+          :`<button onclick="removeExtraTeam(${ti})" style="background:rgba(192,57,43,.1);border:none;color:#c0392b;font-size:11px;padding:3px 8px;border-radius:5px;cursor:pointer;">삭제</button>`}
       </div>
       ${collapsed?'':`
-        <div class="chk-grid">
-          ${staff.map(s=>`
-            <div class="chk-item${t.members.includes(s.name)?' on':''}"
-              onclick="toggleExtraTeamMember(${ti},'${s.name}',this)">
+        ${myStaff.length?`
+        <div style="font-size:10px;color:#4fa8d0;font-weight:700;margin-bottom:5px;">${curDept} ★</div>
+        <div class="chk-grid" style="margin-bottom:10px;">
+          ${myStaff.map(s=>`
+            <div class="chk-item${t.members.includes(s.name)?' on':''}" onclick="toggleExtraTeamMember(${ti},'${s.name}',this)">
               <div class="chk-box${t.members.includes(s.name)?' on':''}"></div>
               <span class="chk-txt">${s.name}<span style="font-size:9px;color:#4a7090;margin-left:3px;">${s.rank}</span></span>
             </div>`).join('')}
-        </div>
+        </div>`:''}
+        ${otherDepts.length?`
+        <button onclick="toggleExtraTeamOther(${ti})" style="width:100%;padding:7px;background:rgba(255,255,255,.04);border:1px dashed rgba(79,168,208,.25);color:#4fa8d0;border-radius:7px;font-size:11px;font-weight:600;cursor:pointer;margin-bottom:${otherOpen?8:0}px;">
+          ${otherOpen?'▲ 다른 과/분소 접기':'＋ 다른 과/분소 인원 추가'}
+        </button>
+        ${otherOpen?`
+        <div style="background:#0a1a2a;border-radius:7px;padding:9px;border:1px solid rgba(79,168,208,.12);">
+          <div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:8px;">
+            ${otherDepts.map(d=>`<div onclick="setExtraTeamOtherFilter(${ti},'${d}')" style="padding:3px 9px;border-radius:20px;font-size:10px;font-weight:700;cursor:pointer;${d===otherFilt?'background:#1a4a6e;color:#4fa8d0;':'background:#0b1c30;color:#4a7090;border:1px solid #1a3a5a;'}">${d}</div>`).join('')}
+          </div>
+          <div class="chk-grid">
+            ${otherStaff.map(s=>`
+              <div class="chk-item${t.members.includes(s.name)?' on':''}" onclick="toggleExtraTeamMember(${ti},'${s.name}',this)">
+                <div class="chk-box${t.members.includes(s.name)?' on':''}"></div>
+                <span class="chk-txt">${s.name}<span style="font-size:9px;color:#4a7090;margin-left:3px;">${s.rank}</span></span>
+              </div>`).join('')}
+          </div>
+        </div>`:''}
+        `:''}
         <button onclick="confirmExtraTeam(${ti})" style="width:100%;margin-top:10px;padding:8px;background:rgba(79,168,208,.1);border:1px solid rgba(79,168,208,.3);color:#4fa8d0;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;">✅ 확인</button>
       `}
     </div>`;
@@ -3185,13 +3235,17 @@ function render1BoForm(prefill=null){
         <div id="memberFullSection" style="overflow:hidden;transition:max-height .3s ease,opacity .25s ease;max-height:1000px;opacity:1;">
           <div id="memChkGrid" style="display:flex;flex-direction:column;gap:10px;">
             ${(()=>{
+              const curDept=(DB.g('currentUser')||{}).dept||'';
               const groups={};
               ms.forEach(s=>{if(!groups[s.dept])groups[s.dept]=[];groups[s.dept].push(s);});
-              return Object.entries(groups).map(([dept,staff])=>`
+              // 내 과/분소 먼저, 나머지는 DEPTS 순서대로
+              const allDepts=Object.keys(groups);
+              const ordered=[...new Set([curDept,...DEPTS,...allDepts])].filter(d=>groups[d]);
+              return ordered.map((dept)=>`
                 <div>
-                  <div style="font-size:10px;color:#4a7090;font-weight:700;margin-bottom:5px;">${dept}</div>
+                  <div style="font-size:10px;color:${dept===curDept?'#4fa8d0':'#4a7090'};font-weight:700;margin-bottom:5px;">${dept}${dept===curDept?' ★':''}</div>
                   <div class="chk-grid">
-                    ${staff.map(s=>{
+                    ${groups[dept].map(s=>{
                       const checked=(p.members!=null?(p.members||[]).includes(s.name):s.name===curUserName);
                       return `<div class="chk-item${checked?' on':''}" onclick="tChk(this)">
                         <div class="chk-box${checked?' on':''}"></div>
