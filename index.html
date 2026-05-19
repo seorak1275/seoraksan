@@ -4181,7 +4181,7 @@ function kakaoLogin(){
   Kakao.Auth.authorize({redirectUri:'https://109yoon.github.io/seoraksan/',throughTalk:false});
 }
 function _handleKakaoCode(code){
-  // ?code= 로 돌아왔을 때 토큰 교환 후 프로필 저장
+  window._needsCode=true; // 동기적으로 먼저 세팅 (checkAuth 타이밍 충돌 방지)
   fetch('https://kauth.kakao.com/oauth/token',{
     method:'POST',
     headers:{'Content-Type':'application/x-www-form-urlencoded;charset=utf-8'},
@@ -4261,10 +4261,10 @@ function _checkAndRequireProfile(){
   var u=DB.g('currentUser')||{};
   var isKakao=authType==='kakao';
   if(isKakao){
+    if(window._needsCode)return; // _handleKakaoCode가 처리 중 — 간섭 금지
     // 자동로그인: 프로필 미완성이면 코드 없이 프로필만 요구
     if(!u.dept||!u.rank||!(u.realName||u.name)){
       window._requireProfile=true;
-      window._needsCode=false;
       setTimeout(function(){openChangeUser();},300);
     }
     return;
