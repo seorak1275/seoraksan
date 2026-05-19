@@ -747,16 +747,7 @@ body.guest-mode .guest-hide{display:none!important;}
 
 <!-- ══ 재난 통계 ══ -->
 <div id="v-rescue-stats" class="view">
-  <div class="bpad">
-    <div class="stat-grid">
-      <div class="stat-box"><div class="stat-num" id="st-tot">0</div><div class="stat-lbl">총 발생</div></div>
-      <div class="stat-box" style="border-color:#c0392b;"><div class="stat-num bad" id="st-og">0</div><div class="stat-lbl">진행중</div></div>
-      <div class="stat-box" style="border-color:#27ae60;"><div class="stat-num ok" id="st-done">0</div><div class="stat-lbl">종료</div></div>
-      <div class="stat-box" style="border-color:#e67e22;"><div class="stat-num warn" id="st-mon">0</div><div class="stat-lbl">이번 달</div></div>
-    </div>
-    <div class="scard"><div class="stitle">유형별 현황 (탭하면 세부)</div><div id="typeStatWrap"></div></div>
-    <div class="sec-label">전체 이력</div><div id="resAllWrap"></div>
-  </div>
+  <div class="bpad" id="rescueStatsWrap"></div>
 </div>
 
 <!-- ══ 보고서 (타임라인) ══ -->
@@ -2502,28 +2493,62 @@ function setResF(f){resFilter=f;renderResList();}
 // ══════════════════════════════════════════
 function renderRescueStats(){
   const res=DB.g('rescues')||[];const haz=DB.g('hazards')||[];
-  const og=res.filter(r=>r.status==='ongoing');
-  document.getElementById('st-tot').textContent=res.length;
-  document.getElementById('st-og').textContent=og.length;
-  document.getElementById('st-done').textContent=res.filter(r=>r.status==='done').length;
-  document.getElementById('st-mon').textContent=res.filter(r=>r.date&&r.date.startsWith(today().slice(0,7))).length;
-  document.getElementById('typeStatWrap').innerHTML=`
-    <div class="type-row" style="pointer-events:none;margin-bottom:6px;background:rgba(192,57,43,.06);">
-      <span class="t-ico">🚨</span><span class="t-lbl" style="font-weight:700;">구조 보고</span><span class="t-cnt">${res.length}건</span>
+  const mon=today().slice(0,7);
+  const injMap={},sevMap={},cauMap={},methodMap={};
+  res.forEach(r=>{
+    (r.injuryParts||[]).forEach(p=>{injMap[p]=(injMap[p]||0)+1;});
+    if(r.severity)sevMap[r.severity]=(sevMap[r.severity]||0)+1;
+    if(r.cause)cauMap[r.cause]=(cauMap[r.cause]||0)+1;
+    (r.rescueMethod||[]).forEach(m=>{methodMap[m]=(methodMap[m]||0)+1;});
+  });
+  const topN=(obj,n=4)=>Object.entries(obj).sort((a,b)=>b[1]-a[1]).slice(0,n);
+  const safeMax=obj=>Math.max(...Object.values(obj),1);
+  const bar=(k,v,max,col)=>`<div style="margin-bottom:4px;"><div style="display:flex;justify-content:space-between;font-size:10px;margin-bottom:1px;"><span style="color:#c0d8ec;">${k}</span><span style="color:${col};font-weight:700;">${v}</span></div><div style="height:3px;background:rgba(255,255,255,.06);border-radius:2px;overflow:hidden;"><div style="height:100%;width:${Math.round(v/max*100)}%;background:${col};border-radius:2px;"></div></div></div>`;
+  const mini=(l,v,col='#e0edf8')=>`<div style="background:#060d1a;border-radius:7px;padding:6px 4px;text-align:center;"><div style="font-size:15px;font-weight:800;color:${col};line-height:1.2;">${v}</div><div style="font-size:8px;color:#3a6a8a;margin-top:1px;">${l}</div></div>`;
+  const w=document.getElementById('rescueStatsWrap');
+  w.innerHTML=`
+    <!-- 구조보고 -->
+    <div class="scard">
+      <div class="stitle">🚨 구조보고 현황</div>
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:4px;margin-bottom:8px;">
+        ${mini('전체',res.length)}
+        ${mini('진행중',res.filter(r=>r.status==='ongoing').length,'#c0392b')}
+        ${mini('종료',res.filter(r=>r.status==='done').length,'#27ae60')}
+        ${mini('이번달',res.filter(r=>r.date&&r.date.startsWith(mon)).length,'#4fa8d0')}
+      </div>
+      <div class="stitle" style="margin-bottom:4px;">유형별 (탭 → 세부)</div>
+      ${Object.keys(RES_TYPES).map(t=>{
+        const cnt=res.filter(r=>r.type===t).length;
+        const ogc=res.filter(r=>r.type===t&&r.status==='ongoing').length;
+        const ti=RES_TYPES[t];
+        return `<div class="type-row" onclick="openTypeDetail('${t}')"><span class="t-ico">${ti.ico}</span><span class="t-lbl">${t}</span><span class="t-cnt" style="color:${ti.color};">${cnt}건${ogc>0?` <small style="color:#c0392b;">(${ogc})</small>`:''}</span><span class="t-arr">›</span></div>`;
+      }).join('')}
     </div>
-    ${Object.keys(RES_TYPES).map(t=>{
-      const cnt=res.filter(r=>r.type===t).length;const ogc=res.filter(r=>r.type===t&&r.status==='ongoing').length;const ti=RES_TYPES[t];
-      return `<div class="type-row" onclick="openTypeDetail('${t}')"><span class="t-ico">${ti.ico}</span><span class="t-lbl">${t}</span><span class="t-cnt" style="color:${ti.color};">${cnt}건${ogc>0?` <small style="color:#c0392b;">(${ogc})</small>`:''}</span><span class="t-arr">›</span></div>`;
-    }).join('')}
-    <div style="height:8px;"></div>
-    <div class="type-row" style="pointer-events:none;background:rgba(230,126,34,.06);">
-      <span class="t-ico">⚠️</span><span class="t-lbl" style="font-weight:700;">위험상황 보고</span><span class="t-cnt">${haz.length}건</span>
-    </div>
-    <div class="type-row" style="pointer-events:none;"><span class="t-ico">✅</span><span class="t-lbl">제거/조치 완료</span><span class="t-cnt">${haz.filter(h=>h.hazStatus==='제거 완료'||h.hazStatus==='통제중').length}건</span></div>`;
-  document.getElementById('resAllWrap').innerHTML=res.slice().reverse().map(r=>{
-    const isOg=r.status==='ongoing';const ti=RES_TYPES[r.type]||RES_TYPES['기타'];
-    return `<div class="lcard"><div class="lico" style="background:${isOg?ti.color:'#1a3a1a'};border:none;color:#fff;">${ti.ico}</div><div class="linfo"><div class="lname">${r.title}</div><div class="lmeta">${r.type} · ${r.date}</div></div><span class="lbadge" style="background:${isOg?'rgba(192,57,43,.15)':'rgba(39,174,96,.15)'};color:${isOg?'#c0392b':'#27ae60'};">${isOg?'진행중':'종료'}</span></div>`;
-  }).join('');
+    <!-- 안전사고 세부 -->
+    ${res.length?`<div class="scard">
+      <div class="stitle">🤕 안전사고 세부분석</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;">
+        ${Object.keys(cauMap).length?`<div><div class="stitle">⚡ 사고원인</div>${topN(cauMap).map(([k,v])=>bar(k,v,safeMax(cauMap),'#e67e22')).join('')}</div>`:''}
+        ${Object.keys(injMap).length?`<div><div class="stitle">🦵 부상부위</div>${topN(injMap).map(([k,v])=>bar(k,v,safeMax(injMap),'#c0392b')).join('')}</div>`:''}
+        ${Object.keys(methodMap).length?`<div><div class="stitle">🚑 구조방법</div>${topN(methodMap).map(([k,v])=>bar(k,v,safeMax(methodMap),'#27ae60')).join('')}</div>`:''}
+        ${Object.keys(sevMap).length?`<div><div class="stitle">🩺 중증도</div>${topN(sevMap).map(([k,v])=>bar(k,v,safeMax(sevMap),'#7d3c98')).join('')}</div>`:''}
+      </div>
+    </div>`:''}
+    <!-- 위험상황 -->
+    <div class="scard">
+      <div class="stitle">⚠️ 위험상황 보고</div>
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:4px;margin-bottom:8px;">
+        ${mini('전체',haz.length)}
+        ${mini('미조치',haz.filter(h=>h.hazStatus==='미조치').length,'#c0392b')}
+        ${mini('조치중',haz.filter(h=>h.hazStatus==='조치중').length,'#e67e22')}
+        ${mini('완료',haz.filter(h=>h.hazStatus==='제거 완료'||h.hazStatus==='조치 완료'||h.hazStatus==='통제중').length,'#27ae60')}
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:4px;">
+        ${mini('🪨 낙석',haz.filter(h=>h.hazType?.includes('낙석')).length,'#7d3c98')}
+        ${mini('🌲 위험수목',haz.filter(h=>h.hazType?.includes('위험수목')).length,'#ca6f1e')}
+        ${mini('🔥 산불',haz.filter(h=>h.hazType?.includes('산불')).length,'#a93226')}
+      </div>
+    </div>`;
 }
 
 function openTypeDetail(type){
