@@ -1300,7 +1300,7 @@ const _FB_CFG={
   appId:"1:457414135264:web:4103268ba0702a95a12f85"
 };
 // 기기 간 공유할 키 목록
-const _SHARED=['rescues','hazards','history','wikis','facilities','staff','catFac','wikiCats','pendingUsers','approvedUsers'];
+const _SHARED=['rescues','hazards','history','wikis','facilities','staff','catFac','wikiCats','pendingUsers','approvedUsers','deletedKakaoIds'];
 const _fs={};   // Firestore 인메모리 캐시
 let _fdb=null;
 
@@ -1341,6 +1341,7 @@ function initFirebase(onReady){
           if(loaded.size===_SHARED.length){ onReady&&onReady(); onReady=null; }
         } else {
           // 다른 기기에서 변경 시 UI 갱신
+          _checkDeletedUser();
           updateSummary();
           if(window.curApp==='rescue'){renderResList();try{renderRescueMap();}catch(e){}}
           else if(window.curApp==='inspect'){renderFacList();renderInspectMap();}
@@ -3914,9 +3915,27 @@ function deleteUser(id){
   const u=list.find(function(p){return p.id===id;});
   if(!u)return;
   if(!confirm((u.realName||u.name||'이 사용자')+'을(를) 삭제하시겠습니까?\n(작성한 데이터는 유지됩니다)'))return;
+  if(u.kakaoId){
+    const deleted=DB.g('deletedKakaoIds')||[];
+    if(!deleted.includes(String(u.kakaoId)))deleted.push(String(u.kakaoId));
+    DB.s('deletedKakaoIds',deleted);
+  }
   DB.s('pendingUsers',list.filter(function(p){return p.id!==id;}));
   renderAdmSys();
   toast('🗑️ 삭제 완료');
+}
+function _checkDeletedUser(){
+  if(DB.g('authType')!=='kakao')return;
+  var u=DB.g('currentUser')||{};
+  if(!u.kakaoId)return;
+  var deleted=DB.g('deletedKakaoIds')||[];
+  if(!deleted.includes(String(u.kakaoId)))return;
+  DB.s('authType','');
+  DB.s('currentUser',{});
+  hidePendingScreen();
+  if(window.showLoginScreen)window.showLoginScreen();
+  updateUserUI();
+  toast('⚠️ 계정이 관리자에 의해 삭제되었습니다');
 }
 function resetAll(){if(!confirm('모든 데이터 초기화. 되돌릴 수 없습니다.'))return;['members','catFac','wikiCats','facilities','rescues','hazards','history','wikis','notis','hotSearch','notiSetting','currentUser','sheetsUrl'].forEach(k=>DB.d(k));initDB();toast('✅ 초기화');renderAdmSys();updateSummary();}
 function clearNotisOnly(){DB.s('notis',[]);updateBell();toast('🗑️ 알림 이력 삭제');renderAdmSys();}
@@ -4056,11 +4075,19 @@ function _handleKakaoCode(code){
   .then(function(res){
     var u=DB.g('currentUser')||{};
     var prof=(res.kakao_account&&res.kakao_account.profile)||{};
-    DB.s('currentUser',Object.assign({},u,{
-      kakaoId:String(res.id),
-      kakaoImg:prof.profile_image_url||prof.thumbnail_image_url||'',
-      name:u.name||prof.nickname||''
-    }));
+    var kakaoId=String(res.id);
+    var deletedIds=DB.g('deletedKakaoIds')||[];
+    var wasDeleted=deletedIds.includes(kakaoId);
+    if(wasDeleted){
+      DB.s('deletedKakaoIds',deletedIds.filter(function(id){return id!==kakaoId;}));
+      DB.s('currentUser',{kakaoId:kakaoId,kakaoImg:prof.profile_image_url||prof.thumbnail_image_url||'',name:prof.nickname||''});
+    }else{
+      DB.s('currentUser',Object.assign({},u,{
+        kakaoId:kakaoId,
+        kakaoImg:prof.profile_image_url||prof.thumbnail_image_url||'',
+        name:u.name||prof.nickname||''
+      }));
+    }
     DB.s('authType','kakao');
     if(window._hideLoading)window._hideLoading();
     if(window.hideLoginScreen)window.hideLoginScreen();
