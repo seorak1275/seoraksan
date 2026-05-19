@@ -4178,14 +4178,21 @@ function _handleKakaoCode(code){
     var kakaoId=String(res.id);
     var deletedIds=DB.g('deletedKakaoIds')||[];
     var wasDeleted=deletedIds.includes(kakaoId);
+    // pendingUsers 기준으로 승인 상태 검증 (삭제 계정 재로그인 대응)
+    var pendingList=DB.g('pendingUsers')||[];
+    var pendingEntry=pendingList.find(function(p){return String(p.id)===kakaoId;});
+    var confirmedApproved=!!(pendingEntry&&pendingEntry.approvalStatus==='approved');
     if(wasDeleted){
       DB.s('deletedKakaoIds',deletedIds.filter(function(id){return id!==kakaoId;}));
       DB.s('currentUser',{kakaoId:kakaoId,kakaoImg:prof.profile_image_url||prof.thumbnail_image_url||'',name:prof.nickname||''});
     }else{
+      // pendingUsers에 있으면 그 상태 따름, 없으면(삭제됐을 수 있음) pending으로 리셋
+      var newApproval=confirmedApproved?'approved':(pendingList.length>0&&!pendingEntry?'pending':u.approvalStatus);
       DB.s('currentUser',Object.assign({},u,{
         kakaoId:kakaoId,
         kakaoImg:prof.profile_image_url||prof.thumbnail_image_url||'',
-        name:u.name||prof.nickname||''
+        name:u.name||prof.nickname||'',
+        approvalStatus:newApproval
       }));
     }
     DB.s('authType','kakao');
@@ -4194,6 +4201,19 @@ function _handleKakaoCode(code){
     updateUserUI();
     _checkAndRequireProfile();
     toast('✅ 카카오 로그인 완료');
+    // Firestore 동기화 후 삭제 여부 재확인
+    setTimeout(function(){
+      _checkDeletedUser();
+      var u2=DB.g('currentUser')||{};
+      if(DB.g('authType')==='kakao'&&u2.approvalStatus==='approved'){
+        var pl=DB.g('pendingUsers')||[];
+        var pe=pl.find(function(p){return String(p.id)===String(u2.kakaoId);});
+        if(pl.length>0&&!pe){
+          DB.s('currentUser',Object.assign({},u2,{approvalStatus:'pending'}));
+          showPendingScreen();
+        }
+      }
+    },4000);
   })
   .catch(function(e){
     if(window._hideLoading)window._hideLoading();
