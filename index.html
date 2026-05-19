@@ -879,7 +879,7 @@ body.guest-mode .guest-hide{display:none!important;}
     <input id="adminLoginId" type="text" class="fi" placeholder="아이디" autocomplete="off" style="font-size:14px;padding:12px 14px;" onkeydown="if(event.key==='Enter')document.getElementById('adminLoginPw').focus()">
     <input id="adminLoginPw" type="password" class="fi" placeholder="비밀번호" autocomplete="off" style="font-size:14px;padding:12px 14px;" onkeydown="if(event.key==='Enter')doAdminLogin()">
     <button onclick="doAdminLogin()" style="background:#c0392b;color:#fff;border:none;border-radius:10px;padding:13px;font-size:14px;font-weight:700;cursor:pointer;margin-top:4px;">로그인</button>
-    <button onclick="goHome()" style="background:transparent;color:#3a6a8a;border:none;font-size:12px;cursor:pointer;padding:6px;">← 돌아가기</button>
+    <button onclick="history.back()" style="background:transparent;color:#3a6a8a;border:none;font-size:12px;cursor:pointer;padding:6px;">← 뒤로</button>
   </div>
 </div>
 
@@ -2552,7 +2552,7 @@ function renderRescueStats(){
 }
 
 function openTypeDetail(type){
-  document.getElementById('topTitle').textContent=type+' 세부통계';showV('v-type-detail');
+  document.getElementById('topTitle').textContent=type+' 세부통계';showV('v-type-detail');history.pushState({view:'type-detail'},'','');
   const res=(DB.g('rescues')||[]).filter(r=>r.type===type);
   const w=document.getElementById('typeDetailWrap');
   if(!res.length){w.innerHTML='<div class="empty"><div class="empty-ico">📊</div><div class="empty-txt">이력 없음</div></div>';return;}
@@ -2565,7 +2565,7 @@ function openTypeDetail(type){
     <div class="scard" style="margin-bottom:8px;"><div class="stitle">⚡ 사고 원인</div>${typeRow(cauMap)}</div>
     <div class="sec-label">해당 유형 이력</div>
     ${res.slice().reverse().map(r=>`<div class="lcard"><div class="lico" style="background:${RES_TYPES[type]?.color};border:none;color:#fff;">${RES_TYPES[type]?.ico}</div><div class="linfo"><div class="lname">${r.title}</div><div class="lmeta">${r.date} · ${r.severity||'-'}</div></div></div>`).join('')}
-    <button class="btn btn-ghost" style="width:100%;padding:9px;border-radius:8px;margin-top:6px;" onclick="switchTab(3,document.getElementById('nv3'));openApp('rescue');">← 통계로</button>`;
+    <button class="btn btn-ghost" style="width:100%;padding:9px;border-radius:8px;margin-top:6px;" onclick="history.back()">← 뒤로</button>`;
 }
 
 // ══════════════════════════════════════════
@@ -2995,7 +2995,7 @@ function render1BoForm(prefill=null){
       <span>📋 <b>${p._phaseNum||2}보 작성중</b> — 변경사항만 수정</span>
       <div style="display:flex;gap:5px;">
         <button onclick="submitNBoFromForm()" style="background:#1a4a6e;color:#fff;border:none;padding:5px 11px;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;">💾 저장</button>
-        <button onclick="openApp('rescue')" style="background:rgba(255,255,255,.07);color:#c0d8ec;border:none;padding:5px 10px;border-radius:6px;font-size:11px;cursor:pointer;">✕</button>
+        <button onclick="history.back()" style="background:rgba(255,255,255,.07);color:#c0d8ec;border:none;padding:5px 10px;border-radius:6px;font-size:11px;cursor:pointer;">✕</button>
       </div>
     </div>`:''}
 
@@ -3844,7 +3844,7 @@ function renderWikiList(filter=''){
 }
 function openWikiPage(id){
   const wikis=DB.g('wikis')||[];const w=wikis.find(x=>x.id===id);if(!w)return;
-  document.getElementById('wikiListWrap').style.display='none';document.getElementById('wikiPageWrap').style.display='block';
+  document.getElementById('wikiListWrap').style.display='none';document.getElementById('wikiPageWrap').style.display='block';history.pushState({view:'wiki-page'},'','');
   function linkify(txt){
   return txt
     .replace(/!\[([^\]]+)\]\((data:[^)]+)\)/g,'<img src="$2" style="max-width:100%;border-radius:8px;margin:6px 0;display:block;">')
@@ -3880,7 +3880,7 @@ function openWikiPage(id){
       ${tocItems?`<div class="wiki-toc"><div class="wiki-toc-t">📋 목차</div>${tocItems}</div>`:''}
       <div class="wiki-body">${bodyHtml}</div>
       ${verCount?`<div class="wiki-ver-area"><div class="wiki-ver-t">버전 히스토리</div>${(w.versions||[]).slice().reverse().map((v,i)=>`<span class="wiki-ver-item" onclick="showVer(${w.id},${verCount-1-i})">v${verCount-i} · ${v.savedAt} · ${v.author||'-'}</span>`).join('')}</div>`:''}
-      <div class="wiki-bottom"><button class="wiki-act" onclick="showWikiList()">← 목록</button></div>
+      <div class="wiki-bottom"><button class="wiki-act" onclick="history.back()">← 뒤로</button></div>
     </div>`;
 }
 function showWikiList(){document.getElementById('wikiPageWrap').style.display='none';document.getElementById('wikiListWrap').style.display='block';}
@@ -5420,6 +5420,14 @@ window.onload=function(){
   var _backExitReady=false;
   window.addEventListener('popstate', function(e){
     const homeActive=document.getElementById('v-home').classList.contains('on');
+    // 서브뷰 처리 (위키 페이지, 유형 세부통계)
+    if(document.getElementById('v-type-detail').classList.contains('on')){
+      showV('v-rescue-stats');renderRescueStats();return;
+    }
+    const wikiPageVisible=document.getElementById('wikiPageWrap').style.display==='block';
+    if(wikiPageVisible){
+      showWikiList();history.replaceState({view:'wiki'},'','');return;
+    }
     if(!homeActive){
       showV('v-home');
       document.getElementById('appHdr').style.display='none';
