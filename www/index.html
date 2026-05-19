@@ -2429,8 +2429,8 @@ function renderRescueMap(){
     el.className='mpin-num';
     const code=(f.name.match(/\d[\d\-]*\d|\d/)||[f.name.slice(0,6)])[0];
     el.textContent=code;
-    el.title=f.name+(f.loc?' · '+f.loc:'');
-    el.onclick=e=>{e.stopPropagation();toast('📍 '+f.name+(f.loc?' · '+f.loc:''));};
+    el.title=f.name;
+    el.onclick=e=>{e.stopPropagation();toast('📍 '+f.name);};
     const ov=new kakao.maps.CustomOverlay({position:new kakao.maps.LatLng(f.lat,f.lng),content:el,clickable:true});
     ov.setMap(mapR);rOvs.push(ov);
   });
