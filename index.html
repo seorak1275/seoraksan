@@ -788,16 +788,22 @@ body.guest-mode .guest-hide{display:none!important;}
     </button>
     <button class="fab-gps" onclick="gpsTo('inspect')">📍</button>
     <button class="fab" style="background:#0c4838;color:#fff;" onclick="openAddFac()">＋</button>
-    <!-- 필터 패널 -->
-    <div id="inspFilterBg" onclick="closeInspFilter()" style="display:none;position:absolute;inset:0;z-index:19;background:rgba(0,0,0,.35);"></div>
-    <div id="inspFilterPanel" style="display:none;position:absolute;bottom:0;left:0;right:0;z-index:20;background:#0b1c30;border-radius:14px 14px 0 0;padding:10px 0 80px;box-shadow:0 -4px 24px rgba(0,0,0,.7);max-height:75%;overflow-y:auto;">
-      <div style="width:36px;height:3px;background:rgba(255,255,255,.15);border-radius:9px;margin:0 auto 10px;"></div>
-      <div style="padding:0 14px;">
-        <div style="font-size:12px;font-weight:700;color:#4fa8d0;margin-bottom:10px;">🔍 지도 필터</div>
+    <!-- 필터 패널 (배경 오버레이 없음 → 지도 조작 가능) -->
+    <div id="inspFilterPanel" style="display:none;position:absolute;bottom:0;left:0;right:0;z-index:20;background:#0a1828;border-radius:11px 11px 0 0;box-shadow:0 -3px 18px rgba(0,0,0,.7);max-height:52%;flex-direction:column;transition:transform .22s cubic-bezier(.4,0,.2,1);touch-action:none;">
+      <!-- 드래그 핸들 -->
+      <div id="inspFPHandle" style="padding:7px 0 3px;flex-shrink:0;cursor:grab;user-select:none;">
+        <div style="width:30px;height:3px;background:rgba(255,255,255,.18);border-radius:9px;margin:0 auto;"></div>
+      </div>
+      <!-- 헤더 -->
+      <div style="padding:2px 12px 5px;display:flex;justify-content:space-between;align-items:center;flex-shrink:0;border-bottom:1px solid rgba(255,255,255,.06);">
+        <span style="font-size:11px;font-weight:700;color:#4fa8d0;">🔍 필터 <span id="inspFilterCount" style="color:#e05050;font-size:10px;"></span></span>
+        <button onclick="resetInspFilter()" style="background:none;border:none;color:rgba(255,255,255,.3);font-size:10px;cursor:pointer;padding:2px 6px;">↺ 초기화</button>
+      </div>
+      <!-- 섹션들 -->
+      <div style="overflow-y:auto;padding:0 12px 70px;" id="inspFPSections">
         <div id="inspFP_status"></div>
         <div id="inspFP_type"></div>
         <div id="inspFP_loc"></div>
-        <button onclick="resetInspFilter()" style="width:100%;margin-top:10px;padding:9px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius:9px;color:rgba(255,255,255,.4);font-size:12px;cursor:pointer;">↺ 필터 초기화</button>
       </div>
     </div>
     <div id="inspectCoords" style="position:absolute;bottom:130px;left:10px;background:rgba(0,0,0,.6);color:#8ab4cc;font-size:10px;padding:3px 8px;border-radius:5px;z-index:9;pointer-events:none;font-family:monospace;backdrop-filter:blur(4px);letter-spacing:.3px;">--</div>
@@ -1531,15 +1537,18 @@ function clearNotis(){DB.s('notis',[]);updateBell();closeNoti();toast('🗑️ �
 // ══════════════════════════════════════════
 let mapI,mapR,iOvs=[],rOvs=[],iEls=[],rEls=[],myOv=null,mapIType='hybrid',mapRType='hybrid';
 function _pinSz(level){
-  if(level<=4) return {sz:34,fs:15,bw:2.5,numFs:6,numPad:'1px 3px'};
-  if(level<=5) return {sz:28,fs:12,bw:2,  numFs:5,numPad:'1px 2px'};
-  if(level<=6) return {sz:23,fs:10,bw:2,  numFs:5,numPad:'1px 2px'};
-  if(level<=7) return {sz:18,fs:8, bw:1.5,numFs:4,numPad:'1px 2px'};
-  if(level<=8) return {sz:13,fs:6, bw:1,  numFs:4,numPad:'0px 2px'};
-  if(level<=9) return {sz:8, fs:5, bw:1,  numFs:3,numPad:'0px 2px'};
-  if(level<=12)return {sz:5, fs:4, bw:0.5,numFs:3,numPad:'0px 1px'};
-  if(level<=13)return {sz:4, fs:3, bw:0.5,numFs:2,numPad:'0px 1px'};
-  return              {sz:3, fs:2, bw:0.5,numFs:2,numPad:'0px 1px'};
+  // level 1~4: 15px, level 14: 1px, 점진적
+  if(level<=4) return {sz:15,fs:7, bw:1.5,numFs:5,numPad:'1px 2px'};
+  if(level<=5) return {sz:13,fs:6, bw:1.5,numFs:4,numPad:'1px 2px'};
+  if(level<=6) return {sz:11,fs:5, bw:1,  numFs:4,numPad:'1px 2px'};
+  if(level<=7) return {sz:9, fs:4, bw:1,  numFs:3,numPad:'0px 2px'};
+  if(level<=8) return {sz:7, fs:3, bw:1,  numFs:3,numPad:'0px 1px'};
+  if(level<=9) return {sz:6, fs:3, bw:0.5,numFs:3,numPad:'0px 1px'};
+  if(level<=10)return {sz:5, fs:2, bw:0.5,numFs:2,numPad:'0px 1px'};
+  if(level<=11)return {sz:4, fs:2, bw:0.5,numFs:2,numPad:'0px 1px'};
+  if(level<=12)return {sz:3, fs:2, bw:0.5,numFs:2,numPad:'0px 1px'};
+  if(level<=13)return {sz:2, fs:1, bw:0.5,numFs:1,numPad:'0px 1px'};
+  return              {sz:1, fs:1, bw:0.5,numFs:1,numPad:'0px 1px'};
 }
 function _scaleOvs(els,level){
   const s=_pinSz(level);
@@ -3706,7 +3715,8 @@ function submitHazard(){
 // ══════════════════════════════════════════
 // 시설물
 // ══════════════════════════════════════════
-let selFacId=null,facStatusF='전체',facTypeF='전체',facLocF='전체',facMapStatusF='전체',facMapTypeF='전체',facMapLocF='전체';
+let selFacId=null,facStatusF='전체',facTypeF='전체',facLocF='전체';
+let facMapStatusF=new Set(),facMapTypeF=new Set(),facMapLocF=new Set();
 function renderInspectMap(){
   if(!mapI){document.getElementById('nomapI').style.display='block';return;}
   iOvs.forEach(o=>{try{o.setMap(null);}catch(e){}});iOvs=[];iEls=[];
@@ -3717,9 +3727,9 @@ function renderInspectMap(){
   const locs=['전체',...new Set(facs.map(f=>(f.loc||'').trim()).filter(Boolean))];
   _updateInspFilterPanel(types,locs);
   const filtered=facs.filter(f=>{
-    const sOk=!sMap[facMapStatusF]||f.status===sMap[facMapStatusF];
-    const tOk=facMapTypeF==='전체'||f.type.includes(facMapTypeF);
-    const lOk=facMapLocF==='전체'||(f.loc||'').trim()===facMapLocF;
+    const sOk=facMapStatusF.size===0||facMapStatusF.has(f.status);
+    const tOk=facMapTypeF.size===0||[...facMapTypeF].some(t=>f.type.includes(t));
+    const lOk=facMapLocF.size===0||facMapLocF.has((f.loc||'').trim());
     return sOk&&tOk&&lOk;
   });
   filtered.forEach(f=>{
@@ -3740,58 +3750,76 @@ function renderInspectMap(){
   if(mapI)_scaleOvs(iEls,mapI.getLevel());
 }
 function setMapFacF(t,v){
-  if(t==='s')facMapStatusF=v;
-  else if(t==='t')facMapTypeF=v;
-  else facMapLocF=v;
+  const set=t==='s'?facMapStatusF:t==='t'?facMapTypeF:facMapLocF;
+  if(set.has(v))set.delete(v);else set.add(v);
   renderInspectMap();
 }
-function _updateInspFilterPanel(types,locs){
-  const chip=(label,cur,val,onclick,col)=>{
-    const on=cur===val;
-    const c=col||(on?'#4fa8d0':'rgba(255,255,255,.5)');
-    return `<span onclick="${onclick}" style="display:inline-block;margin:3px 3px;padding:4px 10px;border-radius:20px;font-size:11px;font-weight:600;cursor:pointer;border:1.5px solid ${on?c:'rgba(255,255,255,.15)'};color:${on?c:'rgba(255,255,255,.4)'};background:${on?c+'22':'rgba(255,255,255,.04)'};">${label}</span>`;
-  };
-  const sColors={'전체':'rgba(200,220,240,.7)','양호':'#27ae60','요주의':'#e67e22','위험':'#c0392b'};
-  const sec=(id,title,html)=>{
-    const el=document.getElementById(id);
-    if(!el)return;
-    el.innerHTML=`
-      <div onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display==='none'?'block':'none';this.querySelector('.fp-arr').textContent=this.nextElementSibling.style.display==='none'?'›':'⌄';"
-        style="display:flex;justify-content:space-between;align-items:center;padding:9px 0;border-bottom:1px solid rgba(255,255,255,.06);cursor:pointer;user-select:none;">
-        <span style="font-size:12px;font-weight:700;color:#c0d8ec;">${title}</span>
-        <span class="fp-arr" style="font-size:15px;color:#4a7090;">⌄</span>
-      </div>
-      <div style="padding:6px 0 4px;">${html}</div>`;
-  };
-  sec('inspFP_status','🟢 상태',
-    ['전체','양호','요주의','위험'].map(v=>chip(v,facMapStatusF,v,`_smfs('s','${v}')`,sColors[v])).join(''));
-  sec('inspFP_type','📦 종류',
-    types.map(v=>chip(v,facMapTypeF,v,`_smfs('t','${v.replace(/'/g,"\\'")}')`)).join(''));
-  sec('inspFP_loc','📍 위치',
-    locs.map(v=>chip(v,facMapLocF,v,`_smfs('l','${v.replace(/'/g,"\\'")}')`)).join(''));
-  // 배지 업데이트
-  const active=[facMapStatusF!=='전체',facMapTypeF!=='전체',facMapLocF!=='전체'].filter(Boolean).length;
-  const badge=document.getElementById('inspFilterBadge');
-  if(badge){badge.style.display=active?'inline-block':'none';badge.textContent=active;}
-}
-function _setMF(t){
-  return function(v){setMapFacF(t,v);};
-}
-// _setMF는 inline onclick에서 직접 호출 불가 — 문자열 함수로 대신 사용
 function _smfs(t,v){setMapFacF(t,v);}
+function _updateInspFilterPanel(types,locs){
+  const chip=(label,set,val,onclick,col)=>{
+    const on=set.has(val);
+    const c=col||(on?'#4fa8d0':'rgba(255,255,255,.5)');
+    return `<span onclick="${onclick}" style="display:inline-block;margin:2px 2px;padding:3px 8px;border-radius:20px;font-size:10px;font-weight:600;cursor:pointer;border:1.5px solid ${on?c:'rgba(255,255,255,.12)'};color:${on?c:'rgba(255,255,255,.35)'};background:${on?c+'22':'transparent'};">${label}</span>`;
+  };
+  const sChips=[{l:'양호',v:'ok',c:'#27ae60'},{l:'요주의',v:'warn',c:'#e67e22'},{l:'위험',v:'bad',c:'#c0392b'}];
+  const sec=(id,title,html,set)=>{
+    const el=document.getElementById(id);if(!el)return;
+    const cnt=set.size;
+    el.innerHTML=`
+      <div onclick="var b=this.nextElementSibling;b.style.display=b.style.display==='none'?'block':'none';this.querySelector('b').textContent=b.style.display==='none'?'›':'⌄';"
+        style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid rgba(255,255,255,.05);cursor:pointer;user-select:none;">
+        <span style="font-size:11px;font-weight:700;color:#9bbdd4;">${title}${cnt?` <span style="color:#e05050;font-size:10px;">(${cnt})</span>`:''}</span>
+        <b style="font-size:13px;color:#3a6a8a;font-weight:400;">›</b>
+      </div>
+      <div style="display:none;padding:4px 0 2px;">${html}</div>`;
+  };
+  sec('inspFP_status','상태',
+    sChips.map(({l,v,c})=>chip(l,facMapStatusF,v,`_smfs('s','${v}')`,c)).join(''),facMapStatusF);
+  sec('inspFP_type','종류',
+    types.filter(t=>t!=='전체').map(v=>chip(v,facMapTypeF,v,`_smfs('t','${v.replace(/'/g,"\\'")}')`,'#4fa8d0')).join(''),facMapTypeF);
+  sec('inspFP_loc','위치',
+    locs.filter(v=>v!=='전체').map(v=>chip(v,facMapLocF,v,`_smfs('l','${v.replace(/'/g,"\\'")}')`,'#9b59b6')).join(''),facMapLocF);
+  // 배지/카운트 업데이트
+  const total=facMapStatusF.size+facMapTypeF.size+facMapLocF.size;
+  const badge=document.getElementById('inspFilterBadge');
+  if(badge){badge.style.display=total?'inline-block':'none';badge.textContent=total;}
+  const cnt=document.getElementById('inspFilterCount');
+  if(cnt)cnt.textContent=total?`(${total})` : '';
+}
+let _fpDragY=0,_fpDragActive=false;
+function _initInspFPDrag(){
+  const handle=document.getElementById('inspFPHandle');
+  const panel=document.getElementById('inspFilterPanel');
+  if(!handle||handle._fpBound)return;
+  handle._fpBound=true;
+  handle.addEventListener('touchstart',e=>{_fpDragY=e.touches[0].clientY;_fpDragActive=true;panel.style.transition='none';},{passive:true});
+  handle.addEventListener('touchmove',e=>{
+    if(!_fpDragActive)return;
+    const dy=Math.max(0,e.touches[0].clientY-_fpDragY);
+    panel.style.transform=`translateY(${dy}px)`;
+  },{passive:true});
+  handle.addEventListener('touchend',e=>{
+    if(!_fpDragActive)return;
+    _fpDragActive=false;
+    panel.style.transition='transform .22s cubic-bezier(.4,0,.2,1)';
+    const dy=e.changedTouches[0].clientY-_fpDragY;
+    if(dy>70)closeInspFilter();
+    else panel.style.transform='translateY(0)';
+  });
+}
 function toggleInspFilter(){
   const p=document.getElementById('inspFilterPanel');
-  const bg=document.getElementById('inspFilterBg');
-  const open=p.style.display!=='none';
-  p.style.display=open?'none':'block';
-  bg.style.display=open?'none':'block';
+  const open=p.style.display==='flex';
+  if(open){closeInspFilter();}
+  else{p.style.display='flex';p.style.transform='translateY(0)';_initInspFPDrag();}
 }
 function closeInspFilter(){
-  document.getElementById('inspFilterPanel').style.display='none';
-  document.getElementById('inspFilterBg').style.display='none';
+  const p=document.getElementById('inspFilterPanel');
+  p.style.transform='translateY(100%)';
+  setTimeout(()=>{p.style.display='none';p.style.transform='translateY(0)';},220);
 }
 function resetInspFilter(){
-  facMapStatusF='전체';facMapTypeF='전체';facMapLocF='전체';
+  facMapStatusF=new Set();facMapTypeF=new Set();facMapLocF=new Set();
   renderInspectMap();
 }
 function openFacFromMap(id){
