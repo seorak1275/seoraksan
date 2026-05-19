@@ -3660,11 +3660,10 @@ function renderFacList(){
     return sOk&&tOk&&lOk;
   });
   document.getElementById('facListWrap').innerHTML=filtered.length?filtered.map(f=>`
-    <div class="lcard" onclick="openFacDetail(${f.id})">
-      <div class="lico" style="border-color:${SC(f.status)};color:${SC(f.status)};">${f.type.split(' ')[0]}</div>
-      <div class="linfo"><div class="lname">${f.name}</div>
-        <div class="lmeta">${f.type} · ${f.loc||'-'}</div>
-        <div class="lmeta">설치: ${f.install||'-'} · ${f.author||'-'} · ${f.lat?'📍GPS':'GPS없음'}</div>
+    <div class="lcard" style="padding:7px 10px;" onclick="openFacDetail(${f.id})">
+      <div class="lico" style="width:30px;height:30px;font-size:14px;border-color:${SC(f.status)};color:${SC(f.status)};">${f.type.split(' ')[0]}</div>
+      <div class="linfo"><div class="lname" style="font-size:12px;">${f.name}</div>
+        <div class="lmeta">${f.type.split(' ').slice(1).join(' ')||f.type} · ${f.loc||'-'} · ${f.lat?'📍':''}</div>
       </div>
       <span class="lbadge" style="background:${SC(f.status)}22;color:${SC(f.status)};">${SL(f.status)}</span>
     </div>`).join(''):'<div class="empty"><div class="empty-ico">🛠️</div><div class="empty-txt">해당 조건 없음</div></div>';
