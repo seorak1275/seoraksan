@@ -3571,7 +3571,7 @@ function submitHazard(){
 // ══════════════════════════════════════════
 // 시설물
 // ══════════════════════════════════════════
-let selFacId=null,facStatusF='전체',facTypeF='전체';
+let selFacId=null,facStatusF='전체',facTypeF='전체',facLocF='전체';
 function renderInspectMap(){
   if(!mapI){document.getElementById('nomapI').style.display='block';return;}
   iOvs.forEach(o=>{try{o.setMap(null);}catch(e){}});iOvs=[];
@@ -3585,15 +3585,35 @@ function renderInspectMap(){
 }
 function renderFacList(){
   const facs=DB.g('facilities')||[];
-  const sfs=['전체','양호','요주의','위험'];
-  const types=['전체',...new Set(facs.map(f=>f.type.split(' ').slice(1).join(' ')||f.type))].slice(0,6);
-  const fStyle=on=>`padding:5px 12px;border-radius:20px;font-size:11px;font-weight:600;cursor:pointer;border:1.5px solid ${on?'rgba(79,168,208,.65)':'rgba(255,255,255,.1)'};color:${on?'#4fa8d0':'rgba(255,255,255,.38)'};background:${on?'rgba(79,168,208,.09)':'transparent'};white-space:nowrap;flex-shrink:0;`;
-  document.getElementById('facFBar').innerHTML=
-    sfs.map(f=>`<div style="${fStyle(f===facStatusF)}" onclick="setFacF('s','${f}')">${f}</div>`).join('')+
-    '<div style="width:1px;background:rgba(255,255,255,.1);flex-shrink:0;margin:0 2px;"></div>'+
-    types.map(f=>`<div style="${fStyle(f===facTypeF)}" onclick="setFacF('t','${f}')">${f}</div>`).join('');
   const sMap={'전체':null,'양호':'ok','요주의':'warn','위험':'bad'};
-  const filtered=facs.filter(f=>{const sOk=!sMap[facStatusF]||f.status===sMap[facStatusF];const tOk=facTypeF==='전체'||f.type.includes(facTypeF);return sOk&&tOk;});
+  const sCol={'전체':'rgba(200,220,240,.55)','양호':'#27ae60','요주의':'#e67e22','위험':'#c0392b'};
+  const types=['전체',...new Set(facs.map(f=>f.type.split(' ').slice(1).join(' ')||f.type))];
+  const locs=['전체',...new Set(facs.map(f=>(f.loc||'').trim()).filter(l=>l&&l!=='-'))];
+  window._facLocs=locs;
+  const lbl=t=>`<span style="font-size:10px;color:rgba(255,255,255,.28);font-weight:700;white-space:nowrap;flex-shrink:0;min-width:22px;">${t}</span>`;
+  const sp=(v,cur,col,ev)=>`<div style="padding:4px 10px;border-radius:20px;font-size:11px;font-weight:600;cursor:pointer;white-space:nowrap;flex-shrink:0;border:1.5px solid ${v===cur?col:'rgba(255,255,255,.08)'};color:${v===cur?col:'rgba(255,255,255,.28)'};background:${v===cur?col+'1a':'transparent'};" onclick="${ev}">${v}</div>`;
+  const bp=(v,cur,ev)=>`<div style="padding:4px 10px;border-radius:20px;font-size:11px;font-weight:600;cursor:pointer;white-space:nowrap;flex-shrink:0;border:1.5px solid ${v===cur?'rgba(79,168,208,.65)':'rgba(255,255,255,.08)'};color:${v===cur?'#4fa8d0':'rgba(255,255,255,.28)'};background:${v===cur?'rgba(79,168,208,.09)':'transparent'};" onclick="${ev}">${v}</div>`;
+  const fbar=document.getElementById('facFBar');
+  fbar.style.cssText='display:flex;flex-direction:column;gap:0;padding:4px 0;flex-shrink:0;border-bottom:.5px solid rgba(255,255,255,.07);';
+  fbar.innerHTML=`
+    <div class="fbar" style="padding:3px 12px;gap:6px;">
+      ${lbl('상태')}
+      ${['전체','양호','요주의','위험'].map(v=>sp(v,facStatusF,sCol[v],`setFacF('s','${v}')`)).join('')}
+    </div>
+    <div class="fbar" style="padding:3px 12px;gap:6px;">
+      ${lbl('위치')}
+      ${locs.map((v,i)=>bp(v,facLocF,`setFacF('l',window._facLocs[${i}])`)).join('')}
+    </div>
+    <div class="fbar" style="padding:3px 12px;gap:6px;">
+      ${lbl('종류')}
+      ${types.map(v=>bp(v,facTypeF,`setFacF('t','${v}')`)).join('')}
+    </div>`;
+  const filtered=facs.filter(f=>{
+    const sOk=!sMap[facStatusF]||f.status===sMap[facStatusF];
+    const tOk=facTypeF==='전체'||f.type.includes(facTypeF);
+    const lOk=facLocF==='전체'||(f.loc||'').trim()===facLocF;
+    return sOk&&tOk&&lOk;
+  });
   document.getElementById('facListWrap').innerHTML=filtered.length?filtered.map(f=>`
     <div class="lcard" onclick="openFacDetail(${f.id})">
       <div class="lico" style="border-color:${SC(f.status)};color:${SC(f.status)};">${f.type.split(' ')[0]}</div>
@@ -3604,7 +3624,7 @@ function renderFacList(){
       <span class="lbadge" style="background:${SC(f.status)}22;color:${SC(f.status)};">${SL(f.status)}</span>
     </div>`).join(''):'<div class="empty"><div class="empty-ico">🛠️</div><div class="empty-txt">해당 조건 없음</div></div>';
 }
-function setFacF(t,v){if(t==='s')facStatusF=v;else facTypeF=v;renderFacList();}
+function setFacF(t,v){if(t==='s')facStatusF=v;else if(t==='l')facLocF=v;else facTypeF=v;renderFacList();}
 
 function renderInspectStats(){
   const facs=DB.g('facilities')||[];const hist=(DB.g('history')||[]).slice().reverse().slice(0,8);
