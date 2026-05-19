@@ -783,9 +783,23 @@ body.guest-mode .guest-hide{display:none!important;}
       </div>
     </div>
     <button class="map-ctrl" onclick="toggleMapType('inspect')">위성/일반</button>
+    <button class="map-ctrl" id="inspFilterBtn" onclick="toggleInspFilter()" style="left:auto;right:10px;display:flex;align-items:center;gap:4px;">
+      <span id="inspFilterIco">⚙️</span> 필터 <span id="inspFilterBadge" style="display:none;background:#e05050;color:#fff;border-radius:9px;padding:0 5px;font-size:10px;min-width:16px;text-align:center;"></span>
+    </button>
     <button class="fab-gps" onclick="gpsTo('inspect')">📍</button>
     <button class="fab" style="background:#0c4838;color:#fff;" onclick="openAddFac()">＋</button>
-    <div id="inspMapFBar" style="position:absolute;top:46px;left:8px;right:8px;z-index:10;pointer-events:none;display:flex;flex-direction:column;gap:4px;"></div>
+    <!-- 필터 패널 -->
+    <div id="inspFilterBg" onclick="closeInspFilter()" style="display:none;position:absolute;inset:0;z-index:19;background:rgba(0,0,0,.35);"></div>
+    <div id="inspFilterPanel" style="display:none;position:absolute;bottom:0;left:0;right:0;z-index:20;background:#0b1c30;border-radius:14px 14px 0 0;padding:10px 0 80px;box-shadow:0 -4px 24px rgba(0,0,0,.7);max-height:75%;overflow-y:auto;">
+      <div style="width:36px;height:3px;background:rgba(255,255,255,.15);border-radius:9px;margin:0 auto 10px;"></div>
+      <div style="padding:0 14px;">
+        <div style="font-size:12px;font-weight:700;color:#4fa8d0;margin-bottom:10px;">🔍 지도 필터</div>
+        <div id="inspFP_status"></div>
+        <div id="inspFP_type"></div>
+        <div id="inspFP_loc"></div>
+        <button onclick="resetInspFilter()" style="width:100%;margin-top:10px;padding:9px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius:9px;color:rgba(255,255,255,.4);font-size:12px;cursor:pointer;">↺ 필터 초기화</button>
+      </div>
+    </div>
     <div id="inspectCoords" style="position:absolute;bottom:130px;left:10px;background:rgba(0,0,0,.6);color:#8ab4cc;font-size:10px;padding:3px 8px;border-radius:5px;z-index:9;pointer-events:none;font-family:monospace;backdrop-filter:blur(4px);letter-spacing:.3px;">--</div>
     <div class="nomap-banner" id="nomapI">📍 API 키 설정 후 지도 사용 가능 — 목록탭 이용</div>
     <div class="dbcard" id="facPopup">
@@ -3672,29 +3686,21 @@ function submitHazard(){
 // ══════════════════════════════════════════
 // 시설물
 // ══════════════════════════════════════════
-let selFacId=null,facStatusF='전체',facTypeF='전체',facLocF='전체',facMapStatusF='전체',facMapTypeF='전체';
+let selFacId=null,facStatusF='전체',facTypeF='전체',facLocF='전체',facMapStatusF='전체',facMapTypeF='전체',facMapLocF='전체';
 function renderInspectMap(){
   if(!mapI){document.getElementById('nomapI').style.display='block';return;}
   iOvs.forEach(o=>{try{o.setMap(null);}catch(e){}});iOvs=[];iEls=[];
   const facs=DB.g('facilities')||[];
   const sMap={'전체':null,'양호':'ok','요주의':'warn','위험':'bad'};
   const sCol={'전체':'rgba(200,220,240,.6)','양호':'#27ae60','요주의':'#e67e22','위험':'#c0392b'};
-  const types=['전체',...new Set(facs.map(f=>f.type.split(' ').slice(1).join(' ')||f.type))];
-  const mpill=(v,cur,col,ev)=>`<div style="padding:3px 9px;border-radius:20px;font-size:10px;font-weight:700;cursor:pointer;white-space:nowrap;flex-shrink:0;pointer-events:auto;border:1.5px solid ${v===cur?col:'rgba(255,255,255,.18)'};color:${v===cur?col:'rgba(255,255,255,.5)'};background:${v===cur?col+'28':'rgba(5,12,25,.75)'};backdrop-filter:blur(6px);" onclick="${ev}">${v}</div>`;
-  const bpill=(v,cur,ev)=>`<div style="padding:3px 9px;border-radius:20px;font-size:10px;font-weight:700;cursor:pointer;white-space:nowrap;flex-shrink:0;pointer-events:auto;border:1.5px solid ${v===cur?'rgba(79,168,208,.7)':'rgba(255,255,255,.18)'};color:${v===cur?'#4fa8d0':'rgba(255,255,255,.5)'};background:${v===cur?'rgba(79,168,208,.18)':'rgba(5,12,25,.75)'};backdrop-filter:blur(6px);" onclick="${ev}">${v}</div>`;
-  const fbar=document.getElementById('inspMapFBar');
-  if(fbar){
-    fbar.innerHTML=`
-      <div style="display:flex;gap:4px;overflow-x:auto;-webkit-overflow-scrolling:touch;pointer-events:auto;">
-        ${['전체','양호','요주의','위험'].map(v=>mpill(v,facMapStatusF,sCol[v],`setMapFacF('s','${v}')`)).join('')}
-        <div style="width:1px;background:rgba(255,255,255,.12);flex-shrink:0;margin:0 1px;"></div>
-        ${types.map(v=>bpill(v,facMapTypeF,`setMapFacF('t','${v}')`)).join('')}
-      </div>`;
-  }
+  const types=['전체',...new Set(facs.map(f=>f.type.split(' ').slice(1).join(' ')||f.type).filter(Boolean))];
+  const locs=['전체',...new Set(facs.map(f=>(f.loc||'').trim()).filter(Boolean))];
+  _updateInspFilterPanel(types,locs);
   const filtered=facs.filter(f=>{
     const sOk=!sMap[facMapStatusF]||f.status===sMap[facMapStatusF];
     const tOk=facMapTypeF==='전체'||f.type.includes(facMapTypeF);
-    return sOk&&tOk;
+    const lOk=facMapLocF==='전체'||(f.loc||'').trim()===facMapLocF;
+    return sOk&&tOk&&lOk;
   });
   filtered.forEach(f=>{
     if(!f.lat||!f.lng)return;
@@ -3713,7 +3719,61 @@ function renderInspectMap(){
   });
   if(mapI)_scaleOvs(iEls,mapI.getLevel());
 }
-function setMapFacF(t,v){if(t==='s')facMapStatusF=v;else facMapTypeF=v;renderInspectMap();}
+function setMapFacF(t,v){
+  if(t==='s')facMapStatusF=v;
+  else if(t==='t')facMapTypeF=v;
+  else facMapLocF=v;
+  renderInspectMap();
+}
+function _updateInspFilterPanel(types,locs){
+  const chip=(label,cur,val,onclick,col)=>{
+    const on=cur===val;
+    const c=col||(on?'#4fa8d0':'rgba(255,255,255,.5)');
+    return `<span onclick="${onclick}" style="display:inline-block;margin:3px 3px;padding:4px 10px;border-radius:20px;font-size:11px;font-weight:600;cursor:pointer;border:1.5px solid ${on?c:'rgba(255,255,255,.15)'};color:${on?c:'rgba(255,255,255,.4)'};background:${on?c+'22':'rgba(255,255,255,.04)'};">${label}</span>`;
+  };
+  const sColors={'전체':'rgba(200,220,240,.7)','양호':'#27ae60','요주의':'#e67e22','위험':'#c0392b'};
+  const sec=(id,title,html)=>{
+    const el=document.getElementById(id);
+    if(!el)return;
+    el.innerHTML=`
+      <div onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display==='none'?'block':'none';this.querySelector('.fp-arr').textContent=this.nextElementSibling.style.display==='none'?'›':'⌄';"
+        style="display:flex;justify-content:space-between;align-items:center;padding:9px 0;border-bottom:1px solid rgba(255,255,255,.06);cursor:pointer;user-select:none;">
+        <span style="font-size:12px;font-weight:700;color:#c0d8ec;">${title}</span>
+        <span class="fp-arr" style="font-size:15px;color:#4a7090;">⌄</span>
+      </div>
+      <div style="padding:6px 0 4px;">${html}</div>`;
+  };
+  sec('inspFP_status','🟢 상태',
+    ['전체','양호','요주의','위험'].map(v=>chip(v,facMapStatusF,v,`_smfs('s','${v}')`,sColors[v])).join(''));
+  sec('inspFP_type','📦 종류',
+    types.map(v=>chip(v,facMapTypeF,v,`_smfs('t','${v.replace(/'/g,"\\'")}')`)).join(''));
+  sec('inspFP_loc','📍 위치',
+    locs.map(v=>chip(v,facMapLocF,v,`_smfs('l','${v.replace(/'/g,"\\'")}')`)).join(''));
+  // 배지 업데이트
+  const active=[facMapStatusF!=='전체',facMapTypeF!=='전체',facMapLocF!=='전체'].filter(Boolean).length;
+  const badge=document.getElementById('inspFilterBadge');
+  if(badge){badge.style.display=active?'inline-block':'none';badge.textContent=active;}
+}
+function _setMF(t){
+  return function(v){setMapFacF(t,v);};
+}
+// _setMF는 inline onclick에서 직접 호출 불가 — 문자열 함수로 대신 사용
+function _smfs(t,v){setMapFacF(t,v);}
+function toggleInspFilter(){
+  const p=document.getElementById('inspFilterPanel');
+  const bg=document.getElementById('inspFilterBg');
+  const open=p.style.display!=='none';
+  p.style.display=open?'none':'block';
+  bg.style.display=open?'none':'block';
+}
+function closeInspFilter(){
+  document.getElementById('inspFilterPanel').style.display='none';
+  document.getElementById('inspFilterBg').style.display='none';
+}
+function resetInspFilter(){
+  facMapStatusF='전체';facMapTypeF='전체';facMapLocF='전체';
+  renderInspectMap();
+}
 function openFacFromMap(id){
   const f=(DB.g('facilities')||[]).find(x=>x.id===id);if(!f)return;
   selFacId=id;
