@@ -2683,14 +2683,46 @@ function openResPopup(id,type='rescue'){
   selResId=id;
   if(type==='rescue'){
     const isOg=data.status==='ongoing';const ti=RES_TYPES[data.type]||RES_TYPES['기타'];
+    const totalPh=(data.reports||[]).length+1;
     document.getElementById('resPopTitle').textContent=ti.ico+' '+data.title;
-    document.getElementById('resPopMeta').innerHTML=`${data.type} · ${isOg?'<span style="color:#c0392b;font-weight:700;">진행중</span>':'<span style="color:#27ae60;">종료</span>'}<br>발생: ${data.date}<br>위치: ${data.location||'-'}<br>사고자: ${data.vName||'미상'} · ${data.severity||'-'}<br>${(data.reports||[]).length+1}보`;
+    // 빈값/미상 필터 헬퍼
+    const _skip=v=>{if(!v)return true;const s=String(v).trim();return !s||s==='-'||['미상','없음','모르겠음','알수없음','미정','해당없음','기타'].includes(s);};
+    const _arr=v=>(Array.isArray(v)?v:typeof v==='string'?[v]:[]).filter(x=>!_skip(x));
+    const row=(ico,val)=>val?`<div style="display:flex;gap:5px;margin-bottom:3px;"><span style="color:#4a7090;flex-shrink:0;">${ico}</span><span style="color:#c0d8ec;font-size:11px;">${val}</span></div>`:'';
+    const d=data;
+    const rows=[
+      row('📅',d.date),
+      row('📍',[d.location,d.loctype].filter(x=>!_skip(x)).join(' · ')||''),
+      row('🌤',(!_skip(d.weather)?d.weather:'')+(!_skip(d.weatherAlert)?' '+d.weatherAlert:'')||''),
+      row('👤',[!_skip(d.vName)?d.vName:'',(!_skip(d.vBirth)?new Date().getFullYear()-parseInt(d.vBirth.slice(0,4))+'세':''),(!_skip(d.vGender)&&d.vGender!=='알수없음'?d.vGender:''),(!_skip(d.vNation)&&d.vNation!=='알수없음'?d.vNation:'')].filter(Boolean).join(' · ')||''),
+      row('🩺',!_skip(d.severity)?d.severity:''),
+      row('⚡',!_skip(d.cause)?d.cause:''),
+      row('🦵',_arr(d.injuryParts).join(', ')),
+      row('🚑',_arr(d.rescueMethod).join(', ')),
+      row('🏥',!_skip(d.hospital)&&d.hospital!=='미정'?d.hospital:''),
+      row('🍺',!_skip(d.alcohol)&&d.alcohol!=='알수없음'?'음주: '+d.alcohol:''),
+    ].filter(Boolean).join('');
+    document.getElementById('resPopMeta').innerHTML=`
+      <div style="display:flex;gap:5px;margin-bottom:6px;align-items:center;">
+        <span style="font-size:10px;padding:2px 7px;border-radius:9px;font-weight:700;background:${isOg?'rgba(192,57,43,.2)':'rgba(39,174,96,.15)'};color:${isOg?'#e05050':'#27ae60'};">${isOg?'진행중':'종료'}</span>
+        <span style="font-size:10px;color:#4a7090;">${totalPh}보 기록</span>
+        <span style="font-size:10px;color:#3a6a8a;">${d.type}</span>
+      </div>
+      ${rows||'<div style="color:#4a7090;font-size:11px;">상세 정보 없음</div>'}`;
     document.getElementById('btnAddRep').style.display=isOg?'block':'none';
     document.getElementById('btnEndSit').style.display=isOg?'block':'none';
     document.getElementById('btnViewRep').style.display='block';
   } else {
     document.getElementById('resPopTitle').textContent='⚠️ '+data.hazType+' 위험상황';
-    document.getElementById('resPopMeta').innerHTML=`위치: ${data.loc||'-'}<br>위험성: ${data.danger||'-'}<br>상태: ${data.hazStatus||'-'}<br>보고자: ${data.author||'-'}`;
+    const _skip=v=>{if(!v)return true;const s=String(v).trim();return !s||s==='-'||['미상','없음','알수없음','미정'].includes(s);};
+    const row=(ico,val)=>val?`<div style="display:flex;gap:5px;margin-bottom:3px;"><span style="color:#4a7090;flex-shrink:0;">${ico}</span><span style="color:#c0d8ec;font-size:11px;">${val}</span></div>`:'';
+    const d=data;
+    document.getElementById('resPopMeta').innerHTML=[
+      row('📍',!_skip(d.loc)?d.loc:''),
+      row('⚠️',!_skip(d.danger)?d.danger:''),
+      row('📋',!_skip(d.hazStatus)?d.hazStatus:''),
+      row('👤',!_skip(d.author)?d.author:''),
+    ].filter(Boolean).join('')||'<div style="color:#4a7090;font-size:11px;">상세 정보 없음</div>';
     document.getElementById('btnAddRep').style.display='none';
     document.getElementById('btnEndSit').style.display='none';
     document.getElementById('btnViewRep').style.display='none';
