@@ -1572,22 +1572,23 @@ function clearNotis(){DB.s('notis',[]);updateBell();closeNoti();toast('🗑️ �
 // 카카오맵
 // ══════════════════════════════════════════
 let mapI,mapR,iOvs=[],rOvs=[],iEls=[],rEls=[],myOv=null,mapIType='hybrid',mapRType='hybrid';
-function _pinSz(level){
+function _pinSz(level,off){
+  const o=off||0;
   // level 1~4: 15px, level 14: 1px, 점진적
-  if(level<=4) return {sz:15,fs:7, bw:1.5,numFs:5,numPad:'1px 2px'};
-  if(level<=5) return {sz:13,fs:6, bw:1.5,numFs:4,numPad:'1px 2px'};
-  if(level<=6) return {sz:11,fs:5, bw:1,  numFs:4,numPad:'1px 2px'};
-  if(level<=7) return {sz:9, fs:4, bw:1,  numFs:3,numPad:'0px 2px'};
-  if(level<=8) return {sz:7, fs:3, bw:1,  numFs:3,numPad:'0px 1px'};
-  if(level<=9) return {sz:6, fs:3, bw:0.5,numFs:3,numPad:'0px 1px'};
-  if(level<=10)return {sz:5, fs:2, bw:0.5,numFs:2,numPad:'0px 1px'};
-  if(level<=11)return {sz:4, fs:2, bw:0.5,numFs:2,numPad:'0px 1px'};
-  if(level<=12)return {sz:3, fs:2, bw:0.5,numFs:2,numPad:'0px 1px'};
-  if(level<=13)return {sz:2, fs:1, bw:0.5,numFs:1,numPad:'0px 1px'};
-  return              {sz:1, fs:1, bw:0.5,numFs:1,numPad:'0px 1px'};
+  if(level<=4) return {sz:15+o,fs:7, bw:1.5,numFs:5,numPad:'1px 2px'};
+  if(level<=5) return {sz:13+o,fs:6, bw:1.5,numFs:4,numPad:'1px 2px'};
+  if(level<=6) return {sz:11+o,fs:5, bw:1,  numFs:4,numPad:'1px 2px'};
+  if(level<=7) return {sz:9+o, fs:4, bw:1,  numFs:3,numPad:'0px 2px'};
+  if(level<=8) return {sz:7+o, fs:3, bw:1,  numFs:3,numPad:'0px 1px'};
+  if(level<=9) return {sz:6+o, fs:3, bw:0.5,numFs:3,numPad:'0px 1px'};
+  if(level<=10)return {sz:5+o, fs:2, bw:0.5,numFs:2,numPad:'0px 1px'};
+  if(level<=11)return {sz:4+o, fs:2, bw:0.5,numFs:2,numPad:'0px 1px'};
+  if(level<=12)return {sz:3+o, fs:2, bw:0.5,numFs:2,numPad:'0px 1px'};
+  if(level<=13)return {sz:2+o, fs:1, bw:0.5,numFs:1,numPad:'0px 1px'};
+  return              {sz:1+o, fs:1, bw:0.5,numFs:1,numPad:'0px 1px'};
 }
-function _scaleOvs(els,level){
-  const s=_pinSz(level);
+function _scaleOvs(els,level,off){
+  const s=_pinSz(level,off);
   els.forEach(el=>{
     if(!el)return;
     if(el.classList.contains('mpin')||el.classList.contains('mpin-sm')){
@@ -1649,8 +1650,8 @@ function initMaps(){
     kakao.maps.event.addListener(mapI,'center_changed',saveInspectCenter);
     saveInspectCenter();
     // 줌 레벨에 따른 핀 크기 자동 조절
-    kakao.maps.event.addListener(mapR,'zoom_changed',()=>_scaleOvs(rEls,mapR.getLevel()));
-    kakao.maps.event.addListener(mapI,'zoom_changed',()=>_scaleOvs(iEls,mapI.getLevel()));
+    kakao.maps.event.addListener(mapR,'zoom_changed',()=>_scaleOvs(rEls,mapR.getLevel(),2));
+    kakao.maps.event.addListener(mapI,'zoom_changed',()=>_scaleOvs(iEls,mapI.getLevel(),1));
     if(window._hideLoading)setTimeout(window._hideLoading,600);
   }
   if(window._KR)doInit();else window._KCB=doInit;
@@ -2542,7 +2543,7 @@ function renderRescueMap(){
     const ov=new kakao.maps.CustomOverlay({position:new kakao.maps.LatLng(f.lat,f.lng),content:el,clickable:true});
     ov.setMap(mapR);rOvs.push(ov);rEls.push(el);
   });
-  if(mapR)_scaleOvs(rEls,mapR.getLevel());
+  if(mapR)_scaleOvs(rEls,mapR.getLevel(),2);
   updateSummary();
 }
 
@@ -3810,7 +3811,7 @@ function renderInspectMap(){
     const ov=new kakao.maps.CustomOverlay({position:new kakao.maps.LatLng(f.lat,f.lng),content:el,clickable:true});
     ov.setMap(mapI);iOvs.push(ov);iEls.push(el);
   });
-  if(mapI)_scaleOvs(iEls,mapI.getLevel());
+  if(mapI)_scaleOvs(iEls,mapI.getLevel(),1);
 }
 function setMapFacF(t,v){
   const set=t==='s'?facMapStatusF:t==='t'?facMapTypeF:facMapLocF;
