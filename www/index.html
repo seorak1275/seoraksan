@@ -1487,6 +1487,21 @@ function initDB(){
   })();
   // catFacMeta 초기화 (재난지도 표시 여부 + 관리자 전용 여부)
   (function(){var m=DB.g('catFacMeta')||{};var changed=false;var def={'🪧 다목적위치표지판':{rescue:true,adminOnly:false},'📍 장소':{rescue:true,adminOnly:true},'🏠 대피소':{rescue:true,adminOnly:false}};Object.keys(def).forEach(function(k){if(!m[k]){m[k]=def[k];changed=true;}});if(changed)DB.s('catFacMeta',m);})();
+  // 사찰 카테고리 마이그레이션: 이름이 암/사로 끝나는 catFac 항목 및 시설물을 🛕 사찰로 통합
+  (function(){
+    var TEMPLE='🛕 사찰';
+    var isTemple=function(s){var t=s.replace(/^[\s\S]*\s/,'');return /암$|사$/.test(t);};
+    var c=DB.g('catFac')||[];var cm=false;
+    // 사찰 항목 없으면 추가
+    if(!c.includes(TEMPLE)){c.push(TEMPLE);cm=true;}
+    // 암/사로 끝나는 catFac 항목 제거
+    var c2=c.filter(function(x){if(x===TEMPLE)return true;var name=x.replace(/^[^\s]+\s/,'');if(isTemple(name)){cm=true;return false;}return true;});
+    if(cm)DB.s('catFac',c2);
+    // 시설물: 이름이 암/사로 끝나는 것 → 타입을 🛕 사찰로 변경
+    var facs=DB.g('facilities');if(!facs)return;
+    var fc=false;var f2=facs.map(function(f){if(f.name&&isTemple(f.name)&&f.type!==TEMPLE){fc=true;return Object.assign({},f,{type:TEMPLE});}return f;});
+    if(fc)DB.s('facilities',f2);
+  })();
   if(!DB.g('wikiCats'))   DB.s('wikiCats',['지형','안전','장비','법령','응급','탐방로','시설','동식물','기상']);
   if(!DB.g('facilities')) DB.s('facilities',[
     {id:1,type:'🌉 교량',name:'설악-01 출렁다리',loc:'소공원 입구',status:'bad',lat:38.170,lng:128.480,install:'2025-05-10',note:'강철 와이어 부식',author:'손경완'},
@@ -3894,12 +3909,13 @@ function renderInspectMap(){
   const sMap={'전체':null,'양호':'ok','요주의':'warn','위험':'bad'};
   const sCol={'전체':'rgba(200,220,240,.6)','양호':'#27ae60','요주의':'#e67e22','위험':'#c0392b'};
   const types=['전체',...new Set(facs.map(f=>f.type.split(' ').slice(1).join(' ')||f.type).filter(Boolean))];
-  const locs=['전체',...new Set(facs.map(f=>(f.loc||'').trim()).filter(Boolean))];
+  const _signFacs=(DB.g('facilities')||[]).filter(f=>f.type&&f.type.includes('다목적위치표지판'));
+  const locs=['전체',...new Set(_signFacs.map(f=>(f.name.match(/\d[\d\-]*\d|\d/)||[''])[0]).filter(Boolean)).values()].sort((a,b)=>a==='전체'?-1:a.localeCompare(b,'ko'));
   _updateInspFilterPanel(types,locs);
   const filtered=facs.filter(f=>{
     const sOk=facMapStatusF.size===0||facMapStatusF.has(f.status);
     const tOk=facMapTypeF.size===0||[...facMapTypeF].some(t=>f.type.includes(t));
-    const lOk=facMapLocF.size===0||facMapLocF.has((f.loc||'').trim());
+    const lOk=facMapLocF.size===0||[...facMapLocF].some(v=>(f.loc||'').includes(v));
     return sOk&&tOk&&lOk;
   });
   filtered.forEach(f=>{
@@ -4009,7 +4025,8 @@ function _updateFacListFilterPanel(types,locs){
     const _a=isAdminUser();const _m2=DB.g('catFacMeta')||{};
     const _f=(DB.g('facilities')||[]).filter(f=>_a||!(_m2[f.type]||{}).adminOnly);
     types=types||[...(new Set(_f.map(f=>f.type.split(' ').slice(1).join(' ')||f.type).filter(Boolean)))];
-    locs=locs||[...(new Set(_f.map(f=>(f.loc||'').trim()).filter(l=>l&&l!=='-')))];
+    const _sf2=(DB.g('facilities')||[]).filter(f=>f.type&&f.type.includes('다목적위치표지판'));
+    locs=locs||[...new Set(_sf2.map(f=>(f.name.match(/\d[\d\-]*\d|\d/)||[''])[0]).filter(Boolean))].sort();
   }
   const chip=(label,set,val,onclick,col)=>{const on=set.has(val);const c=col||(on?'#4fa8d0':'rgba(255,255,255,.5)');return `<span onclick="${onclick}" style="display:inline-block;margin:2px 2px;padding:3px 8px;border-radius:20px;font-size:10px;font-weight:600;cursor:pointer;border:1.5px solid ${on?c:'rgba(255,255,255,.12)'};color:${on?c:'rgba(255,255,255,.35)'};background:${on?c+'22':'transparent'};">${label}</span>`;};
   const sec=(id,title,html,set)=>{const el=document.getElementById(id);if(!el)return;const cnt=set.size,open=window._fpSec&&window._fpSec[id];el.innerHTML=`<div onclick="_toggleFPSec('${id}')" style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid rgba(255,255,255,.05);cursor:pointer;user-select:none;"><span style="font-size:11px;font-weight:700;color:#9bbdd4;">${title}${cnt?` <span style="color:#e05050;font-size:10px;">(${cnt})</span>`:''}</span><b style="font-size:13px;color:#3a6a8a;font-weight:400;">${open?'⌄':'›'}</b></div><div style="display:${open?'block':'none'};padding:4px 0 2px;">${html}</div>`;};
@@ -4128,12 +4145,13 @@ function renderFacList(){
   const _admin=isAdminUser();const _meta=DB.g('catFacMeta')||{};
   const facs=(DB.g('facilities')||[]).filter(f=>_admin||!(_meta[f.type]||{}).adminOnly);
   const types=[...new Set(facs.map(f=>f.type.split(' ').slice(1).join(' ')||f.type).filter(Boolean))];
-  const locs=[...new Set(facs.map(f=>(f.loc||'').trim()).filter(l=>l&&l!=='-'))];
+  const _sf=(DB.g('facilities')||[]).filter(f=>f.type&&f.type.includes('다목적위치표지판'));
+  const locs=[...new Set(_sf.map(f=>(f.name.match(/\d[\d\-]*\d|\d/)||[''])[0]).filter(Boolean))].sort();
   _updateFacListFilterPanel(types,locs);
   const filtered=facs.filter(f=>{
     const sOk=facMapStatusF.size===0||facMapStatusF.has(f.status);
     const tOk=facMapTypeF.size===0||[...facMapTypeF].some(t=>f.type.includes(t));
-    const lOk=facMapLocF.size===0||facMapLocF.has((f.loc||'').trim());
+    const lOk=facMapLocF.size===0||[...facMapLocF].some(v=>(f.loc||'').includes(v));
     return sOk&&tOk&&lOk;
   });
   document.getElementById('facListWrap').innerHTML=filtered.length?filtered.map(f=>`
