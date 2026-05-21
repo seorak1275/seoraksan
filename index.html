@@ -2858,11 +2858,9 @@ function openNewRescue(){
   let gpsPre=window._lastCrosshairCoord||null;
   if(!gpsPre&&mapR){
     try{
-      const bnavEl=document.getElementById('bnav');
-      const bnavH=bnavEl?bnavEl.offsetHeight:0;
       const mapEl=document.getElementById('mapRescue');
       const proj=mapR.getProjection();
-      const coord=proj.coordsFromContainerPoint(new kakao.maps.Point(mapEl.offsetWidth/2,(mapEl.offsetHeight-bnavH)/2));
+      const coord=proj.coordsFromContainerPoint(new kakao.maps.Point(mapEl.offsetWidth/2,mapEl.offsetHeight/2));
       gpsPre={lat:coord.getLat(),lng:coord.getLng()};
     }catch(e){
       const c=mapR.getCenter();gpsPre={lat:c.getLat(),lng:c.getLng()};
@@ -2871,6 +2869,7 @@ function openNewRescue(){
   document.getElementById('topTitle').textContent='신규 구조 접수 (1보)';
   document.getElementById('bnav').style.display='none';
   showV('v-report');renderPhaseBar(0,1);render1BoForm(gpsPre);
+  if(gpsPre&&gpsPre.lat)_autoFillLoc(gpsPre.lat,gpsPre.lng);
 }
 function addPhase(){
   const res=DB.g('rescues')||[];const r=res.find(x=>x.id===selResId);if(!r)return;
@@ -3844,14 +3843,14 @@ let facMapStatusF=new Set(),facMapTypeF=new Set(),facMapLocF=new Set();
 function renderInspectMap(){
   if(!mapI){return;}
   iOvs.forEach(o=>{try{o.setMap(null);}catch(e){}});iOvs=[];iEls=[];
-  const facs=DB.g('facilities')||[];
+  const _admin=isAdminUser();
+  const facs=(DB.g('facilities')||[]).filter(f=>_admin||!f.type.includes('장소'));
   const sMap={'전체':null,'양호':'ok','요주의':'warn','위험':'bad'};
   const sCol={'전체':'rgba(200,220,240,.6)','양호':'#27ae60','요주의':'#e67e22','위험':'#c0392b'};
   const types=['전체',...new Set(facs.map(f=>f.type.split(' ').slice(1).join(' ')||f.type).filter(Boolean))];
   const locs=['전체',...new Set(facs.map(f=>(f.loc||'').trim()).filter(Boolean))];
   _updateInspFilterPanel(types,locs);
   const filtered=facs.filter(f=>{
-    if(!isAdminUser()&&f.type.includes('장소'))return false;
     const sOk=facMapStatusF.size===0||facMapStatusF.has(f.status);
     const tOk=facMapTypeF.size===0||[...facMapTypeF].some(t=>f.type.includes(t));
     const lOk=facMapLocF.size===0||facMapLocF.has((f.loc||'').trim());
@@ -3960,6 +3959,12 @@ function resetFacListFilter(){
   renderInspectMap();renderFacList();
 }
 function _updateFacListFilterPanel(types,locs){
+  if(!types||!locs){
+    const _a=isAdminUser();
+    const _f=(DB.g('facilities')||[]).filter(f=>_a||!f.type.includes('장소'));
+    types=types||[...(new Set(_f.map(f=>f.type.split(' ').slice(1).join(' ')||f.type).filter(Boolean)))];
+    locs=locs||[...(new Set(_f.map(f=>(f.loc||'').trim()).filter(l=>l&&l!=='-')))];
+  }
   const chip=(label,set,val,onclick,col)=>{const on=set.has(val);const c=col||(on?'#4fa8d0':'rgba(255,255,255,.5)');return `<span onclick="${onclick}" style="display:inline-block;margin:2px 2px;padding:3px 8px;border-radius:20px;font-size:10px;font-weight:600;cursor:pointer;border:1.5px solid ${on?c:'rgba(255,255,255,.12)'};color:${on?c:'rgba(255,255,255,.35)'};background:${on?c+'22':'transparent'};">${label}</span>`;};
   const sec=(id,title,html,set)=>{const el=document.getElementById(id);if(!el)return;const cnt=set.size,open=window._fpSec&&window._fpSec[id];el.innerHTML=`<div onclick="_toggleFPSec('${id}')" style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid rgba(255,255,255,.05);cursor:pointer;user-select:none;"><span style="font-size:11px;font-weight:700;color:#9bbdd4;">${title}${cnt?` <span style="color:#e05050;font-size:10px;">(${cnt})</span>`:''}</span><b style="font-size:13px;color:#3a6a8a;font-weight:400;">${open?'⌄':'›'}</b></div><div style="display:${open?'block':'none'};padding:4px 0 2px;">${html}</div>`;};
   const sChips=[{l:'양호',v:'ok',c:'#27ae60'},{l:'요주의',v:'warn',c:'#e67e22'},{l:'위험',v:'bad',c:'#c0392b'}];
@@ -4144,11 +4149,14 @@ function openAddFac(){
   const _cats=(DB.g('catFac')||[]).filter(c=>isAdminUser()||!c.includes('장소'));
   fillSel('facTypeSel',_cats);
   document.getElementById('facInstall').value=today();
-  ['facNameIn','facLocIn','facGpsIn','facNote'].forEach(id=>document.getElementById(id).value='');
+  ['facNameIn','facGpsIn','facNote'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('facInitSt').value='ok';
   const _fa=document.getElementById('facAuthor');_fa.value=getAuthor();_fa.disabled=true;
   document.getElementById('prevFac').innerHTML='📸 촬영 또는 앨범';
   try{gpsFromMap('facGpsIn','inspect');}catch(e){}
+  const _ic=window._lastInspectCrosshairCoord;
+  const _li=document.getElementById('facLocIn');
+  if(_li){const _ls=_ic?_nearestSign(_ic.lat,_ic.lng):null;_li.value=_ls||'';}
   document.getElementById('modalAddFac').classList.add('on');
 }
 function openEditFac(id){
