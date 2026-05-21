@@ -1447,6 +1447,8 @@ function initDB(){
   if(!DB.g('catFac'))     DB.s('catFac',['🪧 다목적위치표지판','📍 장소','🛤️ 데크/계단','🌉 교량','🏠 대피소','🛡️ 안전난간','🪵 목재계단','🚿 계곡시설']);
   // 카테고리 마이그레이션: 위치표지판 제거, 장소 추가
   (function(){var c=DB.g('catFac');if(!c)return;var c2=c.filter(function(x){return x!=='🪧 위치표지판';});if(!c2.includes('📍 장소'))c2.splice(1,0,'📍 장소');if(c2.length!==c.length||!c.includes('📍 장소'))DB.s('catFac',c2);})();
+  // 이모지 없는 카테고리명 마이그레이션
+  (function(){var c=DB.g('catFac');if(!c)return;var map={'분소':'🏠 분소','암빙벽':'🧗 암빙벽'};var changed=false;var c2=c.map(function(x){return map[x]?(changed=true,map[x]):x;});if(changed){DB.s('catFac',c2);var m=DB.g('catFacMeta')||{};Object.keys(map).forEach(function(old){if(m[old]){m[map[old]]=m[old];delete m[old];}});DB.s('catFacMeta',m);}})();
   // catFacMeta 초기화 (재난지도 표시 여부 + 관리자 전용 여부)
   (function(){var m=DB.g('catFacMeta')||{};var changed=false;var def={'🪧 다목적위치표지판':{rescue:true,adminOnly:false},'📍 장소':{rescue:true,adminOnly:true},'🏠 대피소':{rescue:true,adminOnly:false}};Object.keys(def).forEach(function(k){if(!m[k]){m[k]=def[k];changed=true;}});if(changed)DB.s('catFacMeta',m);})();
   if(!DB.g('wikiCats'))   DB.s('wikiCats',['지형','안전','장비','법령','응급','탐방로','시설','동식물','기상']);
