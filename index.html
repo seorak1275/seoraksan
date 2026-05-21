@@ -1620,13 +1620,17 @@ function _haversine(lat1,lng1,lat2,lng2){
   return R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
 }
 function _nearestSign(lat,lng){
-  var signs=(DB.g('facilities')||[]).filter(function(f){return f.lat&&f.lng&&f.type&&f.type.includes('다목적위치표지판');});
+  var signs=(DB.g('facilities')||[]).filter(function(f){
+    return f.lat&&f.lng&&f.type&&(f.type.includes('다목적위치표지판')||f.type.includes('대피소')||f.type.includes('장소'));
+  });
   var best=null,bestD=Infinity;
   signs.forEach(function(f){var d=_haversine(lat,lng,f.lat,f.lng);if(d<bestD){bestD=d;best=f;}});
   if(!best||bestD>3000)return null;
-  var code=(best.name.match(/\d[\d\-]*\d|\d/)||[best.name.slice(0,6)])[0];
+  var label=best.type.includes('다목적위치표지판')
+    ?(best.name.match(/\d[\d\-]*\d|\d/)||[best.name.slice(0,6)])[0]
+    :best.name;
   var dist=bestD<1000?Math.round(bestD)+'m':((bestD/1000).toFixed(1)+'km');
-  return code+' 인근 '+dist;
+  return label+' 인근 '+dist;
 }
 function initMaps(){
   function doInit(){
@@ -2581,22 +2585,24 @@ function renderRescueMap(){
     const ov=new kakao.maps.CustomOverlay({position:new kakao.maps.LatLng(f.lat,f.lng),content:el,clickable:true});
     ov.setMap(mapR);rOvs.push(ov);rEls.push(el);
   });
-  // 장소 — 구조 지도 표시
+  // 장소 — 구조 지도 표시 (텍스트 라벨)
   (DB.g('facilities')||[]).filter(f=>f.lat&&f.lng&&f.type&&f.type.includes('장소')).forEach(f=>{
     const el=document.createElement('div');
     el.className='mpin-num';
     el.style.cssText='background:rgba(20,10,40,.88);border-color:rgba(180,100,255,.7);color:#d4a0ff;';
-    el.textContent=f.name.length>6?f.name.slice(0,6):f.name;
+    el.textContent=f.name;
     el.title=f.name;
     el.onclick=e=>{e.stopPropagation();toast('📍 '+f.name+(f.loc?' ('+f.loc+')':''));};
     const ov=new kakao.maps.CustomOverlay({position:new kakao.maps.LatLng(f.lat,f.lng),content:el,clickable:true});
     ov.setMap(mapR);rOvs.push(ov);rEls.push(el);
   });
-  // 대피소 — 구조 지도 표시
+  // 대피소 — 구조 지도 표시 (텍스트 라벨)
   (DB.g('facilities')||[]).filter(f=>f.lat&&f.lng&&f.type&&f.type.includes('대피소')).forEach(f=>{
     const el=document.createElement('div');
-    el.className='mpin mpin-shelter';
-    el.innerHTML='🏠';el.title=f.name;
+    el.className='mpin-num';
+    el.style.cssText='background:rgba(8,30,20,.88);border-color:rgba(39,174,96,.7);color:#7de8a8;';
+    el.textContent=f.name;
+    el.title=f.name;
     el.onclick=e=>{e.stopPropagation();toast('🏠 '+f.name+(f.loc?' ('+f.loc+')':''));};
     const ov=new kakao.maps.CustomOverlay({position:new kakao.maps.LatLng(f.lat,f.lng),content:el,clickable:true});
     ov.setMap(mapR);rOvs.push(ov);rEls.push(el);
