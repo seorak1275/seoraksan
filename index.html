@@ -1643,12 +1643,10 @@ function initMaps(){
     kakao.maps.event.addListener(mapR,'click',closeDB);
     function saveMapCenter(){
       try{
-        const bnavEl=document.getElementById('bnav');
-        const bnavH=(bnavEl&&bnavEl.offsetHeight)||0;
         const mapEl=document.getElementById('mapRescue');
         const h=mapEl.offsetHeight||mapEl.clientHeight;
         if(h>0){
-          const coord=mapR.getProjection().coordsFromContainerPoint(new kakao.maps.Point(mapEl.offsetWidth/2,(h-bnavH)/2));
+          const coord=mapR.getProjection().coordsFromContainerPoint(new kakao.maps.Point(mapEl.offsetWidth/2,h/2));
           window._lastCrosshairCoord={lat:coord.getLat(),lng:coord.getLng()};
           const cd=document.getElementById('rescueCoords');
           if(cd){var _s=_nearestSign(coord.getLat(),coord.getLng());cd.innerHTML=coord.getLat().toFixed(5)+', '+coord.getLng().toFixed(5)+(_s?'<br><span style="color:#f0c040;font-size:9.5px;">📍 '+_s+'</span>':'');}
@@ -1663,12 +1661,10 @@ function initMaps(){
     saveMapCenter();
     function saveInspectCenter(){
       try{
-        const bnavEl=document.getElementById('bnav');
-        const bnavH=(bnavEl&&bnavEl.style.display!=='none')?bnavEl.offsetHeight:0;
         const mapEl=document.getElementById('mapInspect');
         const h=mapEl.offsetHeight||mapEl.clientHeight;
         if(h>0){
-          const coord=mapI.getProjection().coordsFromContainerPoint(new kakao.maps.Point(mapEl.offsetWidth/2,(h-bnavH)/2));
+          const coord=mapI.getProjection().coordsFromContainerPoint(new kakao.maps.Point(mapEl.offsetWidth/2,h/2));
           window._lastInspectCrosshairCoord={lat:coord.getLat(),lng:coord.getLng()};
           const ci=document.getElementById('inspectCoords');
           if(ci)ci.textContent=coord.getLat().toFixed(5)+', '+coord.getLng().toFixed(5);
