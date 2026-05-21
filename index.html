@@ -4539,7 +4539,7 @@ function openGuide(key){const g=GUIDES[key];if(!g)return;document.getElementById
 function kakaoLogin(){
   if(!window.Kakao||!Kakao.isInitialized()){toast('⚠️ 카카오 SDK 오류');return;}
   // throughTalk:true → 카카오톡 앱 설치 시 앱으로 인증, 미설치 시 브라우저 폴백
-  Kakao.Auth.authorize({redirectUri:'https://109yoon.github.io/seoraksan/',throughTalk:true});
+  Kakao.Auth.authorize({redirectUri:'https://109yoon.github.io/seoraksan/',throughTalk:false});
 }
 function _handleKakaoCode(code){
   window._needsCode=true; // 동기적으로 먼저 세팅 (checkAuth 타이밍 충돌 방지)
