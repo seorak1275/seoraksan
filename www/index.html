@@ -1449,6 +1449,30 @@ function initDB(){
   (function(){var c=DB.g('catFac');if(!c)return;var c2=c.filter(function(x){return x!=='🪧 위치표지판';});if(!c2.includes('📍 장소'))c2.splice(1,0,'📍 장소');if(c2.length!==c.length||!c.includes('📍 장소'))DB.s('catFac',c2);})();
   // 이모지 없는 카테고리명 마이그레이션 (catFac + facilities + catFacMeta)
   (function(){var map={'분소':'🏠 분소','암빙벽':'🧗 암빙벽'};var c=DB.g('catFac');if(c){var changed=false;var c2=c.map(function(x){return map[x]?(changed=true,map[x]):x;});if(changed)DB.s('catFac',c2);}var facs=DB.g('facilities');if(facs){var fc=false;var f2=facs.map(function(f){if(map[f.type]){fc=true;return Object.assign({},f,{type:map[f.type]});}return f;});if(fc)DB.s('facilities',f2);}var m=DB.g('catFacMeta')||{};Object.keys(map).forEach(function(old){if(m[old]){m[map[old]]=m[old];delete m[old];}});DB.s('catFacMeta',m);})();
+  // 탐방지원센터 분리 마이그레이션
+  (function(){
+    var c=DB.g('catFac')||[];var meta=DB.g('catFacMeta')||{};var changed=false;
+    // 1) 결합된 카테고리명(분소+탐방지원센터) 처리: 분소만 남기고 탐방지원센터 분리
+    var c2=[];c.forEach(function(x){
+      if(x.includes('탐방지원센터')&&x.includes('분소')){
+        var boso=x.replace(/\/?탐방지원센터\/?/g,'').trim()||'🏠 분소';
+        if(!c2.some(function(v){return v===boso;}))c2.push(boso);
+        changed=true;
+      } else {c2.push(x);}
+    });
+    // 2) 탐방지원센터 단독 카테고리 없으면 추가
+    if(!c2.some(function(x){return x.includes('탐방지원센터');})){c2.push('🛖 탐방지원센터');changed=true;}
+    // 3) 이모지 없는 '탐방지원센터' → '🛖 탐방지원센터'
+    c2=c2.map(function(x){if(x==='탐방지원센터'){changed=true;return '🛖 탐방지원센터';}return x;});
+    if(changed)DB.s('catFac',c2);
+    // 4) facilities type도 동일하게 수정
+    var facs=DB.g('facilities');if(facs){var fc=false;var f2=facs.map(function(f){
+      if(f.type&&f.type.includes('탐방지원센터')&&f.type.includes('분소')){fc=true;return Object.assign({},f,{type:'🛖 탐방지원센터'});}
+      if(f.type==='탐방지원센터'){fc=true;return Object.assign({},f,{type:'🛖 탐방지원센터'});}
+      return f;});if(fc)DB.s('facilities',f2);}
+    // 5) catFacMeta 키 이전
+    if(meta['탐방지원센터']){meta['🛖 탐방지원센터']=meta['탐방지원센터'];delete meta['탐방지원센터'];DB.s('catFacMeta',meta);}
+  })();
   // catFacMeta 초기화 (재난지도 표시 여부 + 관리자 전용 여부)
   (function(){var m=DB.g('catFacMeta')||{};var changed=false;var def={'🪧 다목적위치표지판':{rescue:true,adminOnly:false},'📍 장소':{rescue:true,adminOnly:true},'🏠 대피소':{rescue:true,adminOnly:false}};Object.keys(def).forEach(function(k){if(!m[k]){m[k]=def[k];changed=true;}});if(changed)DB.s('catFacMeta',m);})();
   if(!DB.g('wikiCats'))   DB.s('wikiCats',['지형','안전','장비','법령','응급','탐방로','시설','동식물','기상']);
