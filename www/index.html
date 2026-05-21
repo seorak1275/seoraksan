@@ -1370,7 +1370,7 @@ const _FB_CFG={
   appId:"1:457414135264:web:4103268ba0702a95a12f85"
 };
 // 기기 간 공유할 키 목록
-const _SHARED=['rescues','hazards','history','wikis','facilities','staff','catFac','wikiCats','pendingUsers','approvedUsers','deletedKakaoIds'];
+const _SHARED=['rescues','hazards','history','wikis','facilities','staff','catFac','catFacMeta','wikiCats','pendingUsers','approvedUsers','deletedKakaoIds'];
 const _fs={};   // Firestore 인메모리 캐시
 let _fdb=null;
 
@@ -1447,6 +1447,8 @@ function initDB(){
   if(!DB.g('catFac'))     DB.s('catFac',['🪧 다목적위치표지판','📍 장소','🛤️ 데크/계단','🌉 교량','🏠 대피소','🛡️ 안전난간','🪵 목재계단','🚿 계곡시설']);
   // 카테고리 마이그레이션: 위치표지판 제거, 장소 추가
   (function(){var c=DB.g('catFac');if(!c)return;var c2=c.filter(function(x){return x!=='🪧 위치표지판';});if(!c2.includes('📍 장소'))c2.splice(1,0,'📍 장소');if(c2.length!==c.length||!c.includes('📍 장소'))DB.s('catFac',c2);})();
+  // catFacMeta 초기화 (재난지도 표시 여부 + 관리자 전용 여부)
+  (function(){var m=DB.g('catFacMeta')||{};var changed=false;var def={'🪧 다목적위치표지판':{rescue:true,adminOnly:false},'📍 장소':{rescue:true,adminOnly:true},'🏠 대피소':{rescue:true,adminOnly:false}};Object.keys(def).forEach(function(k){if(!m[k]){m[k]=def[k];changed=true;}});if(changed)DB.s('catFacMeta',m);})();
   if(!DB.g('wikiCats'))   DB.s('wikiCats',['지형','안전','장비','법령','응급','탐방로','시설','동식물','기상']);
   if(!DB.g('facilities')) DB.s('facilities',[
     {id:1,type:'🌉 교량',name:'설악-01 출렁다리',loc:'소공원 입구',status:'bad',lat:38.170,lng:128.480,install:'2025-05-10',note:'강철 와이어 부식',author:'손경완'},
@@ -1620,8 +1622,9 @@ function _haversine(lat1,lng1,lat2,lng2){
   return R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
 }
 function _nearestSign(lat,lng){
+  var _m=DB.g('catFacMeta')||{};
   var signs=(DB.g('facilities')||[]).filter(function(f){
-    return f.lat&&f.lng&&f.type&&(f.type.includes('다목적위치표지판')||f.type.includes('대피소')||f.type.includes('장소'));
+    return f.lat&&f.lng&&f.type&&(_m[f.type]||{}).rescue;
   });
   var best=null,bestD=Infinity;
   signs.forEach(function(f){var d=_haversine(lat,lng,f.lat,f.lng);if(d<bestD){bestD=d;best=f;}});
@@ -2570,39 +2573,30 @@ function renderRescueMap(){
     const ov=new kakao.maps.CustomOverlay({position:new kakao.maps.LatLng(h.lat,h.lng),content:el,clickable:true});
     ov.setMap(mapR);rOvs.push(ov);rEls.push(el);
   });
-  // 다목적위치표지판 — 구조 위치 파악용 번호 라벨
-  (DB.g('facilities')||[]).filter(f=>f.lat&&f.lng&&f.type&&f.type.includes('다목적위치표지판')).forEach(f=>{
-    const el=document.createElement('div');
-    el.className='mpin-num';
-    const code=(f.name.match(/\d[\d\-]*\d|\d/)||[f.name.slice(0,6)])[0];
-    el.textContent=code;
-    el.title=f.name;
-    el.onclick=e=>{e.stopPropagation();toast('📍 '+f.name);};
+  // rescue:true 카테고리 시설물 — 재난지도 표시
+  {const _rm=DB.g('catFacMeta')||{};
+  (DB.g('facilities')||[]).filter(f=>f.lat&&f.lng&&f.type&&(_rm[f.type]||{}).rescue).forEach(f=>{
+    const el=document.createElement('div');el.className='mpin-num';
+    if(f.type.includes('다목적위치표지판')){
+      const code=(f.name.match(/\d[\d\-]*\d|\d/)||[f.name.slice(0,6)])[0];
+      el.textContent=code;el.title=f.name;
+      el.onclick=e=>{e.stopPropagation();toast('📍 '+f.name);};
+    }else if(f.type.includes('장소')){
+      el.style.cssText='background:rgba(20,10,40,.88);border-color:rgba(180,100,255,.7);color:#d4a0ff;';
+      el.textContent=f.name;el.title=f.name;
+      el.onclick=e=>{e.stopPropagation();toast('📍 '+f.name+(f.loc?' ('+f.loc+')':''));};
+    }else if(f.type.includes('대피소')){
+      el.style.cssText='background:rgba(8,30,20,.88);border-color:rgba(39,174,96,.7);color:#7de8a8;';
+      el.textContent=f.name;el.title=f.name;
+      el.onclick=e=>{e.stopPropagation();toast('🏠 '+f.name+(f.loc?' ('+f.loc+')':''));};
+    }else{
+      el.style.cssText='background:rgba(20,20,40,.88);border-color:rgba(150,150,200,.7);color:#c8c8e8;';
+      el.textContent=f.name;el.title=f.name;
+      el.onclick=e=>{e.stopPropagation();toast(f.type.split(' ')[0]+' '+f.name+(f.loc?' ('+f.loc+')':''));};
+    }
     const ov=new kakao.maps.CustomOverlay({position:new kakao.maps.LatLng(f.lat,f.lng),content:el,clickable:true});
     ov.setMap(mapR);rOvs.push(ov);rEls.push(el);
-  });
-  // 장소 — 구조 지도 표시 (텍스트 라벨)
-  (DB.g('facilities')||[]).filter(f=>f.lat&&f.lng&&f.type&&f.type.includes('장소')).forEach(f=>{
-    const el=document.createElement('div');
-    el.className='mpin-num';
-    el.style.cssText='background:rgba(20,10,40,.88);border-color:rgba(180,100,255,.7);color:#d4a0ff;';
-    el.textContent=f.name;
-    el.title=f.name;
-    el.onclick=e=>{e.stopPropagation();toast('📍 '+f.name+(f.loc?' ('+f.loc+')':''));};
-    const ov=new kakao.maps.CustomOverlay({position:new kakao.maps.LatLng(f.lat,f.lng),content:el,clickable:true});
-    ov.setMap(mapR);rOvs.push(ov);rEls.push(el);
-  });
-  // 대피소 — 구조 지도 표시 (텍스트 라벨)
-  (DB.g('facilities')||[]).filter(f=>f.lat&&f.lng&&f.type&&f.type.includes('대피소')).forEach(f=>{
-    const el=document.createElement('div');
-    el.className='mpin-num';
-    el.style.cssText='background:rgba(8,30,20,.88);border-color:rgba(39,174,96,.7);color:#7de8a8;';
-    el.textContent=f.name;
-    el.title=f.name;
-    el.onclick=e=>{e.stopPropagation();toast('🏠 '+f.name+(f.loc?' ('+f.loc+')':''));};
-    const ov=new kakao.maps.CustomOverlay({position:new kakao.maps.LatLng(f.lat,f.lng),content:el,clickable:true});
-    ov.setMap(mapR);rOvs.push(ov);rEls.push(el);
-  });
+  });}
   if(mapR)_scaleOvs(rEls,mapR.getLevel(),5);
   updateSummary();
 }
@@ -3843,8 +3837,8 @@ let facMapStatusF=new Set(),facMapTypeF=new Set(),facMapLocF=new Set();
 function renderInspectMap(){
   if(!mapI){return;}
   iOvs.forEach(o=>{try{o.setMap(null);}catch(e){}});iOvs=[];iEls=[];
-  const _admin=isAdminUser();
-  const facs=(DB.g('facilities')||[]).filter(f=>_admin||!f.type.includes('장소'));
+  const _admin=isAdminUser();const _meta=DB.g('catFacMeta')||{};
+  const facs=(DB.g('facilities')||[]).filter(f=>_admin||!(_meta[f.type]||{}).adminOnly);
   const sMap={'전체':null,'양호':'ok','요주의':'warn','위험':'bad'};
   const sCol={'전체':'rgba(200,220,240,.6)','양호':'#27ae60','요주의':'#e67e22','위험':'#c0392b'};
   const types=['전체',...new Set(facs.map(f=>f.type.split(' ').slice(1).join(' ')||f.type).filter(Boolean))];
@@ -3960,8 +3954,8 @@ function resetFacListFilter(){
 }
 function _updateFacListFilterPanel(types,locs){
   if(!types||!locs){
-    const _a=isAdminUser();
-    const _f=(DB.g('facilities')||[]).filter(f=>_a||!f.type.includes('장소'));
+    const _a=isAdminUser();const _m2=DB.g('catFacMeta')||{};
+    const _f=(DB.g('facilities')||[]).filter(f=>_a||!(_m2[f.type]||{}).adminOnly);
     types=types||[...(new Set(_f.map(f=>f.type.split(' ').slice(1).join(' ')||f.type).filter(Boolean)))];
     locs=locs||[...(new Set(_f.map(f=>(f.loc||'').trim()).filter(l=>l&&l!=='-')))];
   }
@@ -4023,8 +4017,8 @@ function openFacFromMap(id){
   document.getElementById('facPopup').classList.add('on');
 }
 function renderFacList(){
-  const _admin=isAdminUser();
-  const facs=(DB.g('facilities')||[]).filter(f=>_admin||!f.type.includes('장소'));
+  const _admin=isAdminUser();const _meta=DB.g('catFacMeta')||{};
+  const facs=(DB.g('facilities')||[]).filter(f=>_admin||!(_meta[f.type]||{}).adminOnly);
   const types=[...new Set(facs.map(f=>f.type.split(' ').slice(1).join(' ')||f.type).filter(Boolean))];
   const locs=[...new Set(facs.map(f=>(f.loc||'').trim()).filter(l=>l&&l!=='-'))];
   _updateFacListFilterPanel(types,locs);
@@ -4146,7 +4140,7 @@ var _editFacId=null;
 function openAddFac(){
   _editFacId=null;
   document.getElementById('addFacModalTitle').textContent='🆕 시설물 등록';
-  const _cats=(DB.g('catFac')||[]).filter(c=>isAdminUser()||!c.includes('장소'));
+  const _catMeta=DB.g('catFacMeta')||{};const _cats=(DB.g('catFac')||[]).filter(c=>isAdminUser()||!(_catMeta[c]||{}).adminOnly);
   fillSel('facTypeSel',_cats);
   document.getElementById('facInstall').value=today();
   ['facNameIn','facGpsIn','facNote'].forEach(id=>document.getElementById(id).value='');
@@ -4442,10 +4436,67 @@ function delStaff(name){if(!confirm(name+' 삭제?'))return;DB.s('staff',getStaf
 function delMember(i){delStaff(getStaff()[i]?.name);}
 function renderAdmCat(){
   const cats=DB.g('catFac')||[];
-  document.getElementById('admCatWrap').innerHTML=`<div style="font-size:10px;color:#3a6a8a;margin-bottom:7px;font-weight:600;">시설물 카테고리</div>${cats.map((c,i)=>`<div class="adm-row"><div class="adm-info"><div class="adm-name">${c}</div></div><button class="abtn del" onclick="delCat(${i})">삭제</button></div>`).join('')}<button class="btn btn-ghost" style="width:100%;padding:9px;border-radius:8px;margin-top:4px;font-size:12px;" onclick="addCat()">＋ 카테고리 추가</button>`;
+  const meta=DB.g('catFacMeta')||{};
+  const togHtml=(id,label,checked)=>`<label style="display:flex;align-items:center;gap:6px;font-size:11px;color:#7a9cb8;cursor:pointer;margin-top:5px;"><input type="checkbox" id="${id}"${checked?' checked':''}> ${label}</label>`;
+  const rowsHtml=cats.map((c,i)=>{
+    const m=meta[c]||{};
+    const badges=(m.rescue?'<span style="font-size:9px;background:rgba(79,168,208,.15);color:#4fa8d0;border:1px solid rgba(79,168,208,.3);border-radius:3px;padding:1px 5px;margin-right:3px;">🗺 재난</span>':'')+(m.adminOnly?'<span style="font-size:9px;background:rgba(192,57,43,.12);color:#e05050;border:1px solid rgba(192,57,43,.3);border-radius:3px;padding:1px 5px;">🔒 관리자</span>':'');
+    return `<div style="border-bottom:1px solid rgba(255,255,255,.05);padding:6px 0;">
+      <div class="adm-row" style="margin-bottom:0;">
+        <div class="adm-info" style="flex:1;min-width:0;">
+          <div class="adm-name" style="font-size:12px;">${c}</div>
+          <div style="margin-top:3px;">${badges||'<span style="font-size:9px;color:#3a6a8a;">일반</span>'}</div>
+        </div>
+        <button class="abtn" style="font-size:10px;" onclick="toggleCatEdit(${i})">수정</button>
+        <button class="abtn del" style="font-size:10px;" onclick="delCat(${i})">삭제</button>
+      </div>
+      <div id="catEdit${i}" style="display:none;padding:8px;background:rgba(0,0,0,.2);border-radius:7px;margin-top:4px;">
+        <input type="text" id="catEditName${i}" class="fi" value="" style="margin-bottom:4px;">
+        ${togHtml('catER'+i,'🗺 재난관리지도에 표시',m.rescue)}
+        ${togHtml('catEA'+i,'🔒 관리자만 볼 수 있음',m.adminOnly)}
+        <div style="display:flex;gap:6px;margin-top:8px;">
+          <button onclick="submitEditCat(${i})" style="flex:1;background:#1a4a6e;color:#fff;border:none;padding:7px;border-radius:7px;font-size:11px;cursor:pointer;">저장</button>
+          <button onclick="toggleCatEdit(${i})" style="background:none;border:1px solid rgba(255,255,255,.12);color:rgba(255,255,255,.4);padding:7px 10px;border-radius:7px;font-size:11px;cursor:pointer;">취소</button>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+  const addHtml=`<div id="catAddForm" style="display:none;padding:10px;background:rgba(0,0,0,.2);border-radius:9px;margin-top:8px;">
+    <input type="text" id="newCatName" class="fi" placeholder="이모지 포함 이름 예: 🛖 야영시설" style="margin-bottom:4px;">
+    ${togHtml('newCatRescue','🗺 재난관리지도에 표시',false)}
+    ${togHtml('newCatAdmin','🔒 관리자만 볼 수 있음',false)}
+    <div style="display:flex;gap:6px;margin-top:8px;">
+      <button onclick="submitAddCat()" style="flex:1;background:#0c4838;color:#fff;border:none;padding:8px;border-radius:7px;font-size:11px;font-weight:700;cursor:pointer;">추가</button>
+      <button onclick="document.getElementById('catAddForm').style.display='none';document.getElementById('catAddBtn').style.display='block';" style="background:none;border:1px solid rgba(255,255,255,.12);color:rgba(255,255,255,.4);padding:8px 10px;border-radius:7px;font-size:11px;cursor:pointer;">취소</button>
+    </div>
+  </div>
+  <button id="catAddBtn" class="btn btn-ghost" style="width:100%;padding:9px;border-radius:8px;margin-top:8px;font-size:12px;" onclick="this.style.display='none';document.getElementById('catAddForm').style.display='block';">＋ 카테고리 추가</button>`;
+  document.getElementById('admCatWrap').innerHTML=`<div style="font-size:10px;color:#3a6a8a;margin-bottom:7px;font-weight:600;">시설물 카테고리</div>${rowsHtml}${addHtml}`;
+  // 수정 폼 name 값 채우기 (innerHTML escaping 우회)
+  cats.forEach((c,i)=>{const el=document.getElementById('catEditName'+i);if(el)el.value=c;});
 }
-function addCat(){const n=prompt('카테고리명 (이모지 포함)\n예: 🛖 야영시설');if(!n?.trim())return;const cs=DB.g('catFac')||[];cs.push(n.trim());DB.s('catFac',cs);renderAdmCat();toast('✅ 추가');}
-function delCat(i){if(!confirm('삭제?'))return;const cs=DB.g('catFac')||[];cs.splice(i,1);DB.s('catFac',cs);renderAdmCat();}
+function toggleCatEdit(i){const el=document.getElementById('catEdit'+i);if(el)el.style.display=el.style.display==='none'?'block':'none';}
+function submitAddCat(){
+  const n=(document.getElementById('newCatName').value||'').trim();
+  if(!n){toast('⚠️ 카테고리명 입력');return;}
+  const cats=DB.g('catFac')||[];
+  if(cats.includes(n)){toast('⚠️ 이미 존재');return;}
+  cats.push(n);DB.s('catFac',cats);
+  const meta=DB.g('catFacMeta')||{};
+  meta[n]={rescue:!!document.getElementById('newCatRescue').checked,adminOnly:!!document.getElementById('newCatAdmin').checked};
+  DB.s('catFacMeta',meta);renderAdmCat();toast('✅ 추가');
+}
+function submitEditCat(i){
+  const cats=DB.g('catFac')||[];const oldName=cats[i];
+  const newName=(document.getElementById('catEditName'+i).value||'').trim();
+  if(!newName){toast('⚠️ 카테고리명 입력');return;}
+  cats[i]=newName;DB.s('catFac',cats);
+  const meta=DB.g('catFacMeta')||{};
+  if(oldName!==newName)delete meta[oldName];
+  meta[newName]={rescue:!!document.getElementById('catER'+i).checked,adminOnly:!!document.getElementById('catEA'+i).checked};
+  DB.s('catFacMeta',meta);renderAdmCat();toast('✅ 수정');
+}
+function delCat(i){if(!confirm('삭제?'))return;const cats=DB.g('catFac')||[];const name=cats[i];cats.splice(i,1);DB.s('catFac',cats);const meta=DB.g('catFacMeta')||{};delete meta[name];DB.s('catFacMeta',meta);renderAdmCat();}
 function renderAdmSheets(){
   const url=DB.g('sheetsUrl')||'';
   document.getElementById('admSheetsWrap').innerHTML=`
