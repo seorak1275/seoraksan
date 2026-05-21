@@ -27,6 +27,8 @@ if(window.Kakao&&!Kakao.isInitialized()) Kakao.init(KAKAO_KEY);
 (function(){var s=document.createElement('script');s.src='//dapi.kakao.com/v2/maps/sdk.js?appkey='+KAKAO_KEY+'&libraries=services&autoload=false';s.onload=function(){kakao.maps.load(function(){window._KR=true;if(window._KCB)window._KCB();});};document.head.appendChild(s);})();
 // 카카오 redirect 콜백: ?code= 파라미터 조기 감지
 (function(){var p=new URLSearchParams(location.search);var c=p.get('code');if(c){history.replaceState(null,'',location.pathname);window._kakaoAuthCode=c;}})();
+// Capacitor 네이티브: 카카오톡 인증 후 앱으로 돌아올 때 appUrlOpen 이벤트 처리
+(function(){function _setupKakaoAppLink(){var App=window.Capacitor&&window.Capacitor.Plugins&&window.Capacitor.Plugins.App;if(!App)return;App.addListener('appUrlOpen',function(data){var url=data&&data.url||'';var m=url.match(/[?&]code=([^&#]+)/);if(m&&typeof _handleKakaoCode==='function')_handleKakaoCode(decodeURIComponent(m[1]),'kakao'+KAKAO_KEY+'://oauth');});}if(document.readyState==='loading'){document.addEventListener('DOMContentLoaded',_setupKakaoAppLink);}else{_setupKakaoAppLink();}})();
 </script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
@@ -4538,15 +4540,22 @@ function openGuide(key){const g=GUIDES[key];if(!g)return;document.getElementById
 // ══════════════════════════════════════════
 function kakaoLogin(){
   if(!window.Kakao||!Kakao.isInitialized()){toast('⚠️ 카카오 SDK 오류');return;}
-  // throughTalk:true → 카카오톡 앱 설치 시 앱으로 인증, 미설치 시 브라우저 폴백
-  Kakao.Auth.authorize({redirectUri:'https://109yoon.github.io/seoraksan/',throughTalk:false});
+  var isNative=!!(window.Capacitor&&window.Capacitor.isNativePlatform&&window.Capacitor.isNativePlatform());
+  if(isNative){
+    // APK: 카카오톡 앱으로 인증, 커스텀 스킴으로 복귀
+    Kakao.Auth.authorize({redirectUri:'kakao'+KAKAO_KEY+'://oauth',throughTalk:true});
+  } else {
+    // 웹: 브라우저 OAuth 리다이렉트
+    Kakao.Auth.authorize({redirectUri:'https://109yoon.github.io/seoraksan/',throughTalk:false});
+  }
 }
-function _handleKakaoCode(code){
+function _handleKakaoCode(code,redirectUri){
+  var _uri=redirectUri||'https://109yoon.github.io/seoraksan/';
   window._needsCode=true; // 동기적으로 먼저 세팅 (checkAuth 타이밍 충돌 방지)
   fetch('https://kauth.kakao.com/oauth/token',{
     method:'POST',
     headers:{'Content-Type':'application/x-www-form-urlencoded;charset=utf-8'},
-    body:'grant_type=authorization_code&client_id='+KAKAO_KEY+'&redirect_uri='+encodeURIComponent('https://109yoon.github.io/seoraksan/')+'&code='+encodeURIComponent(code)
+    body:'grant_type=authorization_code&client_id='+KAKAO_KEY+'&redirect_uri='+encodeURIComponent(_uri)+'&code='+encodeURIComponent(code)
   })
   .then(function(r){return r.json();})
   .then(function(tok){
