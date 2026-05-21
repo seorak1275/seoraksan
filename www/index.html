@@ -731,7 +731,8 @@ body.guest-mode .guest-hide{display:none!important;}
       </div>
     </div>
     <button class="map-ctrl" onclick="toggleMapType('rescue')">위성/일반</button>
-    <button class="map-ctrl" id="resMapFilterBtn" onclick="toggleResMapFilter()" style="left:auto;right:10px;display:flex;align-items:center;gap:4px;">⚙️ 필터 <span id="resMapFilterBadge" style="display:none;background:#e05050;color:#fff;border-radius:50%;width:17px;height:17px;font-size:9px;font-weight:800;align-items:center;justify-content:center;box-shadow:0 1px 5px rgba(224,80,80,.55);flex-shrink:0;"></span></button>
+    <button class="map-ctrl" id="resMapFilterBtn" onclick="toggleResMapFilter()" style="left:auto;right:10px;display:flex;align-items:center;gap:4px;border-color:rgba(192,57,43,.5);color:#e05050;">🚨 구조 <span id="resMapFilterBadge" style="display:none;background:#e05050;color:#fff;border-radius:50%;width:15px;height:15px;font-size:9px;font-weight:800;align-items:center;justify-content:center;flex-shrink:0;"></span></button>
+    <button class="map-ctrl" id="resCatFilterBtn" onclick="toggleResCatFilter()" style="left:auto;right:88px;display:flex;align-items:center;gap:4px;border-color:rgba(39,174,96,.5);color:#27ae60;">🗺️ 시설물 <span id="resCatFilterBadge" style="display:none;background:#27ae60;color:#fff;border-radius:50%;width:15px;height:15px;font-size:9px;font-weight:800;align-items:center;justify-content:center;flex-shrink:0;"></span></button>
     <button class="fab-gps" onclick="gpsTo('rescue')" title="내 위치">
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M12 8c-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4-1.79-4-4-4zm8.94 3A8.994 8.994 0 0 0 13 3.06V1h-2v2.06A8.994 8.994 0 0 0 3.06 11H1v2h2.06A8.994 8.994 0 0 0 11 20.94V23h2v-2.06A8.994 8.994 0 0 0 20.94 13H23v-2h-2.06zM12 19c-3.87 0-7-3.13-7-7s3.13-7 7-7 7 3.13 7 7-3.13 7-7 7z"/></svg>
     </button>
@@ -746,9 +747,19 @@ body.guest-mode .guest-hide{display:none!important;}
         <button onclick="resetResFilter()" style="background:none;border:none;color:rgba(255,255,255,.3);font-size:10px;cursor:pointer;padding:2px 6px;">↺ 초기화</button>
       </div>
       <div style="overflow-y:auto;padding:0 12px 70px;" id="resMFPSections">
+        <div id="resMFP_date"></div>
         <div id="resMFP_type"></div>
         <div id="resMFP_status"></div>
       </div>
+    </div>
+    <!-- 시설물 카테고리 필터 패널 -->
+    <div id="resCatFilterPanel" style="display:none;position:absolute;bottom:0;left:0;right:0;z-index:20;background:#0a1828;border-radius:11px 11px 0 0;box-shadow:0 -3px 18px rgba(0,0,0,.7);max-height:60%;flex-direction:column;transition:transform .22s cubic-bezier(.4,0,.2,1);touch-action:none;">
+      <div id="resCFPHandle" style="padding:7px 0 3px;flex-shrink:0;cursor:grab;user-select:none;"><div style="width:30px;height:3px;background:rgba(255,255,255,.18);border-radius:9px;margin:0 auto;"></div></div>
+      <div style="padding:2px 12px 5px;display:flex;justify-content:space-between;align-items:center;flex-shrink:0;border-bottom:1px solid rgba(255,255,255,.06);">
+        <span style="font-size:11px;font-weight:700;color:#27ae60;">🗺️ 시설물 필터 <span id="resCatFilterCount" style="color:#e05050;font-size:10px;"></span></span>
+        <button onclick="resetResCatFilter()" style="background:none;border:none;color:rgba(255,255,255,.3);font-size:10px;cursor:pointer;padding:2px 6px;">↺ 초기화</button>
+      </div>
+      <div style="overflow-y:auto;padding:0 12px 70px;" id="resCFPContent"></div>
     </div>
     <div class="dbcard" id="resPopup">
       <button class="dbclose" onclick="closeDB()">×</button><div class="dbhandle"></div>
@@ -775,6 +786,7 @@ body.guest-mode .guest-hide{display:none!important;}
       <button onclick="resetResFilter()" style="background:none;border:none;color:rgba(255,255,255,.3);font-size:10px;cursor:pointer;padding:2px 6px;">↺ 초기화</button>
     </div>
     <div style="overflow-y:auto;padding:0 12px 70px;" id="resLFPSections">
+      <div id="resLFP_date"></div>
       <div id="resLFP_type"></div>
       <div id="resLFP_status"></div>
     </div>
@@ -2565,6 +2577,16 @@ function updateUserUI(){
 // ══════════════════════════════════════════
 let selResId=null,curResId=null,resFilter='전체';
 let resTypeF=new Set(),resStatusF=new Set();
+let resDateFrom='',resDateTo='';
+let resFacCatH=new Set(),resFacCatF=new Set();
+const _RES_DEFAULT_CATS=['🏠 분소','🛖 탐방지원센터','🪧 다목적위치표지판','🏠 대피소'];
+function _resDateOk(dateStr){
+  if(!resDateFrom&&!resDateTo)return true;
+  const d=(dateStr||'').slice(0,10);
+  if(resDateFrom&&d<resDateFrom)return false;
+  if(resDateTo&&d>resDateTo)return false;
+  return true;
+}
 function renderRescueMap(){
   if(!mapR){return;}
   rOvs.forEach(o=>{try{o.setMap(null);}catch(e){}});rOvs=[];rEls=[];
@@ -2577,6 +2599,7 @@ function renderRescueMap(){
   if(_showRes)(DB.g('rescues')||[]).forEach(r=>{
     if(!r.lat||!r.lng)return;
     if(!_stOkRes(r.status))return;
+    if(!_resDateOk(r.date))return;
     const isOg=r.status==='ongoing';const ti=RES_TYPES[r.type]||RES_TYPES['기타'];
     const el=document.createElement('div');el.className=`mpin ${ti.pc}${isOg?' blink':' p-done'}`;el.innerHTML=ti.ico;
     let _ts=null;
@@ -2590,6 +2613,7 @@ function renderRescueMap(){
   if(_showHaz)(DB.g('hazards')||[]).forEach(h=>{
     if(!h.lat||!h.lng)return;
     if(!_stOkHaz(h.hazStatus))return;
+    if(!_resDateOk(h.date))return;
     const done=h.hazStatus&&h.hazStatus!=='미조치'&&h.hazStatus!=='조치중';
     const el=document.createElement('div');el.className=`mpin p-haz${done?' p-done':''}`;el.innerHTML='⚠️';
     let _ts=null;
@@ -2599,9 +2623,10 @@ function renderRescueMap(){
     const ov=new kakao.maps.CustomOverlay({position:new kakao.maps.LatLng(h.lat,h.lng),content:el,clickable:true});
     ov.setMap(mapR);rOvs.push(ov);rEls.push(el);
   });
-  // rescue:true 카테고리 시설물 — 재난지도 표시
+  // rescue:true 카테고리 시설물 — 재난지도 표시 (카테고리 필터 적용)
   {const _rm=DB.g('catFacMeta')||{};
-  (DB.g('facilities')||[]).filter(f=>f.lat&&f.lng&&f.type&&(_rm[f.type]||{}).rescue).forEach(f=>{
+  const _visFac=t=>(_rm[t]||{}).rescue&&(_RES_DEFAULT_CATS.includes(t)?!resFacCatH.has(t):resFacCatF.has(t));
+  (DB.g('facilities')||[]).filter(f=>f.lat&&f.lng&&f.type&&_visFac(f.type)).forEach(f=>{
     const el=document.createElement('div');el.className='mpin-num';
     if(f.type.includes('다목적위치표지판')){
       const code=(f.name.match(/\d[\d\-]*\d|\d/)||[f.name.slice(0,6)])[0];
@@ -2637,9 +2662,10 @@ function renderResList(){
   const _showHaz=resTypeF.size===0||resTypeF.has('⚠️위험상황');
   const _stOkRes=s=>resStatusF.size===0||(resStatusF.has('진행중')&&s==='ongoing')||(resStatusF.has('종료')&&s==='done');
   const _stOkHaz=s=>{const active=!s||s==='미조치'||s==='조치중';return resStatusF.size===0||(resStatusF.has('진행중')&&active)||(resStatusF.has('종료')&&!active);};
+  const _dateOkL=d=>_resDateOk(d);
   let html='';
   if(_showRes){
-    html+=(res.filter(r=>_stOkRes(r.status))).slice().reverse().map(r=>{
+    html+=(res.filter(r=>_stOkRes(r.status)&&_dateOkL(r.date))).slice().reverse().map(r=>{
       const isOg=r.status==='ongoing';const ti=RES_TYPES[r.type]||RES_TYPES['기타'];
       const totalPh=(r.reports||[]).length+1;
       const hasCoord=!!(r.lat&&r.lng);
@@ -2657,7 +2683,7 @@ function renderResList(){
     }).join('');
   }
   if(_showHaz){
-    html+=(haz.filter(h=>_stOkHaz(h.hazStatus))).slice().reverse().map(h=>{
+    html+=(haz.filter(h=>_stOkHaz(h.hazStatus)&&_dateOkL(h.date))).slice().reverse().map(h=>{
       const done=h.hazStatus&&h.hazStatus!=='미조치'&&h.hazStatus!=='조치중';
       return `<div class="haz-card ${done?'haz-removed':''}" onclick="openHazDetail(${h.id})">
         <div style="display:flex;align-items:center;gap:10px;">
@@ -3997,19 +4023,75 @@ function _updateFacListFilterPanel(types,locs){
 }
 // ─── 재난/구조 필터 ───
 function _updateResFilterPanels(){
-  const total=resTypeF.size+resStatusF.size;
+  const dateActive=(resDateFrom||resDateTo)?1:0;
+  const total=resTypeF.size+resStatusF.size+dateActive;
   ['resMapFilterBadge','resListFilterBadge'].forEach(id=>{const el=document.getElementById(id);if(!el)return;el.style.display=total?'inline-flex':'none';if(total)el.textContent=total;});
   ['resMapFilterCount','resListFilterCount'].forEach(id=>{const el=document.getElementById(id);if(!el)return;el.textContent=total?`(${total})` : '';});
   const chip=(set,val,label,onclick)=>{const on=set.has(val);return `<span onclick="${onclick}" style="display:inline-block;margin:2px 2px;padding:3px 8px;border-radius:20px;font-size:10px;font-weight:600;cursor:pointer;border:1.5px solid ${on?'#4fa8d0':'rgba(255,255,255,.12)'};color:${on?'#4fa8d0':'rgba(255,255,255,.35)'};background:${on?'rgba(79,168,208,.15)':'transparent'};">${label}</span>`;};
-  const sec=(id,title,html,set)=>{const el=document.getElementById(id);if(!el)return;const cnt=set.size,open=window._fpSec&&window._fpSec[id];el.innerHTML=`<div onclick="_toggleFPSec('${id}')" style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid rgba(255,255,255,.05);cursor:pointer;user-select:none;"><span style="font-size:11px;font-weight:700;color:#9bbdd4;">${title}${cnt?` <span style="color:#e05050;font-size:10px;">(${cnt})</span>`:''}</span><b style="font-size:13px;color:#3a6a8a;font-weight:400;">${open?'⌄':'›'}</b></div><div style="display:${open?'block':'none'};padding:4px 0 2px;">${html}</div>`;};
+  const sec=(id,title,html,set,extraCnt)=>{const el=document.getElementById(id);if(!el)return;const cnt=(set?set.size:0)+(extraCnt||0),open=window._fpSec&&window._fpSec[id];el.innerHTML=`<div onclick="_toggleFPSec('${id}')" style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid rgba(255,255,255,.05);cursor:pointer;user-select:none;"><span style="font-size:11px;font-weight:700;color:#9bbdd4;">${title}${cnt?` <span style="color:#e05050;font-size:10px;">(${cnt})</span>`:''}</span><b style="font-size:13px;color:#3a6a8a;font-weight:400;">${open?'⌄':'›'}</b></div><div style="display:${open?'block':'none'};padding:4px 0 2px;">${html}</div>`;};
+  const inpSt='background:#0a1828;color:#4fa8d0;border:1px solid rgba(79,168,208,.3);border-radius:6px;padding:5px 6px;font-size:11px;width:100%;box-sizing:border-box;';
+  const dateHtml=`<div style="display:flex;gap:6px;align-items:center;margin-top:4px;">
+    <input type="date" value="${resDateFrom}" style="${inpSt}" onchange="setResDate('from',this.value)">
+    <span style="color:rgba(255,255,255,.3);font-size:11px;flex-shrink:0;">~</span>
+    <input type="date" value="${resDateTo}" style="${inpSt}" onchange="setResDate('to',this.value)">
+  </div>`;
   const typeHtml=[{v:'🚨구조',l:'🚨 구조보고'},{v:'⚠️위험상황',l:'⚠️ 위험상황'}].map(({v,l})=>chip(resTypeF,v,l,`setResTypeF('${v}')`)).join('');
   const stHtml=[{v:'진행중',l:'🔴 진행중/미조치'},{v:'종료',l:'✅ 종료/완료'}].map(({v,l})=>chip(resStatusF,v,l,`setResStatusF('${v}')`)).join('');
+  ['resMFP_date','resLFP_date'].forEach(id=>sec(id,'📅 날짜',dateHtml,null,dateActive));
   ['resMFP_type','resLFP_type'].forEach(id=>sec(id,'종류',typeHtml,resTypeF));
   ['resMFP_status','resLFP_status'].forEach(id=>sec(id,'상태',stHtml,resStatusF));
 }
+function setResDate(which,v){
+  if(which==='from')resDateFrom=v;else resDateTo=v;
+  _updateResFilterPanels();renderRescueMap();renderResList();
+}
 function setResTypeF(v){if(resTypeF.has(v))resTypeF.delete(v);else resTypeF.add(v);_updateResFilterPanels();renderRescueMap();renderResList();}
 function setResStatusF(v){if(resStatusF.has(v))resStatusF.delete(v);else resStatusF.add(v);_updateResFilterPanels();renderRescueMap();renderResList();}
-function resetResFilter(){resTypeF=new Set();resStatusF=new Set();_updateResFilterPanels();renderRescueMap();renderResList();}
+function resetResFilter(){resTypeF=new Set();resStatusF=new Set();resDateFrom='';resDateTo='';_updateResFilterPanels();renderRescueMap();renderResList();}
+// 시설물 카테고리 필터
+function _updateResCatFilterPanel(){
+  const _rm=DB.g('catFacMeta')||{};
+  const rescueCats=(DB.g('catFac')||[]).filter(c=>(_rm[c]||{}).rescue);
+  const defSet=new Set(_RES_DEFAULT_CATS);
+  const catBadge=resFacCatH.size+resFacCatF.size;
+  const el=document.getElementById('resCatFilterBadge');
+  if(el){el.style.display=catBadge?'inline-flex':'none';if(catBadge)el.textContent=catBadge;}
+  const cntEl=document.getElementById('resCatFilterCount');
+  if(cntEl)cntEl.textContent=catBadge?`(${catBadge})`:'';
+  const mkRow=(c,isDefault)=>{
+    const active=isDefault?!resFacCatH.has(c):resFacCatF.has(c);
+    const col=active?'#4fa8d0':'rgba(255,255,255,.25)';
+    return `<div onclick="toggleResFacCat('${c.replace(/'/g,"\\'")}',${isDefault})" style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid rgba(255,255,255,.04);cursor:pointer;">
+      <div style="width:22px;height:22px;border-radius:50%;border:2px solid ${col};display:flex;align-items:center;justify-content:center;font-size:10px;color:${col};flex-shrink:0;">${active?'✓':''}</div>
+      <span style="font-size:12px;color:${active?'#e0edf8':'rgba(255,255,255,.35)'};">${c}</span>
+      ${isDefault?'<span style="font-size:9px;color:#3a6a8a;margin-left:auto;">기본</span>':''}
+    </div>`;
+  };
+  const defCats=rescueCats.filter(c=>defSet.has(c));
+  const otherCats=rescueCats.filter(c=>!defSet.has(c));
+  const wrap=document.getElementById('resCFPContent');
+  if(!wrap)return;
+  wrap.innerHTML=(defCats.length?`<div style="font-size:10px;color:#3a6a8a;padding:6px 0 2px;font-weight:600;">기본 표시</div>${defCats.map(c=>mkRow(c,true)).join('')}`:'')
+    +(otherCats.length?`<div style="font-size:10px;color:#3a6a8a;padding:8px 0 2px;font-weight:600;">추가 표시 (기본 OFF)</div>${otherCats.map(c=>mkRow(c,false)).join('')}`:'')
+    +(rescueCats.length===0?'<div style="font-size:12px;color:rgba(255,255,255,.2);padding:12px 0;">재난지도 표시 카테고리 없음</div>':'');
+}
+function toggleResFacCat(type,isDefault){
+  if(isDefault){if(resFacCatH.has(type))resFacCatH.delete(type);else resFacCatH.add(type);}
+  else{if(resFacCatF.has(type))resFacCatF.delete(type);else resFacCatF.add(type);}
+  _updateResCatFilterPanel();renderRescueMap();
+}
+function resetResCatFilter(){resFacCatH=new Set();resFacCatF=new Set();_updateResCatFilterPanel();renderRescueMap();}
+function toggleResCatFilter(){
+  const p=document.getElementById('resCatFilterPanel');
+  const open=p.style.display==='flex';
+  if(open){_closeResCatFilter();}
+  else{p.style.display='flex';p.style.transform='translateY(0)';_updateResCatFilterPanel();_initFPDrag('resCFPHandle','resCatFilterPanel',_closeResCatFilter);}
+}
+function _closeResCatFilter(){
+  const p=document.getElementById('resCatFilterPanel');
+  p.style.transform='translateY(100%)';
+  setTimeout(()=>{p.style.display='none';p.style.transform='translateY(0)';},220);
+}
 function toggleResMapFilter(){
   const p=document.getElementById('resMapFilterPanel');
   const open=p.style.display==='flex';
