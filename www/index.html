@@ -3153,9 +3153,10 @@ function _renderBuildPanelHtml(){
     return `<div onclick="toggleTlBuildMember('${s.name.replace(/'/g,"\\'")}',this)" style="cursor:pointer;background:${on?'rgba(126,200,163,.2)':'rgba(255,255,255,.04)'};color:${on?'#7ec8a0':'rgba(255,255,255,.45)'};border:1px solid ${on?'rgba(126,200,163,.4)':'rgba(255,255,255,.12)'};border-radius:20px;font-size:10px;font-weight:700;padding:4px 10px;">${s.name}${s.rank?` <span style="font-size:8px;opacity:.7;">${s.rank}</span>`:''}</div>`;
   }
   if(_tlBuildType==='nps'){
+    const _autoName=(myDept||'공단')+' '+(_tlTeams.filter(t=>t.id&&t.id.startsWith('nps_')).length+1)+'팀';
     return `<div style="background:#0b1c30;border-radius:10px;padding:12px;border:.5px solid rgba(79,168,208,.3);margin-bottom:10px;">
       <div style="font-size:11px;color:#4fa8d0;font-weight:700;margin-bottom:10px;">🥾 공단 팀생성</div>
-      <input id="tlBuildNameInput" type="text" class="fi" placeholder="팀 이름 (미입력 시 자동)" style="width:100%;box-sizing:border-box;margin-bottom:10px;">
+      <input id="tlBuildNameInput" type="text" class="fi" placeholder="${_autoName}" style="width:100%;box-sizing:border-box;margin-bottom:10px;">
       ${myDept?`<div style="font-size:10px;color:#4a7090;font-weight:600;margin-bottom:5px;">📂 ${myDept}</div>`:''}
       <div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:8px;">
         ${mine.length?mine.map(chip).join(''):'<span style="font-size:10px;color:rgba(255,255,255,.25);">직원 정보 없음</span>'}
@@ -3223,7 +3224,10 @@ function confirmTlBuild(){
   const facs=DB.g('facilities')||[];
   if(_tlBuildType==='nps'){
     if(!_tlBuildMembers.length){toast('⚠️ 팀원을 선택하세요');return;}
-    const name=(nameEl&&nameEl.value.trim())||_tlBuildMembers.slice(0,2).join('·')+'팀';
+    const _user=DB.g('currentUser')||{};
+    const _dept=_user.dept||'공단';
+    const _npsNum=_tlTeams.filter(t=>t.id&&t.id.startsWith('nps_')).length+1;
+    const name=(nameEl&&nameEl.value.trim())||(_dept+' '+_npsNum+'팀');
     const route=_buildRoute(r,facs);
     const wps=route.map(w=>({...w,status:w.isBase?'active':'pending'}));
     _tlTeams.push({id:'nps_'+Date.now(),name,type:'foot',members:_tlBuildMembers.slice(),wpIdx:0,wps,collapsed:false});
