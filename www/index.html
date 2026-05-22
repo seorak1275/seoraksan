@@ -3563,7 +3563,6 @@ function render1BoForm(prefill=null){
     {id:'repSec1', icon:'📍', label:'위치·기상'},
     {id:'repSec2', icon:'🤕', label:'환자·부상'},
     {id:'repSec3', icon:'🧑', label:'인적사항'},
-    {id:'repSec0', icon:'⏱', label:'타임라인'},
     {id:'repSec5', icon:'📝', label:'기타'},
   ];
 
@@ -3949,7 +3948,14 @@ function submit1Bo(){
   pushNoti('🚨 구조 1보: '+title+' ('+r.type+')',RES_TYPES[r.type]?.ico||'🚨',r.type,{app:'rescue',tab:2,id:r.id});
   syncToSheets('rescue',{id:r.id,title,type:r.type,date:r.date,author:r.author});
   toast('🚨 1보 등록 완료');
-  openApp('rescue');
+  // 저장 즉시 고도화 타임라인으로 이동
+  selResId=r.id;curResId=r.id;
+  document.getElementById('bnav').style.display='none';
+  _hideRepFooter();
+  showV('v-report');
+  document.getElementById('topTitle').textContent=r.title;
+  history.pushState({view:'rescue-timeline',id:r.id},'','');
+  renderTimeline(r,'advanced');
   }finally{
     _1boSubmitting=false;
     if(_btn){_btn.disabled=false;_btn.style.opacity='1';}
