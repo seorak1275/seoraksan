@@ -2238,6 +2238,8 @@ function selHasComp(val){
 let _injuries=[];
 let _injType='',_injPart='',_injSide='';
 const _BILATERAL_PARTS=['어깨','팔꿈치','손목','손','무릎','발목','발'];
+// 부위 선택 불필요한 전신 상태
+const _SYSTEMIC_TYPES=['심정지','저체온증','익수','탈진/탈수','기타(전신)'];
 function initInjuries(prefill){
   _injuries=(prefill&&prefill.injuries)||[];
   _injType='';_injPart='';_injSide='';
@@ -2246,6 +2248,14 @@ function initInjuries(prefill){
 function selInjType(el,type){
   document.querySelectorAll('#injTypePills .pill').forEach(p=>p.classList.remove('on'));
   el.classList.add('on');_injType=type;
+  // 전신 상태면 부위/좌우 숨김
+  const partWrap=document.getElementById('injPartWrap');
+  const sw=document.getElementById('injSideWrap');
+  const isSys=_SYSTEMIC_TYPES.includes(type);
+  if(partWrap) partWrap.style.display=isSys?'none':'block';
+  if(sw) sw.style.display='none';
+  if(isSys){_injPart='전신';_injSide='';}
+  else{_injPart='';_injSide='';document.querySelectorAll('#injPartPills .pill').forEach(p=>p.classList.remove('on'));}
 }
 function selInjPart(el,part){
   document.querySelectorAll('#injPartPills .pill').forEach(p=>p.classList.remove('on'));
@@ -2264,6 +2274,7 @@ function addInjury(){
   _injuries.push({type:_injType,part:_injPart,side:_injSide});
   _injType='';_injPart='';_injSide='';
   document.querySelectorAll('#injTypePills .pill,#injPartPills .pill,#injSidePills .pill').forEach(p=>p.classList.remove('on'));
+  const pw=document.getElementById('injPartWrap');if(pw)pw.style.display='block';
   const sw=document.getElementById('injSideWrap');if(sw)sw.style.display='none';
   renderInjuries();
 }
@@ -2274,11 +2285,11 @@ function renderInjuries(){
   if(!_injuries.length){el.innerHTML='';return;}
   el.innerHTML=_injuries.map((a,i)=>`
     <div style="display:flex;align-items:center;gap:6px;padding:6px 10px;background:#0b1c30;border-radius:7px;margin-bottom:4px;border:1px solid rgba(79,168,208,.1);">
-      <span style="font-size:12px;flex:1;color:#e0edf8;font-weight:600;">${a.type} ${a.part}${a.side?' '+a.side:''}</span>
+      <span style="font-size:12px;flex:1;color:#e0edf8;font-weight:600;">${a.type}${a.part&&a.part!=='전신'?' '+a.part:''}${a.side?' '+a.side:''}</span>
       <button onclick="removeInjury(${i})" style="background:none;border:none;color:#c0392b;font-size:15px;cursor:pointer;padding:0 2px;">×</button>
     </div>`).join('');
 }
-function getInjuryStr(){return _injuries.map(a=>a.type+' '+a.part+(a.side?' '+a.side:'')).join(', ');}
+function getInjuryStr(){return _injuries.map(a=>a.type+(a.part&&a.part!=='전신'?' '+a.part:'')+(a.side?' '+a.side:'')).join(', ');}
 
 // 기상 특보
 let _weatherAlerts=[];
@@ -3686,18 +3697,20 @@ function render1BoForm(prefill=null){
       </div>
       <div class="rsec"><div class="rsec-t">🩺 부상 현황</div>
         <div style="background:#060d1a;border-radius:8px;border:1px solid rgba(255,255,255,.07);padding:10px;margin-bottom:8px;">
-          <div style="font-size:10px;color:#4a7090;font-weight:700;margin-bottom:5px;">부상 유형</div>
+          <div style="font-size:10px;color:#4a7090;font-weight:700;margin-bottom:5px;">부상 유형 <span style="font-weight:400;color:#4a7090;">※ 전신상태 선택 시 부위 불필요</span></div>
           <div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:8px;" id="injTypePills">
-            ${['골절','탈구','염좌','열상','타박상','두부손상','저체온증','심정지','익수','기타'].map(t=>`<div class="pill" onclick="selInjType(this,'${t}')" style="font-size:11px;cursor:pointer;">${t}</div>`).join('')}
+            ${['골절','탈구','염좌','열상','타박상','두부손상','심정지','저체온증','탈진/탈수','익수','기타(부위)','기타(전신)'].map(t=>`<div class="pill" onclick="selInjType(this,'${t}')" style="font-size:11px;cursor:pointer;">${t}</div>`).join('')}
           </div>
-          <div style="font-size:10px;color:#4a7090;font-weight:700;margin-bottom:5px;">부상 부위</div>
-          <div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:8px;" id="injPartPills">
-            ${['머리','목','어깨','팔꿈치','손목','손','흉부','복부','허리','골반','무릎','발목','발','전신'].map(t=>`<div class="pill" onclick="selInjPart(this,'${t}')" style="font-size:11px;cursor:pointer;">${t}</div>`).join('')}
-          </div>
-          <div id="injSideWrap" style="display:none;margin-bottom:8px;">
-            <div style="font-size:10px;color:#4a7090;font-weight:700;margin-bottom:5px;">좌/우</div>
-            <div style="display:flex;gap:4px;" id="injSidePills">
-              ${['좌','우','양쪽'].map(s=>`<div class="pill" onclick="selInjSide(this,'${s}')" style="font-size:11px;cursor:pointer;">${s}</div>`).join('')}
+          <div id="injPartWrap">
+            <div style="font-size:10px;color:#4a7090;font-weight:700;margin-bottom:5px;">부상 부위</div>
+            <div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:8px;" id="injPartPills">
+              ${['머리','목','어깨','팔꿈치','손목','손','흉부','복부','허리','골반','무릎','발목','발'].map(t=>`<div class="pill" onclick="selInjPart(this,'${t}')" style="font-size:11px;cursor:pointer;">${t}</div>`).join('')}
+            </div>
+            <div id="injSideWrap" style="display:none;margin-bottom:8px;">
+              <div style="font-size:10px;color:#4a7090;font-weight:700;margin-bottom:5px;">좌/우</div>
+              <div style="display:flex;gap:4px;" id="injSidePills">
+                ${['좌','우','양쪽'].map(s=>`<div class="pill" onclick="selInjSide(this,'${s}')" style="font-size:11px;cursor:pointer;">${s}</div>`).join('')}
+              </div>
             </div>
           </div>
           <button onclick="addInjury()" style="width:100%;padding:7px;background:rgba(79,168,208,.15);border:1px solid rgba(79,168,208,.3);color:#4fa8d0;border-radius:7px;font-size:12px;font-weight:700;cursor:pointer;">＋ 추가</button>
