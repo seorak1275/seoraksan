@@ -3563,6 +3563,7 @@ function render1BoForm(prefill=null){
     {id:'repSec1', icon:'📍', label:'위치·기상'},
     {id:'repSec2', icon:'🤕', label:'환자·부상'},
     {id:'repSec3', icon:'🧑', label:'인적사항'},
+    {id:'repSec0', icon:'⏱', label:'타임라인'},
     {id:'repSec5', icon:'📝', label:'기타'},
   ];
 
@@ -3583,54 +3584,10 @@ function render1BoForm(prefill=null){
         ${t.icon}<br>${t.label}</div>`).join('')}
     </div>
 
-    <!-- ══ 섹터0: 타임라인 (버튼으로만 접근) ══ -->
+    <!-- ══ 섹터0: 고도화 타임라인 ══ -->
     <div id="repSec0" class="rep-sec" style="display:none;padding:12px;overflow-y:auto;">
-      <div class="rsec">
-        <div class="rsec-t">⏱ 구조 타임라인
-          <span style="font-size:9px;color:#4a7090;font-weight:400;margin-left:4px;">저장 시 자동 시간순 정렬</span>
-        </div>
-        <div id="ttEntryList"></div>
-        <div style="margin-top:10px;">
-          <div style="font-size:10px;color:#4fa8d0;font-weight:700;margin-bottom:6px;">⚡ 자주 쓰는 항목</div>
-          ${[
-            {cat:'출동',items:[{label:'📢 상황전파',stage:'상황전파'},{label:'🚗 구조출동',stage:'구조출동'},{label:'🏃 현장도착',stage:'현장도착'}]},
-            {cat:'환자',items:[{label:'🧑 요구조자조우',stage:'요구조자 조우'},{label:'💉 처치중',stage:'처치중'},{label:'✅ 처치완료',stage:'처치완료'}]},
-            {cat:'이동',items:[{label:'🚶 하산시작',stage:'하산시작'},{label:'📍 지점통과',stage:'지점통과'},{label:'🚗 차량대기',stage:'차량대기'}]},
-            {cat:'항공·소방',items:[{label:'🚁 헬기이륙/출발',stage:'헬기이륙/출발'},{label:'🚁 헬기구조완료',stage:'헬기구조완료'},{label:'🚑 119인계',stage:'119인계'},{label:'🏥 병원이송',stage:'병원이송'}]},
-            {cat:'종료',items:[{label:'✔️ 상황종료',stage:'상황종료'},{label:'☕ 휴식',stage:'휴식'}]},
-          ].map(g=>`
-            <div style="margin-bottom:7px;">
-              <div style="font-size:9px;color:#4a7090;font-weight:700;margin-bottom:4px;">${g.cat}</div>
-              <div style="display:flex;flex-wrap:wrap;gap:4px;">
-                ${g.items.map(q=>`<div class="pill tt-stage-pill" data-stage="${q.stage}" onclick="selectTTInline('${q.stage}',this)" style="cursor:pointer;font-size:11px;">${q.label}</div>`).join('')}
-              </div>
-            </div>`).join('')}
-        </div>
-        <div id="ttInputArea" style="display:none;margin-top:10px;background:#060d1a;border-radius:9px;padding:10px;border:1px solid rgba(79,168,208,.2);">
-          <div style="font-size:11px;color:#4fa8d0;font-weight:700;margin-bottom:8px;" id="ttInputLabel"></div>
-          <!-- 누가 -->
-          <div class="fg" id="ttActorWrap">
-            <span class="fl">누가</span>
-            <div style="display:flex;flex-wrap:wrap;gap:4px;" id="ttActorPills"></div>
-          </div>
-          <!-- 상황전파 선택 시 접수경로 표시 -->
-          <div id="ttRecvWrap" style="display:none;" class="fg">
-            <span class="fl">접수 경로</span>
-            <select id="r_recv" class="fsel">
-              ${['119','본소','직원신고','목격자신고','현장접수'].map(o=>`<option${p.reception===o?' selected':''}>${o}</option>`).join('')}
-            </select>
-          </div>
-          <div class="frow">
-            <div class="fg"><span class="fl">시간 <span style="color:#c0392b;">*</span></span>
-              <input type="datetime-local" id="ttTimeIn" class="fi">
-            </div>
-          </div>
-          <div class="fg"><span class="fl">메모</span>
-            <input type="text" id="ttNoteIn" class="fi" placeholder="지점명, 특이사항 등">
-          </div>
-          <button onclick="confirmTTInline()" style="width:100%;padding:9px;background:#1a4a6e;color:#fff;border:none;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;margin-top:5px;">✅ 추가/수정</button>
-        </div>
-        <button onclick="selectTTInline('직접입력')" style="width:100%;padding:8px;background:rgba(255,255,255,.04);border:1px dashed rgba(255,255,255,.15);color:rgba(255,255,255,.4);border-radius:8px;font-size:11px;cursor:pointer;margin-top:8px;">✏️ 직접 입력</button>
+      <div id="formTlWrap">
+        <div style="text-align:center;padding:30px 12px;font-size:12px;color:rgba(255,255,255,.3);line-height:1.8;">위치·기상 탭에서 사고 위치를 입력하면<br>경로 시뮬레이션이 표시됩니다</div>
       </div>
     </div>
 
@@ -3855,13 +3812,13 @@ function render1BoForm(prefill=null){
   if(_footer){
     if(!isNbo){
       _footer.style.display='block';
-      _footer.innerHTML=`<button class="btn-submit" style="background:#7a3800;color:#fff;" onclick="openTimelineTab()">📋 타임라인 작성</button>`;
+      _footer.innerHTML=`<button class="btn-submit" style="background:#1a4a6e;color:#fff;" onclick="submit1Bo()">💾 1보 등록</button>`;
     } else {
       _footer.style.display='none';
     }
   }
 
-  initTTInline(p.timetable||[],p.members||[],ms);
+  _ttEntries=p.timetable||[];
   initExtraDispatch(p);
   initExtraTeams(p);
   initWAlerts(p);
@@ -3870,22 +3827,35 @@ function render1BoForm(prefill=null){
   initFormMiniMap(p.lat,p.lng);
 }
 
-function openTimelineTab(){
-  document.querySelectorAll('.rep-sec').forEach(s=>s.style.display='none');
-  const tl=document.getElementById('repSec0');
-  if(tl){
-    tl.style.display='block';
-    tl.style.opacity='0';tl.style.transition='opacity .25s';
-    requestAnimationFrame(()=>requestAnimationFrame(()=>{tl.style.opacity='1';}));
-  }
-  document.getElementById('repContent').scrollTop=0;
-  document.querySelectorAll('.rep-tab').forEach(t=>{t.style.color='rgba(255,255,255,.3)';t.style.borderBottomColor='transparent';t.classList.remove('rep-tab-on');});
-  const footer=document.getElementById('rep1BoFooter');
-  if(footer){
-    footer.style.background='rgba(26,74,110,.15)';footer.style.transition='background .3s';
-    setTimeout(()=>{footer.style.background='#040a16';},400);
-    footer.innerHTML=`<button class="btn-submit" style="background:#1a4a6e;color:#fff;" onclick="submit1Bo()">💾 1보 등록</button>`;
-  }
+function _renderFormTl(){
+  const loc=document.getElementById('r_loc')?.value||'';
+  const loctype=document.getElementById('r_loctype')?.value||'법정탐방로';
+  const curUser=DB.g('currentUser')||{};
+  const members=curUser.name?[curUser.name]:[];
+  const tempR={id:'_form_tl_',title:'신규 구조',location:loc,loctype:loctype,
+    members:members,extraTeams:[],agencies:{},r119:false,
+    timetable:[],lat:null,lng:null,status:'ongoing'};
+  _initTlTeams(tempR);
+  const atEnd=_tlWpIdx>=_tlWps.length-1;
+  const canSkip=_tlWpIdx<_tlWps.length-2;
+  const isNonTrail=loctype!=='법정탐방로';
+  const selTeamName=_tlTeams[_tlSelTeam]?_tlTeams[_tlSelTeam].name:'';
+  const wrap=document.getElementById('formTlWrap');
+  if(!wrap)return;
+  wrap.innerHTML=`
+    ${_tlTeams.length?`<div id="tlTeamCards" style="display:flex;flex-direction:column;gap:6px;margin-bottom:10px;">${_tlTeams.map(_tlTeamCardHtml).join('')}</div>`:''}
+    <div style="background:#0b1c30;border-radius:10px;padding:12px;border:.5px solid rgba(79,168,208,.2);margin-bottom:10px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:11px;">
+        <div style="font-size:11px;color:#4fa8d0;font-weight:700;">📍 <span id="tlSelTeamLabel">${selTeamName} 경로</span></div>
+        <button id="tlVehicleBtn" onclick="toggleTlVehicle()" style="padding:4px 10px;border-radius:7px;border:1px solid ${_tlVehicle?'rgba(231,76,60,.45)':'rgba(255,255,255,.12)'};background:${_tlVehicle?'rgba(231,76,60,.18)':'transparent'};color:${_tlVehicle?'#e74c3c':'rgba(255,255,255,.4)'};font-size:10px;font-weight:600;cursor:pointer;">🚗 ${_tlVehicle?'차량 ON':'차량 OFF'}</button>
+      </div>
+      ${_tlWps.length>1?`
+      <div id="tlWpList">${_tlWps.map(_wpItemHtml).join('')}</div>
+      <div style="display:flex;gap:7px;margin-top:11px;padding-top:9px;border-top:1px solid rgba(255,255,255,.06);">
+        <button id="tlPassBtn" onclick="tlPass()" ${atEnd?'disabled':''} style="flex:2;padding:9px;border-radius:8px;border:1px solid rgba(79,168,208,.4);background:rgba(79,168,208,.12);color:#4fa8d0;font-size:12px;font-weight:700;cursor:pointer;opacity:${atEnd?.3:1};">→ 통과</button>
+        <button id="tlSkipBtn" onclick="tlSkip()" ${!canSkip?'disabled':''} style="flex:1;padding:9px;border-radius:8px;border:1px solid rgba(255,255,255,.12);background:transparent;color:rgba(255,255,255,.45);font-size:12px;font-weight:600;cursor:pointer;opacity:${canSkip?1:.3};">건너뛰기</button>
+      </div>`:isNonTrail?`<div style="text-align:center;font-size:11px;color:rgba(255,255,255,.28);padding:16px 8px;line-height:1.7;">비법정탐방로·암빙벽은<br>경로 시뮬레이션을 제공하지 않습니다</div>`:`<div style="text-align:center;font-size:11px;color:rgba(255,255,255,.25);padding:12px;">위치를 먼저 입력하거나<br>다목적위치표지판 데이터 없음</div>`}
+    </div>`;
 }
 let _1boSubmitting=false;
 function switchRepTab(secId,el){
@@ -3898,13 +3868,7 @@ function switchRepTab(secId,el){
     t.classList.remove('rep-tab-on');
   });
   if(el){el.style.color='#4fa8d0';el.style.borderBottomColor='#4fa8d0';el.classList.add('rep-tab-on');}
-  // 타임라인 탭 밖으로 나가면 footer를 '타임라인 작성'으로 복원
-  const footer=document.getElementById('rep1BoFooter');
-  if(footer&&footer.style.display!=='none'){
-    footer.innerHTML=`<button class="btn-submit" style="background:#7a3800;color:#fff;" onclick="openTimelineTab()">📋 타임라인 작성</button>`;
-  }
-  // 단계 pill 선택 초기화
-  document.querySelectorAll('.tt-stage-pill').forEach(p=>p.classList.remove('on'));
+  if(secId==='repSec0') _renderFormTl();
 }
 function initTTInline(existing,prevMembers,allStaff){
   _ttInlineEntries=[...(existing||[])];
