@@ -3118,18 +3118,142 @@ let _curViewResId=null;
 let _tlViewMode='advanced'; // legacy compat
 let _tlMode='advanced'; // 'advanced'|'write'
 let _tlWps=[];       // pointer to selected team's wps
-let _tlWpIdx=0;      // pointer to selected team's wpIdx
+let _tlWpIdx=0;
 let _tlWpResId=null;
 let _tlVehicle=false;
 let _tlAnimating=false;
-let _tlTeams=[];     // [{id,name,type,wpIdx,wps}]
+let _tlTeams=[];
 let _tlSelTeam=0;
-let _tlSetupOpen=false;
 let _tlMiniMapInst=null;
+// team builder state
+let _tlBuilding=false;
+let _tlBuildType=null;     // 'nps'|'agency'
+let _tlBuildMembers=[];
+let _tlBuildOtherOpen=false;
+let _tlBuildAgencyType='소방';
 
 function _hideRepFooter(){const f=document.getElementById('rep1BoFooter');if(f)f.style.display='none';}
 
-function toggleTlSetup(){
+function _renderCreateBtnsHtml(){
+  return `<div style="display:flex;gap:8px;margin-bottom:10px;">
+    <button onclick="startTlBuild('nps')" style="flex:1;padding:11px 6px;border-radius:9px;background:rgba(79,168,208,.1);border:1px solid rgba(79,168,208,.3);color:#4fa8d0;font-size:12px;font-weight:700;cursor:pointer;">+ 공단 팀생성</button>
+    <button onclick="startTlBuild('agency')" style="flex:1;padding:11px 6px;border-radius:9px;background:rgba(126,200,163,.08);border:1px solid rgba(126,200,163,.25);color:#7ec8a0;font-size:12px;font-weight:700;cursor:pointer;">+ 유관기관 팀생성</button>
+  </div>`;
+}
+
+function _renderBuildPanelHtml(){
+  const user=DB.g('currentUser')||{};
+  const myDept=user.dept||'';
+  const all=getTeamMembers();
+  const mine=all.filter(s=>!myDept||s.dept===myDept);
+  const others=all.filter(s=>myDept&&s.dept&&s.dept!==myDept);
+  const byDept={};others.forEach(s=>{if(!byDept[s.dept])byDept[s.dept]=[];byDept[s.dept].push(s);});
+  function chip(s){
+    const on=_tlBuildMembers.includes(s.name);
+    return `<div onclick="toggleTlBuildMember('${s.name.replace(/'/g,"\\'")}',this)" style="cursor:pointer;background:${on?'rgba(126,200,163,.2)':'rgba(255,255,255,.04)'};color:${on?'#7ec8a0':'rgba(255,255,255,.45)'};border:1px solid ${on?'rgba(126,200,163,.4)':'rgba(255,255,255,.12)'};border-radius:20px;font-size:10px;font-weight:700;padding:4px 10px;">${s.name}${s.rank?` <span style="font-size:8px;opacity:.7;">${s.rank}</span>`:''}</div>`;
+  }
+  if(_tlBuildType==='nps'){
+    return `<div style="background:#0b1c30;border-radius:10px;padding:12px;border:.5px solid rgba(79,168,208,.3);margin-bottom:10px;">
+      <div style="font-size:11px;color:#4fa8d0;font-weight:700;margin-bottom:10px;">🥾 공단 팀생성</div>
+      <input id="tlBuildNameInput" type="text" class="fi" placeholder="팀 이름 (미입력 시 자동)" style="width:100%;box-sizing:border-box;margin-bottom:10px;">
+      ${myDept?`<div style="font-size:10px;color:#4a7090;font-weight:600;margin-bottom:5px;">📂 ${myDept}</div>`:''}
+      <div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:8px;">
+        ${mine.length?mine.map(chip).join(''):'<span style="font-size:10px;color:rgba(255,255,255,.25);">직원 정보 없음</span>'}
+      </div>
+      ${others.length?`<button id="tlOtherDeptsBtn" onclick="toggleTlOtherDepts()" style="background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.12);color:rgba(255,255,255,.5);border-radius:7px;padding:4px 10px;font-size:10px;font-weight:600;cursor:pointer;margin-bottom:6px;">추가인원 ▼</button>
+        <div id="tlOtherDeptsWrap" style="display:none;">
+          ${Object.entries(byDept).map(([dept,members])=>`<div style="margin-bottom:8px;"><div style="font-size:10px;color:#4a7090;font-weight:600;margin-bottom:4px;">📂 ${dept}</div><div style="display:flex;flex-wrap:wrap;gap:5px;">${members.map(chip).join('')}</div></div>`).join('')}
+        </div>`:''}
+      <div style="display:flex;gap:7px;margin-top:10px;">
+        <button onclick="cancelTlBuild()" style="flex:1;padding:8px;border-radius:8px;border:1px solid rgba(255,255,255,.12);background:transparent;color:rgba(255,255,255,.45);font-size:12px;font-weight:600;cursor:pointer;">취소</button>
+        <button onclick="confirmTlBuild()" style="flex:2;padding:8px;border-radius:8px;background:rgba(79,168,208,.18);border:1px solid rgba(79,168,208,.4);color:#4fa8d0;font-size:12px;font-weight:700;cursor:pointer;">확인</button>
+      </div>
+    </div>`;
+  } else {
+    const agTypes=['소방','경찰','산림청','특수구조대','헬기','기타'];
+    return `<div style="background:#0b1c30;border-radius:10px;padding:12px;border:.5px solid rgba(126,200,163,.3);margin-bottom:10px;">
+      <div style="font-size:11px;color:#7ec8a0;font-weight:700;margin-bottom:10px;">🚒 유관기관 팀생성</div>
+      <div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:10px;">
+        ${agTypes.map(t=>`<div onclick="document.querySelectorAll('.tl-ag-chip').forEach(c=>{c.style.background='rgba(255,255,255,.04)';c.style.color='rgba(255,255,255,.45)';c.style.borderColor='rgba(255,255,255,.12)';});this.style.background='rgba(126,200,163,.2)';this.style.color='#7ec8a0';this.style.borderColor='rgba(126,200,163,.4)';_tlBuildAgencyType='${t}';const ni=document.getElementById('tlBuildNameInput');if(ni)ni.value='${t}팀';" class="tl-ag-chip" style="cursor:pointer;background:${_tlBuildAgencyType===t?'rgba(126,200,163,.2)':'rgba(255,255,255,.04)'};color:${_tlBuildAgencyType===t?'#7ec8a0':'rgba(255,255,255,.45)'};border:1px solid ${_tlBuildAgencyType===t?'rgba(126,200,163,.4)':'rgba(255,255,255,.12)'};border-radius:20px;font-size:10px;font-weight:700;padding:4px 10px;">${t}</div>`).join('')}
+      </div>
+      <input id="tlBuildNameInput" type="text" class="fi" value="${_tlBuildAgencyType}팀" placeholder="팀 이름" style="width:100%;box-sizing:border-box;margin-bottom:10px;">
+      <div style="display:flex;gap:7px;">
+        <button onclick="cancelTlBuild()" style="flex:1;padding:8px;border-radius:8px;border:1px solid rgba(255,255,255,.12);background:transparent;color:rgba(255,255,255,.45);font-size:12px;font-weight:600;cursor:pointer;">취소</button>
+        <button onclick="confirmTlBuild()" style="flex:2;padding:8px;border-radius:8px;background:rgba(126,200,163,.15);border:1px solid rgba(126,200,163,.35);color:#7ec8a0;font-size:12px;font-weight:700;cursor:pointer;">확인</button>
+      </div>
+    </div>`;
+  }
+}
+
+function startTlBuild(type){
+  _tlBuilding=true;_tlBuildType=type;_tlBuildMembers=[];_tlBuildOtherOpen=false;
+  _tlBuildAgencyType='소방';
+  const ba=document.getElementById('tlBuildArea');
+  if(ba)ba.innerHTML=_renderBuildPanelHtml();
+}
+
+function cancelTlBuild(){
+  _tlBuilding=false;
+  const ba=document.getElementById('tlBuildArea');
+  if(ba)ba.innerHTML=_renderCreateBtnsHtml();
+}
+
+function toggleTlBuildMember(name,el){
+  const idx=_tlBuildMembers.indexOf(name);
+  if(idx>=0){
+    _tlBuildMembers.splice(idx,1);
+    el.style.background='rgba(255,255,255,.04)';el.style.color='rgba(255,255,255,.45)';el.style.borderColor='rgba(255,255,255,.12)';
+  }else{
+    _tlBuildMembers.push(name);
+    el.style.background='rgba(126,200,163,.2)';el.style.color='#7ec8a0';el.style.borderColor='rgba(126,200,163,.4)';
+  }
+}
+
+function toggleTlOtherDepts(){
+  _tlBuildOtherOpen=!_tlBuildOtherOpen;
+  const wrap=document.getElementById('tlOtherDeptsWrap');
+  const btn=document.getElementById('tlOtherDeptsBtn');
+  if(wrap)wrap.style.display=_tlBuildOtherOpen?'block':'none';
+  if(btn)btn.textContent=(_tlBuildOtherOpen?'추가인원 ▲':'추가인원 ▼');
+}
+
+function confirmTlBuild(){
+  const r=getRes(_tlWpResId);if(!r){toast('⚠️ 구조 정보 없음');return;}
+  const nameEl=document.getElementById('tlBuildNameInput');
+  const facs=DB.g('facilities')||[];
+  if(_tlBuildType==='nps'){
+    if(!_tlBuildMembers.length){toast('⚠️ 팀원을 선택하세요');return;}
+    const name=(nameEl&&nameEl.value.trim())||_tlBuildMembers.slice(0,2).join('·')+'팀';
+    const route=_buildRoute(r,facs);
+    const wps=route.map(w=>({...w,status:w.isBase?'active':'pending'}));
+    _tlTeams.push({id:'nps_'+Date.now(),name,type:'foot',members:_tlBuildMembers.slice(),wpIdx:0,wps,collapsed:false});
+  }else{
+    const name=(nameEl&&nameEl.value.trim())||_tlBuildAgencyType+'팀';
+    const type=_tlBuildAgencyType==='헬기'?'heli':_tlBuildAgencyType==='소방'||_tlBuildAgencyType==='경찰'?'vehicle':'foot';
+    const route=type==='heli'
+      ?[{code:'',name:'헬기 기지',isBase:true,status:'active'},{code:'',name:r.location||'사고지점',isTarget:true,status:'pending'}]
+      :_buildRoute(r,facs).map(w=>({...w,status:w.isBase?'active':'pending'}));
+    _tlTeams.push({id:'agency_'+Date.now(),name,type,wpIdx:0,wps:route,collapsed:false});
+  }
+  const newIdx=_tlTeams.length-1;
+  _tlSelTeam=newIdx;_tlWps=_tlTeams[newIdx].wps;_tlWpIdx=0;
+  _tlBuilding=false;
+  _rerenderTlFull();
+  // init minimap if first team with coords
+  const wpsForMap=_tlTeams[newIdx].wps;
+  if(wpsForMap.some(w=>w.lat&&w.lng)){
+    const mm=document.getElementById('tlMiniMap');
+    if(!mm){
+      const mapWrap=document.getElementById('tlMiniMapWrap');
+      if(mapWrap)mapWrap.style.display='block';
+    }
+    setTimeout(()=>_initTlMiniMap(wpsForMap),150);
+  }
+}
+
+function toggleTlSetup(){} // kept for compat
+
+
   _tlSetupOpen=!_tlSetupOpen;
   const panel=document.getElementById('tlSetupPanel');
   const btn=document.getElementById('tlSetupBtn');
@@ -3274,27 +3398,10 @@ function _buildRoute(r,facs){
 }
 
 function _initTlTeams(r){
-  if(_tlWpResId===r.id&&_tlTeams.length)return;
+  if(_tlWpResId===r.id&&(_tlTeams.length||_tlBuilding))return;
   _tlWpResId=r.id;_tlVehicle=false;_tlAnimating=false;_tlSelTeam=0;_tlTeams=[];
-  const facs=DB.g('facilities')||[];
-  const mainRoute=_buildRoute(r,facs);
-  function mk(id,name,type,route,collapsed){return{id,name,type,wpIdx:0,wps:route.map(w=>({...w,status:w.isBase?'active':'pending'})),collapsed:!!collapsed};}
-  function cloneR(){return mainRoute.map(w=>({...w,status:w.isBase?'active':'pending'}));}
-  if(!mainRoute.length){
-    _tlTeams=[{id:'initial',name:(r.members||[]).slice(0,2).join('·')||'초동팀',type:'foot',wpIdx:0,wps:[],collapsed:false}];
-    _tlWps=[];_tlWpIdx=0;return;
-  }
-  _tlTeams.push(mk('initial',(r.members||[]).slice(0,2).join('·')||'초동팀','foot',cloneR(),false));
-  (r.extraTeams||[]).forEach((t,i)=>_tlTeams.push(mk('extra_'+i,t.teamName||`추가팀${i+1}`,'foot',cloneR(),true)));
-  if(r.agencies&&r.agencies.hwandongha){
-    const sr=cloneR();if(sr.length)sr[0]={...sr[0],name:'소공원탐방지원센터'};
-    _tlTeams.push(mk('special',`특수구조대(환동해 ${r.agencies.hwTeam||''}팀)`,'foot',sr,true));
-  }
-  if(r.agencies&&r.agencies.fireAgencies&&r.agencies.fireAgencies.length)
-    r.agencies.fireAgencies.forEach((a,i)=>_tlTeams.push(mk('fire_'+i,a.name||'소방팀','vehicle',cloneR(),true)));
-  if(r.r119&&r.r119.trim()&&r.r119!=='-')
-    _tlTeams.push(mk('heli','🚁 119 헬기','heli',[{code:'',name:'헬기 기지',isBase:true,status:'active'},{code:'',name:r.location||'사고지점',isTarget:true,status:'pending'}],true));
-  _tlWps=_tlTeams[0].wps;_tlWpIdx=0;
+  _tlBuilding=false;_tlBuildType=null;_tlBuildMembers=[];_tlBuildOtherOpen=false;_tlBuildAgencyType='소방';
+  _tlWps=[];_tlWpIdx=0;
 }
 
 function _saveTeamState(){
@@ -3405,6 +3512,7 @@ function tlWarpToTeam(teamIdx,wpIdx){_saveTeamState();_tlSelTeam=teamIdx;_tlWps=
 function _rerenderTlFull(){
   const el=document.getElementById('tlAllTeams');
   if(el)el.innerHTML=_tlTeams.map((t,i)=>_tlTeamFullHtml(t,i)).join('');
+  if(!_tlBuilding){const ba=document.getElementById('tlBuildArea');if(ba)ba.innerHTML=_renderCreateBtnsHtml();}
 }
 
 function _rerenderTlWps(){
@@ -3503,48 +3611,26 @@ function renderTimeline(r,viewMode){
 
   if(mode==='advanced'){
     _initTlTeams(r);
-    const hasWpCoords=_tlTeams.some(t=>t.wps.some(w=>w.lat&&w.lng));
-    const firstWps=(_tlTeams[0]||{}).wps||[];
     w.innerHTML=tabHdr+`
-      <!-- 팀/인원 설정 패널 -->
-      <div style="background:#0b1c30;border-radius:10px;border:.5px solid rgba(79,168,208,.15);margin-bottom:10px;overflow:hidden;">
-        <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 12px;cursor:pointer;" onclick="toggleTlSetup()">
-          <div style="font-size:11px;font-weight:700;color:#b8d4e8;">👥 팀·인원 구성</div>
-          <button id="tlSetupBtn" style="padding:3px 10px;border-radius:7px;border:1px solid rgba(255,255,255,.15);background:${_tlSetupOpen?'rgba(79,168,208,.18)':'transparent'};color:${_tlSetupOpen?'#4fa8d0':'rgba(255,255,255,.45)'};font-size:10px;font-weight:600;cursor:pointer;">${_tlSetupOpen?'▲ 접기':'▼ 편집'}</button>
-        </div>
-        <div id="tlSetupPanel" style="display:${_tlSetupOpen?'block':'none'};padding:0 12px 12px;">
-          ${_renderTlSetupPanel(r)}
-          <button onclick="_applyTlTeamSetup(${r.id})" style="width:100%;padding:8px;border-radius:8px;background:rgba(79,168,208,.18);border:1px solid rgba(79,168,208,.4);color:#4fa8d0;font-size:12px;font-weight:700;cursor:pointer;margin-top:4px;">💾 적용</button>
-        </div>
-      </div>
-      <!-- 다목적위치표지판 미니맵 -->
-      ${hasWpCoords?`
-      <div style="background:#0b1c30;border-radius:10px;border:.5px solid rgba(79,168,208,.15);margin-bottom:10px;overflow:hidden;">
+      <!-- 다목적위치표지판 미니맵 (팀 생성 후 표시) -->
+      <div id="tlMiniMapWrap" style="display:${_tlTeams.some(t=>t.wps.some(w=>w.lat&&w.lng))?'block':'none'};background:#0b1c30;border-radius:10px;border:.5px solid rgba(79,168,208,.15);margin-bottom:10px;overflow:hidden;">
         <div style="font-size:11px;color:#4fa8d0;font-weight:700;padding:10px 12px 6px;">🗺️ 다목적위치표지판 경로</div>
         <div id="tlMiniMap" style="width:100%;height:200px;"></div>
-      </div>`:''}
-      <!-- 팀별 경로 카드 (접기/펼치기) -->
+      </div>
+      <!-- 팀별 경로 카드 -->
       <div id="tlAllTeams">
         ${_tlTeams.map((t,i)=>_tlTeamFullHtml(t,i)).join('')}
       </div>
-      ${r.timetable&&r.timetable.length?`
-      <div style="background:#0b1c30;border-radius:10px;padding:12px;border:.5px solid rgba(79,168,208,.1);margin-bottom:10px;">
-        <div style="font-size:11px;color:#4fa8d0;font-weight:700;margin-bottom:8px;">⏱ 세부 기록</div>
-        <div style="position:relative;padding-left:16px;">
-          <div style="position:absolute;left:5px;top:0;bottom:0;width:1px;background:rgba(79,168,208,.2);"></div>
-          ${r.timetable.map(e=>`<div style="position:relative;margin-bottom:10px;">
-            <div style="position:absolute;left:-14px;top:5px;width:10px;height:10px;border-radius:50%;background:${e.stage==='요구조자 조우'?'#c0392b':e.stage==='처치완료'?'#27ae60':e.stage==='출동완료'||e.stage==='현장도착'?'#e67e22':'#4fa8d0'};border:2px solid #0b1c30;"></div>
-            <div style="font-size:11px;font-weight:700;color:#e0edf8;display:flex;align-items:center;gap:5px;flex-wrap:wrap;">${e.actor?`<span style="background:rgba(126,200,163,.1);border:1px solid rgba(126,200,163,.25);color:#7ec8a0;border-radius:5px;font-size:9px;font-weight:700;padding:1px 5px;">${e.actor}</span>`:''}${e.stage}</div>
-            <div style="font-size:10px;color:#4a7090;margin-top:2px;"><span style="background:rgba(58,106,138,.15);border:1px solid rgba(79,168,208,.12);border-radius:5px;padding:1px 5px;font-size:9px;color:#4fa8d0;">${e.time||'-'}</span>${e.note?` · <span style="color:#3a5a6a;">${e.note}</span>`:''}</div>
-          </div>`).join('')}
-        </div>
-      </div>`:''}
+      <!-- 팀 생성 영역 -->
+      <div id="tlBuildArea">
+        ${_tlBuilding?_renderBuildPanelHtml():_renderCreateBtnsHtml()}
+      </div>
+      <!-- 하단 종료만 -->
       ${r.status==='ongoing'?`
-      <div style="display:flex;gap:7px;margin-top:6px;">
-        <button class="btn-submit" style="flex:2;background:#1a4a6e;color:#fff;" onclick="selResId=${r.id};curResId=${r.id};addPhase();">📋 보 추가</button>
-        <button class="btn-submit" style="flex:1;background:#0d5040;color:#fff;" onclick="selResId=${r.id};curResId=${r.id};endSit();">✅ 종료</button>
-      </div>`:'<div style="margin-top:6px;text-align:center;font-size:12px;color:#27ae60;padding:8px;">✅ 상황 종료됨</div>'}`;
-    if(hasWpCoords)setTimeout(()=>_initTlMiniMap(firstWps),150);
+      <div style="margin-top:4px;padding-top:8px;border-top:.5px solid rgba(255,255,255,.06);">
+        <button class="btn-submit" style="width:100%;background:#0d5040;color:#fff;" onclick="selResId=${r.id};curResId=${r.id};endSit();">✅ 종료</button>
+      </div>`:'<div style="margin-top:8px;text-align:center;font-size:12px;color:#27ae60;padding:8px;">✅ 상황 종료됨</div>'}`;
+    if(_tlTeams.some(t=>t.wps.some(w=>w.lat&&w.lng)))setTimeout(()=>_initTlMiniMap((_tlTeams.find(t=>t.wps.some(w=>w.lat&&w.lng))||{wps:[]}).wps),150);
   } else {
     // 작성 mode
     function tlTitle(p,idx){
