@@ -3122,8 +3122,95 @@ let _tlVehicle=false;
 let _tlAnimating=false;
 let _tlTeams=[];     // [{id,name,type,wpIdx,wps}]
 let _tlSelTeam=0;
+let _tlSetupOpen=false;
+let _tlMiniMapInst=null;
 
 function _hideRepFooter(){const f=document.getElementById('rep1BoFooter');if(f)f.style.display='none';}
+
+function toggleTlSetup(){
+  _tlSetupOpen=!_tlSetupOpen;
+  const panel=document.getElementById('tlSetupPanel');
+  const btn=document.getElementById('tlSetupBtn');
+  if(panel){panel.style.display=_tlSetupOpen?'block':'none';}
+  if(btn){btn.style.background=_tlSetupOpen?'rgba(79,168,208,.18)':'transparent';btn.style.color=_tlSetupOpen?'#4fa8d0':'rgba(255,255,255,.45)';}
+}
+
+function _renderTlSetupPanel(r){
+  const staff=getTeamMembers();
+  const curMembers=r.members||[];
+  const extraTeams=r.extraTeams||[];
+  function memberChips(members,label,teamIdx){
+    return `<div style="margin-bottom:10px;">
+      <div style="font-size:10px;color:#4fa8d0;font-weight:700;margin-bottom:5px;">${label}</div>
+      <div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:6px;">
+        ${staff.map(s=>{
+          const on=members.includes(s.name);
+          return `<div onclick="_tlToggleMember(${teamIdx},'${s.name.replace(/'/g,"\\'")}',this)" style="cursor:pointer;background:${on?'rgba(126,200,163,.2)':'rgba(255,255,255,.04)'};color:${on?'#7ec8a0':'rgba(255,255,255,.45)'};border:1px solid ${on?'rgba(126,200,163,.4)':'rgba(255,255,255,.12)'};border-radius:20px;font-size:10px;font-weight:700;padding:3px 9px;transition:all .15s;">${s.name}${s.rank?` <span style="font-size:8px;opacity:.7;">${s.rank}</span>`:''}</div>`;
+        }).join('')}
+      </div>
+    </div>`;
+  }
+  let html=memberChips(curMembers,'👥 초동팀',-1);
+  extraTeams.forEach((t,i)=>{
+    html+=memberChips(t.members||[],`👥 ${t.teamName||'추가팀'+(i+1)}`,i);
+  });
+  return html;
+}
+
+function _tlToggleMember(teamIdx,name,el){
+  const res=getRes(_tlWpResId);if(!res)return;
+  if(teamIdx===-1){
+    const m=res.members||[];
+    const idx=m.indexOf(name);
+    if(idx>=0)m.splice(idx,1);else m.push(name);
+    res.members=m;
+  }else{
+    const t=(res.extraTeams||[])[teamIdx];if(!t)return;
+    const m=t.members||[];
+    const idx=m.indexOf(name);
+    if(idx>=0)m.splice(idx,1);else m.push(name);
+    t.members=m;
+  }
+  const on=el.style.background.includes('126,200');
+  el.style.background=on?'rgba(255,255,255,.04)':'rgba(126,200,163,.2)';
+  el.style.color=on?'rgba(255,255,255,.45)':'#7ec8a0';
+  el.style.borderColor=on?'rgba(255,255,255,.12)':'rgba(126,200,163,.4)';
+}
+
+function _applyTlTeamSetup(resId){
+  const res=getRes(resId);if(!res)return;
+  const all=DB.g('rescues')||[];
+  const idx=all.findIndex(r=>r.id===resId);
+  if(idx>=0){all[idx]=res;DB.s('rescues',all);}
+  _tlWpResId=null; // force re-init teams from updated data
+  toast('팀 구성 저장됨');
+  renderTimeline(res,'advanced');
+}
+
+function _initTlMiniMap(wps){
+  const el=document.getElementById('tlMiniMap');
+  if(!el||!window._KR)return;
+  const pts=wps.filter(w=>w.lat&&w.lng);
+  if(!pts.length){el.innerHTML='<div style="text-align:center;font-size:10px;color:rgba(255,255,255,.25);padding:12px;">위치 좌표 없음</div>';return;}
+  try{
+    const center=pts[Math.floor(pts.length/2)];
+    const map=new kakao.maps.Map(el,{center:new kakao.maps.LatLng(center.lat,center.lng),level:6});
+    map.setMapTypeId(kakao.maps.MapTypeId.HYBRID);
+    _tlMiniMapInst=map;
+    const bounds=new kakao.maps.LatLngBounds();
+    pts.forEach((w,i)=>{
+      const latlng=new kakao.maps.LatLng(w.lat,w.lng);
+      bounds.extend(latlng);
+      const isTarget=w.isTarget,isBase=w.isBase;
+      const bg=isTarget?'#c0392b':isBase?'#27ae60':'#4fa8d0';
+      const ico=isTarget?'🚨':isBase?'🏠':'📍';
+      const content=document.createElement('div');
+      content.innerHTML=`<div style="background:${bg};color:#fff;border-radius:12px;padding:2px 7px;font-size:9px;font-weight:700;white-space:nowrap;box-shadow:0 1px 4px rgba(0,0,0,.4);">${ico} ${w.code||w.name}</div>`;
+      new kakao.maps.CustomOverlay({position:latlng,content,yAnchor:1.3}).setMap(map);
+    });
+    if(pts.length>1)map.setBounds(bounds,40);
+  }catch(e){console.warn('tlMiniMap',e);}
+}
 
 // ── Zone-based trail routing ──
 function _buildRoute(r,facs){
@@ -3134,7 +3221,7 @@ function _buildRoute(r,facs){
   const wm={};
   (facs||[]).filter(f=>f.type&&f.type.includes('다목적위치표지판')).forEach(f=>{
     const m=(f.name||'').match(/^(\d+)-(\d+)/);
-    if(m)wm[`${m[1]}-${m[2]}`]={code:`${m[1]}-${m[2]}`,zone:parseInt(m[1]),num:parseInt(m[2]),name:f.name};
+    if(m)wm[`${m[1]}-${m[2]}`]={code:`${m[1]}-${m[2]}`,zone:parseInt(m[1]),num:parseInt(m[2]),name:f.name,lat:f.lat,lng:f.lng};
   });
   function seg(z,from,to){
     const res=[],zs=String(z).padStart(2,'0');
@@ -3170,7 +3257,7 @@ function _buildRoute(r,facs){
   }else if(zone===14){base='점봉산탐방지원센터';route=upto(14,code);}
   else return[];
   const res=[{code:'',name:base,isBase:true,status:'active'}];
-  route.forEach((w,i)=>res.push({code:w.code,name:w.name,isTarget:i===route.length-1,status:'pending'}));
+  route.forEach((w,i)=>res.push({code:w.code,name:w.name,lat:w.lat,lng:w.lng,isTarget:i===route.length-1,status:'pending'}));
   return res;
 }
 
@@ -3373,11 +3460,29 @@ function renderTimeline(r,viewMode){
     const canSkip=_tlWpIdx<_tlWps.length-2;
     const isNonTrail=(r.loctype||'')!=='법정탐방로';
     const selTeamName=_tlTeams[_tlSelTeam]?_tlTeams[_tlSelTeam].name:'';
+    const hasWpCoords=_tlWps.some(w=>w.lat&&w.lng);
     w.innerHTML=tabHdr+`
+      <!-- 팀/인원 설정 패널 -->
+      <div style="background:#0b1c30;border-radius:10px;border:.5px solid rgba(79,168,208,.15);margin-bottom:10px;overflow:hidden;">
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 12px;cursor:pointer;" onclick="toggleTlSetup()">
+          <div style="font-size:11px;font-weight:700;color:#b8d4e8;">👥 팀·인원 구성</div>
+          <button id="tlSetupBtn" style="padding:3px 10px;border-radius:7px;border:1px solid rgba(255,255,255,.15);background:${_tlSetupOpen?'rgba(79,168,208,.18)':'transparent'};color:${_tlSetupOpen?'#4fa8d0':'rgba(255,255,255,.45)'};font-size:10px;font-weight:600;cursor:pointer;">${_tlSetupOpen?'▲ 접기':'▼ 편집'}</button>
+        </div>
+        <div id="tlSetupPanel" style="display:${_tlSetupOpen?'block':'none'};padding:0 12px 12px;">
+          ${_renderTlSetupPanel(r)}
+          <button onclick="_applyTlTeamSetup(${r.id})" style="width:100%;padding:8px;border-radius:8px;background:rgba(79,168,208,.18);border:1px solid rgba(79,168,208,.4);color:#4fa8d0;font-size:12px;font-weight:700;cursor:pointer;margin-top:4px;">💾 적용</button>
+        </div>
+      </div>
       <!-- 팀 카드 (배달추적 스타일) -->
       ${_tlTeams.length?`
       <div id="tlTeamCards" style="display:flex;flex-direction:column;gap:6px;margin-bottom:10px;">
         ${_tlTeams.map(_tlTeamCardHtml).join('')}
+      </div>`:''}
+      <!-- 다목적위치표지판 미니맵 -->
+      ${hasWpCoords?`
+      <div style="background:#0b1c30;border-radius:10px;border:.5px solid rgba(79,168,208,.15);margin-bottom:10px;overflow:hidden;">
+        <div style="font-size:11px;color:#4fa8d0;font-weight:700;padding:10px 12px 6px;">🗺️ 다목적위치표지판 경로</div>
+        <div id="tlMiniMap" style="width:100%;height:200px;"></div>
       </div>`:''}
       <!-- 선택된 팀의 상세 경로 -->
       <div style="background:#0b1c30;border-radius:10px;padding:12px;border:.5px solid rgba(79,168,208,.2);margin-bottom:10px;">
@@ -3409,6 +3514,7 @@ function renderTimeline(r,viewMode){
         <button class="btn-submit" style="flex:2;background:#1a4a6e;color:#fff;" onclick="selResId=${r.id};curResId=${r.id};addPhase();">📋 다음 보 추가</button>
         <button class="btn-submit" style="flex:1;background:#0d5040;color:#fff;" onclick="selResId=${r.id};curResId=${r.id};endSit();">✅ 종료</button>
       </div>`:'<div style="margin-top:6px;text-align:center;font-size:12px;color:#27ae60;padding:8px;">✅ 상황 종료됨</div>'}`;
+    if(hasWpCoords)setTimeout(()=>_initTlMiniMap(_tlWps),150);
   } else {
     // 작성 mode
     function tlTitle(p,idx){
