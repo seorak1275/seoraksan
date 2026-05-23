@@ -2202,7 +2202,8 @@ function syncFormMapFromInput(){
 }
 function _autoFillLoc(lat,lng){
   var el=document.getElementById('r_loc');
-  if(!el||el.value.trim())return;
+  if(!el)return;
+  if(el.dataset.userEdited)return;
   var s=_nearestSign(lat,lng);
   if(s){el.value=s;autoGenTitle();return;}
   // 폴백: 카카오 역지오코딩으로 행정구역명 입력
@@ -3804,7 +3805,7 @@ function render1BoForm(prefill=null){
           </div>
         </div>
         <div class="fg"><span class="fl">사고 장소</span>
-          <input type="text" id="r_loc" class="fi" placeholder="예: 비선대 직상부 암릉 구간" value="${p.location||''}" oninput="autoGenTitle()">
+          <input type="text" id="r_loc" class="fi" placeholder="예: 비선대 직상부 암릉 구간" value="${p.location||''}" oninput="autoGenTitle();this.dataset.userEdited='1'">
         </div>
         <div class="fg"><span class="fl">장소구분</span>
           <div style="display:flex;gap:5px;flex-wrap:wrap;" id="loctypeBtns">
