@@ -3698,7 +3698,7 @@ function selectTlTeam(idx){
   _rerenderTlFull();
 }
 
-const _TL_STAGES=['출발','이동중','환자조우','완료'];
+const _TL_STAGES=['출발','이동중','환자조우','하산'];
 function _teamStageIdx(team){
   if(!team.wps.length||team.wpIdx===0)return 0;
   if(team.wpIdx>=team.wps.length-1)return 2;
