@@ -1629,20 +1629,16 @@ function initDB(){
   })();
   // catFacMeta 초기화 (재난지도 표시 여부 + 관리자 전용 여부)
   (function(){var m=DB.g('catFacMeta')||{};var changed=false;var def={'🪧 다목적위치표지판':{rescue:true,adminOnly:false},'📍 장소':{rescue:true,adminOnly:true},'🏠 대피소':{rescue:true,adminOnly:false}};Object.keys(def).forEach(function(k){if(!m[k]){m[k]=def[k];changed=true;}});if(changed)DB.s('catFacMeta',m);})();
-  // 사찰 카테고리 마이그레이션: 이름이 암/사로 끝나는 catFac 항목 및 시설물을 🛕 사찰로 통합
+  // 사찰 카테고리 마이그레이션: catFac 목록에서 암/사로 끝나는 항목 제거하고 🛕 사찰로 통합 (1회성)
   (function(){
     var TEMPLE='🛕 사찰';
     var isTemple=function(s){var t=s.replace(/^[\s\S]*\s/,'');return /암$|사$/.test(t);};
     var c=DB.g('catFac')||[];var cm=false;
     // 사찰 항목 없으면 추가
     if(!c.includes(TEMPLE)){c.push(TEMPLE);cm=true;}
-    // 암/사로 끝나는 catFac 항목 제거
+    // 암/사로 끝나는 catFac 항목 제거 (카테고리 목록만 정리, 시설물 타입은 건드리지 않음)
     var c2=c.filter(function(x){if(x===TEMPLE)return true;var name=x.replace(/^[^\s]+\s/,'');if(isTemple(name)){cm=true;return false;}return true;});
     if(cm)DB.s('catFac',c2);
-    // 시설물: 이름이 암/사로 끝나는 것 → 타입을 🛕 사찰로 변경
-    var facs=DB.g('facilities');if(!facs)return;
-    var fc=false;var f2=facs.map(function(f){if(f.name&&isTemple(f.name)&&f.type!==TEMPLE){fc=true;return Object.assign({},f,{type:TEMPLE});}return f;});
-    if(fc)DB.s('facilities',f2);
   })();
   if(!DB.g('wikiCats'))   DB.s('wikiCats',['지형','안전','장비','법령','응급','탐방로','시설','동식물','기상']);
   if(!DB.g('facilities')) DB.s('facilities',[]);
@@ -5524,6 +5520,7 @@ function renderAdmSys(){
           <input type="file" accept=".json" style="display:none;" onchange="importAllData(this.files[0]);this.value=''">
         </label>
         <button onclick="forceSyncFirestore()" style="width:100%;background:rgba(255,165,0,.1);color:#f0a020;border:1px solid rgba(255,165,0,.28);padding:10px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;">🔄 Firebase 강제 동기화</button>
+        <button onclick="fixMisclassifiedTemples()" style="width:100%;background:rgba(79,168,208,.1);color:#4fa8d0;border:1px solid rgba(79,168,208,.28);padding:10px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;">🪧 암지형 오분류 복구 (귀면암 등)</button>
       </div>
     </div>
     <div class="scard"><div class="stitle" style="color:#c0392b;">⚠️ 위험 작업</div>
@@ -5620,6 +5617,30 @@ function forceSyncFirestore(){
   });
   toast('🔄 Firebase에 '+cnt+'개 항목 동기화 중...');
   setTimeout(()=>toast('✅ 동기화 완료'),1500);
+}
+
+// 잘못 사찰로 분류된 암지형 다목적표지판 복구
+// "암"으로 끝나는 이름이 다목적위치표지판인데 사찰로 잘못 변경된 것을 되돌림
+function fixMisclassifiedTemples(){
+  const facs=DB.g('facilities');if(!facs){toast('⚠️ 시설물 데이터 없음');return;}
+  // 실제 사찰/암자 이름 목록 (오색암 등 정확한 사찰만 포함)
+  const REAL_TEMPLES=['봉정암','오세암','오색암','백담사','신흥사','계조암','내원암','안양암','극락암'];
+  const SIGN_TYPE='🪧 다목적위치표지판';
+  const TEMPLE_TYPE='🛕 사찰';
+  let fixed=0;
+  const f2=facs.map(f=>{
+    if(f.type===TEMPLE_TYPE&&f.name){
+      const isRealTemple=REAL_TEMPLES.some(t=>f.name.includes(t));
+      if(!isRealTemple){
+        fixed++;
+        return Object.assign({},f,{type:SIGN_TYPE});
+      }
+    }
+    return f;
+  });
+  if(fixed===0){toast('수정이 필요한 항목 없음');return;}
+  DB.s('facilities',f2);
+  toast('✅ '+fixed+'개 항목을 다목적위치표지판으로 복구');
 }
 
 // ══════════════════════════════════════════
