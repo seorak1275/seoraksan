@@ -4008,9 +4008,21 @@ function tlPass(){
   const el=document.getElementById('tlWp_'+next);
   if(el){el.style.transition='background .2s';el.style.background='rgba(231,76,60,.07)';}
   setTimeout(()=>{
+    const passedWp=_tlWps[_tlWpIdx];
     _tlWps[_tlWpIdx].passedAt=now();_tlWps[_tlWpIdx].status='passed';_tlWps[next].status='active';
     _tlWpIdx=next;_saveTeamState();_tlAnimating=false;_rerenderTlFull();
     if(_tlWps[next].isTarget)toast('🎯 환자 조우!');
+    // 통과 기록 저장
+    if(_tlWpResId){
+      const _res=DB.g('rescues')||[];const _ri=_res.findIndex(x=>x.id===_tlWpResId);
+      if(_ri>=0){
+        if(!_res[_ri].wpLog)_res[_ri].wpLog=[];
+        const _team=_tlTeams[_tlSelTeam]||{};
+        const _d=new Date();
+        _res[_ri].wpLog.push({time:_d.getHours().toString().padStart(2,'0')+':'+_d.getMinutes().toString().padStart(2,'0'),teamName:_team.name||'팀',code:passedWp.code||'',wpName:passedWp.name||''});
+        DB.s('rescues',_res);
+      }
+    }
   },dur);
 }
 
@@ -4084,59 +4096,40 @@ function renderTimeline(r,viewMode){
       <!-- 팀 생성 영역 -->
       <div id="tlBuildArea">
         ${_tlBuilding?_renderBuildPanelHtml():_renderCreateBtnsHtml()}
-      </div>`;
+      </div>
+      ${(r.wpLog&&r.wpLog.length)?`<div style="background:#060d1a;border-radius:9px;padding:10px 13px;margin-top:4px;border:.5px solid rgba(79,168,208,.15);"><div style="font-size:11px;color:#4fa8d0;font-weight:700;margin-bottom:5px;">📍 위치 통과 기록</div>${r.wpLog.map(l=>`<div style="font-size:11px;color:#b8d4e8;line-height:1.9;font-family:monospace;">${l.time} · ${l.teamName} · ${l.code||'?'}${l.wpName?' ('+l.wpName+')':''} 통과</div>`).join('')}</div>`:''}
+      `;
     if(_tlTeams.some(t=>t.wps.some(w=>w.lat&&w.lng)))setTimeout(()=>_initTlMiniMap((_tlTeams.find(t=>t.wps.some(w=>w.lat&&w.lng))||{wps:[]}).wps),150);
   } else {
-    // 작성 mode
-    function tlTitle(p,idx){
-      if(idx===0){
-        const cats=[];
-        if(r.location)cats.push('위치·기상');
-        if(r.vName||r.severity)cats.push('환자·부상');
-        if((r.members||[]).length)cats.push('출동대원');
-        return '1보'+(cats.length?' — '+cats.join(' · '):'');
-      }
-      const cats=[];
-      if(p.update)cats.push('상황보고');
-      if(p.victimChange&&p.victimChange!=='변화없음')cats.push('부상자 '+p.victimChange);
-      if(p.addMem)cats.push('대원추가');
-      return `${idx+1}보`+(cats.length?' — '+cats.join(' · '):'');
-    }
-    function renderPhaseContent(p,i){
-      const _ok=v=>{if(!v&&v!==0)return false;const s=String(v).trim();return s&&s!=='-'&&!['미상','없음','모르겠음','알수없음','미정','해당없음'].includes(s);};
-      const _okA=v=>(Array.isArray(v)?v:[]).filter(x=>_ok(x));
-      if(i===0){
-        const rows=[];
-        if(_ok(r.location))rows.push(`<b>위치:</b> ${r.location}${_ok(r.loctype)?' ('+r.loctype+')':''}`);
-        const vp=[_ok(r.vName)?r.vName:'',_ok(r.vBirth)?new Date().getFullYear()-parseInt((r.vBirth||'').slice(0,4))+'세':'',_ok(r.vGender)&&r.vGender!=='알수없음'?r.vGender:'',_ok(r.vNation)&&r.vNation!=='알수없음'?r.vNation:''].filter(Boolean).join(' / ');
-        if(vp)rows.push(`<b>사고자:</b> ${vp}`);
-        if(_ok(r.vTel))rows.push(`<b>연락처:</b> ${r.vTel}`);
-        if(_ok(r.severity))rows.push(`<b>중증도:</b> ${r.severity}`);
-        const inj=_okA(r.injuryParts);if(inj.length)rows.push(`<b>부상:</b> ${inj.join(', ')}`);
-        const rm=_okA(r.rescueMethod);if(rm.length)rows.push(`<b>구조:</b> ${rm.join(', ')}`);
-        if(_ok(r.dispatch)||_ok(r.arrival))rows.push(`<b>출동:</b> ${_ok(r.dispatch)?r.dispatch:'-'} → ${_ok(r.arrival)?r.arrival:'-'}`);
-        const wx=[_ok(r.weather)?r.weather:'',_ok(r.weatherAlert)?r.weatherAlert:''].filter(Boolean).join(' ');
-        if(wx)rows.push(`<b>기상:</b> ${wx}`);
-        if(_ok(r.situation))rows.push(`<b>경위:</b> ${r.situation}`);
-        if(_ok(r.extra))rows.push(`<b>특이:</b> ${r.extra}`);
-        return `<div class="tl-body">${rows.join('<br>')||'입력된 정보 없음'}</div>`;
-      }
-      const rows=[];
-      if(p.update)rows.push(`<b>상황:</b> ${p.update}`);
-      if(p.victimChange&&p.victimChange!=='변화없음')rows.push(`<b>부상자:</b> ${p.victimChange}`);
-      if(p.addMem)rows.push(`<b>추가 대원:</b> ${p.addMem}`);
-      return `<div class="tl-body">${rows.join('<br>')||'내용 없음'}</div>`;
-    }
-    w.innerHTML=tabHdr+`
-      <div class="timeline">
-      ${all.map((p,i)=>`
-        <div class="tl-item">
-          <div class="tl-dot ${i<all.length-1?'done':r.status==='ongoing'?'active':'done'}"></div>
-          <div class="tl-box">
-            <div class="tl-title">${tlTitle(p,i)}</div>
-            ${renderPhaseContent(p,i)}
-          </div>
-        </div>`).join('')}
+    // 통합 보고서 mode
+    const _ok=v=>{if(!v&&v!==0)return false;const s=String(v).trim();return s&&s!=='-'&&!['미상','없음','모르겠음','알수없음','미정','해당없음','기타'].includes(s);};
+    const _okA=v=>(Array.isArray(v)?v:[]).filter(x=>_ok(x));
+    const _row=(k,v)=>v?`<div style="display:flex;gap:8px;padding:5px 0;border-bottom:.5px solid rgba(255,255,255,.04);align-items:flex-start;"><span style="font-size:11px;color:#4a7090;font-weight:600;flex-shrink:0;min-width:46px;">${k}</span><span style="font-size:11px;color:#b8d4e8;line-height:1.55;flex:1;">${v}</span></div>`:'';
+    const rows=[];
+    const dparts=[_ok(r.date)?r.date:'',_ok(r.dispatch)?'신고 '+r.dispatch:'',_ok(r.arrival)?'출동 '+r.arrival:''].filter(Boolean);
+    if(dparts.length)rows.push(_row('일시',dparts.join(' · ')));
+    if(_ok(r.location))rows.push(_row('위치',r.location+(_ok(r.loctype)?' · '+r.loctype:'')));
+    const wx=[_ok(r.weather)?r.weather:'',_ok(r.weatherAlert)?r.weatherAlert:''].filter(Boolean).join(' ');
+    if(wx)rows.push(_row('기상',wx));
+    const vp=[_ok(r.vName)?r.vName:'',_ok(r.vBirth)?new Date().getFullYear()-parseInt((r.vBirth||'').slice(0,4))+'세':'',_ok(r.vGender)&&r.vGender!=='알수없음'?r.vGender:'',_ok(r.vNation)&&r.vNation!=='알수없음'?r.vNation:''].filter(Boolean);
+    if(vp.length)rows.push(_row('사고자',vp.join(' · ')));
+    if(_ok(r.vTel))rows.push(_row('연락처',r.vTel));
+    if(_ok(r.severity))rows.push(_row('중증도',r.severity));
+    const inj=_okA(r.injuryParts);if(inj.length)rows.push(_row('부상',inj.join(', ')));
+    const rm=_okA(r.rescueMethod);if(rm.length)rows.push(_row('구조',rm.join(', ')));
+    if(_ok(r.cause))rows.push(_row('원인',r.cause));
+    if(_ok(r.alcohol)&&r.alcohol!=='알수없음')rows.push(_row('음주',r.alcohol));
+    if(_ok(r.situation))rows.push(_row('경위',r.situation));
+    if(_ok(r.hospital)&&r.hospital!=='미정')rows.push(_row('이송',r.hospital));
+    if(_ok(r.extra))rows.push(_row('특이',r.extra));
+    const updates=(r.reports||[]).filter(p=>p.update||(p.victimChange&&p.victimChange!=='변화없음')||p.addMem||p.extra);
+    const updHtml=updates.length?`<div style="margin-top:7px;padding-top:7px;border-top:.5px solid rgba(255,255,255,.08);">${updates.map(p=>{const pts=[];if(p.update)pts.push(p.update);if(p.victimChange&&p.victimChange!=='변화없음')pts.push('부상자 '+p.victimChange);if(p.addMem)pts.push('추가대원 '+p.addMem);if(p.extra)pts.push(p.extra);return `<div style="padding:5px 0;border-bottom:.5px solid rgba(255,255,255,.04);"><span style="font-size:10px;color:#4a7090;font-weight:600;">${p.repTime||''} · ${p.author||''}</span><br><span style="font-size:11px;color:#b8d4e8;line-height:1.5;">${pts.join(' / ')}</span></div>`;}).join('')}</div>`:'';
+    const wpLog=r.wpLog||[];
+    const logHtml=wpLog.length?`<div style="background:#060d1a;border-radius:9px;padding:10px 13px;margin-bottom:8px;border:.5px solid rgba(79,168,208,.15);"><div style="font-size:11px;color:#4fa8d0;font-weight:700;margin-bottom:5px;">📍 위치 통과 기록</div>${wpLog.map(l=>`<div style="font-size:11px;color:#b8d4e8;line-height:1.9;letter-spacing:.2px;">${l.time} · ${l.teamName} · ${l.code||'?'}${l.wpName?' ('+l.wpName+')':''} 통과</div>`).join('')}</div>`:'';
+    w.innerHTML=tabHdr+logHtml+`
+      <div style="background:#0b1c30;border-radius:10px;padding:12px;border:.5px solid rgba(255,255,255,.07);margin-bottom:8px;">
+        ${rows.join('')||'<div style="font-size:11px;color:rgba(255,255,255,.25);">입력된 정보 없음</div>'}
+        ${updHtml}
       </div>
 
       <div style="background:#0b1c30;border-radius:10px;padding:12px;border:.5px solid rgba(255,255,255,.07);margin-top:10px;">
