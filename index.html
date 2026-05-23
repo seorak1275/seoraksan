@@ -3700,6 +3700,7 @@ function selectTlTeam(idx){
 
 const _TL_STAGES=['출발','이동중','환자조우','하산'];
 function _teamStageIdx(team){
+  if(team.isDescending)return 3;
   if(!team.wps.length||team.wpIdx===0)return 0;
   if(team.wpIdx>=team.wps.length-1)return 2;
   return 1;
@@ -3752,35 +3753,39 @@ function _compactRouteHtml(team,idx){
   const cur=team.wps[team.wpIdx]||team.wps[0];
   const next=team.wps[team.wpIdx+1]||null;
   const atEnd=team.wpIdx>=team.wps.length-1;
-  const canSkip=team.wpIdx<team.wps.length-2;
   const typeIco=team.type==='heli'?'🚁':team.type==='vehicle'?'🚐':'🥾';
   const progTxt=(team.wpIdx)+' / '+(team.wps.length-1);
   const showFull=!!team.showFull;
+  const isDesc=!!team.isDescending;
   if(!cur)return`<div style="text-align:center;font-size:11px;color:rgba(255,255,255,.25);padding:10px 0;">경로 데이터 없음</div>`;
-  const curCode=cur.code?`<span style="font-size:10px;color:#e74c3c;font-weight:700;font-family:monospace;margin-right:6px;">${cur.code}</span>`:'';
+  const curBg=isDesc?'rgba(39,174,96,.08)':'rgba(231,76,60,.08)';
+  const curBorder=isDesc?'rgba(39,174,96,.22)':'rgba(231,76,60,.22)';
+  const curAccent=isDesc?'#5dbf8a':'#e74c3c';
+  const curLabel=isDesc?'🏥 하산 중':'📍 현재 위치';
+  const curCode=cur.code?`<span style="font-size:10px;color:${curAccent};font-weight:700;font-family:monospace;margin-right:6px;">${cur.code}</span>`:'';
   const nextCode=next&&next.code?`<span style="font-size:10px;color:rgba(79,168,208,.7);font-family:monospace;margin-right:5px;">${next.code}</span>`:'';
   const compact=`
-    <div style="background:rgba(231,76,60,.08);border:1px solid rgba(231,76,60,.22);border-radius:10px;padding:11px 13px;margin-bottom:7px;">
+    <div style="background:${curBg};border:1px solid ${curBorder};border-radius:10px;padding:11px 13px;margin-bottom:7px;">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
-        <span style="font-size:10px;color:#e74c3c;font-weight:700;">📍 현재 위치</span>
+        <span style="font-size:10px;color:${curAccent};font-weight:700;">${curLabel}</span>
         <span style="font-size:10px;color:rgba(255,255,255,.28);font-family:monospace;">${progTxt}</span>
       </div>
-      <div style="display:flex;align-items:baseline;gap:4px;"><span style="font-size:15px;font-weight:800;color:#e0edf8;line-height:1.3;">${curCode}${cur.name}</span></div>
+      <div style="font-size:15px;font-weight:800;color:#e0edf8;line-height:1.3;">${curCode}${cur.name}</div>
     </div>
     ${next?`
     <div style="display:flex;align-items:center;gap:9px;padding:0 6px;margin-bottom:8px;">
-      <div style="display:flex;flex-direction:column;align-items:center;gap:0;"><div style="width:1.5px;height:10px;background:rgba(79,168,208,.25);"></div><span style="font-size:13px;line-height:1;">▼</span><div style="width:1.5px;height:10px;background:rgba(79,168,208,.25);"></div></div>
+      <div style="display:flex;flex-direction:column;align-items:center;"><div style="width:1.5px;height:10px;background:rgba(79,168,208,.25);"></div><span style="font-size:13px;line-height:1;">▼</span><div style="width:1.5px;height:10px;background:rgba(79,168,208,.25);"></div></div>
       <div style="flex:1;background:rgba(79,168,208,.06);border:1px solid rgba(79,168,208,.15);border-radius:8px;padding:8px 11px;">
-        <div style="font-size:10px;color:#4a7090;font-weight:600;margin-bottom:3px;">다음 ${typeIco}</div>
+        <div style="font-size:10px;color:#4a7090;font-weight:600;margin-bottom:3px;">${isDesc?'하산':'다음'} ${typeIco}</div>
         <div style="font-size:13px;font-weight:600;color:rgba(255,255,255,.6);">${nextCode}${next.name}</div>
       </div>
-    </div>`:`<div style="padding:2px 13px 9px;font-size:11px;color:#27ae60;font-weight:700;">🎯 사고지점 도달 대기</div>`}
+    </div>`:`<div style="padding:2px 13px 9px;font-size:11px;color:${isDesc?'#5dbf8a':'#27ae60'};font-weight:700;">${isDesc?'🏁 분소/탐방지원센터 도착':'🎯 사고지점 도달 대기'}</div>`}
     <div style="display:flex;gap:6px;margin-bottom:8px;">
       <button id="tlPassBtn_${idx}" onclick="event.stopPropagation();tlPassTeam(${idx})" ${atEnd?'disabled':''} style="flex:2;padding:11px;border-radius:8px;border:1px solid rgba(79,168,208,.4);background:rgba(79,168,208,.15);color:#4fa8d0;font-size:13px;font-weight:800;cursor:pointer;opacity:${atEnd?.3:1};">통과 →</button>
-      <button id="tlSkipBtn_${idx}" onclick="event.stopPropagation();tlSkipTeam(${idx})" ${!canSkip?'disabled':''} style="flex:1;padding:11px;border-radius:8px;border:1px solid rgba(255,255,255,.1);background:transparent;color:rgba(255,255,255,.38);font-size:12px;font-weight:600;cursor:pointer;opacity:${canSkip?1:.3};">건너뛰기</button>
+      ${!isDesc?`<button onclick="event.stopPropagation();tlEncounterTeam(${idx})" style="flex:1;padding:11px;border-radius:8px;border:1px solid rgba(231,76,60,.45);background:rgba(231,76,60,.15);color:#e74c3c;font-size:12px;font-weight:800;cursor:pointer;">🎯 환자조우</button>`:''}
     </div>
     ${showFull?`<div id="tlWpList_${idx}" style="max-height:230px;overflow-y:auto;border:1px solid rgba(255,255,255,.07);border-radius:8px;padding:6px 8px;margin-bottom:7px;">${team.wps.map((w,i)=>_wpItemHtmlTeam(w,i,team,idx)).join('')}</div>`:''}
-    <button onclick="event.stopPropagation();_toggleTlFull(${idx})" style="width:100%;padding:6px;border-radius:7px;border:1px solid rgba(255,255,255,.08);background:transparent;color:rgba(255,255,255,.28);font-size:11px;cursor:pointer;">${showFull?'▲ 경로 접기':'▾ 전체 경로 ('+team.wps.length+'개)'}</button>`;
+    <button onclick="event.stopPropagation();_toggleTlFull(${idx})" style="width:100%;padding:6px;border-radius:7px;border:1px solid rgba(255,255,255,.08);background:transparent;color:rgba(255,255,255,.28);font-size:11px;cursor:pointer;">${showFull?'▲ 경로 접기':'▾ '+(isDesc?'하산':'전체')+' 경로 ('+team.wps.length+'개)'}</button>`;
   return compact;
 }
 
@@ -3830,6 +3835,34 @@ function toggleTlTeamRoute(idx){
 function tlPassTeam(idx){_saveTeamState();_tlSelTeam=idx;_tlWps=_tlTeams[idx].wps;_tlWpIdx=_tlTeams[idx].wpIdx;tlPass();}
 function tlSkipTeam(idx){_saveTeamState();_tlSelTeam=idx;_tlWps=_tlTeams[idx].wps;_tlWpIdx=_tlTeams[idx].wpIdx;tlSkip();}
 function tlWarpToTeam(teamIdx,wpIdx){_saveTeamState();_tlSelTeam=teamIdx;_tlWps=_tlTeams[teamIdx].wps;_tlWpIdx=_tlTeams[teamIdx].wpIdx;tlWarpTo(wpIdx);}
+
+function tlEncounterTeam(idx){
+  if(!_tlTeams[idx])return;
+  _saveTeamState();
+  _tlSelTeam=idx;
+  _tlWps=_tlTeams[idx].wps;
+  _tlWpIdx=_tlTeams[idx].wpIdx;
+  // 환자조우 지점까지의 경유지 역순 = 하산 경로
+  const ascentSoFar=_tlWps.slice(0,_tlWpIdx+1);
+  const descent=ascentSoFar.slice().reverse().map((w,i)=>({
+    code:w.code||'',
+    name:i===0?'🎯 '+w.name+' (환자조우)':w.name,
+    lat:w.lat||null,
+    lng:w.lng||null,
+    status:i===0?'active':'pending',
+    isBase:i===ascentSoFar.length-1,
+    isTarget:false,
+    passedAt:null
+  }));
+  _tlTeams[idx].wps=descent;
+  _tlTeams[idx].wpIdx=0;
+  _tlTeams[idx].isDescending=true;
+  _tlTeams[idx].showFull=false;
+  _tlWps=descent;_tlWpIdx=0;
+  _saveTeamState();
+  toast('🎯 환자 조우 — 하산 경로 생성됨');
+  _rerenderTlFull();
+}
 
 function _rerenderTlFull(){
   const el=document.getElementById('tlAllTeams');
