@@ -283,6 +283,7 @@ button{-webkit-tap-highlight-color:transparent;touch-action:manipulation;}
 .fg{margin-bottom:11px;}.fg:last-child{margin-bottom:0;}
 .fl{display:block;font-size:10px;color:#3a6a8a;margin-bottom:4px;font-weight:600;}
 .fi,.fsel,.fta{width:100%;background:#060d1a;border:1px solid rgba(255,255,255,.09);color:#e0edf8;padding:9px 11px;border-radius:8px;font-size:12px;outline:none;font-family:inherit;}
+.fi,.fsel{min-height:44px;}
 .fi:focus,.fsel:focus,.fta:focus{border-color:rgba(79,168,208,.5);}
 .fi.ro{background:#040a14;color:#3a6a8a;border-color:transparent;}
 .fta{resize:none;line-height:1.6;}
@@ -540,6 +541,19 @@ body.guest-mode #guestBadge{display:inline-block;}
 /* ══ 게스트 모드: 쓰기 요소 숨김 ══ */
 body.guest-mode .guest-hide{display:none!important;}
 
+/* ── 야외 고대비 모드 (🌞 토글) ── */
+body.hi-contrast .fi,body.hi-contrast .fsel,body.hi-contrast .fta{color:#fff!important;border-color:rgba(255,255,255,.45)!important;background:#050c18!important;}
+body.hi-contrast .fl{color:rgba(255,255,255,.85)!important;}
+body.hi-contrast .muted,body.hi-contrast .sec-label{color:rgba(255,255,255,.75)!important;}
+body.hi-contrast .scard{border-color:rgba(255,255,255,.22)!important;}
+body.hi-contrast .pill{border-color:rgba(255,255,255,.38)!important;color:rgba(255,255,255,.85)!important;}
+body.hi-contrast .stitle{color:#fff!important;}
+body.hi-contrast .tl-content{color:rgba(255,255,255,.9)!important;}
+body.hi-contrast .ni-msg{color:#fff!important;}
+body.hi-contrast .ni-t{color:rgba(255,255,255,.55)!important;}
+body.hi-contrast .fac-name,body.hi-contrast .fac-loc{color:rgba(255,255,255,.85)!important;}
+body.hi-contrast .adm-name,body.hi-contrast .adm-meta{color:rgba(255,255,255,.8)!important;}
+body.hi-contrast .stat-lbl{color:rgba(255,255,255,.65)!important;}
 </style>
 
 <div id="loadingScreen" style="position:fixed;inset:0;background:#060d1a;z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;pointer-events:auto;">
@@ -641,6 +655,7 @@ body.guest-mode .guest-hide{display:none!important;}
       <div id="headerUserArea" style="display:none;align-items:center;gap:5px;">
         <span id="headerUserName" style="font-size:11px;color:#4fa8d0;font-weight:600;max-width:70px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"></span>
       </div>
+      <button id="hiContrastBtn" onclick="toggleHiContrast()" title="야외 고대비 모드" style="background:none;border:none;font-size:17px;cursor:pointer;padding:3px 4px;line-height:1;opacity:.5;flex-shrink:0;">🌞</button>
       <div class="bell-wrap"><button class="bell-btn" onclick="openNoti()">🔔</button><div class="bell-cnt" id="bellCnt"></div></div>
     </div>
   </div>
@@ -1645,21 +1660,65 @@ document.querySelectorAll('.modal').forEach(m=>{
   if(m.id==='modalUser')return; // 필수입력 검증 때문에 별도처리
   m.addEventListener('click',function(e){if(e.target===this)closeM(this.id);});
 });
+// ── 오프라인 사진 업로드 큐 ──────────────────────
+const _offlinePhotoQueue=[];
+window.addEventListener('online',async()=>{
+  if(!_offlinePhotoQueue.length)return;
+  toast('🌐 연결됨 — 대기 중인 사진 '+_offlinePhotoQueue.length+'장 업로드 중...');
+  const items=_offlinePhotoQueue.splice(0);
+  for(const item of items){
+    try{
+      const url=await uploadImageToStorage(item.file,'photos/'+item.pid);
+      const prev=document.getElementById(item.pid);
+      if(prev){prev.dataset.url=url;const img=prev.querySelector('img');if(img)img.src=url;prev.querySelector('.up-badge')?.remove();}
+    }catch(e){}
+  }
+  toast('✅ 사진 업로드 완료');
+});
+// ── 이미지 압축 (긴 축 1200px, 82% JPEG) ─────────
+async function _compressImage(file,maxPx=1200,quality=0.82){
+  if(file.size<300*1024)return file; // 300KB 이하 압축 생략
+  return new Promise(resolve=>{
+    const img=new Image();
+    img.onload=()=>{
+      URL.revokeObjectURL(img.src);
+      let w=img.width,h=img.height;
+      if(w<=maxPx&&h<=maxPx&&file.size<800*1024){resolve(file);return;}
+      if(w>h){if(w>maxPx){h=Math.round(h*maxPx/w);w=maxPx;}}
+      else{if(h>maxPx){w=Math.round(w*maxPx/h);h=maxPx;}}
+      const c=document.createElement('canvas');c.width=w;c.height=h;
+      c.getContext('2d').drawImage(img,0,0,w,h);
+      c.toBlob(b=>resolve(b||file),'image/jpeg',quality);
+    };
+    img.onerror=()=>resolve(file);
+    img.src=URL.createObjectURL(file);
+  });
+}
 async function uploadImageToStorage(file,path){
   if(!_fst)throw new Error('Storage 미초기화');
-  const ref=_fst.ref().child(path+'/'+Date.now()+'_'+file.name.replace(/[^a-zA-Z0-9._-]/g,'_'));
+  const ref=_fst.ref().child(path+'/'+Date.now()+'_'+(file.name||'photo').replace(/[^a-zA-Z0-9._-]/g,'_'));
   const snap=await ref.put(file);
   return await snap.ref.getDownloadURL();
 }
+// dataset.url이 'pending'이면 빈 문자열 반환
+const _photoUrl=id=>{const u=document.getElementById(id)?.dataset?.url||'';return u==='pending'?'':u;};
 async function prevImg(inp,pid){
   if(!inp.files||!inp.files[0])return;
   const file=inp.files[0];
   const prev=document.getElementById(pid);
   const objUrl=URL.createObjectURL(file);
-  prev.innerHTML=`<img src="${objUrl}" style="opacity:.6"><div style="font-size:10px;color:#4fa8d0;margin-top:3px;">업로드 중...</div>`;
+  prev.innerHTML=`<img src="${objUrl}" style="opacity:.75">`;
   prev.dataset.url='';
+  const compressed=await _compressImage(file);
+  if(!navigator.onLine){
+    prev.innerHTML=`<img src="${objUrl}"><div class="up-badge" style="font-size:10px;color:#e67e22;background:rgba(0,0,0,.75);padding:2px 6px;border-radius:4px;margin-top:3px;text-align:center;">📵 연결 시 자동 업로드</div>`;
+    prev.dataset.url='pending';
+    _offlinePhotoQueue.push({file:compressed,pid});
+    return;
+  }
+  prev.innerHTML=`<img src="${objUrl}" style="opacity:.6"><div class="up-badge" style="font-size:10px;color:#4fa8d0;background:rgba(0,0,0,.75);padding:2px 6px;border-radius:4px;margin-top:3px;text-align:center;">업로드 중...</div>`;
   try{
-    const url=await uploadImageToStorage(file,'photos/'+pid);
+    const url=await uploadImageToStorage(compressed,'photos/'+pid);
     prev.dataset.url=url;
     prev.innerHTML=`<img src="${url}">`;
   }catch(e){
@@ -1770,6 +1829,13 @@ function _showSystemNoti(body,ico){
   }else if('Notification' in window){
     try{new Notification(title,{body});}catch(e){}
   }
+}
+function toggleHiContrast(){
+  const on=document.body.classList.toggle('hi-contrast');
+  localStorage.setItem('_hiContrast',on?'1':'');
+  const btn=document.getElementById('hiContrastBtn');
+  if(btn)btn.style.opacity=on?'1':'.5';
+  toast(on?'🌞 야외 고대비 모드 켜짐':'🌙 고대비 모드 꺼짐');
 }
 // VAPID 키 설정 후 FCM 토큰 등록 (Firebase Console > Project Settings > Cloud Messaging > Web Push 인증서)
 const _FCM_VAPID=''; // ← 여기에 Firebase Console에서 발급한 VAPID 키 입력
@@ -1960,7 +2026,7 @@ function gpsTo(mode){
     el.style.cssText='width:18px;height:18px;border-radius:50%;background:#4fa8d0;border:3px solid #fff;box-shadow:0 0 10px rgba(79,168,208,.8),0 2px 6px rgba(0,0,0,.5);';
     myOv=new kakao.maps.CustomOverlay({position:ll,content:el});myOv.setMap(m);
     toast('✅ 내 위치');
-  },()=>toast('⚠️ GPS 실패. 위치 권한 확인'));
+  },()=>toast('⚠️ GPS 실패. 위치 권한 확인'),{enableHighAccuracy:true,timeout:15000,maximumAge:10000});
 }
 function gpsFromMap(id,mode){
   try{const m=mode==='inspect'?mapI:mapR;const c=m.getCenter();document.getElementById(id).value=c.getLat().toFixed(5)+', '+c.getLng().toFixed(5);toast('🗺️ 지도 중심 좌표');}
@@ -1968,7 +2034,7 @@ function gpsFromMap(id,mode){
 }
 function gpsFromPhone(id){
   if(!navigator.geolocation){toast('⚠️ GPS 미지원');return;}
-  navigator.geolocation.getCurrentPosition(p=>{document.getElementById(id).value=p.coords.latitude.toFixed(5)+', '+p.coords.longitude.toFixed(5);toast('📍 현재 위치');},()=>toast('⚠️ GPS 실패'));
+  navigator.geolocation.getCurrentPosition(p=>{document.getElementById(id).value=p.coords.latitude.toFixed(5)+', '+p.coords.longitude.toFixed(5);toast('📍 현재 위치');},()=>toast('⚠️ GPS 실패'),{enableHighAccuracy:true,timeout:15000,maximumAge:10000});
 }
 
 // ══════════════════════════════════════════
@@ -2343,7 +2409,7 @@ function gpsToFormMap(){
     if(btn)btn.textContent='📡 GPS';
     if(st)st.textContent=err.code===1?'⚠️ 위치 권한이 거부됨 — 설정에서 허용 후 재시도':'⚠️ GPS 신호 없음 — 🗺 지도에서 직접 선택하세요';
     toast(err.code===1?'⚠️ 위치 권한 거부됨':'⚠️ GPS 신호 없음');
-  },{enableHighAccuracy:true,timeout:10000,maximumAge:0});
+  },{enableHighAccuracy:true,timeout:15000,maximumAge:0});
 }
 function syncFormMapFromInput(){
   const v=(document.getElementById('r_gps')?.value||'').split(',');
@@ -4351,8 +4417,8 @@ function submit1Bo(){
     hasRep:document.getElementById('r_hasRep')?.value||'n',
     repName:document.getElementById('r_repName')?.value||'',
     repTel:document.getElementById('r_repTel')?.value||'',
-    injuryPhoto:document.getElementById('prevInj')?.dataset?.url||'',
-    transPhoto:document.getElementById('prevTrans')?.dataset?.url||'',
+    injuryPhoto:_photoUrl('prevInj'),
+    transPhoto:_photoUrl('prevTrans'),
     timetable: sortTTByTime(_ttInlineEntries||[]),
     status:'ongoing', reports:[],
   };
@@ -4442,7 +4508,7 @@ function submitHazard(){
     hazStatus:getSelPills('hazStatusPills')[0]||'미조치',
     onSite:getSelPills('hazOnSitePills')[0]||'',response:getSelPills('hazResponsePills')[0]||'',
     author:document.getElementById('hz_author').value,
-    photo:document.getElementById('prevHaz')?.dataset?.url||'',
+    photo:_photoUrl('prevHaz'),
     fireTL:type.includes('산불')?[..._hazFireTL]:[],
   };
   const haz=DB.g('hazards')||[];haz.push(h);DB.s('hazards',haz);
@@ -4797,7 +4863,7 @@ function submitInsp(){
   facs[idx].status=ns;
   const hist=DB.g('history')||[];
   const inspDT=document.getElementById('inspDateTime')?.value||now();
-  const h={id:Date.now(),facId:selFacId,facName:facs[idx].name,date:inspDT,status:ns,note,author,photo:document.getElementById('prevInsp')?.dataset?.url||''};
+  const h={id:Date.now(),facId:selFacId,facName:facs[idx].name,date:inspDT,status:ns,note,author,photo:_photoUrl('prevInsp')};
   hist.push(h);DB.s('facilities',facs);DB.s('history',hist);
   if(ns==='bad')pushNoti(`점검 위험: ${facs[idx].name}`,'🚨','fac_bad',{app:'inspect',tab:2,id:selFacId});
   else if(ns==='warn')pushNoti(`보수필요: ${facs[idx].name}`,'⚠️','fac_warn',{app:'inspect',tab:2,id:selFacId});
@@ -4865,7 +4931,7 @@ function submitAddFac(){
   if(gs){const p=gs.split(',');lat=parseFloat(p[0]);lng=parseFloat(p[1]);if(isNaN(lat)||isNaN(lng)){lat=null;lng=null;}}
   const status=document.getElementById('facInitSt').value;
   const facs=DB.g('facilities')||[];
-  const data={type:document.getElementById('facTypeSel').value,name,loc:document.getElementById('facLocIn').value,status,lat,lng,install:document.getElementById('facInstall').value,note:document.getElementById('facNote').value,author:document.getElementById('facAuthor').value,photo:document.getElementById('prevFac')?.dataset?.url||''};
+  const data={type:document.getElementById('facTypeSel').value,name,loc:document.getElementById('facLocIn').value,status,lat,lng,install:document.getElementById('facInstall').value,note:document.getElementById('facNote').value,author:document.getElementById('facAuthor').value,photo:_photoUrl('prevFac')};
   if(_editFacId){
     const idx=facs.findIndex(f=>f.id===_editFacId);
     if(idx!==-1)facs[idx]=Object.assign(facs[idx],data);
@@ -5003,7 +5069,7 @@ function submitWiki(){
   const cats=[..._selCats];const editId=document.getElementById('wikiEditId').value;
   const wikis=DB.g('wikis')||[];
   if(editId){const idx=wikis.findIndex(x=>String(x.id)===String(editId));if(idx!==-1){if(!wikis[idx].versions)wikis[idx].versions=[];wikis[idx].versions.push({body:wikis[idx].body,savedAt:now(),author:wikis[idx].author});wikis[idx]={...wikis[idx],title,cats,body,author};}}
-  else{wikis.push({id:Date.now(),title,cats,body,photo:document.getElementById('prevWiki')?.dataset?.url||'',author,versions:[]});}
+  else{wikis.push({id:Date.now(),title,cats,body,photo:_photoUrl('prevWiki'),author,versions:[]});}
   DB.s('wikis',wikis);closeM('modalWikiEdit');renderWikiList('');toast('✅ 위키 저장');updateSummary();
 }
 function deleteWiki(id){
@@ -5027,6 +5093,7 @@ function insTable(){const ta=document.getElementById('wikiBodyIn');const s=ta.se
 function insList(){const ta=document.getElementById('wikiBodyIn');const s=ta.selectionStart;const lst='\n• 항목 1\n• 항목 2\n• 항목 3\n';ta.value=ta.value.slice(0,s)+lst+ta.value.slice(s);ta.focus();}
 async function insBodyImg(inp){
   if(!inp.files||!inp.files[0])return;
+  if(!navigator.onLine){toast('⚠️ 오프라인 — 연결 후 사진 삽입 가능');return;}
   const file=inp.files[0];
   const ta=document.getElementById('wikiBodyIn');
   const s=ta.selectionStart;
@@ -5034,7 +5101,8 @@ async function insBodyImg(inp){
   ta.value=ta.value.slice(0,s)+placeholder+ta.value.slice(s);
   ta.focus();
   try{
-    const url=await uploadImageToStorage(file,'photos/wiki');
+    const compressed=await _compressImage(file);
+    const url=await uploadImageToStorage(compressed,'photos/wiki');
     ta.value=ta.value.replace('![사진](업로드중...)',`![사진](${url})`);
     toast('📷 사진 삽입 완료');
   }catch(e){
@@ -6816,7 +6884,8 @@ window.onload=function(){
     if(type==='loc'){
       navigator.geolocation.getCurrentPosition(
         function(){toast('📍 위치 권한 허용됨');_permBanner('loc','granted');},
-        function(){toast('⚠️ 위치 권한이 거부되었습니다');}
+        function(){toast('⚠️ 위치 권한이 거부되었습니다');},
+        {enableHighAccuracy:true,timeout:15000}
       );
     } else if(type==='noti'){
       Notification.requestPermission().then(function(r){
@@ -6827,6 +6896,9 @@ window.onload=function(){
     }
   };
   setTimeout(_initPermBanners, 800); // 앱 로딩 후 표시
+
+  // 야외 고대비 모드 복원
+  if(localStorage.getItem('_hiContrast')){document.body.classList.add('hi-contrast');var _hb=document.getElementById('hiContrastBtn');if(_hb)_hb.style.opacity='1';}
 
   // ── Service Worker 등록 (PWA 오프라인 + FCM 백그라운드 알림) ──
   if('serviceWorker' in navigator){
