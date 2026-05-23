@@ -562,6 +562,16 @@ body.hi-contrast .stat-lbl{color:rgba(255,255,255,.65)!important;}
 #modalAddPhase .btn-submit,#modalHazard .btn-submit{
   min-height:52px!important;font-size:15px!important;
 }
+/* ── 36번(시설물 등록) · 37번(시설물 점검) 터치 영역 최적화 ── */
+#modalAddFac .fi,#modalAddFac .fsel,#modalInsp .fi,#modalInsp .fsel{
+  min-height:48px!important;padding:12px 14px!important;
+  font-size:16px!important;
+}
+#modalAddFac .btn-submit,#modalInsp .btn-submit{
+  min-height:52px!important;font-size:15px!important;
+}
+/* ── 52번 지도 픽커: 이중 모달 시 최상단 보장 ── */
+#modalMapPicker{z-index:60!important;}
 </style>
 
 <div id="loadingScreen" style="position:fixed;inset:0;background:#060d1a;z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;pointer-events:auto;">
