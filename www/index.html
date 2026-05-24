@@ -2209,95 +2209,97 @@ const _ICE_LOCS=['토왕성폭포','두줄폭포','형제폭포','50m/100m폭포
 
 // ── ZZ-NN 구역 관리 체계 ─────────────────────────────────
 // lat/lng: 각 구역 탐방로 중심점 (실측 후 수정 권장)
-const SEORAK_ZONES = {
-  '01':{name:'천불동계곡',          base:'소공원탐방지원센터',      lat:38.1720,lng:128.4770},
-  '02':{name:'천불동→대청봉',      base:'소공원/백담탐방지원센터', lat:38.1420,lng:128.4620},
-  '03':{name:'공룡능선',            base:'소공원/백담탐방지원센터', lat:38.1540,lng:128.5480},
-  '04':{name:'소공원 서측',         base:'소공원탐방지원센터',      lat:38.1810,lng:128.4940},
-  '05':{name:'신흥사·비선대',      base:'소공원탐방지원센터',      lat:38.1760,lng:128.4820},
-  '06':{name:'오색',                base:'남설악탐방지원센터',      lat:38.0280,lng:128.5180},
-  '07':{name:'주전골',              base:'용소탐방지원센터',        lat:38.0430,lng:128.5360},
-  '08':{name:'흘림골',              base:'흘림골탐방지원센터',      lat:38.0490,lng:128.5830},
-  '09':{name:'수렴동',              base:'백담탐방지원센터',        lat:38.1070,lng:128.3940},
-  '10':{name:'백담계곡',            base:'백담탐방지원센터',        lat:38.1530,lng:128.3870},
-  '11':{name:'장수대·한계령',      base:'한계산성분소/남교리',     lat:38.0720,lng:128.3260},
-  '12':{name:'한계산성·백담 분기', base:'한계산성분소/백담',       lat:38.1300,lng:128.3500},
-  '13':{name:'귀때기청봉',          base:'소공원/백담탐방지원센터', lat:38.1350,lng:128.4300},
-  '14':{name:'점봉산',              base:'점봉산탐방지원센터',      lat:38.0920,lng:128.5620},
+// ── 표지판 번호(ZZ-NN) 기준 거점 마스터 테이블 ───────────────
+// 형식: ZZ → [[max_NN, primary_base, alt_base?], ...]
+// nn <= max_NN 인 첫 번째 규칙 적용
+const SIGN_BASE_TABLE = {
+  '01': [[99, '소공원']],
+  '02': [[7,  '소공원'], [99, '백담']],
+  '03': [[1,  '소공원'], [4,  '소공원','백담'], [99, '소공원','백담']],
+  '04': [[99, '소공원']],
+  '05': [[99, '소공원']],
+  '06': [[99, '남설악']],
+  '07': [[3,  '약수터'], [99, '용소']],
+  '08': [[3,  '용소'],   [99, '흘림골']],
+  '09': [[99, '백담']],
+  '10': [[99, '백담']],
+  '11': [[10, '한계산성'], [99, '남교리']],
+  '12': [[8,  '한계산성'], [99, '백담']],
+  '13': [[4,  '소공원'],   [99, '백담']],
+  '14': [[99, '점봉산']],
 };
 
-// NN 번호까지 반영한 동적 구역 명칭 (분기 구역 핵심)
-function getZoneName(zz, nn){
-  var z=parseInt(zz)||0, n=parseInt(nn)||0;
-  switch(z){
-    case 2:  return n&&n>7  ? '02구역 · 천불동→대청봉 (백담 방면)'   : '02구역 · 천불동→대청봉 (소공원 방면)';
-    case 3:
-      if(n===1) return '03구역 · 공룡능선 (소공원)';
-      if(n>=2&&n<=4) return '03구역 · 공룡능선 (소공원/백담 선택)';
-      return '03구역 · 공룡능선 (소공원/백담 선택)';
-    case 7:  return n&&n<=3 ? '07구역 · 주전골 (약수터 방면)'          : '07구역 · 주전골 (용소 방면)';
-    case 8:  return n&&n<=3 ? '08구역 · 흘림골 (용소 방면)'            : '08구역 · 흘림골 (흘림골 방면)';
-    case 11: return n&&n<=10? '11구역 · 장수대 (한계산성)'             : '11구역 · 한계령 (남교리)';
-    case 12: return n&&n<=8 ? '12구역 · 한계산성 방면'                 : '12구역 · 백담 방면';
-    case 13: return n&&n<=4 ? '13구역 · 귀때기청봉 (소공원 방면)'     : '13구역 · 귀때기청봉 (백담 방면)';
-    default:
-      var zone=SEORAK_ZONES[String(zz).padStart(2,'0')];
-      return zone ? String(z).padStart(2,'0')+'구역 · '+zone.name : String(z).padStart(2,'0')+'구역';
+// 구역 참조명 (표시 보조용 — 라우팅 결정에 사용 안 함)
+const ZONE_NAMES = {
+  '01':'천불동계곡','02':'천불동→대청봉','03':'공룡능선',
+  '04':'소공원 서측','05':'신흥사·비선대','06':'오색',
+  '07':'주전골','08':'흘림골','09':'수렴동',
+  '10':'백담계곡','11':'장수대·한계령','12':'한계산성·백담 분기',
+  '13':'귀때기청봉','14':'점봉산',
+};
+
+// 표지판 코드(ZZ-NN) → 거점 {primary, alt} 반환 ← 모든 라우팅의 단일 진입점
+function getBaseForSign(signCode){
+  var m=(signCode||'').match(/^(\d{2})-(\d{2,3})$/);
+  if(!m)return null;
+  var zz=m[1], nn=parseInt(m[2]);
+  var rules=SIGN_BASE_TABLE[zz];
+  if(!rules)return null;
+  for(var i=0;i<rules.length;i++){
+    if(nn<=rules[i][0])return{primary:rules[i][1],alt:rules[i][2]||null};
   }
+  return null;
 }
 
-// 좌표 → Zone ID: 실제 DB의 다목적위치표지판 GPS 기준 (추정 중심점 대신)
-function getZoneId(lat,lng){
-  // 1순위: 사용자가 입력한 실제 표지판 GPS 데이터
-  var signs=(DB.g('facilities')||[]).filter(function(f){
-    return f.lat&&f.lng&&f.name&&f.type&&f.type.indexOf('다목적위치표지판')>=0;
-  });
-  if(signs.length){
-    var best=null,bestD=Infinity;
-    signs.forEach(function(f){var d=_haversine(lat,lng,f.lat,f.lng);if(d<bestD){bestD=d;best=f;}});
-    if(best&&bestD<=5000){
-      var m=(best.name||'').match(/^(\d{2})-/);
-      if(m&&SEORAK_ZONES[m[1]])return m[1];
-    }
-  }
-  // 2순위 폴백: 구역 중심점 거리 (표지판 데이터 없을 때)
-  var b=null,bD=Infinity;
-  Object.keys(SEORAK_ZONES).forEach(function(k){
-    var z=SEORAK_ZONES[k],d=_haversine(lat,lng,z.lat,z.lng);
-    if(d<bD){bD=d;b=k;}
-  });
-  return(b&&bD<=8000)?b:null;
-}
-// getZoneId의 부가정보 버전: {zoneId, signCode, dist} 반환
-function getZoneInfo(lat,lng){
+// GPS → 가장 가까운 표지판 전체 정보 반환
+function _nearestSignFull(lat,lng){
   var signs=(DB.g('facilities')||[]).filter(function(f){
     return f.lat&&f.lng&&f.name&&f.type&&f.type.indexOf('다목적위치표지판')>=0;
   });
   var best=null,bestD=Infinity;
   signs.forEach(function(f){var d=_haversine(lat,lng,f.lat,f.lng);if(d<bestD){bestD=d;best=f;}});
-  var zoneId=null,signCode=null;
-  if(best&&bestD<=5000){
-    var m=(best.name||'').match(/^(\d{2})-/);
-    if(m&&SEORAK_ZONES[m[1]]){zoneId=m[1];signCode=(best.name.match(/\d[\d\-]*\d|\d/)||[best.name.slice(0,6)])[0];}
-  }
-  if(!zoneId){var b=null,bD=Infinity;Object.keys(SEORAK_ZONES).forEach(function(k){var z=SEORAK_ZONES[k],d=_haversine(lat,lng,z.lat,z.lng);if(d<bD){bD=d;b=k;}});if(b&&bD<=8000)zoneId=b;}
-  return{zoneId:zoneId,signCode:signCode,dist:best&&bestD<=5000?Math.round(bestD):null};
+  if(!best||bestD>5000)return null;
+  var code=(best.name.match(/^\d{2}-\d{2,3}/)||[best.name.slice(0,6)])[0];
+  var zm=code.match(/^(\d{2})-/);
+  return{code:code,name:best.name,dist:Math.round(bestD),zoneName:zm?ZONE_NAMES[zm[1]]||'':''};
 }
 
-// Zone 뱃지 DOM 업데이트 헬퍼 (NN 반영 동적 명칭)
+// GPS → {signCode, dist, zoneName, base} 복합 정보 (하위 호환 유지용)
+function getZoneInfo(lat,lng){
+  var s=_nearestSignFull(lat,lng);
+  if(!s)return{zoneId:null,signCode:null,dist:null};
+  var zm=(s.code||'').match(/^(\d{2})-/);
+  return{zoneId:zm?zm[1]:null,signCode:s.code,dist:s.dist,zoneName:s.zoneName};
+}
+
+// Zone 뱃지: "ZZ-NN → 거점명 (Xm)" 표지판 코드 최우선
 function _updateZoneBadge(lat,lng,elId){
   var el=document.getElementById(elId);if(!el)return;
-  var info=getZoneInfo(lat,lng);
-  if(info.zoneId){
-    var nn=null;
-    if(info.signCode){var ms=info.signCode.match(/^(\d{2})-(\d{2,3})/);if(ms)nn=parseInt(ms[2]);}
-    var label=getZoneName(parseInt(info.zoneId),nn);
-    if(info.signCode&&info.dist!==null)label+=' ('+info.signCode+' · '+info.dist+'m)';
-    el.textContent=label;el.style.display='block';
-  } else el.style.display='none';
+  var s=_nearestSignFull(lat,lng);
+  if(!s){el.style.display='none';return;}
+  var base=getBaseForSign(s.code);
+  var baseName=base?((SEORAK_BASES[base.primary]||{}).name||base.primary):'관리자 확인 필요';
+  var shortBase=baseName.replace('탐방지원센터','센터').replace('설악산국립공원사무소','사무소');
+  var label=s.code+' → '+shortBase;
+  if(base&&base.alt){var altName=((SEORAK_BASES[base.alt]||{}).name||base.alt).replace('탐방지원센터','센터');label+=' / '+altName+' 선택';}
+  if(s.dist!==null)label+=' ('+s.dist+'m)';
+  el.textContent=label;el.style.display='block';
 }
 
-// ── 거점(기지) 좌표 ─────────────────────────────────────────
+// 하위 호환: getZoneId — 표지판 코드에서 ZZ 추출
+function getZoneId(lat,lng){
+  var s=_nearestSignFull(lat,lng);
+  if(s){var m=(s.code||'').match(/^(\d{2})-/);if(m)return m[1];}
+  return null;
+}
+
+// 하위 호환: getBestBase — getBaseForSign 위임
+function getBestBase(zz,nn){
+  var code=String(parseInt(zz)||0).padStart(2,'0')+'-'+String(parseInt(nn)||1).padStart(2,'0');
+  return getBaseForSign(code)||{primary:'소공원'};
+}
+
+
 const SEORAK_BASES = {
   '소공원':   {name:'소공원탐방지원센터',      lat:38.1724, lng:128.4794},
   '백담':     {name:'백담탐방지원센터',        lat:38.1501, lng:128.3897},
@@ -2375,12 +2377,16 @@ function _showHeliInfo(lat,lng){
 
 // 구조 팝업용 출동/하산/대피/헬기 버튼 HTML 생성
 function _buildResRouteHtml(data){
+  // 1순위: location 문자열에서 ZZ-NN 파싱
   const locStr=(data.location||data.title||'');
-  const m=locStr.match(/(\d{2})-(\d{2,3})/);
-  let zz=null,nn=null,zoneId=null;
-  if(m){zz=parseInt(m[1]);nn=parseInt(m[2]);zoneId=String(zz).padStart(2,'0');}
-  else if(data.lat&&data.lng){const _zi=getZoneInfo(data.lat,data.lng);zoneId=_zi.zoneId;if(zoneId){zz=parseInt(zoneId);if(_zi.signCode){const _sm=_zi.signCode.match(/^(\d{2})-(\d{2,3})/);if(_sm)nn=parseInt(_sm[2]);}}}
-  const baseInfo=zz?getBestBase(zz,nn):null;
+  const locM=locStr.match(/(\d{2})-(\d{2,3})/);
+  let signCode=locM?locM[0]:null;
+  // 2순위: GPS로 가장 가까운 표지판 찾기
+  if(!signCode&&data.lat&&data.lng){
+    const s=_nearestSignFull(data.lat,data.lng);
+    if(s)signCode=s.code;
+  }
+  const baseInfo=signCode?getBaseForSign(signCode):null;
   const pb=baseInfo?SEORAK_BASES[baseInfo.primary]:null;
   const ab=baseInfo&&baseInfo.alt?SEORAK_BASES[baseInfo.alt]:null;
   const hub=getMyHub();
@@ -2391,12 +2397,14 @@ function _buildResRouteHtml(data){
   const descent=hasGPS&&pb?`<button onclick="_openKakaoRoute(${data.lat},${data.lng},${pb.lat},${pb.lng},'walk')" style="${bs}background:rgba(39,174,96,.12);color:#5dbf8a;border:1px solid rgba(39,174,96,.25);">🥾 하산<span style="font-size:9px;font-weight:400;opacity:.7;">${sn(pb.name)}</span></button>`:'';
   const evac=pb?`<button onclick="_openKakaoRoute(${pb.lat},${pb.lng},${_SOKCHO_HOSP.lat},${_SOKCHO_HOSP.lng},'car')" style="${bs}background:rgba(230,126,34,.12);color:#e67e22;border:1px solid rgba(230,126,34,.25);">🚑 대피<span style="font-size:9px;font-weight:400;opacity:.7;">속초의료원</span></button>`:'';
   const heli=hasGPS?`<button onclick="_showHeliInfo(${data.lat},${data.lng})" style="${bs}background:rgba(108,79,168,.15);color:#b89af0;border:1px solid rgba(108,79,168,.3);">🚁 헬기<span style="font-size:9px;font-weight:400;opacity:.7;">좌표복사</span></button>`:'';
-  const _dynName=zoneId?getZoneName(parseInt(zoneId),nn):'';
-  const zoneLabel=zoneId?`<div style="font-size:10px;color:#3a6a8a;margin-bottom:5px;padding:0 2px;">📍 ${_dynName}${ab?` <span style="color:#e0a840;font-size:9px;">· ${sn(ab.name)} 경유 가능</span>`:''}</div>`:'';
+  const zm=signCode?(signCode.match(/^(\d{2})-/)||[])[1]:null;
+  const zoneName=zm?(ZONE_NAMES[zm]||''):'';
+  const signLabel=signCode?`<div style="font-size:10px;color:#3a6a8a;margin-bottom:5px;padding:0 2px;">📍 ${signCode}${zoneName?' · '+zoneName:''}${pb?' → '+sn(pb.name):''}${ab?` <span style="color:#e0a840;font-size:9px;">/ ${sn(ab.name)} 선택</span>`:''}</div>`:
+    (hasGPS?`<div style="font-size:10px;color:#e05050;margin-bottom:5px;padding:0 2px;">⚠️ 표지판 코드 없음 — 관리자 확인 필요</div>`:'');
 
   const btns=[dispatch,descent,evac,heli].filter(Boolean);
-  if(!btns.length&&!zoneLabel)return'';
-  return zoneLabel+(btns.length?`<div style="display:flex;gap:5px;">${btns.join('')}</div>`:'');
+  if(!btns.length&&!signLabel)return'';
+  return signLabel+(btns.length?`<div style="display:flex;gap:5px;">${btns.join('')}</div>`:'');
 }
 
 let _extraTeamCollapsed=[];
@@ -7035,15 +7043,14 @@ function confirmMapPicker(){
   const gpsEl=document.getElementById('r_gps');
   if(gpsEl) gpsEl.value=coords;
   syncFormMapFromInput();
-  // 사고 장소 비어 있으면 Zone+표지판 정보 자동 채우기
+  // 사고 장소: 가장 가까운 표지판 번호를 최우선 자동입력
   const locEl=document.getElementById('r_loc');
   if(locEl&&!locEl.value.trim()&&!locEl.dataset.userEdited){
-    const info=getZoneInfo(lat,lng);
-    if(info.zoneId){
-      let nn=null;
-      if(info.signCode){const _ms=info.signCode.match(/^(\d{2})-(\d{2,3})/);if(_ms)nn=parseInt(_ms[2]);}
-      const zoneName=getZoneName(parseInt(info.zoneId),nn);
-      locEl.value=info.signCode?info.signCode+' 인근 ('+zoneName+')':zoneName+' 구간';
+    const s=_nearestSignFull(lat,lng);
+    if(s){
+      const base=getBaseForSign(s.code);
+      const bName=base?((SEORAK_BASES[base.primary]||{}).name||'').replace('탐방지원센터','센터'):'';
+      locEl.value=s.code+(s.zoneName?' ('+s.zoneName+')':'')+(bName?' → '+bName:'');
       autoGenTitle();
     }
   }
