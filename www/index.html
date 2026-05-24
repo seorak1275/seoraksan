@@ -2226,22 +2226,54 @@ const SEORAK_ZONES = {
   '14':{name:'점봉산',         base:'점봉산탐방지원센터',    lat:38.0920,lng:128.5620},
 };
 
-// 좌표 → 가장 가까운 Zone ID (8km 초과 시 null)
+// 좌표 → Zone ID: 실제 DB의 다목적위치표지판 GPS 기준 (추정 중심점 대신)
 function getZoneId(lat,lng){
-  var best=null,bestD=Infinity;
+  // 1순위: 사용자가 입력한 실제 표지판 GPS 데이터
+  var signs=(DB.g('facilities')||[]).filter(function(f){
+    return f.lat&&f.lng&&f.name&&f.type&&f.type.indexOf('다목적위치표지판')>=0;
+  });
+  if(signs.length){
+    var best=null,bestD=Infinity;
+    signs.forEach(function(f){var d=_haversine(lat,lng,f.lat,f.lng);if(d<bestD){bestD=d;best=f;}});
+    if(best&&bestD<=5000){
+      var m=(best.name||'').match(/^(\d{2})-/);
+      if(m&&SEORAK_ZONES[m[1]])return m[1];
+    }
+  }
+  // 2순위 폴백: 구역 중심점 거리 (표지판 데이터 없을 때)
+  var b=null,bD=Infinity;
   Object.keys(SEORAK_ZONES).forEach(function(k){
     var z=SEORAK_ZONES[k],d=_haversine(lat,lng,z.lat,z.lng);
-    if(d<bestD){bestD=d;best=k;}
+    if(d<bD){bD=d;b=k;}
   });
-  return(best&&bestD<=8000)?best:null;
+  return(b&&bD<=8000)?b:null;
+}
+// getZoneId의 부가정보 버전: {zoneId, signCode, dist} 반환
+function getZoneInfo(lat,lng){
+  var signs=(DB.g('facilities')||[]).filter(function(f){
+    return f.lat&&f.lng&&f.name&&f.type&&f.type.indexOf('다목적위치표지판')>=0;
+  });
+  var best=null,bestD=Infinity;
+  signs.forEach(function(f){var d=_haversine(lat,lng,f.lat,f.lng);if(d<bestD){bestD=d;best=f;}});
+  var zoneId=null,signCode=null;
+  if(best&&bestD<=5000){
+    var m=(best.name||'').match(/^(\d{2})-/);
+    if(m&&SEORAK_ZONES[m[1]]){zoneId=m[1];signCode=(best.name.match(/\d[\d\-]*\d|\d/)||[best.name.slice(0,6)])[0];}
+  }
+  if(!zoneId){var b=null,bD=Infinity;Object.keys(SEORAK_ZONES).forEach(function(k){var z=SEORAK_ZONES[k],d=_haversine(lat,lng,z.lat,z.lng);if(d<bD){bD=d;b=k;}});if(b&&bD<=8000)zoneId=b;}
+  return{zoneId:zoneId,signCode:signCode,dist:best&&bestD<=5000?Math.round(bestD):null};
 }
 
 // Zone 뱃지 DOM 업데이트 헬퍼
 function _updateZoneBadge(lat,lng,elId){
   var el=document.getElementById(elId);if(!el)return;
-  var zid=getZoneId(lat,lng);
-  if(zid){var z=SEORAK_ZONES[zid];el.textContent='Zone '+zid+' · '+z.name;el.style.display='block';}
-  else el.style.display='none';
+  var info=getZoneInfo(lat,lng);
+  if(info.zoneId){
+    var z=SEORAK_ZONES[info.zoneId];
+    var label='Zone '+info.zoneId+' · '+z.name;
+    if(info.signCode&&info.dist!==null)label+=' ('+info.signCode+' 기준 '+info.dist+'m)';
+    el.textContent=label;el.style.display='block';
+  } else el.style.display='none';
 }
 
 // ── 거점(기지) 좌표 ─────────────────────────────────────────
@@ -2326,7 +2358,7 @@ function _buildResRouteHtml(data){
   const m=locStr.match(/(\d{2})-(\d{2,3})/);
   let zz=null,nn=null,zoneId=null;
   if(m){zz=parseInt(m[1]);nn=parseInt(m[2]);zoneId=String(zz).padStart(2,'0');}
-  else if(data.lat&&data.lng){zoneId=getZoneId(data.lat,data.lng);if(zoneId)zz=parseInt(zoneId);}
+  else if(data.lat&&data.lng){const _zi=getZoneInfo(data.lat,data.lng);zoneId=_zi.zoneId;if(zoneId){zz=parseInt(zoneId);if(_zi.signCode){const _sm=_zi.signCode.match(/^(\d{2})-(\d{2,3})/);if(_sm)nn=parseInt(_sm[2]);}}}
   const baseInfo=zz?getBestBase(zz,nn):null;
   const pb=baseInfo?SEORAK_BASES[baseInfo.primary]:null;
   const ab=baseInfo&&baseInfo.alt?SEORAK_BASES[baseInfo.alt]:null;
@@ -6980,11 +7012,15 @@ function confirmMapPicker(){
   const gpsEl=document.getElementById('r_gps');
   if(gpsEl) gpsEl.value=coords;
   syncFormMapFromInput();
-  // 사고 장소 비어 있으면 Zone 정보 자동 채우기
+  // 사고 장소 비어 있으면 Zone+표지판 정보 자동 채우기
   const locEl=document.getElementById('r_loc');
   if(locEl&&!locEl.value.trim()&&!locEl.dataset.userEdited){
-    const zid=getZoneId(lat,lng);
-    if(zid){const z=SEORAK_ZONES[zid];locEl.value='Zone '+zid+' ('+z.name+') 구간';autoGenTitle();}
+    const info=getZoneInfo(lat,lng);
+    if(info.zoneId){
+      const z=SEORAK_ZONES[info.zoneId];
+      locEl.value=info.signCode?info.signCode+' 인근 ('+z.name+')':'Zone '+info.zoneId+' ('+z.name+') 구간';
+      autoGenTitle();
+    }
   }
   closeM('modalMapPicker');
   toast('📍 위치 선택 완료');
