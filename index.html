@@ -1970,6 +1970,7 @@ function _nearestSign(lat,lng){
 }
 function initMaps(){
   function doInit(){
+    if(mapR&&mapI)return; // Guard: don't recreate if already initialized
     const c=new kakao.maps.LatLng(DC.lat,DC.lng),opt={center:c,level:9};
     mapI=new kakao.maps.Map(document.getElementById('mapInspect'),opt);
     mapR=new kakao.maps.Map(document.getElementById('mapRescue'),opt);
