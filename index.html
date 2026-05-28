@@ -1507,12 +1507,16 @@ function initFirebase(onReady){
     const totalKeys=_SHARED.length;
     const loaded=new Set();
     function _checkReady(){if(loaded.size===totalKeys){onReady&&onReady();onReady=null;}}
+    var _remoteUpdateTimer=null;
     function _onRemoteUpdate(){
       _checkDeletedUser();updateSummary();
-      if(window.curApp==='rescue'){renderResList();try{renderRescueMap();}catch(e){}}
-      else if(window.curApp==='inspect'){renderFacList();renderInspectMap();}
-      else if(window.curApp==='wiki')renderWikiList('');
-      else if(window.curApp==='stats')renderFullStats();
+      clearTimeout(_remoteUpdateTimer);
+      _remoteUpdateTimer=setTimeout(function(){
+        if(window.curApp==='rescue'){renderResList();try{renderRescueMap();}catch(e){}}
+        else if(window.curApp==='inspect'){renderFacList();renderInspectMap();}
+        else if(window.curApp==='wiki')renderWikiList('');
+        else if(window.curApp==='stats')renderFullStats();
+      },400);
     }
     // ── 컬렉션 리스너: 항목마다 개별 문서 (rescues, hazards) ──
     _SHARED_COLL.forEach(k=>{
@@ -3135,6 +3139,60 @@ const _rd=_resDefaultDates();
 let resDateFrom=_rd.from,resDateTo=_rd.to;
 let resFacCatH=new Set(),resFacCatF=new Set();
 const _RES_DEFAULT_CATS=['🏠 분소','🛖 탐방지원센터','🪧 다목적위치표지판','🏠 대피소'];
+// Facility overlay pool: created once, show/hide on filter changes
+var _rFacPool=new Map(); // String(id) → {ov, el, type, lat, lng}
+var _rEvOvs=[],_rEvEls=[]; // event overlays only (rescues + hazards)
+function _buildRFacEl(f){
+  const el=document.createElement('div');el.className='mpin-num';
+  if(f.type.includes('다목적위치표지판')){
+    const code=(f.name.match(/\d[\d\-]*\d|\d/)||[f.name.slice(0,6)])[0];
+    el.textContent=code;el.title=f.name;
+    el.onclick=e=>{e.stopPropagation();toast('📍 '+f.name);};
+  }else if(f.type.includes('장소')){
+    el.style.cssText='background:rgba(20,10,40,.88);border-color:rgba(180,100,255,.7);color:#d4a0ff;';
+    el.textContent=f.name;el.title=f.name;
+    el.onclick=e=>{e.stopPropagation();toast('📍 '+f.name+(f.loc?' ('+f.loc+')':''));};
+  }else if(f.type.includes('대피소')){
+    el.style.cssText='background:rgba(8,30,20,.88);border-color:rgba(39,174,96,.7);color:#7de8a8;';
+    el.textContent=f.name;el.title=f.name;
+    el.onclick=e=>{e.stopPropagation();toast('🏠 '+f.name+(f.loc?' ('+f.loc+')':''));};
+  }else{
+    el.style.cssText='background:rgba(20,20,40,.88);border-color:rgba(150,150,200,.7);color:#c8c8e8;';
+    el.textContent=f.name;el.title=f.name;
+    el.onclick=e=>{e.stopPropagation();toast(f.type.split(' ')[0]+' '+f.name+(f.loc?' ('+f.loc+')':''));};
+  }
+  return el;
+}
+function _syncRFacPool(){
+  if(!mapR)return;
+  const _rm=DB.g('catFacMeta')||{};
+  const all=(DB.g('facilities')||[]).filter(f=>f.lat&&f.lng&&f.type&&(_rm[f.type]||{}).rescue);
+  const validIds=new Set(all.map(f=>String(f.id)));
+  _rFacPool.forEach((_,id)=>{if(!validIds.has(id)){try{_rFacPool.get(id).ov.setMap(null);}catch(e){}_rFacPool.delete(id);}});
+  all.forEach(f=>{
+    const existing=_rFacPool.get(String(f.id));
+    if(existing&&existing.type===f.type&&existing.lat===f.lat&&existing.lng===f.lng)return;
+    if(existing){try{existing.ov.setMap(null);}catch(e){}_rFacPool.delete(String(f.id));}
+    const el=_buildRFacEl(f);
+    const ov=new kakao.maps.CustomOverlay({position:new kakao.maps.LatLng(f.lat,f.lng),content:el,clickable:true});
+    _rFacPool.set(String(f.id),{ov,el,type:f.type,lat:f.lat,lng:f.lng});
+  });
+  _applyRFacFilter();
+}
+function _applyRFacFilter(){
+  if(!mapR)return;
+  const _rm=DB.g('catFacMeta')||{};
+  const _visFac=t=>(_rm[t]||{}).rescue&&(_RES_DEFAULT_CATS.includes(t)?!resFacCatH.has(t):resFacCatF.has(t));
+  const facEls=[];
+  _rFacPool.forEach(entry=>{
+    const show=_visFac(entry.type);
+    entry.ov.setMap(show?mapR:null);
+    if(show)facEls.push(entry.el);
+  });
+  rOvs=[..._rEvOvs,...[..._rFacPool.values()].map(e=>e.ov)];
+  rEls=[..._rEvEls,...facEls];
+  if(mapR)_scaleOvs(rEls,mapR.getLevel(),5);
+}
 function _resDateOk(dateStr){
   if(!resDateFrom&&!resDateTo)return true;
   const d=(dateStr||'').slice(0,10);
@@ -3143,8 +3201,9 @@ function _resDateOk(dateStr){
   return true;
 }
 function renderRescueMap(){
-  if(!mapR){return;}
-  rOvs.forEach(o=>{try{o.setMap(null);}catch(e){}});rOvs=[];rEls=[];
+  if(!mapR)return;
+  // Clear event overlays only — facility pool is reused
+  _rEvOvs.forEach(o=>{try{o.setMap(null);}catch(e){}});_rEvOvs=[];_rEvEls=[];
   _updateResFilterPanels();
   const _showRes=resTypeF.size===0||resTypeF.has('🚨구조');
   const _showHaz=resTypeF.size===0||resTypeF.has('⚠️위험상황');
@@ -3162,7 +3221,7 @@ function renderRescueMap(){
     el.addEventListener('touchend',e=>{if(!_ts)return;const dx=e.changedTouches[0].clientX-_ts.x,dy=e.changedTouches[0].clientY-_ts.y;_ts=null;if(Math.abs(dx)<8&&Math.abs(dy)<8){e.stopPropagation();e.preventDefault();openResPopup(r.id,'rescue');}});
     el.addEventListener('click',e=>{e.stopPropagation();openResPopup(r.id,'rescue');});
     const ov=new kakao.maps.CustomOverlay({position:new kakao.maps.LatLng(r.lat,r.lng),content:el,clickable:true});
-    ov.setMap(mapR);rOvs.push(ov);rEls.push(el);
+    ov.setMap(mapR);_rEvOvs.push(ov);_rEvEls.push(el);
   });
   // 위험상황 핀
   if(_showHaz)(DB.g('hazards')||[]).forEach(h=>{
@@ -3176,34 +3235,10 @@ function renderRescueMap(){
     el.addEventListener('touchend',e=>{if(!_ts)return;const dx=e.changedTouches[0].clientX-_ts.x,dy=e.changedTouches[0].clientY-_ts.y;_ts=null;if(Math.abs(dx)<8&&Math.abs(dy)<8){e.stopPropagation();e.preventDefault();openResPopup(h.id,'hazard');}});
     el.addEventListener('click',e=>{e.stopPropagation();openResPopup(h.id,'hazard');});
     const ov=new kakao.maps.CustomOverlay({position:new kakao.maps.LatLng(h.lat,h.lng),content:el,clickable:true});
-    ov.setMap(mapR);rOvs.push(ov);rEls.push(el);
+    ov.setMap(mapR);_rEvOvs.push(ov);_rEvEls.push(el);
   });
-  // rescue:true 카테고리 시설물 — 재난지도 표시 (카테고리 필터 적용)
-  {const _rm=DB.g('catFacMeta')||{};
-  const _visFac=t=>(_rm[t]||{}).rescue&&(_RES_DEFAULT_CATS.includes(t)?!resFacCatH.has(t):resFacCatF.has(t));
-  (DB.g('facilities')||[]).filter(f=>f.lat&&f.lng&&f.type&&_visFac(f.type)).forEach(f=>{
-    const el=document.createElement('div');el.className='mpin-num';
-    if(f.type.includes('다목적위치표지판')){
-      const code=(f.name.match(/\d[\d\-]*\d|\d/)||[f.name.slice(0,6)])[0];
-      el.textContent=code;el.title=f.name;
-      el.onclick=e=>{e.stopPropagation();toast('📍 '+f.name);};
-    }else if(f.type.includes('장소')){
-      el.style.cssText='background:rgba(20,10,40,.88);border-color:rgba(180,100,255,.7);color:#d4a0ff;';
-      el.textContent=f.name;el.title=f.name;
-      el.onclick=e=>{e.stopPropagation();toast('📍 '+f.name+(f.loc?' ('+f.loc+')':''));};
-    }else if(f.type.includes('대피소')){
-      el.style.cssText='background:rgba(8,30,20,.88);border-color:rgba(39,174,96,.7);color:#7de8a8;';
-      el.textContent=f.name;el.title=f.name;
-      el.onclick=e=>{e.stopPropagation();toast('🏠 '+f.name+(f.loc?' ('+f.loc+')':''));};
-    }else{
-      el.style.cssText='background:rgba(20,20,40,.88);border-color:rgba(150,150,200,.7);color:#c8c8e8;';
-      el.textContent=f.name;el.title=f.name;
-      el.onclick=e=>{e.stopPropagation();toast(f.type.split(' ')[0]+' '+f.name+(f.loc?' ('+f.loc+')':''));};
-    }
-    const ov=new kakao.maps.CustomOverlay({position:new kakao.maps.LatLng(f.lat,f.lng),content:el,clickable:true});
-    ov.setMap(mapR);rOvs.push(ov);rEls.push(el);
-  });}
-  if(mapR)_scaleOvs(rEls,mapR.getLevel(),5);
+  // 시설물: 풀 동기화 후 필터 적용 (DOM 재생성 없이 show/hide)
+  _syncRFacPool();
   updateSummary();
 }
 
@@ -4978,9 +5013,9 @@ function _updateResCatFilterPanel(){
 function toggleResFacCat(type,isDefault){
   if(isDefault){if(resFacCatH.has(type))resFacCatH.delete(type);else resFacCatH.add(type);}
   else{if(resFacCatF.has(type))resFacCatF.delete(type);else resFacCatF.add(type);}
-  _updateResCatFilterPanel();renderRescueMap();
+  _updateResCatFilterPanel();_applyRFacFilter();
 }
-function resetResCatFilter(){resFacCatH=new Set();resFacCatF=new Set();_updateResCatFilterPanel();renderRescueMap();}
+function resetResCatFilter(){resFacCatH=new Set();resFacCatF=new Set();_updateResCatFilterPanel();_applyRFacFilter();}
 function toggleResCatFilter(){
   const p=document.getElementById('resCatFilterPanel');
   const open=p.style.display==='flex';
