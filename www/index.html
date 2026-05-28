@@ -1947,7 +1947,12 @@ function _haversine(lat1,lng1,lat2,lng2){
   return R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
 }
 var _cachedRescueSigns=null,_cachedFullSigns=null;
-function _invalidateSignCache(){_cachedRescueSigns=null;_cachedFullSigns=null;}
+function _invalidateSignCache(){
+  _cachedRescueSigns=null;_cachedFullSigns=null;
+  // Clear facility overlay pool so it rebuilds with fresh data on next render
+  _rFacPool.forEach(entry=>{try{entry.ov.setMap(null);}catch(e){}});
+  _rFacPool.clear();
+}
 function _nearestSign(lat,lng){
   if(!_cachedRescueSigns){
     var _m=DB.g('catFacMeta')||{};
@@ -3168,24 +3173,26 @@ function _syncRFacPool(){
   const _rm=DB.g('catFacMeta')||{};
   const all=(DB.g('facilities')||[]).filter(f=>f.lat&&f.lng&&f.type&&(_rm[f.type]||{}).rescue);
   const validIds=new Set(all.map(f=>String(f.id)));
-  _rFacPool.forEach((_,id)=>{if(!validIds.has(id)){try{_rFacPool.get(id).ov.setMap(null);}catch(e){}_rFacPool.delete(id);}});
+  // Remove pool entries whose facility was deleted or lost rescue status
+  _rFacPool.forEach((entry,id)=>{
+    if(!validIds.has(id)){try{entry.ov.setMap(null);}catch(e){}_rFacPool.delete(id);}
+  });
+  // Add only genuinely new entries — no lat/lng comparison to avoid float precision mismatches
   all.forEach(f=>{
-    const existing=_rFacPool.get(String(f.id));
-    if(existing&&existing.type===f.type&&existing.lat===f.lat&&existing.lng===f.lng)return;
-    if(existing){try{existing.ov.setMap(null);}catch(e){}_rFacPool.delete(String(f.id));}
+    if(_rFacPool.has(String(f.id)))return;
     const el=_buildRFacEl(f);
     const ov=new kakao.maps.CustomOverlay({position:new kakao.maps.LatLng(f.lat,f.lng),content:el,clickable:true});
-    _rFacPool.set(String(f.id),{ov,el,type:f.type,lat:f.lat,lng:f.lng});
+    _rFacPool.set(String(f.id),{ov,el,type:f.type});
   });
   _applyRFacFilter();
 }
 function _applyRFacFilter(){
   if(!mapR)return;
-  const _rm=DB.g('catFacMeta')||{};
-  const _visFac=t=>(_rm[t]||{}).rescue&&(_RES_DEFAULT_CATS.includes(t)?!resFacCatH.has(t):resFacCatF.has(t));
+  // Pool already guarantees rescue=true — only apply the user's category show/hide filter
   const facEls=[];
   _rFacPool.forEach(entry=>{
-    const show=_visFac(entry.type);
+    const t=entry.type;
+    const show=_RES_DEFAULT_CATS.includes(t)?!resFacCatH.has(t):resFacCatF.has(t);
     entry.ov.setMap(show?mapR:null);
     if(show)facEls.push(entry.el);
   });
