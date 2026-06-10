@@ -271,12 +271,13 @@ button{-webkit-tap-highlight-color:transparent;touch-action:manipulation;}
 .tl-diff-t{font-size:10px;color:#27ae60;font-weight:700;margin-bottom:4px;}
 .tl-diff-row{font-size:11px;color:#b8d4e8;padding:2px 0;}
 /* ─ waypoint simulation ─ */
-.tl-wp{position:relative;display:flex;align-items:flex-start;gap:10px;padding:8px 6px;border-radius:9px;transition:background .12s;user-select:none;-webkit-user-select:none;}
-.tl-wp.clickable:active{background:rgba(79,168,208,.06);}
-.tl-wp-dot{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;flex-shrink:0;border:2px solid;transition:box-shadow .25s,background .25s;}
-.tl-wp-conn{position:absolute;left:13px;top:30px;width:2px;bottom:-8px;background:rgba(79,168,208,.12);}
+.tl-wp{position:relative;display:flex;align-items:flex-start;gap:10px;padding:9px 7px;border-radius:10px;transition:background .12s;user-select:none;-webkit-user-select:none;}
+.tl-wp[onclick]:active{background:rgba(79,168,208,.07);}
+.tl-wp-dot{width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;flex-shrink:0;border:2px solid;transition:box-shadow .25s,background .25s;}
+.tl-wp-conn{position:absolute;left:14px;top:32px;width:2px;bottom:-9px;background:linear-gradient(to bottom,rgba(79,168,208,.18),rgba(79,168,208,.04));}
 .tl-wp.last .tl-wp-conn{display:none;}
-@keyframes wpPulse{0%,100%{box-shadow:0 0 0 3px rgba(231,76,60,.15);}50%{box-shadow:0 0 0 7px rgba(231,76,60,.28),0 0 14px rgba(231,76,60,.4);}}
+@keyframes wpPulse{0%,100%{box-shadow:0 0 0 3px rgba(231,76,60,.15);}50%{box-shadow:0 0 0 8px rgba(231,76,60,.25),0 0 16px rgba(231,76,60,.35);}}
+@keyframes stagePulse{0%,100%{box-shadow:0 0 0 2px rgba(79,168,208,.12);}50%{box-shadow:0 0 0 5px rgba(79,168,208,.22),0 0 10px rgba(79,168,208,.25);}}
 .tl-wp-active .tl-wp-dot{animation:wpPulse 1.6s ease-in-out infinite;}
 
 /* ═══ 폼 ═══ */
@@ -2388,23 +2389,7 @@ function getMyHub() {
   return SEORAK_BASES[key]||SEORAK_BASES['공단'];
 }
 
-// 산악 출동 정보 팝업 (카카오맵 대체)
-function _openKakaoRoute(fromLat,fromLng,toLat,toLng,mode){
-  // 산악 지형 특성상 지도앱 내비는 불가 — 좌표 정보 + 무전 안내로 대체
-  const coords=toLat.toFixed(5)+', '+toLng.toFixed(5);
-  if(navigator.clipboard){
-    navigator.clipboard.writeText(coords).then(()=>toast('📋 목적지 좌표 복사: '+coords)).catch(()=>toast('목적지: '+coords));
-  }else{toast('목적지: '+coords);}
-}
-
-function _showHeliInfo(lat,lng){
-  const coords=lat.toFixed(5)+', '+lng.toFixed(5);
-  if(navigator.clipboard){
-    navigator.clipboard.writeText(coords).then(function(){toast('🚁 헬기 좌표 복사: '+coords);}).catch(function(){toast('🚁 GPS: '+coords);});
-  } else { toast('🚁 GPS: '+coords); }
-}
-
-// 구조 팝업용 출동/하산/대피/헬기 버튼 HTML 생성 (산악 특화)
+// 구조 팝업: 표지판 위치 정보만 표시 (경로 버튼 없음)
 function _buildResRouteHtml(data){
   const locStr=(data.location||data.title||'');
   const locM=locStr.match(/(\d{2})-(\d{2,3})/);
@@ -2416,61 +2401,27 @@ function _buildResRouteHtml(data){
   const baseInfo=signCode?getBaseForSign(signCode):null;
   const pb=baseInfo?SEORAK_BASES[baseInfo.primary]:null;
   const ab=baseInfo&&baseInfo.alt?SEORAK_BASES[baseInfo.alt]:null;
-  const hub=getMyHub();
-  const hasGPS=!!(data.lat&&data.lng);
-  const bs='flex:1;min-width:0;padding:9px 5px;border-radius:8px;font-size:11px;font-weight:700;cursor:pointer;border:none;min-height:42px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;';
-  const sn=s=>s?s.replace('탐방지원센터','').replace('설악산국립공원사무소','사무소').replace('분소','분소').slice(0,7):'';
-
-  // 출동: 출발기지→사고 기지 정보 표시 + 사고지점 좌표 복사
-  const dispatch=pb?`<button onclick="_showDispatchInfo('${hub?hub.name:''}','${pb.name}',${hasGPS?data.lat:pb.lat},${hasGPS?data.lng:pb.lng})" style="${bs}background:rgba(79,168,208,.18);color:#4fa8d0;border:1px solid rgba(79,168,208,.35);">🚗 출동<span style="font-size:9px;font-weight:400;opacity:.7;">${sn(pb.name)}</span></button>`:'';
-  // 하산: 표지판 기준 하산 경로 안내 (텍스트)
-  const descent=signCode?`<button onclick="_showDescentInfo('${signCode}')" style="${bs}background:rgba(39,174,96,.12);color:#5dbf8a;border:1px solid rgba(39,174,96,.25);">🥾 하산<span style="font-size:9px;font-weight:400;opacity:.7;">경로안내</span></button>`:
-    (hasGPS?`<button onclick="_showHeliInfo(${data.lat},${data.lng})" style="${bs}background:rgba(39,174,96,.12);color:#5dbf8a;border:1px solid rgba(39,174,96,.25);">📋 좌표복사<span style="font-size:9px;font-weight:400;opacity:.7;">하산용</span></button>`:''
-  );
-  // 대피: 속초의료원 연락처 + 좌표 복사
-  const evac=`<button onclick="_showEvacInfo(${hasGPS?data.lat:0},${hasGPS?data.lng:0})" style="${bs}background:rgba(230,126,34,.12);color:#e67e22;border:1px solid rgba(230,126,34,.25);">🚑 대피<span style="font-size:9px;font-weight:400;opacity:.7;">속초의료원</span></button>`;
-  const heli=hasGPS?`<button onclick="_showHeliInfo(${data.lat},${data.lng})" style="${bs}background:rgba(108,79,168,.15);color:#b89af0;border:1px solid rgba(108,79,168,.3);">🚁 헬기<span style="font-size:9px;font-weight:400;opacity:.7;">좌표복사</span></button>`:'';
-
   const zm=signCode?(signCode.match(/^(\d{2})-/)||[])[1]:null;
   const zoneName=zm?(ZONE_NAMES[zm]||''):'';
-  const signLabel=signCode?`<div style="font-size:10px;color:#3a6a8a;margin-bottom:5px;padding:0 2px;">📍 ${signCode}${zoneName?' · '+zoneName:''}${pb?' → '+sn(pb.name):''}${ab?` <span style="color:#e0a840;font-size:9px;">/ ${sn(ab.name)}</span>`:''}</div>`:
-    (hasGPS?`<div style="font-size:10px;color:#e05050;margin-bottom:5px;padding:0 2px;">⚠️ 표지판 코드 없음</div>`:'');
+  const sn=s=>s?s.replace('탐방지원센터','').replace('설악산국립공원사무소','사무소').slice(0,8):'';
+  const hasGPS=!!(data.lat&&data.lng);
 
-  const btns=[dispatch,descent,evac,heli].filter(Boolean);
-  if(!btns.length&&!signLabel)return'';
-  return signLabel+(btns.length?`<div style="display:flex;gap:5px;">${btns.join('')}</div>`:'');
-}
-
-// 출동 정보 팝업 (산악: 기지명 + 사고지점 좌표 복사)
-function _showDispatchInfo(hubName,pbName,lat,lng){
-  const coords=lat&&lng?lat.toFixed(5)+', '+lng.toFixed(5):'';
-  const msg=(hubName?hubName+'에서 출발\n':'')+'담당: '+pbName+(coords?'\n사고지점: '+coords:'');
-  if(coords&&navigator.clipboard){
-    navigator.clipboard.writeText(coords).then(()=>toast('🚗 출동 — 좌표복사: '+coords)).catch(()=>alert(msg));
-  }else{alert(msg);}
-}
-
-// 하산 경로 안내 (SIGN_BASE_TABLE 기반 텍스트)
-function _showDescentInfo(signCode){
-  const baseInfo=getBaseForSign(signCode);
-  if(!baseInfo){toast('⚠️ 경로 정보 없음: '+signCode);return;}
-  const pb=SEORAK_BASES[baseInfo.primary];
-  const ab=baseInfo.alt?SEORAK_BASES[baseInfo.alt]:null;
-  let msg='📍 현위치: '+signCode+'\n🏠 하산 기지: '+(pb?pb.name:baseInfo.primary);
-  if(ab)msg+='\n   또는: '+ab.name;
-  const zm=(signCode.match(/^(\d{2})-/)||[])[1];
-  if(zm&&ZONE_NAMES[zm])msg+='\n🗺️ 구역: '+ZONE_NAMES[zm];
-  msg+='\n\n무전으로 위치 보고 후 담당 기지에 연락하세요.';
-  alert(msg);
-}
-
-// 대피 정보 (속초의료원 연락처 + 환자 좌표 복사)
-function _showEvacInfo(lat,lng){
-  const coords=lat&&lng?lat.toFixed(5)+', '+lng.toFixed(5):'';
-  const msg='🚑 속초의료원\n📞 033-630-6000\n\n응급후송 시 헬기 이착륙장 확보 후\n119 또는 담당 기지에 연락하세요.'+(coords?'\n\n환자 GPS: '+coords:'');
-  if(coords&&navigator.clipboard){
-    navigator.clipboard.writeText(coords).then(()=>alert(msg)).catch(()=>alert(msg));
-  }else{alert(msg);}
+  let html='';
+  if(signCode){
+    html+=`<div style="background:rgba(79,168,208,.06);border:1px solid rgba(79,168,208,.15);border-radius:9px;padding:9px 12px;margin-bottom:6px;">`;
+    html+=`<div style="font-size:10px;color:#3a6a8a;font-weight:600;margin-bottom:4px;">📍 다목적위치표지판</div>`;
+    html+=`<div style="font-size:13px;font-weight:800;color:#4fa8d0;font-family:monospace;">${signCode}</div>`;
+    if(zoneName)html+=`<div style="font-size:10px;color:rgba(255,255,255,.4);margin-top:2px;">${zoneName}</div>`;
+    if(pb)html+=`<div style="font-size:10px;color:#7dd3fa;margin-top:3px;font-weight:600;">🏠 담당: ${sn(pb.name)}${ab?' / '+sn(ab.name):''}</div>`;
+    html+=`</div>`;
+  }else if(hasGPS){
+    html+=`<div style="font-size:10px;color:#e05050;padding:0 2px;margin-bottom:6px;">⚠️ 표지판 코드 없음</div>`;
+  }
+  if(hasGPS){
+    const coords=data.lat.toFixed(5)+', '+data.lng.toFixed(5);
+    html+=`<button onclick="if(navigator.clipboard)navigator.clipboard.writeText('${coords}').then(()=>toast('📋 GPS 좌표 복사'));else toast('GPS: ${coords}')" style="width:100%;padding:8px;border-radius:8px;background:rgba(108,79,168,.12);color:#b89af0;border:1px solid rgba(108,79,168,.25);font-size:11px;font-weight:700;cursor:pointer;">📋 GPS 좌표 복사</button>`;
+  }
+  return html;
 }
 
 let _extraTeamCollapsed=[];
@@ -4035,36 +3986,56 @@ function _compactRouteHtml(team,idx){
   const cur=team.wps[team.wpIdx]||team.wps[0];
   const next=team.wps[team.wpIdx+1]||null;
   const atEnd=team.wpIdx>=team.wps.length-1;
-  const canSkip=team.wpIdx<team.wps.length-2;
-  const typeIco=team.type==='heli'?'🚁':team.type==='vehicle'?'🚐':'🥾';
-  const progTxt=(team.wpIdx)+' / '+(team.wps.length-1);
   const showFull=!!team.showFull;
-  if(!cur)return`<div style="text-align:center;font-size:11px;color:rgba(255,255,255,.25);padding:10px 0;">경로 데이터 없음</div>`;
-  const curCode=cur.code?`<span style="font-size:10px;color:#e74c3c;font-weight:700;font-family:monospace;margin-right:6px;">${cur.code}</span>`:'';
-  const nextCode=next&&next.code?`<span style="font-size:10px;color:rgba(79,168,208,.7);font-family:monospace;margin-right:5px;">${next.code}</span>`:'';
-  const compact=`
-    <div style="background:rgba(231,76,60,.08);border:1px solid rgba(231,76,60,.22);border-radius:10px;padding:11px 13px;margin-bottom:7px;">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
-        <span style="font-size:10px;color:#e74c3c;font-weight:700;">📍 현재 위치</span>
-        <span style="font-size:10px;color:rgba(255,255,255,.28);font-family:monospace;">${progTxt}</span>
+  const total=team.wps.length-1;
+  const progress=Math.round((team.wpIdx/Math.max(total,1))*100);
+  if(!cur)return`<div style="text-align:center;font-size:11px;color:rgba(255,255,255,.25);padding:16px 0;">경로 데이터 없음</div>`;
+  const curCode=cur.code?`<span style="font-size:11px;color:#e74c3c;font-weight:700;font-family:monospace;margin-right:6px;background:rgba(231,76,60,.12);padding:2px 6px;border-radius:5px;">${cur.code}</span>`:'';
+  const nextCode=next&&next.code?`<span style="font-size:10px;color:#4fa8d0;font-family:monospace;margin-right:5px;background:rgba(79,168,208,.1);padding:1px 5px;border-radius:4px;">${next.code}</span>`:'';
+
+  return `
+    <div style="background:linear-gradient(135deg,rgba(231,76,60,.1),rgba(192,57,43,.05));border:1.5px solid rgba(231,76,60,.25);border-radius:12px;padding:14px 15px;margin-bottom:10px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+        <span style="font-size:10px;color:#e74c3c;font-weight:700;letter-spacing:.3px;">📍 현재 위치</span>
+        <span style="font-size:10px;color:rgba(255,255,255,.3);font-family:monospace;">${team.wpIdx}/${total}</span>
       </div>
-      <div style="display:flex;align-items:baseline;gap:4px;"><span style="font-size:15px;font-weight:800;color:#e0edf8;line-height:1.3;">${curCode}${cur.name}</span></div>
-    </div>
-    ${next?`
-    <div style="display:flex;align-items:center;gap:9px;padding:0 6px;margin-bottom:8px;">
-      <div style="display:flex;flex-direction:column;align-items:center;gap:0;"><div style="width:1.5px;height:10px;background:rgba(79,168,208,.25);"></div><span style="font-size:13px;line-height:1;">▼</span><div style="width:1.5px;height:10px;background:rgba(79,168,208,.25);"></div></div>
-      <div style="flex:1;background:rgba(79,168,208,.06);border:1px solid rgba(79,168,208,.15);border-radius:8px;padding:8px 11px;">
-        <div style="font-size:10px;color:#4a7090;font-weight:600;margin-bottom:3px;">다음 ${typeIco}</div>
-        <div style="font-size:13px;font-weight:600;color:rgba(255,255,255,.6);">${nextCode}${next.name}</div>
+      <div style="font-size:20px;font-weight:900;color:#ffffff;line-height:1.2;letter-spacing:-.3px;">${curCode}${cur.name}</div>
+      ${cur.isTarget?'<div style="margin-top:7px;display:inline-block;background:rgba(240,165,0,.15);border:1px solid rgba(240,165,0,.35);color:#f0a500;font-size:10px;font-weight:700;padding:2px 9px;border-radius:20px;">🎯 사고지점</div>':''}
+      <div style="margin-top:10px;background:rgba(0,0,0,.2);border-radius:4px;height:3px;overflow:hidden;">
+        <div style="height:100%;width:${progress}%;background:linear-gradient(to right,#e74c3c,#e67e22);border-radius:4px;transition:width .4s ease;"></div>
       </div>
-    </div>`:`<div style="padding:2px 13px 9px;font-size:11px;color:#27ae60;font-weight:700;">✅ 하산 완료 (전 구간 통과)</div>`}
-    <div style="display:flex;gap:6px;margin-bottom:8px;">
-      <button id="tlPassBtn_${idx}" onclick="event.stopPropagation();tlPassTeam(${idx})" ${atEnd?'disabled':''} style="flex:2;padding:11px;border-radius:8px;border:1px solid rgba(79,168,208,.4);background:rgba(79,168,208,.15);color:#4fa8d0;font-size:13px;font-weight:800;cursor:pointer;opacity:${atEnd?.3:1};">통과 →</button>
-      <button id="tlSkipBtn_${idx}" onclick="event.stopPropagation();tlSkipTeam(${idx})" ${!canSkip?'disabled':''} style="flex:1;padding:11px;border-radius:8px;border:1px solid rgba(255,255,255,.1);background:transparent;color:rgba(255,255,255,.38);font-size:12px;font-weight:600;cursor:pointer;opacity:${canSkip?1:.3};">건너뛰기</button>
     </div>
-    ${showFull?`<div id="tlWpList_${idx}" style="max-height:230px;overflow-y:auto;border:1px solid rgba(255,255,255,.07);border-radius:8px;padding:6px 8px;margin-bottom:7px;">${team.wps.map((w,i)=>_wpItemHtmlTeam(w,i,team,idx)).join('')}</div>`:''}
-    <button onclick="event.stopPropagation();_toggleTlFull(${idx})" style="width:100%;padding:6px;border-radius:7px;border:1px solid rgba(255,255,255,.08);background:transparent;color:rgba(255,255,255,.28);font-size:11px;cursor:pointer;">${showFull?'▲ 경로 접기':'▾ 전체 경로 ('+team.wps.length+'개)'}</button>`;
-  return compact;
+
+    ${!atEnd&&next?`
+    <div style="display:flex;align-items:center;gap:10px;padding:0 4px;margin-bottom:10px;">
+      <div style="display:flex;flex-direction:column;align-items:center;flex-shrink:0;">
+        <div style="width:1.5px;height:10px;background:rgba(79,168,208,.2);"></div>
+        <span style="font-size:14px;color:rgba(79,168,208,.4);line-height:1;">↓</span>
+        <div style="width:1.5px;height:10px;background:rgba(79,168,208,.2);"></div>
+      </div>
+      <div style="flex:1;background:rgba(79,168,208,.05);border:1px solid rgba(79,168,208,.15);border-radius:10px;padding:10px 13px;">
+        <div style="font-size:9px;color:#4a7090;font-weight:700;margin-bottom:4px;letter-spacing:.3px;">다음 목적지</div>
+        <div style="font-size:14px;font-weight:700;color:rgba(255,255,255,.6);">${nextCode}${next.name}</div>
+      </div>
+    </div>`:`<div style="padding:2px 2px 10px;font-size:12px;color:#27ae60;font-weight:700;">✅ 모든 구간 완료</div>`}
+
+    <button id="tlPassBtn_${idx}" onclick="event.stopPropagation();tlPassTeam(${idx})" ${atEnd?'disabled':''}
+      style="width:100%;padding:15px;border-radius:12px;border:none;
+      background:${atEnd?'rgba(255,255,255,.04)':'linear-gradient(135deg,rgba(79,168,208,.28),rgba(79,168,208,.18))'};
+      color:${atEnd?'rgba(255,255,255,.18)':'#7dd3fa'};
+      font-size:16px;font-weight:900;cursor:${atEnd?'default':'pointer'};
+      letter-spacing:.3px;margin-bottom:8px;
+      border:1.5px solid ${atEnd?'rgba(255,255,255,.05)':'rgba(79,168,208,.4)'};
+      display:flex;align-items:center;justify-content:center;gap:8px;
+      transition:all .15s ease;">
+      ${atEnd?'─ 완료 ─':'✓ &nbsp;통과'}
+    </button>
+
+    ${showFull?`<div id="tlWpList_${idx}" style="max-height:260px;overflow-y:auto;border:1px solid rgba(255,255,255,.06);border-radius:10px;padding:6px 8px;margin-bottom:6px;">${team.wps.map((w,i)=>_wpItemHtmlTeam(w,i,team,idx)).join('')}</div>`:''}
+    <button onclick="event.stopPropagation();_toggleTlFull(${idx})"
+      style="width:100%;padding:8px;border-radius:8px;border:1px solid rgba(255,255,255,.06);background:transparent;color:rgba(255,255,255,.22);font-size:11px;cursor:pointer;">
+      ${showFull?'▲ 경로 접기':'▾ 전체 경로 ('+team.wps.length+'개)'}
+    </button>`;
 }
 
 function _tlTeamFullHtml(team,idx){
@@ -7247,6 +7218,13 @@ window.onload=function(){
       function checkAuth(){
         updateUserUI();
         var authType=typeof DB!=='undefined'?DB.g('authType'):'';
+        // 마스터 관리자: localStorage 세션이 있으면 로그인 화면 스킵
+        if(!authType&&localStorage.getItem('_adminAuthed')==='1'){
+          DB.s('authType','admin');
+          var _cu=DB.g('currentUser')||{};
+          if(!_cu.name||!_cu.dept){DB.s('currentUser',Object.assign({name:'관리자',dept:'재난안전과',rank:'팀장',approvalStatus:'approved'},_cu));}
+          authType='admin';
+        }
         if(!authType){showLoginScreen();}
         else{_checkAndRequireProfile();}
       }
