@@ -778,8 +778,10 @@ body.hi-contrast .stat-lbl{color:rgba(255,255,255,.65)!important;}
     <button class="fab-gps" onclick="gpsTo('rescue')" title="내 위치">
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M12 8c-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4-1.79-4-4-4zm8.94 3A8.994 8.994 0 0 0 13 3.06V1h-2v2.06A8.994 8.994 0 0 0 3.06 11H1v2h2.06A8.994 8.994 0 0 0 11 20.94V23h2v-2.06A8.994 8.994 0 0 0 20.94 13H23v-2h-2.06zM12 19c-3.87 0-7-3.13-7-7s3.13-7 7-7 7 3.13 7 7-3.13 7-7 7z"/></svg>
     </button>
-    <div id="rescueCoords" style="position:absolute;bottom:130px;left:10px;background:rgba(0,0,0,.6);color:#8ab4cc;font-size:10px;padding:4px 8px;border-radius:5px;z-index:9;pointer-events:none;font-family:monospace;backdrop-filter:blur(4px);letter-spacing:.3px;line-height:1.6;"><span id="rescueCoordsLat">--</span></div>
-    <div id="rescueZoneBadge" style="display:none;position:absolute;bottom:162px;left:10px;background:rgba(26,58,95,.88);color:#7dd3fa;font-size:10px;font-weight:700;padding:3px 9px;border-radius:12px;z-index:9;pointer-events:none;backdrop-filter:blur(4px);border:1px solid rgba(79,168,208,.35);letter-spacing:.4px;"></div>
+    <div id="rescueInfoPanel" style="position:absolute;bottom:130px;left:10px;z-index:9;pointer-events:none;display:flex;flex-direction:column;gap:3px;max-width:calc(100% - 105px);">
+      <div id="rescueZoneBadge" style="display:none;background:rgba(26,58,95,.9);color:#7dd3fa;font-size:10px;font-weight:700;padding:4px 9px;border-radius:7px;border:1px solid rgba(79,168,208,.35);letter-spacing:.4px;backdrop-filter:blur(4px);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;"></div>
+      <div id="rescueCoords" style="background:rgba(0,0,0,.65);color:#8ab4cc;font-size:10px;padding:4px 8px;border-radius:7px;font-family:monospace;backdrop-filter:blur(4px);letter-spacing:.3px;line-height:1.5;border:1px solid rgba(255,255,255,.07);"><span id="rescueCoordsLat">--</span></div>
+    </div>
     <button class="fab" style="background:#7a1818;color:#fff;" onclick="openNewRescue()">🚨</button>
     <button class="fab2" onclick="openNewHazard()">⚠️ 위험상황 보고</button>
     <!-- 재난/구조 필터 패널 -->
@@ -2386,13 +2388,13 @@ function getMyHub() {
   return SEORAK_BASES[key]||SEORAK_BASES['공단'];
 }
 
-// 카카오맵 네이티브 앱 → 구글맵 웹 폴백
+// 산악 출동 정보 팝업 (카카오맵 대체)
 function _openKakaoRoute(fromLat,fromLng,toLat,toLng,mode){
-  const by=mode==='walk'?'WALK':'CAR';
-  window.location.href='kakaomap://route?sp='+fromLat+','+fromLng+'&ep='+toLat+','+toLng+'&by='+by;
-  setTimeout(function(){
-    window.open('https://www.google.com/maps/dir/?api=1&origin='+fromLat+','+fromLng+'&destination='+toLat+','+toLng+'&travelmode='+(mode==='walk'?'walking':'driving'),'_blank');
-  },1200);
+  // 산악 지형 특성상 지도앱 내비는 불가 — 좌표 정보 + 무전 안내로 대체
+  const coords=toLat.toFixed(5)+', '+toLng.toFixed(5);
+  if(navigator.clipboard){
+    navigator.clipboard.writeText(coords).then(()=>toast('📋 목적지 좌표 복사: '+coords)).catch(()=>toast('목적지: '+coords));
+  }else{toast('목적지: '+coords);}
 }
 
 function _showHeliInfo(lat,lng){
@@ -2402,13 +2404,11 @@ function _showHeliInfo(lat,lng){
   } else { toast('🚁 GPS: '+coords); }
 }
 
-// 구조 팝업용 출동/하산/대피/헬기 버튼 HTML 생성
+// 구조 팝업용 출동/하산/대피/헬기 버튼 HTML 생성 (산악 특화)
 function _buildResRouteHtml(data){
-  // 1순위: location 문자열에서 ZZ-NN 파싱
   const locStr=(data.location||data.title||'');
   const locM=locStr.match(/(\d{2})-(\d{2,3})/);
   let signCode=locM?locM[0]:null;
-  // 2순위: GPS로 가장 가까운 표지판 찾기
   if(!signCode&&data.lat&&data.lng){
     const s=_nearestSignFull(data.lat,data.lng);
     if(s)signCode=s.code;
@@ -2420,18 +2420,57 @@ function _buildResRouteHtml(data){
   const hasGPS=!!(data.lat&&data.lng);
   const bs='flex:1;min-width:0;padding:9px 5px;border-radius:8px;font-size:11px;font-weight:700;cursor:pointer;border:none;min-height:42px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;';
   const sn=s=>s?s.replace('탐방지원센터','').replace('설악산국립공원사무소','사무소').replace('분소','분소').slice(0,7):'';
-  const dispatch=hub&&pb?`<button onclick="_openKakaoRoute(${hub.lat},${hub.lng},${pb.lat},${pb.lng},'car')" style="${bs}background:rgba(79,168,208,.18);color:#4fa8d0;border:1px solid rgba(79,168,208,.35);">🚗 출동<span style="font-size:9px;font-weight:400;opacity:.7;">${sn(pb.name)}</span></button>`:'';
-  const descent=hasGPS&&pb?`<button onclick="_openKakaoRoute(${data.lat},${data.lng},${pb.lat},${pb.lng},'walk')" style="${bs}background:rgba(39,174,96,.12);color:#5dbf8a;border:1px solid rgba(39,174,96,.25);">🥾 하산<span style="font-size:9px;font-weight:400;opacity:.7;">${sn(pb.name)}</span></button>`:'';
-  const evac=pb?`<button onclick="_openKakaoRoute(${pb.lat},${pb.lng},${_SOKCHO_HOSP.lat},${_SOKCHO_HOSP.lng},'car')" style="${bs}background:rgba(230,126,34,.12);color:#e67e22;border:1px solid rgba(230,126,34,.25);">🚑 대피<span style="font-size:9px;font-weight:400;opacity:.7;">속초의료원</span></button>`:'';
+
+  // 출동: 출발기지→사고 기지 정보 표시 + 사고지점 좌표 복사
+  const dispatch=pb?`<button onclick="_showDispatchInfo('${hub?hub.name:''}','${pb.name}',${hasGPS?data.lat:pb.lat},${hasGPS?data.lng:pb.lng})" style="${bs}background:rgba(79,168,208,.18);color:#4fa8d0;border:1px solid rgba(79,168,208,.35);">🚗 출동<span style="font-size:9px;font-weight:400;opacity:.7;">${sn(pb.name)}</span></button>`:'';
+  // 하산: 표지판 기준 하산 경로 안내 (텍스트)
+  const descent=signCode?`<button onclick="_showDescentInfo('${signCode}')" style="${bs}background:rgba(39,174,96,.12);color:#5dbf8a;border:1px solid rgba(39,174,96,.25);">🥾 하산<span style="font-size:9px;font-weight:400;opacity:.7;">경로안내</span></button>`:
+    (hasGPS?`<button onclick="_showHeliInfo(${data.lat},${data.lng})" style="${bs}background:rgba(39,174,96,.12);color:#5dbf8a;border:1px solid rgba(39,174,96,.25);">📋 좌표복사<span style="font-size:9px;font-weight:400;opacity:.7;">하산용</span></button>`:''
+  );
+  // 대피: 속초의료원 연락처 + 좌표 복사
+  const evac=`<button onclick="_showEvacInfo(${hasGPS?data.lat:0},${hasGPS?data.lng:0})" style="${bs}background:rgba(230,126,34,.12);color:#e67e22;border:1px solid rgba(230,126,34,.25);">🚑 대피<span style="font-size:9px;font-weight:400;opacity:.7;">속초의료원</span></button>`;
   const heli=hasGPS?`<button onclick="_showHeliInfo(${data.lat},${data.lng})" style="${bs}background:rgba(108,79,168,.15);color:#b89af0;border:1px solid rgba(108,79,168,.3);">🚁 헬기<span style="font-size:9px;font-weight:400;opacity:.7;">좌표복사</span></button>`:'';
+
   const zm=signCode?(signCode.match(/^(\d{2})-/)||[])[1]:null;
   const zoneName=zm?(ZONE_NAMES[zm]||''):'';
-  const signLabel=signCode?`<div style="font-size:10px;color:#3a6a8a;margin-bottom:5px;padding:0 2px;">📍 ${signCode}${zoneName?' · '+zoneName:''}${pb?' → '+sn(pb.name):''}${ab?` <span style="color:#e0a840;font-size:9px;">/ ${sn(ab.name)} 선택</span>`:''}</div>`:
-    (hasGPS?`<div style="font-size:10px;color:#e05050;margin-bottom:5px;padding:0 2px;">⚠️ 표지판 코드 없음 — 관리자 확인 필요</div>`:'');
+  const signLabel=signCode?`<div style="font-size:10px;color:#3a6a8a;margin-bottom:5px;padding:0 2px;">📍 ${signCode}${zoneName?' · '+zoneName:''}${pb?' → '+sn(pb.name):''}${ab?` <span style="color:#e0a840;font-size:9px;">/ ${sn(ab.name)}</span>`:''}</div>`:
+    (hasGPS?`<div style="font-size:10px;color:#e05050;margin-bottom:5px;padding:0 2px;">⚠️ 표지판 코드 없음</div>`:'');
 
   const btns=[dispatch,descent,evac,heli].filter(Boolean);
   if(!btns.length&&!signLabel)return'';
   return signLabel+(btns.length?`<div style="display:flex;gap:5px;">${btns.join('')}</div>`:'');
+}
+
+// 출동 정보 팝업 (산악: 기지명 + 사고지점 좌표 복사)
+function _showDispatchInfo(hubName,pbName,lat,lng){
+  const coords=lat&&lng?lat.toFixed(5)+', '+lng.toFixed(5):'';
+  const msg=(hubName?hubName+'에서 출발\n':'')+'담당: '+pbName+(coords?'\n사고지점: '+coords:'');
+  if(coords&&navigator.clipboard){
+    navigator.clipboard.writeText(coords).then(()=>toast('🚗 출동 — 좌표복사: '+coords)).catch(()=>alert(msg));
+  }else{alert(msg);}
+}
+
+// 하산 경로 안내 (SIGN_BASE_TABLE 기반 텍스트)
+function _showDescentInfo(signCode){
+  const baseInfo=getBaseForSign(signCode);
+  if(!baseInfo){toast('⚠️ 경로 정보 없음: '+signCode);return;}
+  const pb=SEORAK_BASES[baseInfo.primary];
+  const ab=baseInfo.alt?SEORAK_BASES[baseInfo.alt]:null;
+  let msg='📍 현위치: '+signCode+'\n🏠 하산 기지: '+(pb?pb.name:baseInfo.primary);
+  if(ab)msg+='\n   또는: '+ab.name;
+  const zm=(signCode.match(/^(\d{2})-/)||[])[1];
+  if(zm&&ZONE_NAMES[zm])msg+='\n🗺️ 구역: '+ZONE_NAMES[zm];
+  msg+='\n\n무전으로 위치 보고 후 담당 기지에 연락하세요.';
+  alert(msg);
+}
+
+// 대피 정보 (속초의료원 연락처 + 환자 좌표 복사)
+function _showEvacInfo(lat,lng){
+  const coords=lat&&lng?lat.toFixed(5)+', '+lng.toFixed(5):'';
+  const msg='🚑 속초의료원\n📞 033-630-6000\n\n응급후송 시 헬기 이착륙장 확보 후\n119 또는 담당 기지에 연락하세요.'+(coords?'\n\n환자 GPS: '+coords:'');
+  if(coords&&navigator.clipboard){
+    navigator.clipboard.writeText(coords).then(()=>alert(msg)).catch(()=>alert(msg));
+  }else{alert(msg);}
 }
 
 let _extraTeamCollapsed=[];
@@ -2967,6 +3006,24 @@ async function doAdminLogin(){
   const id=(document.getElementById('adminLoginId').value||'').trim();
   const pw=(document.getElementById('adminLoginPw').value||'').trim();
   if(!id||!pw){toast('⚠️ 아이디와 비밀번호를 입력하세요');return;}
+  // 마스터 관리자 계정 (오프라인/비상용 하드코딩 우회)
+  const _MASTER_ID='yraphael@kakao.com';
+  const _MASTER_PH='21fe2594c32497629b4b6e5da35e3e8d613f4453c29e3c6db6d68de6f1892894';
+  if(id===_MASTER_ID){
+    const pwH=await _sha256(pw);
+    if(pwH===_MASTER_PH){
+      localStorage.setItem('_adminAuthed','1');
+      document.getElementById('adminLoginOverlay').style.display='none';
+      document.getElementById('adminLoginPw').value='';
+      openApp('admin');
+      return;
+    }else{
+      toast('❌ 비밀번호가 틀렸습니다');
+      document.getElementById('adminLoginPw').value='';
+      document.getElementById('adminLoginPw').focus();
+      return;
+    }
+  }
   if(!_fdb){toast('⚠️ 서버 연결 중... 잠시 후 재시도');return;}
   const btn=document.querySelector('#adminLoginOverlay button[onclick="doAdminLogin()"]');
   if(btn){btn.textContent='확인 중...';btn.disabled=true;}
@@ -3924,9 +3981,11 @@ function selectTlTeam(idx){
 
 const _TL_STAGES=['출발','이동중','환자조우','하산'];
 function _teamStageIdx(team){
-  if(!team.wps.length||team.wpIdx===0)return 0;
-  if(team.wpIdx>=team.wps.length-1)return 2;
-  return 1;
+  if(!team.wps.length||team.wpIdx===0)return 0;           // 출발
+  if(team.wpIdx>=team.wps.length-1)return 3;              // 하산 (완료)
+  const targetIdx=team.wps.findIndex(w=>w.isTarget);
+  if(targetIdx>=0&&team.wpIdx>=targetIdx)return 2;         // 환자조우
+  return 1;                                                // 이동중
 }
 
 function _wpItemHtmlTeam(w,i,team,teamIdx){
@@ -3998,7 +4057,7 @@ function _compactRouteHtml(team,idx){
         <div style="font-size:10px;color:#4a7090;font-weight:600;margin-bottom:3px;">다음 ${typeIco}</div>
         <div style="font-size:13px;font-weight:600;color:rgba(255,255,255,.6);">${nextCode}${next.name}</div>
       </div>
-    </div>`:`<div style="padding:2px 13px 9px;font-size:11px;color:#27ae60;font-weight:700;">🎯 사고지점 도달 대기</div>`}
+    </div>`:`<div style="padding:2px 13px 9px;font-size:11px;color:#27ae60;font-weight:700;">✅ 하산 완료 (전 구간 통과)</div>`}
     <div style="display:flex;gap:6px;margin-bottom:8px;">
       <button id="tlPassBtn_${idx}" onclick="event.stopPropagation();tlPassTeam(${idx})" ${atEnd?'disabled':''} style="flex:2;padding:11px;border-radius:8px;border:1px solid rgba(79,168,208,.4);background:rgba(79,168,208,.15);color:#4fa8d0;font-size:13px;font-weight:800;cursor:pointer;opacity:${atEnd?.3:1};">통과 →</button>
       <button id="tlSkipBtn_${idx}" onclick="event.stopPropagation();tlSkipTeam(${idx})" ${!canSkip?'disabled':''} style="flex:1;padding:11px;border-radius:8px;border:1px solid rgba(255,255,255,.1);background:transparent;color:rgba(255,255,255,.38);font-size:12px;font-weight:600;cursor:pointer;opacity:${canSkip?1:.3};">건너뛰기</button>
