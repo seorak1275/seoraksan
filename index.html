@@ -3709,6 +3709,23 @@ function renderRescueStats(){
     return `<div class="scard"><div class="stitle">${title}</div>${entries.map(([k,v])=>hbar(k,v,mx,col)).join('')}</div>`;
   };
   const w=document.getElementById('rescueStatsWrap');
+  // 엑셀 다운로드 카드: 날짜 범위 선택
+  if(!window._statExpFrom){const d=new Date();window._statExpFrom=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-01';}
+  if(!window._statExpTo)window._statExpTo=today();
+  const expCard=`<div class="scard" style="border-color:rgba(39,174,96,.25);">
+    <div class="stitle" style="color:#27ae60;">📥 엑셀 다운로드</div>
+    <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px;">
+      <input type="date" value="${window._statExpFrom}" onchange="window._statExpFrom=this.value"
+        style="flex:1;background:#060d1a;border:1px solid rgba(255,255,255,.12);color:#b8d4e8;border-radius:7px;padding:7px 8px;font-size:12px;color-scheme:dark;">
+      <span style="font-size:11px;color:#3a6a8a;flex-shrink:0;">~</span>
+      <input type="date" value="${window._statExpTo}" onchange="window._statExpTo=this.value"
+        style="flex:1;background:#060d1a;border:1px solid rgba(255,255,255,.12);color:#b8d4e8;border-radius:7px;padding:7px 8px;font-size:12px;color-scheme:dark;">
+    </div>
+    <button onclick="downloadStatsExcel('${tab}')"
+      style="width:100%;padding:9px;border-radius:8px;background:rgba(39,174,96,.13);border:1px solid rgba(39,174,96,.4);color:#27ae60;font-size:12px;font-weight:700;cursor:pointer;">
+      📥 ${tab==='rescue'?'구조보고':'위험상황'} 자료 다운로드 (.csv)
+    </button>
+  </div>`;
   if(tab==='rescue'){
     const injMap={},sevMap={},cauMap={},methodMap={},ageMap={},timeMap={'새벽(0-6시)':0,'오전(6-12시)':0,'오후(12-18시)':0,'저녁(18-24시)':0},genderMap={},loctypeMap={},weatherMap={};
     res.forEach(r=>{
@@ -3723,6 +3740,7 @@ function renderRescueStats(){
       if(r.time){const h=parseInt((r.time||'').split(':')[0]||0);if(h<6)timeMap['새벽(0-6시)']++;else if(h<12)timeMap['오전(6-12시)']++;else if(h<18)timeMap['오후(12-18시)']++;else timeMap['저녁(18-24시)']++;}
     });
     w.innerHTML=`
+      ${expCard}
       <div class="scard">
         <div class="stitle">🚨 구조보고 현황</div>
         <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:4px;">
@@ -3752,6 +3770,7 @@ function renderRescueStats(){
     });
     const monSorted=Object.fromEntries(Object.entries(monMap).sort((a,b)=>a[0].localeCompare(b[0])).slice(-6));
     w.innerHTML=`
+      ${expCard}
       <div class="scard">
         <div class="stitle">⚠️ 위험상황 현황</div>
         <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:4px;">
@@ -3766,6 +3785,60 @@ function renderRescueStats(){
       ${chartCard('📅 월별 발생 (최근 6개월)',monSorted,'#9b59b6')}
     `;
   }
+}
+
+// 통계 자료 엑셀(CSV) 다운로드: 날짜 범위 필터
+function downloadStatsExcel(tab){
+  const from=window._statExpFrom||'';
+  const to=window._statExpTo||'';
+  if(from&&to&&from>to){toast('⚠️ 시작일이 종료일보다 늦습니다');return;}
+  const inRange=d=>{
+    const ds=(d||'').slice(0,10);
+    if(!ds)return false;
+    if(from&&ds<from)return false;
+    if(to&&ds>to)return false;
+    return true;
+  };
+  // CSV 셀 이스케이프: 쉼표/따옴표/줄바꿈 처리
+  const esc=v=>{
+    const s=String(v==null?'':v);
+    return /[",\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s;
+  };
+  let headers=[],rows=[],fname='';
+  if(tab==='rescue'){
+    const res=(DB.g('rescues')||[]).filter(r=>inRange(r.date));
+    if(!res.length){toast('⚠️ 해당 기간에 구조보고가 없습니다');return;}
+    headers=['날짜','시간','제목','구조유형','상태','위치','장소구분','위도','경도','사고자명','성별','출생연도','국적','중증도','부상부위','사고원인','구조방법','날씨','초동팀','출동팀','작성자'];
+    rows=res.map(r=>[
+      (r.date||'').slice(0,10), r.time||(r.date||'').slice(11,16), r.title||'', r.type||'',
+      r.status==='ongoing'?'진행중':'종료', r.location||'', r.loctype||'',
+      r.lat||'', r.lng||'',
+      r.vName||'', r.vGender||'', r.vBirth?String(r.vBirth).slice(0,4):'', r.vNation||r.vNationality||'',
+      r.severity||'', (r.injuryParts||[]).join('/'), r.cause||'', (r.rescueMethod||[]).join('/'), r.weather||'',
+      (r.members||[]).join('/'),
+      (r.teams||[]).map(t=>t.name+((t.members&&t.members.length)?'('+t.members.join('·')+')':'')).join('/'),
+      r.author||''
+    ]);
+    fname='구조보고_'+(from||'전체')+'_'+(to||'전체')+'.csv';
+  }else{
+    const haz=(DB.g('hazards')||[]).filter(h=>inRange(h.date));
+    if(!haz.length){toast('⚠️ 해당 기간에 위험상황이 없습니다');return;}
+    headers=['날짜','위험유형','처리현황','위치','위도','경도','내용','작성자'];
+    rows=haz.map(h=>[
+      (h.date||'').slice(0,10), h.hazType||'', h.hazStatus||'미조치', h.loc||h.location||'',
+      h.lat||'', h.lng||'', h.desc||h.memo||'', h.author||''
+    ]);
+    fname='위험상황_'+(from||'전체')+'_'+(to||'전체')+'.csv';
+  }
+  // UTF-8 BOM: 엑셀에서 한글 깨짐 방지
+  const csv='\uFEFF'+[headers,...rows].map(row=>row.map(esc).join(',')).join('\r\n');
+  const blob=new Blob([csv],{type:'text/csv;charset=utf-8;'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url;a.download=fname;
+  document.body.appendChild(a);a.click();
+  setTimeout(()=>{document.body.removeChild(a);URL.revokeObjectURL(url);},300);
+  toast('📥 '+rows.length+'건 다운로드 완료');
 }
 
 function openTypeDetail(type){
