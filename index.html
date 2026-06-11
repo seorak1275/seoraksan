@@ -4602,7 +4602,15 @@ function renderTimeline(r,viewMode){
 
       <div style="background:#0b1c30;border-radius:10px;padding:11px 12px;border:.5px solid rgba(79,168,208,.12);margin-top:8px;">
         <div style="font-size:11px;color:#4fa8d0;font-weight:700;margin-bottom:7px;">👥 출동 인원</div>
-        <div style="font-size:11px;color:#b8d4e8;margin-bottom:4px;"><span style="color:#4a7090;font-weight:600;">초동팀:</span> ${(r.members||[]).join(', ')||'미기재'}</div>
+        ${(r.members&&r.members.length)?`<div style="font-size:11px;color:#b8d4e8;margin-bottom:4px;"><span style="color:#4a7090;font-weight:600;">초동팀:</span> ${r.members.join(', ')}</div>`:''}
+        ${(r.teams&&r.teams.length)?r.teams.map(t=>{
+          const ico=t.type==='heli'?'🚁':t.type==='vehicle'?'🚐':'🥾';
+          const si=_teamStageIdx(t);
+          const stLbl=['출발','이동중','환자조우','하산'][si]||'';
+          const mem=(t.members&&t.members.length)?': '+t.members.join(', '):'';
+          return `<div style="font-size:11px;color:#b8d4e8;margin-bottom:3px;"><span style="color:#7ec8a0;font-weight:600;">${ico} ${t.name}</span>${mem} <span style="color:#4a7090;font-size:10px;">(${stLbl})</span></div>`;
+        }).join(''):''}
+        ${(!r.members||!r.members.length)&&(!r.teams||!r.teams.length)?'<div style="font-size:11px;color:rgba(255,255,255,.3);">미기재 — 타임라인에서 팀을 생성하면 자동 표시됩니다</div>':''}
         ${(r.extraTeams&&r.extraTeams.length)?r.extraTeams.map(t=>`<div style="font-size:11px;color:#b8d4e8;margin-bottom:3px;"><span style="color:#7ec8a0;font-weight:600;">${t.teamName}:</span> ${t.members.join(', ')}</div>`).join(''):''}
         ${(r.agencies)?(()=>{
           const ag=r.agencies;const parts=[];
