@@ -169,6 +169,7 @@ button{-webkit-tap-highlight-color:transparent;touch-action:manipulation;}
 .hchip>div{text-align:center;}
 .hchip-num{font-size:17px;font-weight:800;line-height:1;}
 @keyframes chipPulse{0%,100%{opacity:1;transform:scale(1);}50%{opacity:.55;transform:scale(.9);}}
+@keyframes ogPulse{0%,100%{box-shadow:0 3px 12px rgba(192,57,43,.4);}50%{box-shadow:0 3px 22px rgba(231,76,60,.85);}}
 .hchip-num.blink{animation:chipPulse 1.1s ease-in-out infinite;}
 .hchip-lbl{font-size:9px;font-weight:600;opacity:.8;margin-top:1px;}
 .hchip-r{background:rgba(192,57,43,.1);border:1px solid rgba(192,57,43,.25);}
@@ -779,6 +780,8 @@ body.hi-contrast .stat-lbl{color:rgba(255,255,255,.65)!important;}
     <button class="fab-gps" onclick="gpsTo('rescue')" title="내 위치">
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M12 8c-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4-1.79-4-4-4zm8.94 3A8.994 8.994 0 0 0 13 3.06V1h-2v2.06A8.994 8.994 0 0 0 3.06 11H1v2h2.06A8.994 8.994 0 0 0 11 20.94V23h2v-2.06A8.994 8.994 0 0 0 20.94 13H23v-2h-2.06zM12 19c-3.87 0-7-3.13-7-7s3.13-7 7-7 7 3.13 7 7-3.13 7-7 7z"/></svg>
     </button>
+    <!-- 진행중 사고 배너: 탭하면 사고 위치로 순환 이동 -->
+    <button id="ogBanner" onclick="panToNextOngoing()" style="display:none;position:absolute;top:46px;left:50%;transform:translateX(-50%);z-index:11;background:rgba(122,24,24,.92);color:#fff;border:1px solid rgba(255,90,90,.5);border-radius:22px;padding:7px 15px;font-size:12px;font-weight:800;cursor:pointer;backdrop-filter:blur(5px);box-shadow:0 3px 12px rgba(192,57,43,.4);white-space:nowrap;align-items:center;gap:6px;animation:ogPulse 1.4s ease-in-out infinite;"></button>
     <div id="rescueInfoPanel" style="position:absolute;bottom:130px;left:10px;z-index:9;pointer-events:none;display:flex;flex-direction:column;gap:3px;max-width:calc(100% - 105px);">
       <div id="rescueZoneBadge" style="display:none;background:rgba(26,58,95,.9);color:#7dd3fa;font-size:10px;font-weight:700;padding:4px 9px;border-radius:7px;border:1px solid rgba(79,168,208,.35);letter-spacing:.4px;backdrop-filter:blur(4px);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;"></div>
       <div id="rescueCoords" style="background:rgba(0,0,0,.65);color:#8ab4cc;font-size:10px;padding:4px 8px;border-radius:7px;font-family:monospace;backdrop-filter:blur(4px);letter-spacing:.3px;line-height:1.5;border:1px solid rgba(255,255,255,.07);"><span id="rescueCoordsLat">--</span></div>
@@ -1515,10 +1518,11 @@ function initFirebase(onReady){
       _checkDeletedUser();updateSummary();
       clearTimeout(_remoteUpdateTimer);
       _remoteUpdateTimer=setTimeout(function(){
-        if(window.curApp==='rescue'){renderResList();try{renderRescueMap();}catch(e){}}
-        else if(window.curApp==='inspect'){renderFacList();renderInspectMap();}
-        else if(window.curApp==='wiki')renderWikiList('');
-        else if(window.curApp==='stats')renderFullStats();
+        var _app=typeof curApp!=='undefined'?curApp:'';
+        if(_app==='rescue'){renderResList();try{renderRescueMap();}catch(e){}}
+        else if(_app==='inspect'){renderFacList();renderInspectMap();}
+        else if(_app==='wiki')renderWikiList('');
+        else if(_app==='stats')renderFullStats();
       },400);
     }
     // ── 컬렉션 리스너: 항목마다 개별 문서 (rescues, hazards) ──
@@ -3274,7 +3278,29 @@ function renderRescueMap(){
   });
   // 시설물: 풀 동기화 후 필터 적용 (DOM 재생성 없이 show/hide)
   _syncRFacPool();
+  _updateOgBanner();
   updateSummary();
+}
+
+// 진행중 사고 배너: 탭하면 사고 위치로 순환 이동
+var _ogPanIdx=0;
+function _updateOgBanner(){
+  const b=document.getElementById('ogBanner');if(!b)return;
+  const og=(DB.g('rescues')||[]).filter(r=>r.status==='ongoing');
+  const ogHaz=(DB.g('hazards')||[]).filter(h=>!h.hazStatus||h.hazStatus==='미조치'||h.hazStatus==='조치중');
+  const n=og.length,nh=ogHaz.length;
+  if(n===0&&nh===0){b.style.display='none';return;}
+  b.style.display='flex';
+  b.innerHTML='🔴 진행중 '+(n>0?'사고 '+n+'건':'')+(n>0&&nh>0?' · ':'')+(nh>0?'위험 '+nh+'건':'')+' <span style="font-size:10px;opacity:.75;">탭하여 이동</span>';
+}
+function panToNextOngoing(){
+  const og=(DB.g('rescues')||[]).filter(r=>r.status==='ongoing'&&r.lat&&r.lng).map(r=>({lat:r.lat,lng:r.lng,t:r.title}));
+  const ogHaz=(DB.g('hazards')||[]).filter(h=>(!h.hazStatus||h.hazStatus==='미조치'||h.hazStatus==='조치중')&&h.lat&&h.lng).map(h=>({lat:h.lat,lng:h.lng,t:h.hazType||'위험상황'}));
+  const all=[...og,...ogHaz];
+  if(!all.length){toast('좌표가 등록된 진행중 건이 없습니다');return;}
+  const item=all[_ogPanIdx%all.length];_ogPanIdx++;
+  if(mapR){mapR.setCenter(new kakao.maps.LatLng(item.lat,item.lng));mapR.setLevel(5);}
+  toast('📍 '+item.t+(all.length>1?' ('+((_ogPanIdx-1)%all.length+1)+'/'+all.length+')':''));
 }
 
 // ══════════════════════════════════════════
@@ -7484,6 +7510,12 @@ window.onload=function(){
     initDB();
     if(window._KR){ initMaps(); } else { window._KCB=function(){initMaps();}; }
     updateSummary();updateUserUI();renderHotSearch();fetchWeather();
+    // 첫 동기화 완료 시 이미 열려있는 화면 재렌더 (진입 직후 데이터 없던 경우 보강)
+    try{
+      var _app=typeof curApp!=='undefined'?curApp:'';
+      if(_app==='rescue'){renderResList();renderRescueMap();}
+      else if(_app==='inspect'){renderFacList();renderInspectMap();}
+    }catch(e){}
     const d=new Date();const days=['일','월','화','수','목','금','토'];
     document.getElementById('homeDate').textContent=d.getFullYear()+'년 '+(d.getMonth()+1)+'월 '+d.getDate()+'일 ('+days[d.getDay()]+')';
     if(window._kakaoAuthCode){var _kc=window._kakaoAuthCode;window._kakaoAuthCode=null;_handleKakaoCode(_kc);return;}
