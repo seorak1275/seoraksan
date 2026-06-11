@@ -169,7 +169,6 @@ button{-webkit-tap-highlight-color:transparent;touch-action:manipulation;}
 .hchip>div{text-align:center;}
 .hchip-num{font-size:17px;font-weight:800;line-height:1;}
 @keyframes chipPulse{0%,100%{opacity:1;transform:scale(1);}50%{opacity:.55;transform:scale(.9);}}
-@keyframes ogPulse{0%,100%{box-shadow:0 3px 12px rgba(192,57,43,.4);}50%{box-shadow:0 3px 22px rgba(231,76,60,.85);}}
 .hchip-num.blink{animation:chipPulse 1.1s ease-in-out infinite;}
 .hchip-lbl{font-size:9px;font-weight:600;opacity:.8;margin-top:1px;}
 .hchip-r{background:rgba(192,57,43,.1);border:1px solid rgba(192,57,43,.25);}
@@ -197,8 +196,11 @@ button{-webkit-tap-highlight-color:transparent;touch-action:manipulation;}
 .p-tree{border-color:#ca6f1e;background:#ca6f1e;color:#fff;}.p-fire{border-color:#a93226;background:#a93226;color:#fff;}
 .p-haz{border-color:#e67e22;background:#e67e22;color:#fff;}.p-etc{border-color:#5d6d7e;background:#4a5568;color:#fff;}.p-done{opacity:.4;}
 .p-me{border-color:#4fa8d0;background:#4fa8d0;color:#fff;}
-@keyframes blink{0%,100%{box-shadow:0 0 0 3px rgba(192,57,43,.35),0 0 8px 3px rgba(192,57,43,.4);}50%{transform:scale(1.3);box-shadow:0 0 0 6px rgba(192,57,43,.5),0 0 20px 8px rgba(192,57,43,.75);}}
+@keyframes blink{0%,100%{box-shadow:0 0 4px 2px rgba(192,57,43,.5);}50%{transform:scale(1.2);box-shadow:0 0 16px 6px rgba(192,57,43,.85);}}
 .blink{animation:blink .95s infinite;}
+.team-chip{display:inline-flex;align-items:center;gap:4px;background:rgba(8,20,45,.93);border:1.5px solid rgba(79,168,208,.5);border-radius:11px;padding:3px 8px 3px 6px;font-size:11px;font-weight:700;color:#7dd3fa;cursor:pointer;box-shadow:0 2px 10px rgba(0,0,0,.75);white-space:nowrap;user-select:none;-webkit-user-select:none;transition:opacity .2s;}
+#focusModePanel{position:absolute;bottom:-340px;left:0;right:0;z-index:16;background:#09172a;border-radius:14px 14px 0 0;border-top:1.5px solid rgba(79,168,208,.22);box-shadow:0 -5px 28px rgba(0,0,0,.85);transition:bottom .3s cubic-bezier(.4,0,.2,1);max-height:55vh;overflow:hidden;display:flex;flex-direction:column;}
+#focusModePanel.on{bottom:62px;}
 .dbcard{position:absolute;bottom:-420px;left:9px;right:9px;background:#0b1c30;border-radius:14px;padding:13px;border:1px solid rgba(79,168,208,.14);box-shadow:0 -4px 20px rgba(0,0,0,.7);transition:bottom .25s cubic-bezier(.4,0,.2,1);z-index:15;max-height:60vh;overflow-y:auto;}
 .dbcard.on{bottom:62px;}
 .dbhandle{width:28px;height:3px;background:rgba(255,255,255,.1);border-radius:2px;margin:0 auto 10px;}
@@ -272,13 +274,12 @@ button{-webkit-tap-highlight-color:transparent;touch-action:manipulation;}
 .tl-diff-t{font-size:10px;color:#27ae60;font-weight:700;margin-bottom:4px;}
 .tl-diff-row{font-size:11px;color:#b8d4e8;padding:2px 0;}
 /* ─ waypoint simulation ─ */
-.tl-wp{position:relative;display:flex;align-items:flex-start;gap:10px;padding:9px 7px;border-radius:10px;transition:background .12s;user-select:none;-webkit-user-select:none;}
-.tl-wp[onclick]:active{background:rgba(79,168,208,.07);}
-.tl-wp-dot{width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;flex-shrink:0;border:2px solid;transition:box-shadow .25s,background .25s;}
-.tl-wp-conn{position:absolute;left:14px;top:32px;width:2px;bottom:-9px;background:linear-gradient(to bottom,rgba(79,168,208,.18),rgba(79,168,208,.04));}
+.tl-wp{position:relative;display:flex;align-items:flex-start;gap:10px;padding:8px 6px;border-radius:9px;transition:background .12s;user-select:none;-webkit-user-select:none;}
+.tl-wp.clickable:active{background:rgba(79,168,208,.06);}
+.tl-wp-dot{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;flex-shrink:0;border:2px solid;transition:box-shadow .25s,background .25s;}
+.tl-wp-conn{position:absolute;left:13px;top:30px;width:2px;bottom:-8px;background:rgba(79,168,208,.12);}
 .tl-wp.last .tl-wp-conn{display:none;}
-@keyframes wpPulse{0%,100%{box-shadow:0 0 0 3px rgba(231,76,60,.15);}50%{box-shadow:0 0 0 8px rgba(231,76,60,.25),0 0 16px rgba(231,76,60,.35);}}
-@keyframes stagePulse{0%,100%{box-shadow:0 0 0 2px rgba(79,168,208,.12);}50%{box-shadow:0 0 0 5px rgba(79,168,208,.22),0 0 10px rgba(79,168,208,.25);}}
+@keyframes wpPulse{0%,100%{box-shadow:0 0 0 3px rgba(231,76,60,.15);}50%{box-shadow:0 0 0 7px rgba(231,76,60,.28),0 0 14px rgba(231,76,60,.4);}}
 .tl-wp-active .tl-wp-dot{animation:wpPulse 1.6s ease-in-out infinite;}
 
 /* ═══ 폼 ═══ */
@@ -780,8 +781,6 @@ body.hi-contrast .stat-lbl{color:rgba(255,255,255,.65)!important;}
     <button class="fab-gps" onclick="gpsTo('rescue')" title="내 위치">
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M12 8c-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4-1.79-4-4-4zm8.94 3A8.994 8.994 0 0 0 13 3.06V1h-2v2.06A8.994 8.994 0 0 0 3.06 11H1v2h2.06A8.994 8.994 0 0 0 11 20.94V23h2v-2.06A8.994 8.994 0 0 0 20.94 13H23v-2h-2.06zM12 19c-3.87 0-7-3.13-7-7s3.13-7 7-7 7 3.13 7 7-3.13 7-7 7z"/></svg>
     </button>
-    <!-- 진행중 사고 배너: 탭하면 사고 위치로 순환 이동 -->
-    <button id="ogBanner" onclick="panToNextOngoing()" style="display:none;position:absolute;top:46px;left:50%;transform:translateX(-50%);z-index:11;background:rgba(122,24,24,.92);color:#fff;border:1px solid rgba(255,90,90,.5);border-radius:22px;padding:7px 15px;font-size:12px;font-weight:800;cursor:pointer;backdrop-filter:blur(5px);box-shadow:0 3px 12px rgba(192,57,43,.4);white-space:nowrap;align-items:center;gap:6px;animation:ogPulse 1.4s ease-in-out infinite;"></button>
     <div id="rescueInfoPanel" style="position:absolute;bottom:130px;left:10px;z-index:9;pointer-events:none;display:flex;flex-direction:column;gap:3px;max-width:calc(100% - 105px);">
       <div id="rescueZoneBadge" style="display:none;background:rgba(26,58,95,.9);color:#7dd3fa;font-size:10px;font-weight:700;padding:4px 9px;border-radius:7px;border:1px solid rgba(79,168,208,.35);letter-spacing:.4px;backdrop-filter:blur(4px);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;"></div>
       <div id="rescueCoords" style="background:rgba(0,0,0,.65);color:#8ab4cc;font-size:10px;padding:4px 8px;border-radius:7px;font-family:monospace;backdrop-filter:blur(4px);letter-spacing:.3px;line-height:1.5;border:1px solid rgba(255,255,255,.07);"><span id="rescueCoordsLat">--</span></div>
@@ -809,6 +808,15 @@ body.hi-contrast .stat-lbl{color:rgba(255,255,255,.65)!important;}
         <button onclick="resetResCatFilter()" style="background:none;border:none;color:rgba(255,255,255,.3);font-size:10px;cursor:pointer;padding:2px 6px;">↺ 초기화</button>
       </div>
       <div style="overflow-y:auto;padding:0 12px 70px;" id="resCFPContent"></div>
+    </div>
+    <!-- 포커스 모드 패널: 팀 진행 현황 + 통과 버튼 -->
+    <div id="focusModePanel">
+      <div style="width:28px;height:3px;background:rgba(255,255,255,.15);border-radius:2px;margin:8px auto 4px;flex-shrink:0;"></div>
+      <div style="padding:3px 14px 8px;display:flex;justify-content:space-between;align-items:center;flex-shrink:0;border-bottom:1px solid rgba(255,255,255,.06);">
+        <div id="focusPanelTitle" style="font-size:13px;font-weight:800;color:#e0edf8;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;margin-right:8px;"></div>
+        <button onclick="exitFocusMode()" style="flex-shrink:0;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);color:rgba(255,255,255,.45);border-radius:8px;padding:4px 10px;font-size:11px;cursor:pointer;">✕ 종료</button>
+      </div>
+      <div id="focusPanelTeams" style="overflow-y:auto;padding:8px 12px 16px;"></div>
     </div>
     <div class="dbcard" id="resPopup">
       <button class="dbclose" onclick="closeDB()">×</button><div class="dbhandle"></div>
@@ -1518,11 +1526,10 @@ function initFirebase(onReady){
       _checkDeletedUser();updateSummary();
       clearTimeout(_remoteUpdateTimer);
       _remoteUpdateTimer=setTimeout(function(){
-        var _app=typeof curApp!=='undefined'?curApp:'';
-        if(_app==='rescue'){renderResList();try{renderRescueMap();}catch(e){}}
-        else if(_app==='inspect'){renderFacList();renderInspectMap();}
-        else if(_app==='wiki')renderWikiList('');
-        else if(_app==='stats')renderFullStats();
+        if(window.curApp==='rescue'){renderResList();try{renderRescueMap();}catch(e){}}
+        else if(window.curApp==='inspect'){renderFacList();renderInspectMap();}
+        else if(window.curApp==='wiki')renderWikiList('');
+        else if(window.curApp==='stats')renderFullStats();
       },400);
     }
     // ── 컬렉션 리스너: 항목마다 개별 문서 (rescues, hazards) ──
@@ -1940,13 +1947,8 @@ function _scaleOvs(els,level,off){
   els.forEach(el=>{
     if(!el)return;
     if(el.classList.contains('mpin')||el.classList.contains('mpin-sm')){
-      // 사건 마커(data-ev)는 최소 크기 보장 — 어떤 줌에서도 안 사라짐
-      const isEv=el.dataset&&el.dataset.ev==='1';
-      const sz=isEv?Math.max(s.sz,18):s.sz;
-      const fs=isEv?Math.max(s.fs,8):s.fs;
-      const bw=isEv?Math.max(s.bw,1.5):s.bw;
-      el.style.width=sz+'px';el.style.height=sz+'px';
-      el.style.fontSize=fs+'px';el.style.borderWidth=bw+'px';
+      el.style.width=s.sz+'px';el.style.height=s.sz+'px';
+      el.style.fontSize=s.fs+'px';el.style.borderWidth=s.bw+'px';
     } else if(el.classList.contains('mpin-num')){
       if(s.numFs===0){el.style.display='none';}
       else{el.style.display='';el.style.fontSize=s.numFs+'px';el.style.padding=s.numPad;}
@@ -2068,20 +2070,11 @@ function gpsTo(mode){
   navigator.geolocation.getCurrentPosition(p=>{
     const ll=new kakao.maps.LatLng(p.coords.latitude,p.coords.longitude);
     const m=mode==='inspect'?mapI:mapR;
-    // 줌→중심을 한 번에 설정 후 탭바 오프셋을 투영 계산으로 단번에 적용 (2-step 깜빡임 제거)
-    m.setLevel(4);
-    m.setCenter(ll);
+    m.setCenter(ll);m.setLevel(4);
+    // 하단 탭바 높이만큼 보정: GPS 점이 십자선 위치에 오도록 아래로 pan
     const bnavEl=document.getElementById('bnav');
     const bnavH=(bnavEl&&bnavEl.style.display!=='none')?bnavEl.offsetHeight:0;
-    if(bnavH>0){
-      try{
-        const mapEl=document.getElementById(mode==='rescue'?'mapRescue':'mapInspect');
-        const proj=m.getProjection();
-        const adj=proj.coordsFromContainerPoint(
-          new kakao.maps.Point(mapEl.offsetWidth/2, mapEl.offsetHeight/2+Math.round(bnavH/2)));
-        m.setCenter(adj);
-      }catch(e){}
-    }
+    if(bnavH>0){setTimeout(()=>{try{m.panBy(0,Math.round(bnavH/2));}catch(e){}},50);}
     if(myOv)myOv.setMap(null);
     const el=document.createElement('div');
     el.style.cssText='width:18px;height:18px;border-radius:50%;background:#4fa8d0;border:3px solid #fff;box-shadow:0 0 10px rgba(79,168,208,.8),0 2px 6px rgba(0,0,0,.5);';
@@ -2168,8 +2161,7 @@ function switchTab(idx,el){
   [1,2,3].forEach(i=>document.getElementById('nv'+i).classList.remove('on'));if(el)el.classList.add('on');closeDB();
   if(curApp==='rescue'){
     if(idx===1){showV('v-rescue-map');rMaps();updateRescueCross();}
-    else if(idx===2){showV('v-rescue-list');renderResList();}
-    else{showV('v-rescue-stats');renderRescueStats();}
+    else{if(_rFocusResId)exitFocusMode();if(idx===2){showV('v-rescue-list');renderResList();}else{showV('v-rescue-stats');renderRescueStats();}}
   } else if(curApp==='inspect'){
     if(idx===1){showV('v-inspect-map');rMaps();updateInspectCross();}
     else if(idx===2){showV('v-inspect-list');renderFacList();}
@@ -2407,7 +2399,23 @@ function getMyHub() {
   return SEORAK_BASES[key]||SEORAK_BASES['공단'];
 }
 
-// 구조 팝업: 표지판 위치 정보만 표시 (경로 버튼 없음)
+// 산악 출동 정보 팝업 (카카오맵 대체)
+function _openKakaoRoute(fromLat,fromLng,toLat,toLng,mode){
+  // 산악 지형 특성상 지도앱 내비는 불가 — 좌표 정보 + 무전 안내로 대체
+  const coords=toLat.toFixed(5)+', '+toLng.toFixed(5);
+  if(navigator.clipboard){
+    navigator.clipboard.writeText(coords).then(()=>toast('📋 목적지 좌표 복사: '+coords)).catch(()=>toast('목적지: '+coords));
+  }else{toast('목적지: '+coords);}
+}
+
+function _showHeliInfo(lat,lng){
+  const coords=lat.toFixed(5)+', '+lng.toFixed(5);
+  if(navigator.clipboard){
+    navigator.clipboard.writeText(coords).then(function(){toast('🚁 헬기 좌표 복사: '+coords);}).catch(function(){toast('🚁 GPS: '+coords);});
+  } else { toast('🚁 GPS: '+coords); }
+}
+
+// 구조 팝업용 출동/하산/대피/헬기 버튼 HTML 생성 (산악 특화)
 function _buildResRouteHtml(data){
   const locStr=(data.location||data.title||'');
   const locM=locStr.match(/(\d{2})-(\d{2,3})/);
@@ -2419,27 +2427,61 @@ function _buildResRouteHtml(data){
   const baseInfo=signCode?getBaseForSign(signCode):null;
   const pb=baseInfo?SEORAK_BASES[baseInfo.primary]:null;
   const ab=baseInfo&&baseInfo.alt?SEORAK_BASES[baseInfo.alt]:null;
+  const hub=getMyHub();
+  const hasGPS=!!(data.lat&&data.lng);
+  const bs='flex:1;min-width:0;padding:9px 5px;border-radius:8px;font-size:11px;font-weight:700;cursor:pointer;border:none;min-height:42px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;';
+  const sn=s=>s?s.replace('탐방지원센터','').replace('설악산국립공원사무소','사무소').replace('분소','분소').slice(0,7):'';
+
+  // 출동: 출발기지→사고 기지 정보 표시 + 사고지점 좌표 복사
+  const dispatch=pb?`<button onclick="_showDispatchInfo('${hub?hub.name:''}','${pb.name}',${hasGPS?data.lat:pb.lat},${hasGPS?data.lng:pb.lng})" style="${bs}background:rgba(79,168,208,.18);color:#4fa8d0;border:1px solid rgba(79,168,208,.35);">🚗 출동<span style="font-size:9px;font-weight:400;opacity:.7;">${sn(pb.name)}</span></button>`:'';
+  // 하산: 표지판 기준 하산 경로 안내 (텍스트)
+  const descent=signCode?`<button onclick="_showDescentInfo('${signCode}')" style="${bs}background:rgba(39,174,96,.12);color:#5dbf8a;border:1px solid rgba(39,174,96,.25);">🥾 하산<span style="font-size:9px;font-weight:400;opacity:.7;">경로안내</span></button>`:
+    (hasGPS?`<button onclick="_showHeliInfo(${data.lat},${data.lng})" style="${bs}background:rgba(39,174,96,.12);color:#5dbf8a;border:1px solid rgba(39,174,96,.25);">📋 좌표복사<span style="font-size:9px;font-weight:400;opacity:.7;">하산용</span></button>`:''
+  );
+  // 대피: 속초의료원 연락처 + 좌표 복사
+  const evac=`<button onclick="_showEvacInfo(${hasGPS?data.lat:0},${hasGPS?data.lng:0})" style="${bs}background:rgba(230,126,34,.12);color:#e67e22;border:1px solid rgba(230,126,34,.25);">🚑 대피<span style="font-size:9px;font-weight:400;opacity:.7;">속초의료원</span></button>`;
+  const heli=hasGPS?`<button onclick="_showHeliInfo(${data.lat},${data.lng})" style="${bs}background:rgba(108,79,168,.15);color:#b89af0;border:1px solid rgba(108,79,168,.3);">🚁 헬기<span style="font-size:9px;font-weight:400;opacity:.7;">좌표복사</span></button>`:'';
+
   const zm=signCode?(signCode.match(/^(\d{2})-/)||[])[1]:null;
   const zoneName=zm?(ZONE_NAMES[zm]||''):'';
-  const sn=s=>s?s.replace('탐방지원센터','').replace('설악산국립공원사무소','사무소').slice(0,8):'';
-  const hasGPS=!!(data.lat&&data.lng);
+  const signLabel=signCode?`<div style="font-size:10px;color:#3a6a8a;margin-bottom:5px;padding:0 2px;">📍 ${signCode}${zoneName?' · '+zoneName:''}${pb?' → '+sn(pb.name):''}${ab?` <span style="color:#e0a840;font-size:9px;">/ ${sn(ab.name)}</span>`:''}</div>`:
+    (hasGPS?`<div style="font-size:10px;color:#e05050;margin-bottom:5px;padding:0 2px;">⚠️ 표지판 코드 없음</div>`:'');
 
-  let html='';
-  if(signCode){
-    html+=`<div style="background:rgba(79,168,208,.06);border:1px solid rgba(79,168,208,.15);border-radius:9px;padding:9px 12px;margin-bottom:6px;">`;
-    html+=`<div style="font-size:10px;color:#3a6a8a;font-weight:600;margin-bottom:4px;">📍 다목적위치표지판</div>`;
-    html+=`<div style="font-size:13px;font-weight:800;color:#4fa8d0;font-family:monospace;">${signCode}</div>`;
-    if(zoneName)html+=`<div style="font-size:10px;color:rgba(255,255,255,.4);margin-top:2px;">${zoneName}</div>`;
-    if(pb)html+=`<div style="font-size:10px;color:#7dd3fa;margin-top:3px;font-weight:600;">🏠 담당: ${sn(pb.name)}${ab?' / '+sn(ab.name):''}</div>`;
-    html+=`</div>`;
-  }else if(hasGPS){
-    html+=`<div style="font-size:10px;color:#e05050;padding:0 2px;margin-bottom:6px;">⚠️ 표지판 코드 없음</div>`;
-  }
-  if(hasGPS){
-    const coords=data.lat.toFixed(5)+', '+data.lng.toFixed(5);
-    html+=`<button onclick="if(navigator.clipboard)navigator.clipboard.writeText('${coords}').then(()=>toast('📋 GPS 좌표 복사'));else toast('GPS: ${coords}')" style="width:100%;padding:8px;border-radius:8px;background:rgba(108,79,168,.12);color:#b89af0;border:1px solid rgba(108,79,168,.25);font-size:11px;font-weight:700;cursor:pointer;">📋 GPS 좌표 복사</button>`;
-  }
-  return html;
+  const btns=[dispatch,descent,evac,heli].filter(Boolean);
+  if(!btns.length&&!signLabel)return'';
+  return signLabel+(btns.length?`<div style="display:flex;gap:5px;">${btns.join('')}</div>`:'');
+}
+
+// 출동 정보 팝업 (산악: 기지명 + 사고지점 좌표 복사)
+function _showDispatchInfo(hubName,pbName,lat,lng){
+  const coords=lat&&lng?lat.toFixed(5)+', '+lng.toFixed(5):'';
+  const msg=(hubName?hubName+'에서 출발\n':'')+'담당: '+pbName+(coords?'\n사고지점: '+coords:'');
+  if(coords&&navigator.clipboard){
+    navigator.clipboard.writeText(coords).then(()=>toast('🚗 출동 — 좌표복사: '+coords)).catch(()=>alert(msg));
+  }else{alert(msg);}
+}
+
+// 하산 경로 안내 (SIGN_BASE_TABLE 기반 텍스트)
+function _showDescentInfo(signCode){
+  const baseInfo=getBaseForSign(signCode);
+  if(!baseInfo){toast('⚠️ 경로 정보 없음: '+signCode);return;}
+  const pb=SEORAK_BASES[baseInfo.primary];
+  const ab=baseInfo.alt?SEORAK_BASES[baseInfo.alt]:null;
+  let msg='📍 현위치: '+signCode+'\n🏠 하산 기지: '+(pb?pb.name:baseInfo.primary);
+  if(ab)msg+='\n   또는: '+ab.name;
+  const zm=(signCode.match(/^(\d{2})-/)||[])[1];
+  if(zm&&ZONE_NAMES[zm])msg+='\n🗺️ 구역: '+ZONE_NAMES[zm];
+  msg+='\n\n무전으로 위치 보고 후 담당 기지에 연락하세요.';
+  alert(msg);
+}
+
+// 대피 정보 (속초의료원 연락처 + 환자 좌표 복사)
+function _showEvacInfo(lat,lng){
+  const coords=lat&&lng?lat.toFixed(5)+', '+lng.toFixed(5):'';
+  const msg='🚑 속초의료원\n📞 033-630-6000\n\n응급후송 시 헬기 이착륙장 확보 후\n119 또는 담당 기지에 연락하세요.'+(coords?'\n\n환자 GPS: '+coords:'');
+  if(coords&&navigator.clipboard){
+    navigator.clipboard.writeText(coords).then(()=>alert(msg)).catch(()=>alert(msg));
+  }else{alert(msg);}
 }
 
 let _extraTeamCollapsed=[];
@@ -3179,6 +3221,9 @@ const _RES_DEFAULT_CATS=['🏠 분소','🛖 탐방지원센터','🪧 다목적
 // Facility overlay pool: created once, show/hide on filter changes
 var _rFacPool=new Map(); // String(id) → {ov, el, type, lat, lng}
 var _rEvOvs=[],_rEvEls=[]; // event overlays only (rescues + hazards)
+var _rTeamOvs=[],_rTeamEls=[]; // team position markers
+var _rFocusResId=null; // currently focused rescue id (focus mode)
+var _rFocusPolylines=[]; // route polylines for focus mode
 function _buildRFacEl(f){
   const el=document.createElement('div');el.className='mpin-num';
   if(f.type.includes('다목적위치표지판')){
@@ -3213,7 +3258,7 @@ function _syncRFacPool(){
   all.forEach(f=>{
     if(_rFacPool.has(String(f.id)))return;
     const el=_buildRFacEl(f);
-    const ov=new kakao.maps.CustomOverlay({position:new kakao.maps.LatLng(f.lat,f.lng),content:el,clickable:true,zIndex:1});
+    const ov=new kakao.maps.CustomOverlay({position:new kakao.maps.LatLng(f.lat,f.lng),content:el,clickable:true});
     _rFacPool.set(String(f.id),{ov,el,type:f.type});
   });
   _applyRFacFilter();
@@ -3243,6 +3288,8 @@ function renderRescueMap(){
   if(!mapR)return;
   // Clear event overlays only — facility pool is reused
   _rEvOvs.forEach(o=>{try{o.setMap(null);}catch(e){}});_rEvOvs=[];_rEvEls=[];
+  // Clear team markers
+  _rTeamOvs.forEach(o=>{try{o.setMap(null);}catch(e){}});_rTeamOvs=[];_rTeamEls=[];
   _updateResFilterPanels();
   const _showRes=resTypeF.size===0||resTypeF.has('🚨구조');
   const _showHaz=resTypeF.size===0||resTypeF.has('⚠️위험상황');
@@ -3254,12 +3301,27 @@ function renderRescueMap(){
     if(!_stOkRes(r.status))return;
     if(!_resDateOk(r.date))return;
     const isOg=r.status==='ongoing';const ti=RES_TYPES[r.type]||RES_TYPES['기타'];
-    const el=document.createElement('div');el.className=`mpin ${ti.pc}${isOg?' blink':' p-done'}`;el.innerHTML=ti.ico;el.dataset.ev='1';
+<<<<<<< Updated upstream
+    const el=document.createElement('div');el.className=`mpin ${ti.pc}${isOg?' blink':' p-done'}`;el.innerHTML=ti.ico;
     let _ts=null;
     el.addEventListener('touchstart',e=>{_ts={x:e.touches[0].clientX,y:e.touches[0].clientY};},{passive:true});
     el.addEventListener('touchend',e=>{if(!_ts)return;const dx=e.changedTouches[0].clientX-_ts.x,dy=e.changedTouches[0].clientY-_ts.y;_ts=null;if(Math.abs(dx)<8&&Math.abs(dy)<8){e.stopPropagation();e.preventDefault();openResPopup(r.id,'rescue');}});
     el.addEventListener('click',e=>{e.stopPropagation();openResPopup(r.id,'rescue');});
+    const ov=new kakao.maps.CustomOverlay({position:new kakao.maps.LatLng(r.lat,r.lng),content:el,clickable:true});
+=======
+    const el=document.createElement('div');el.className=`mpin ${ti.pc}${isOg?' blink':' p-done'}`;el.innerHTML=ti.ico;el.dataset.ev='1';
+    el.dataset.rid=String(r.id);
+    let _ts=null;
+    el.addEventListener('touchstart',e=>{_ts={x:e.touches[0].clientX,y:e.touches[0].clientY};},{passive:true});
+    el.addEventListener('touchend',e=>{
+      if(!_ts)return;const dx=e.changedTouches[0].clientX-_ts.x,dy=e.changedTouches[0].clientY-_ts.y;_ts=null;
+      if(Math.abs(dx)<8&&Math.abs(dy)<8){e.stopPropagation();e.preventDefault();
+        if(isOg&&r.teams&&r.teams.length)enterFocusMode(r.id);else openResPopup(r.id,'rescue');}
+    });
+    el.addEventListener('click',e=>{e.stopPropagation();
+      if(isOg&&r.teams&&r.teams.length)enterFocusMode(r.id);else openResPopup(r.id,'rescue');});
     const ov=new kakao.maps.CustomOverlay({position:new kakao.maps.LatLng(r.lat,r.lng),content:el,clickable:true,zIndex:3});
+>>>>>>> Stashed changes
     ov.setMap(mapR);_rEvOvs.push(ov);_rEvEls.push(el);
   });
   // 위험상황 핀
@@ -3268,39 +3330,284 @@ function renderRescueMap(){
     if(!_stOkHaz(h.hazStatus))return;
     if(!_resDateOk(h.date))return;
     const done=h.hazStatus&&h.hazStatus!=='미조치'&&h.hazStatus!=='조치중';
-    const el=document.createElement('div');el.className=`mpin p-haz${done?' p-done':''}`;el.innerHTML='⚠️';el.dataset.ev='1';
+    const el=document.createElement('div');el.className=`mpin p-haz${done?' p-done':''}`;el.innerHTML='⚠️';
     let _ts=null;
     el.addEventListener('touchstart',e=>{_ts={x:e.touches[0].clientX,y:e.touches[0].clientY};},{passive:true});
     el.addEventListener('touchend',e=>{if(!_ts)return;const dx=e.changedTouches[0].clientX-_ts.x,dy=e.changedTouches[0].clientY-_ts.y;_ts=null;if(Math.abs(dx)<8&&Math.abs(dy)<8){e.stopPropagation();e.preventDefault();openResPopup(h.id,'hazard');}});
     el.addEventListener('click',e=>{e.stopPropagation();openResPopup(h.id,'hazard');});
-    const ov=new kakao.maps.CustomOverlay({position:new kakao.maps.LatLng(h.lat,h.lng),content:el,clickable:true,zIndex:3});
+    const ov=new kakao.maps.CustomOverlay({position:new kakao.maps.LatLng(h.lat,h.lng),content:el,clickable:true});
     ov.setMap(mapR);_rEvOvs.push(ov);_rEvEls.push(el);
+  });
+  // 팀 위치 마커: 진행중 구조 팀의 현재 위치
+  const _teamColors=['#4fa8d0','#27ae60','#e67e22','#9b59b6'];
+  (DB.g('rescues')||[]).filter(r=>r.status==='ongoing'&&r.teams&&r.teams.length).forEach(rescue=>{
+    rescue.teams.forEach((team,ti)=>{
+      const cur=team.wps&&team.wps[team.wpIdx>=0?team.wpIdx:0];
+      if(!cur||!cur.lat||!cur.lng)return;
+      const typeIco=team.type==='heli'?'🚁':team.type==='vehicle'?'🚐':'🥾';
+      const col=_teamColors[ti%_teamColors.length];
+      const el=document.createElement('div');
+      el.className='team-chip';
+      el.style.borderColor=col;el.style.color=col;
+      el.innerHTML=`${typeIco} <span>${team.name}</span>`;
+      el.dataset.ev='1';el.dataset.rid=String(rescue.id);
+      let _ts=null;
+      el.addEventListener('touchstart',e=>{_ts={x:e.touches[0].clientX,y:e.touches[0].clientY};},{passive:true});
+      el.addEventListener('touchend',ev=>{if(!_ts)return;const dx=ev.changedTouches[0].clientX-_ts.x,dy=ev.changedTouches[0].clientY-_ts.y;_ts=null;if(Math.abs(dx)<8&&Math.abs(dy)<8){ev.stopPropagation();ev.preventDefault();enterFocusMode(rescue.id);}});
+      el.addEventListener('click',ev=>{ev.stopPropagation();enterFocusMode(rescue.id);});
+      const ov=new kakao.maps.CustomOverlay({position:new kakao.maps.LatLng(cur.lat,cur.lng),content:el,clickable:true,yAnchor:1.5,zIndex:4});
+      ov.setMap(mapR);_rTeamOvs.push(ov);_rTeamEls.push(el);
+    });
   });
   // 시설물: 풀 동기화 후 필터 적용 (DOM 재생성 없이 show/hide)
   _syncRFacPool();
+<<<<<<< Updated upstream
+=======
+  // Focus mode: apply dimming to non-focused overlays
+  if(_rFocusResId){
+    _applyFocusDim();
+    _drawFocusRoutes(_rFocusResId);
+  }
   _updateOgBanner();
+>>>>>>> Stashed changes
   updateSummary();
 }
 
-// 진행중 사고 배너: 탭하면 사고 위치로 순환 이동
-var _ogPanIdx=0;
-function _updateOgBanner(){
-  const b=document.getElementById('ogBanner');if(!b)return;
-  const og=(DB.g('rescues')||[]).filter(r=>r.status==='ongoing');
-  const ogHaz=(DB.g('hazards')||[]).filter(h=>!h.hazStatus||h.hazStatus==='미조치'||h.hazStatus==='조치중');
-  const n=og.length,nh=ogHaz.length;
-  if(n===0&&nh===0){b.style.display='none';return;}
-  b.style.display='flex';
-  b.innerHTML='🔴 진행중 '+(n>0?'사고 '+n+'건':'')+(n>0&&nh>0?' · ':'')+(nh>0?'위험 '+nh+'건':'')+' <span style="font-size:10px;opacity:.75;">탭하여 이동</span>';
+// ══════════════════════════════════════════
+// 포커스 모드: 사고 탭 → 팀 경로 + 진행 패널
+// ══════════════════════════════════════════
+function _getBaseByName(name){
+  return Object.values(SEORAK_BASES).find(b=>b.name===name)||null;
 }
-function panToNextOngoing(){
-  const og=(DB.g('rescues')||[]).filter(r=>r.status==='ongoing'&&r.lat&&r.lng).map(r=>({lat:r.lat,lng:r.lng,t:r.title}));
-  const ogHaz=(DB.g('hazards')||[]).filter(h=>(!h.hazStatus||h.hazStatus==='미조치'||h.hazStatus==='조치중')&&h.lat&&h.lng).map(h=>({lat:h.lat,lng:h.lng,t:h.hazType||'위험상황'}));
-  const all=[...og,...ogHaz];
-  if(!all.length){toast('좌표가 등록된 진행중 건이 없습니다');return;}
-  const item=all[_ogPanIdx%all.length];_ogPanIdx++;
-  if(mapR){mapR.setCenter(new kakao.maps.LatLng(item.lat,item.lng));mapR.setLevel(5);}
-  toast('📍 '+item.t+(all.length>1?' ('+((_ogPanIdx-1)%all.length+1)+'/'+all.length+')':''));
+
+function _applyFocusDim(){
+  const fid=String(_rFocusResId);
+  // Event markers: dim if not the focused rescue
+  _rEvEls.forEach(el=>{
+    const isMe=el.dataset&&el.dataset.rid===fid;
+    el.style.opacity=isMe?'1':'0.12';
+  });
+  // Team markers: dim if not the focused rescue
+  _rTeamEls.forEach(el=>{
+    const rid=el.dataset&&el.dataset.rid;
+    el.style.opacity=rid===fid?'1':'0.12';
+  });
+  // Facility pool: dim all
+  _rFacPool.forEach(entry=>{entry.el.style.opacity='0.12';});
+}
+
+function _clearFocusDim(){
+  _rEvEls.forEach(el=>{el.style.opacity='';});
+  _rTeamEls.forEach(el=>{el.style.opacity='';});
+  _rFacPool.forEach(entry=>{entry.el.style.opacity='';});
+}
+
+function _clearFocusPolylines(){
+  _rFocusPolylines.forEach(p=>{try{p.setMap(null);}catch(e){}});
+  _rFocusPolylines=[];
+}
+
+function _drawFocusRoutes(resId){
+  _clearFocusPolylines();
+  if(!mapR||!resId)return;
+  const rescue=(DB.g('rescues')||[]).find(r=>r.id===resId);
+  if(!rescue||!rescue.teams)return;
+  const teamColors=['#4fa8d0','#27ae60','#e67e22','#9b59b6'];
+  const bounds=new kakao.maps.LatLngBounds();
+  // Add incident point to bounds
+  if(rescue.lat&&rescue.lng)bounds.extend(new kakao.maps.LatLng(rescue.lat,rescue.lng));
+
+  rescue.teams.forEach((team,ti)=>{
+    const col=teamColors[ti%teamColors.length];
+    const wps=team.wps||[];
+    if(!wps.length)return;
+    // Find base station coords from first waypoint name (isBase)
+    const baseWp=wps.find(w=>w.isBase);
+    const baseCoords=baseWp?_getBaseByName(baseWp.name):null;
+    // Trail waypoints with coords (skip isBase since it has no lat/lng)
+    const trailPts=wps.filter(w=>!w.isBase&&w.lat&&w.lng);
+    if(!trailPts.length)return;
+
+    // Car segment: base station → first trail waypoint (dashed)
+    if(baseCoords){
+      const carPath=[
+        new kakao.maps.LatLng(baseCoords.lat,baseCoords.lng),
+        new kakao.maps.LatLng(trailPts[0].lat,trailPts[0].lng)
+      ];
+      const carLine=new kakao.maps.Polyline({
+        path:carPath,strokeWeight:3,strokeColor:'#f0c040',
+        strokeOpacity:.75,strokeStyle:'shortdash',map:mapR
+      });
+      _rFocusPolylines.push(carLine);
+      bounds.extend(carPath[0]);bounds.extend(carPath[1]);
+
+      // Base label marker
+      const baseLbl=document.createElement('div');
+      baseLbl.style.cssText='background:rgba(10,20,40,.9);border:1px solid #f0c040;border-radius:8px;padding:2px 7px;font-size:10px;font-weight:700;color:#f0c040;white-space:nowrap;pointer-events:none;';
+      baseLbl.textContent='🏠 '+(baseWp.name||'').replace('탐방지원센터','').replace('설악산국립공원사무소','공단사무소').slice(0,8);
+      const baseOv=new kakao.maps.CustomOverlay({position:carPath[0],content:baseLbl,yAnchor:1.5,zIndex:5});
+      baseOv.setMap(mapR);_rFocusPolylines.push(baseOv);
+    }
+
+    // Walk segment: connect trail waypoints (solid)
+    if(trailPts.length>=2){
+      const walkPath=trailPts.map(w=>new kakao.maps.LatLng(w.lat,w.lng));
+      const walkLine=new kakao.maps.Polyline({
+        path:walkPath,strokeWeight:4,strokeColor:col,
+        strokeOpacity:.85,strokeStyle:'solid',map:mapR
+      });
+      _rFocusPolylines.push(walkLine);
+      walkPath.forEach(p=>bounds.extend(p));
+    } else if(trailPts.length===1){
+      bounds.extend(new kakao.maps.LatLng(trailPts[0].lat,trailPts[0].lng));
+    }
+
+    // Team current position label
+    const cur=wps[team.wpIdx>=0?team.wpIdx:0];
+    if(cur&&cur.lat&&cur.lng){
+      const posLbl=document.createElement('div');
+      posLbl.style.cssText=`background:rgba(10,20,40,.9);border:1.5px solid ${col};border-radius:8px;padding:2px 7px;font-size:10px;font-weight:700;color:${col};white-space:nowrap;pointer-events:none;`;
+      const typeIco=team.type==='heli'?'🚁':team.type==='vehicle'?'🚐':'🥾';
+      posLbl.textContent=`${typeIco} ${team.name}`;
+      const posOv=new kakao.maps.CustomOverlay({position:new kakao.maps.LatLng(cur.lat,cur.lng),content:posLbl,yAnchor:1.5,zIndex:5});
+      posOv.setMap(mapR);_rFocusPolylines.push(posOv);
+    }
+  });
+
+  // Fit map to show all relevant elements
+  try{if(mapR)mapR.setBounds(bounds,60);}catch(e){}
+}
+
+function _renderFocusPanel(resId){
+  const panel=document.getElementById('focusModePanel');
+  const titleEl=document.getElementById('focusPanelTitle');
+  const teamsEl=document.getElementById('focusPanelTeams');
+  if(!panel||!titleEl||!teamsEl)return;
+  const rescue=(DB.g('rescues')||[]).find(r=>r.id===resId);
+  if(!rescue){exitFocusMode();return;}
+  titleEl.textContent='🔴 '+rescue.title;
+  const teams=rescue.teams||[];
+  if(!teams.length){
+    teamsEl.innerHTML='<div style="font-size:11px;color:rgba(255,255,255,.35);text-align:center;padding:12px 0;">팀 없음 — 타임라인에서 팀 생성</div>';
+    panel.classList.add('on');return;
+  }
+  const stagePal=[
+    {c:'rgba(255,255,255,.4)',label:'출발'},
+    {c:'#4fa8d0',label:'이동중'},
+    {c:'#f0a500',label:'환자조우'},
+    {c:'#27ae60',label:'하산'},
+  ];
+  const teamColors=['#4fa8d0','#27ae60','#e67e22','#9b59b6'];
+  teamsEl.innerHTML=teams.map((team,ti)=>{
+    const col=teamColors[ti%teamColors.length];
+    const si=_teamStageIdx(team);
+    const pal=stagePal[si]||stagePal[3];
+    const typeIco=team.type==='heli'?'🚁':team.type==='vehicle'?'🚐':'🥾';
+    const total=Math.max(team.wps.length-1,1);
+    const pct=Math.round((team.wpIdx/total)*100);
+    const atEnd=team.wpIdx>=team.wps.length-1;
+    const curWp=team.wps[team.wpIdx]||team.wps[0]||{};
+    const curName=(curWp.code?curWp.code+' ':'')+(curWp.name||'').slice(0,14);
+    return `<div style="background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.07);border-radius:10px;padding:10px 11px;margin-bottom:8px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+        <span style="font-size:12px;font-weight:800;color:${col};">${typeIco} ${team.name}</span>
+        <span style="font-size:10px;font-weight:700;color:${pal.c};background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.08);padding:2px 8px;border-radius:10px;">${pal.label}</span>
+      </div>
+      <div style="height:5px;background:rgba(255,255,255,.07);border-radius:3px;overflow:hidden;margin-bottom:6px;">
+        <div style="height:100%;width:${pct}%;background:${col};border-radius:3px;transition:width .4s;"></div>
+      </div>
+      <div style="display:flex;align-items:center;justify-content:space-between;">
+        <span style="font-size:10px;color:rgba(255,255,255,.4);">📍 ${curName||'-'} · ${team.wpIdx}/${total}</span>
+        ${!atEnd?`<button onclick="_focusPassTeam(${resId},${ti})" style="background:rgba(79,168,208,.15);border:1px solid rgba(79,168,208,.35);color:#4fa8d0;border-radius:7px;padding:4px 12px;font-size:11px;font-weight:700;cursor:pointer;">▶ 통과</button>`:`<span style="font-size:10px;color:#27ae60;font-weight:700;">✓ 완료</span>`}
+      </div>
+    </div>`;
+  }).join('');
+  panel.classList.add('on');
+}
+
+function enterFocusMode(resId){
+  if(!resId)return;
+  _rFocusResId=resId;
+  // Update team marker data-rid for dimming
+  _rTeamEls.forEach(el=>{el.dataset.rid=String(resId);/* will be overwritten in renderRescueMap */});
+  // Rebuild team markers with proper rid
+  _rTeamOvs.forEach(o=>{try{o.setMap(null);}catch(e){}});_rTeamOvs=[];_rTeamEls=[];
+  const _teamColors=['#4fa8d0','#27ae60','#e67e22','#9b59b6'];
+  (DB.g('rescues')||[]).filter(r=>r.status==='ongoing'&&r.teams&&r.teams.length).forEach(rescue=>{
+    rescue.teams.forEach((team,ti)=>{
+      const cur=team.wps&&team.wps[team.wpIdx>=0?team.wpIdx:0];
+      if(!cur||!cur.lat||!cur.lng)return;
+      const typeIco=team.type==='heli'?'🚁':team.type==='vehicle'?'🚐':'🥾';
+      const col=_teamColors[ti%_teamColors.length];
+      const el=document.createElement('div');
+      el.className='team-chip';
+      el.style.borderColor=col;el.style.color=col;
+      el.innerHTML=`${typeIco} <span>${team.name}</span>`;
+      el.dataset.ev='1';el.dataset.rid=String(rescue.id);
+      el.addEventListener('click',ev=>{ev.stopPropagation();enterFocusMode(rescue.id);});
+      const ov=new kakao.maps.CustomOverlay({position:new kakao.maps.LatLng(cur.lat,cur.lng),content:el,clickable:true,yAnchor:1.5,zIndex:4});
+      if(mapR)ov.setMap(mapR);_rTeamOvs.push(ov);_rTeamEls.push(el);
+    });
+  });
+  _applyFocusDim();
+  _drawFocusRoutes(resId);
+  _renderFocusPanel(resId);
+  // Close existing popup
+  const popup=document.getElementById('resPopup');if(popup)popup.classList.remove('on');
+}
+
+function exitFocusMode(){
+  _rFocusResId=null;
+  _clearFocusPolylines();
+  _clearFocusDim();
+  const panel=document.getElementById('focusModePanel');
+  if(panel)panel.classList.remove('on');
+}
+
+function _focusPassTeam(resId,teamIdx){
+  const _res=DB.g('rescues')||[];const _ri=_res.findIndex(x=>x.id===resId);
+  if(_ri<0)return;
+  const team=(_res[_ri].teams||[])[teamIdx];
+  if(!team)return;
+  const next=team.wpIdx+1;
+  if(next>=team.wps.length){toast('✅ 이미 종료');return;}
+  const passedWp=team.wps[team.wpIdx];
+  if(passedWp){passedWp.status='passed';passedWp.passedAt=now();}
+  team.wps[next].status='active';
+  team.wpIdx=next;
+  if(!_res[_ri].wpLog)_res[_ri].wpLog=[];
+  const _d=new Date();
+  _res[_ri].wpLog.push({time:_d.getHours().toString().padStart(2,'0')+':'+_d.getMinutes().toString().padStart(2,'0'),teamName:team.name,code:(passedWp&&passedWp.code)||'',wpName:(passedWp&&passedWp.name)||''});
+  DB.s('rescues',_res);
+  // Sync in-memory _tlTeams if same rescue is open in timeline
+  if(_tlWpResId===resId&&_tlTeams[teamIdx]){
+    _tlTeams[teamIdx]=Object.assign({},team,{collapsed:_tlTeams[teamIdx].collapsed});
+    if(_tlSelTeam===teamIdx){_tlWps=_tlTeams[teamIdx].wps;_tlWpIdx=_tlTeams[teamIdx].wpIdx;}
+  }
+  const curWp=team.wps[next]||{};
+  const wpLabel=(curWp.code?curWp.code+' ':'')+(curWp.name||'').slice(0,12);
+  toast('✅ '+team.name+': '+(wpLabel||'통과'));
+  _renderFocusPanel(resId);
+  try{_clearFocusPolylines();_drawFocusRoutes(resId);}catch(e){}
+  // Rebuild team chip position
+  _rTeamOvs.forEach(o=>{try{o.setMap(null);}catch(e){}});_rTeamOvs=[];_rTeamEls=[];
+  const _teamColors=['#4fa8d0','#27ae60','#e67e22','#9b59b6'];
+  (DB.g('rescues')||[]).filter(r=>r.status==='ongoing'&&r.teams&&r.teams.length).forEach(rescue=>{
+    rescue.teams.forEach((t,ti)=>{
+      const cur=t.wps&&t.wps[t.wpIdx>=0?t.wpIdx:0];
+      if(!cur||!cur.lat||!cur.lng)return;
+      const typeIco=t.type==='heli'?'🚁':t.type==='vehicle'?'🚐':'🥾';
+      const col=_teamColors[ti%_teamColors.length];
+      const el=document.createElement('div');
+      el.className='team-chip';el.style.borderColor=col;el.style.color=col;
+      el.innerHTML=`${typeIco} <span>${t.name}</span>`;
+      el.dataset.ev='1';el.dataset.rid=String(rescue.id);
+      el.addEventListener('click',ev=>{ev.stopPropagation();enterFocusMode(rescue.id);});
+      const ov=new kakao.maps.CustomOverlay({position:new kakao.maps.LatLng(cur.lat,cur.lng),content:el,clickable:true,yAnchor:1.5,zIndex:4});
+      if(mapR)ov.setMap(mapR);_rTeamOvs.push(ov);_rTeamEls.push(el);
+    });
+  });
+  _applyFocusDim();
 }
 
 // ══════════════════════════════════════════
@@ -3327,100 +3634,41 @@ function renderResList(){
   const _showHaz=(_resListTab==='all'||_resListTab==='haz')&&(resTypeF.size===0||resTypeF.has('⚠️위험상황'));
   const _stOkRes=s=>resStatusF.size===0||(resStatusF.has('진행중')&&s==='ongoing')||(resStatusF.has('종료')&&s==='done');
   const _stOkHaz=s=>{const active=!s||s==='미조치'||s==='조치중';return resStatusF.size===0||(resStatusF.has('진행중')&&active)||(resStatusF.has('종료')&&!active);};
-  const todayStr=today();
-
-  // 필터된 항목 수집 후 날짜 내림차순 정렬
-  let allItems=[];
-  if(_showRes){res.filter(r=>_stOkRes(r.status)&&_resDateOk(r.date)).forEach(r=>allItems.push({_k:'rescue',data:r,isOg:r.status==='ongoing',ds:r.date||''}));}
-  if(_showHaz){haz.filter(h=>_stOkHaz(h.hazStatus)&&_resDateOk(h.date)).forEach(h=>{const a=!h.hazStatus||h.hazStatus==='미조치'||h.hazStatus==='조치중';allItems.push({_k:'haz',data:h,isOg:a,ds:h.date||''});});}
-  allItems.sort((a,b)=>b.ds>a.ds?1:b.ds<a.ds?-1:0);
-
-  // 그룹 분류
-  const ongoing=allItems.filter(x=>x.isOg);
-  const todayDone=allItems.filter(x=>!x.isOg&&x.ds.startsWith(todayStr));
-  const older=allItems.filter(x=>!x.isOg&&!x.ds.startsWith(todayStr));
-
-  // 섹션 헤더
-  function secHdr(ico,label,count,col,bg,br){
-    return `<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 3px 5px;">
-      <span style="font-size:11px;font-weight:800;color:${col};letter-spacing:.2px;">${ico} ${label}</span>
-      ${count>0?`<span style="font-size:10px;font-weight:700;color:${col};background:${bg};border:1px solid ${br};padding:2px 9px;border-radius:20px;">${count}건</span>`:''}
-    </div>`;
-  }
-
-  // 구조 카드
-  function resCard(r,compact){
-    const isOg=r.status==='ongoing';
-    const ti=RES_TYPES[r.type]||RES_TYPES['기타'];
-    const totalPh=(r.reports||[]).length+1;
-    const hasCoord=!!(r.lat&&r.lng);
-    const dateLabel=r.date?(r.date.startsWith(todayStr)?'오늘 '+r.date.slice(11,16):r.date.slice(5)):'-';
-    return `<div onclick="openResListDetail(${r.id})"
-      style="background:${isOg?'rgba(15,26,44,1)':'#0b1c30'};border-radius:11px;margin-bottom:6px;overflow:hidden;cursor:pointer;
-      border-left:3px solid ${isOg?'#c0392b':'rgba(255,255,255,.07)'};
-      border-top:.5px solid ${isOg?'rgba(192,57,43,.18)':'rgba(255,255,255,.06)'};
-      border-right:.5px solid rgba(255,255,255,.04);border-bottom:.5px solid rgba(255,255,255,.04);
-      transition:background .12s;">
-      <div style="padding:11px 12px;">
-        <div style="display:flex;align-items:flex-start;gap:10px;">
-          <div style="width:36px;height:36px;border-radius:9px;background:${isOg?ti.color:'rgba(255,255,255,.06)'};display:flex;align-items:center;justify-content:center;font-size:19px;flex-shrink:0;">${ti.ico}</div>
-          <div style="flex:1;min-width:0;">
-            <div style="font-size:${compact?12:13}px;font-weight:${isOg?800:700};color:${isOg?'#fff':'#b8d0e8'};line-height:1.3;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${r.title}</div>
-            ${isOg?`<div style="font-size:11px;color:#e05050;font-weight:700;margin-top:2px;">🔴 진행중 · ${r.time||dateLabel}</div>`:''}
-            <div style="font-size:${compact?10:11}px;color:#5a7f98;margin-top:${isOg?1:3}px;">${r.type}${r.location?' · '+r.location.slice(0,18):''}${!isOg?' · '+dateLabel:''}</div>
-            ${r.vName&&!compact?`<div style="font-size:10px;color:rgba(255,255,255,.28);margin-top:2px;">사고자: ${r.vName} · ${totalPh}보</div>`:''}
-          </div>
-        </div>
-        ${hasCoord&&!compact?`<button onclick="event.stopPropagation();viewOnMap(${r.lat},${r.lng})"
-          style="margin-top:8px;width:100%;padding:6px;background:rgba(79,168,208,.07);border:1px solid rgba(79,168,208,.18);color:#4fa8d0;border-radius:7px;font-size:11px;font-weight:600;cursor:pointer;">🗺️ 지도보기</button>`:''}
-      </div>
-    </div>`;
-  }
-
-  // 위험상황 카드
-  function hazCard(h,compact){
-    const active=!h.hazStatus||h.hazStatus==='미조치'||h.hazStatus==='조치중';
-    const hasCoord=!!(h.lat&&h.lng);
-    const ico=h.hazType?.split(' ')[0]||'⚠️';
-    const dateLabel=h.date?(h.date.startsWith(todayStr)?'오늘 '+h.date.slice(11,16):h.date.slice(5)):'-';
-    return `<div onclick="openHazDetail(${h.id})"
-      style="background:${active?'rgba(15,26,44,1)':'#0b1c30'};border-radius:11px;margin-bottom:6px;overflow:hidden;cursor:pointer;
-      border-left:3px solid ${active?'#e67e22':'rgba(255,255,255,.07)'};
-      border-top:.5px solid ${active?'rgba(230,126,34,.18)':'rgba(255,255,255,.06)'};
-      border-right:.5px solid rgba(255,255,255,.04);border-bottom:.5px solid rgba(255,255,255,.04);">
-      <div style="padding:11px 12px;">
-        <div style="display:flex;align-items:flex-start;gap:10px;">
-          <div style="width:36px;height:36px;border-radius:9px;background:${active?'rgba(230,126,34,.15)':'rgba(255,255,255,.06)'};display:flex;align-items:center;justify-content:center;font-size:19px;flex-shrink:0;">${ico}</div>
-          <div style="flex:1;min-width:0;">
-            <div style="font-size:${compact?12:13}px;font-weight:${active?800:700};color:${active?'#fff':'#b8d0e8'};line-height:1.3;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${h.hazType||'위험상황'} · ${h.loc||'-'}</div>
-            ${active?`<div style="font-size:11px;color:#e67e22;font-weight:700;margin-top:2px;">⚠️ ${h.hazStatus||'미조치'} · ${dateLabel}</div>`:''}
-            <div style="font-size:${compact?10:11}px;color:#5a7f98;margin-top:${active?1:3}px;">${h.danger||''}${!active?' · '+dateLabel:''}</div>
-            ${h.desc&&!compact?`<div style="font-size:10px;color:rgba(255,255,255,.28);margin-top:2px;">${(h.desc||'').slice(0,32)}${(h.desc||'').length>32?'…':''}</div>`:''}
-          </div>
-        </div>
-        ${hasCoord&&!compact?`<button onclick="event.stopPropagation();viewOnMap(${h.lat},${h.lng})"
-          style="margin-top:8px;width:100%;padding:6px;background:rgba(230,126,34,.07);border:1px solid rgba(230,126,34,.18);color:#e67e22;border-radius:7px;font-size:11px;font-weight:600;cursor:pointer;">🗺️ 지도보기</button>`:''}
-      </div>
-    </div>`;
-  }
-
-  function renderItem(x,compact){return x._k==='rescue'?resCard(x.data,compact):hazCard(x.data,compact);}
-
+  const _dateOkL=d=>_resDateOk(d);
   let html='';
-  if(ongoing.length){
-    html+=secHdr('🔴','진행 중',ongoing.length,'#e05050','rgba(192,57,43,.15)','rgba(192,57,43,.3)');
-    html+=ongoing.map(x=>renderItem(x,false)).join('');
+  if(_showRes){
+    html+=(res.filter(r=>_stOkRes(r.status)&&_dateOkL(r.date))).slice().reverse().map(r=>{
+      const isOg=r.status==='ongoing';const ti=RES_TYPES[r.type]||RES_TYPES['기타'];
+      const totalPh=(r.reports||[]).length+1;
+      const hasCoord=!!(r.lat&&r.lng);
+      return `<div class="lcard" onclick="openResListDetail(${r.id})" style="position:relative;">
+        <div class="lico" style="background:${isOg?ti.color:'#1a3a1a'};border:none;color:#fff;">${ti.ico}</div>
+        <div class="linfo"><div class="lname">🚨 ${r.title}</div>
+          <div class="lmeta">${r.type} · ${r.date}</div>
+          <div class="lmeta">작성: ${r.author||'-'} · ${totalPh}보 기록 · 사고자: ${r.vName||'미상'}</div>
+          ${hasCoord?`<button onclick="event.stopPropagation();viewOnMap(${r.lat},${r.lng})" style="margin-top:5px;padding:4px 10px;background:rgba(79,168,208,.12);border:1px solid rgba(79,168,208,.35);color:#4fa8d0;border-radius:7px;font-size:11px;font-weight:600;cursor:pointer;">🗺️ 지도보기</button>`:''}
+        </div>
+        <span class="lbadge" style="background:${isOg?'rgba(192,57,43,.15)':'rgba(39,174,96,.15)'};color:${isOg?'#c0392b':'#27ae60'};align-self:flex-start;flex-shrink:0;">${isOg?'진행중':'종료'}</span>
+      </div>`;
+    }).join('');
   }
-  if(todayDone.length){
-    html+=secHdr('📅','오늘 종료',todayDone.length,'#7dd3fa','rgba(79,168,208,.1)','rgba(79,168,208,.25)');
-    html+=todayDone.map(x=>renderItem(x,false)).join('');
-  }
-  if(older.length){
-    html+=`<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 3px 5px;">
-      <span style="font-size:11px;font-weight:700;color:rgba(255,255,255,.25);">📁 이전</span>
-      <span style="font-size:10px;color:rgba(255,255,255,.15);">${older.length}건</span>
-    </div>`;
-    html+=older.map(x=>renderItem(x,true)).join('');
+  if(_showHaz){
+    html+=(haz.filter(h=>_stOkHaz(h.hazStatus)&&_dateOkL(h.date))).slice().reverse().map(h=>{
+      const done=h.hazStatus&&h.hazStatus!=='미조치'&&h.hazStatus!=='조치중';
+      const hasCoord=!!(h.lat&&h.lng);
+      return `<div class="haz-card ${done?'haz-removed':''}" onclick="openHazDetail(${h.id})">
+        <div style="display:flex;align-items:center;gap:10px;">
+          <div style="font-size:22px;">${h.hazType?.split(' ')[0]||'⚠️'}</div>
+          <div style="flex:1;min-width:0;">
+            <div style="font-size:13px;color:#e0edf8;font-weight:600;">${h.hazType||'위험상황'} · ${h.loc||'-'}</div>
+            <div style="font-size:10px;color:rgba(255,255,255,.32);margin-top:2px;">${h.dt||'-'} · ${h.danger||'-'} · ${h.author||'-'}</div>
+            <div style="font-size:11px;color:#7a9cb8;margin-top:2px;">${(h.desc||'').slice(0,40)}${(h.desc||'').length>40?'...':''}</div>
+            ${hasCoord?`<button onclick="event.stopPropagation();viewOnMap(${h.lat},${h.lng})" style="margin-top:5px;padding:4px 10px;background:rgba(230,126,34,.12);border:1px solid rgba(230,126,34,.35);color:#e67e22;border-radius:7px;font-size:11px;font-weight:600;cursor:pointer;">🗺️ 지도보기</button>`:''}
+          </div>
+          <span class="lbadge ${done?'haz-badge-done':'haz-badge-active'}" style="align-self:flex-start;flex-shrink:0;">${h.hazStatus||'미조치'}</span>
+        </div>
+      </div>`;
+    }).join('');
   }
   document.getElementById('resListWrap').innerHTML=html||'<div class="empty"><div class="empty-ico">📋</div><div class="empty-txt">해당 항목 없음</div></div>';
 }
@@ -3580,28 +3828,15 @@ function openResPopup(id,type='rescue'){
     const _skip=v=>{if(!v)return true;const s=String(v).trim();return !s||s==='-'||['미상','없음','알수없음','미정'].includes(s);};
     const row=(ico,val)=>val?`<div style="display:flex;gap:5px;margin-bottom:3px;"><span style="color:#4a7090;flex-shrink:0;">${ico}</span><span style="color:#c0d8ec;font-size:11px;">${val}</span></div>`:'';
     const d=data;
-    const curSt=d.hazStatus||'미조치';
     document.getElementById('resPopMeta').innerHTML=[
       row('📍',!_skip(d.loc)?d.loc:''),
       row('⚠️',!_skip(d.danger)?d.danger:''),
-      row('📝',!_skip(d.desc)?String(d.desc).slice(0,60):''),
+      row('📋',!_skip(d.hazStatus)?d.hazStatus:''),
       row('👤',!_skip(d.author)?d.author:''),
     ].filter(Boolean).join('')||'<div style="color:#4a7090;font-size:11px;">상세 정보 없음</div>';
     document.getElementById('btnViewRep').style.display='none';
     document.getElementById('btnViewTl').style.display='none';
-    // 처리상태 변경 버튼 (팝업에서 바로 변경)
-    const rEl2=document.getElementById('resPopRoutes');
-    if(rEl2){
-      const sts=['미조치','조치중','제거 완료','통제중'];
-      const stCol={'미조치':'#e05050','조치중':'#e67e22','제거 완료':'#27ae60','통제중':'#4fa8d0'};
-      rEl2.innerHTML='<div style="font-size:10px;color:#3a6a8a;font-weight:600;margin-bottom:5px;">📋 처리상태</div><div style="display:flex;gap:5px;">'
-        +sts.map(s=>{const on=s===curSt;const c=stCol[s];
-          return `<button onclick="setHazStatus(${d.id},'${s}')" style="flex:1;padding:8px 2px;border-radius:8px;font-size:11px;font-weight:700;cursor:pointer;
-            background:${on?c+'33':'transparent'};color:${on?c:'rgba(255,255,255,.3)'};
-            border:1.5px solid ${on?c:'rgba(255,255,255,.1)'};">${s}</button>`;}).join('')
-        +'</div>';
-      rEl2.style.display='block';
-    }
+    const rEl2=document.getElementById('resPopRoutes');if(rEl2)rEl2.style.display='none';
   }
   document.getElementById('facPopup').classList.remove('on');
   document.getElementById('resPopup').classList.add('on');
@@ -3616,25 +3851,7 @@ function viewOnResMap(){
 
 function openHazDetail(id){
   const h=(DB.g('hazards')||[]).find(x=>x.id===id);if(!h)return;
-  // 지도 탭으로 전환 후 팝업 열기 (좌표 있으면 해당 위치로 이동)
-  if(curApp!=='rescue'){openApp('rescue');}
-  else{switchTab(1,document.getElementById('nv1'));}
-  setTimeout(function(){
-    try{
-      if(h.lat&&h.lng&&mapR){mapR.setCenter(new kakao.maps.LatLng(h.lat,h.lng));mapR.setLevel(5);}
-      openResPopup(id,'hazard');
-    }catch(e){}
-  },250);
-}
-// 위험상황 처리상태 변경 (팝업에서 바로)
-function setHazStatus(id,status){
-  const haz=DB.g('hazards')||[];
-  const idx=haz.findIndex(x=>x.id===id);if(idx===-1)return;
-  haz[idx].hazStatus=status;
-  DB.s('hazards',haz);
-  toast('✅ 상태 변경: '+status);
-  openResPopup(id,'hazard'); // 팝업 갱신
-  try{renderRescueMap();renderResList();}catch(e){}
+  toast('⚠️ '+h.hazType+' — '+h.hazStatus);
 }
 
 // ══════════════════════════════════════════
@@ -3940,6 +4157,7 @@ function confirmTlBuild(){
   const newIdx=_tlTeams.length-1;
   _tlSelTeam=newIdx;_tlWps=_tlTeams[newIdx].wps;_tlWpIdx=0;
   _tlBuilding=false;
+  _persistTeams(); // save to Firestore so rescue map can show team positions
   _rerenderTlFull();
   // init minimap if first team with coords
   const wpsForMap=_tlTeams[newIdx].wps;
@@ -4044,9 +4262,23 @@ function _buildRoute(r,facs){
 
 function _initTlTeams(r){
   if(_tlWpResId===r.id&&(_tlTeams.length||_tlBuilding))return;
-  _tlWpResId=r.id;_tlVehicle=false;_tlAnimating=false;_tlSelTeam=0;_tlTeams=[];
-  _tlBuilding=false;_tlBuildType=null;_tlBuildMembers=[];_tlBuildOtherOpen=false;_tlBuildAgencyType='소방';
-  _tlWps=[];_tlWpIdx=0;
+  _tlWpResId=r.id;_tlVehicle=false;_tlAnimating=false;_tlBuilding=false;
+  _tlBuildType=null;_tlBuildMembers=[];_tlBuildOtherOpen=false;_tlBuildAgencyType='소방';
+  // Load persisted teams from rescue record
+  if(r.teams&&r.teams.length){
+    _tlTeams=r.teams.map(t=>({...t,collapsed:true}));
+    _tlSelTeam=0;_tlWps=_tlTeams[0].wps;_tlWpIdx=_tlTeams[0].wpIdx||0;
+  }else{
+    _tlTeams=[];_tlSelTeam=0;_tlWps=[];_tlWpIdx=0;
+  }
+}
+
+function _persistTeams(){
+  if(!_tlWpResId)return;
+  const _res=DB.g('rescues')||[];const _ri=_res.findIndex(x=>x.id===_tlWpResId);
+  if(_ri<0)return;
+  _res[_ri].teams=_tlTeams.map(t=>({id:t.id,name:t.name,type:t.type,wpIdx:t.wpIdx,wps:t.wps,members:t.members||[]}));
+  DB.s('rescues',_res);
 }
 
 function _saveTeamState(){
@@ -4116,120 +4348,69 @@ function _compactRouteHtml(team,idx){
   const cur=team.wps[team.wpIdx]||team.wps[0];
   const next=team.wps[team.wpIdx+1]||null;
   const atEnd=team.wpIdx>=team.wps.length-1;
+  const canSkip=team.wpIdx<team.wps.length-2;
+  const typeIco=team.type==='heli'?'🚁':team.type==='vehicle'?'🚐':'🥾';
+  const progTxt=(team.wpIdx)+' / '+(team.wps.length-1);
   const showFull=!!team.showFull;
-  const total=team.wps.length-1;
-  const progress=Math.round((team.wpIdx/Math.max(total,1))*100);
-  if(!cur)return`<div style="text-align:center;font-size:11px;color:rgba(255,255,255,.25);padding:16px 0;">경로 데이터 없음</div>`;
-  const curCode=cur.code?`<span style="font-size:11px;color:#e74c3c;font-weight:700;font-family:monospace;margin-right:6px;background:rgba(231,76,60,.12);padding:2px 6px;border-radius:5px;">${cur.code}</span>`:'';
-  const nextCode=next&&next.code?`<span style="font-size:10px;color:#4fa8d0;font-family:monospace;margin-right:5px;background:rgba(79,168,208,.1);padding:1px 5px;border-radius:4px;">${next.code}</span>`:'';
-
-  return `
-    <div style="background:linear-gradient(135deg,rgba(231,76,60,.1),rgba(192,57,43,.05));border:1.5px solid rgba(231,76,60,.25);border-radius:12px;padding:14px 15px;margin-bottom:10px;">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
-        <span style="font-size:10px;color:#e74c3c;font-weight:700;letter-spacing:.3px;">📍 현재 위치</span>
-        <span style="font-size:10px;color:rgba(255,255,255,.3);font-family:monospace;">${team.wpIdx}/${total}</span>
+  if(!cur)return`<div style="text-align:center;font-size:11px;color:rgba(255,255,255,.25);padding:10px 0;">경로 데이터 없음</div>`;
+  const curCode=cur.code?`<span style="font-size:10px;color:#e74c3c;font-weight:700;font-family:monospace;margin-right:6px;">${cur.code}</span>`:'';
+  const nextCode=next&&next.code?`<span style="font-size:10px;color:rgba(79,168,208,.7);font-family:monospace;margin-right:5px;">${next.code}</span>`:'';
+  const compact=`
+    <div style="background:rgba(231,76,60,.08);border:1px solid rgba(231,76,60,.22);border-radius:10px;padding:11px 13px;margin-bottom:7px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+        <span style="font-size:10px;color:#e74c3c;font-weight:700;">📍 현재 위치</span>
+        <span style="font-size:10px;color:rgba(255,255,255,.28);font-family:monospace;">${progTxt}</span>
       </div>
-      <div style="font-size:20px;font-weight:900;color:#ffffff;line-height:1.2;letter-spacing:-.3px;">${curCode}${cur.name}</div>
-      ${cur.isTarget?'<div style="margin-top:7px;display:inline-block;background:rgba(240,165,0,.15);border:1px solid rgba(240,165,0,.35);color:#f0a500;font-size:10px;font-weight:700;padding:2px 9px;border-radius:20px;">🎯 사고지점</div>':''}
-      <div style="margin-top:10px;background:rgba(0,0,0,.2);border-radius:4px;height:3px;overflow:hidden;">
-        <div style="height:100%;width:${progress}%;background:linear-gradient(to right,#e74c3c,#e67e22);border-radius:4px;transition:width .4s ease;"></div>
-      </div>
+      <div style="display:flex;align-items:baseline;gap:4px;"><span style="font-size:15px;font-weight:800;color:#e0edf8;line-height:1.3;">${curCode}${cur.name}</span></div>
     </div>
-
-    ${!atEnd&&next?`
-    <div style="display:flex;align-items:center;gap:10px;padding:0 4px;margin-bottom:10px;">
-      <div style="display:flex;flex-direction:column;align-items:center;flex-shrink:0;">
-        <div style="width:1.5px;height:10px;background:rgba(79,168,208,.2);"></div>
-        <span style="font-size:14px;color:rgba(79,168,208,.4);line-height:1;">↓</span>
-        <div style="width:1.5px;height:10px;background:rgba(79,168,208,.2);"></div>
+    ${next?`
+    <div style="display:flex;align-items:center;gap:9px;padding:0 6px;margin-bottom:8px;">
+      <div style="display:flex;flex-direction:column;align-items:center;gap:0;"><div style="width:1.5px;height:10px;background:rgba(79,168,208,.25);"></div><span style="font-size:13px;line-height:1;">▼</span><div style="width:1.5px;height:10px;background:rgba(79,168,208,.25);"></div></div>
+      <div style="flex:1;background:rgba(79,168,208,.06);border:1px solid rgba(79,168,208,.15);border-radius:8px;padding:8px 11px;">
+        <div style="font-size:10px;color:#4a7090;font-weight:600;margin-bottom:3px;">다음 ${typeIco}</div>
+        <div style="font-size:13px;font-weight:600;color:rgba(255,255,255,.6);">${nextCode}${next.name}</div>
       </div>
-      <div style="flex:1;background:rgba(79,168,208,.05);border:1px solid rgba(79,168,208,.15);border-radius:10px;padding:10px 13px;">
-        <div style="font-size:9px;color:#4a7090;font-weight:700;margin-bottom:4px;letter-spacing:.3px;">다음 목적지</div>
-        <div style="font-size:14px;font-weight:700;color:rgba(255,255,255,.6);">${nextCode}${next.name}</div>
-      </div>
-    </div>`:`<div style="padding:2px 2px 10px;font-size:12px;color:#27ae60;font-weight:700;">✅ 모든 구간 완료</div>`}
-
-    <button id="tlPassBtn_${idx}" onclick="event.stopPropagation();tlPassTeam(${idx})" ${atEnd?'disabled':''}
-      style="width:100%;padding:15px;border-radius:12px;border:none;
-      background:${atEnd?'rgba(255,255,255,.04)':'linear-gradient(135deg,rgba(79,168,208,.28),rgba(79,168,208,.18))'};
-      color:${atEnd?'rgba(255,255,255,.18)':'#7dd3fa'};
-      font-size:16px;font-weight:900;cursor:${atEnd?'default':'pointer'};
-      letter-spacing:.3px;margin-bottom:8px;
-      border:1.5px solid ${atEnd?'rgba(255,255,255,.05)':'rgba(79,168,208,.4)'};
-      display:flex;align-items:center;justify-content:center;gap:8px;
-      transition:all .15s ease;">
-      ${atEnd?'─ 완료 ─':'✓ &nbsp;통과'}
-    </button>
-
-    ${showFull?`<div id="tlWpList_${idx}" style="max-height:260px;overflow-y:auto;border:1px solid rgba(255,255,255,.06);border-radius:10px;padding:6px 8px;margin-bottom:6px;">${team.wps.map((w,i)=>_wpItemHtmlTeam(w,i,team,idx)).join('')}</div>`:''}
-    <button onclick="event.stopPropagation();_toggleTlFull(${idx})"
-      style="width:100%;padding:8px;border-radius:8px;border:1px solid rgba(255,255,255,.06);background:transparent;color:rgba(255,255,255,.22);font-size:11px;cursor:pointer;">
-      ${showFull?'▲ 경로 접기':'▾ 전체 경로 ('+team.wps.length+'개)'}
-    </button>`;
+    </div>`:`<div style="padding:2px 13px 9px;font-size:11px;color:#27ae60;font-weight:700;">✅ 하산 완료 (전 구간 통과)</div>`}
+    <div style="display:flex;gap:6px;margin-bottom:8px;">
+      <button id="tlPassBtn_${idx}" onclick="event.stopPropagation();tlPassTeam(${idx})" ${atEnd?'disabled':''} style="flex:2;padding:11px;border-radius:8px;border:1px solid rgba(79,168,208,.4);background:rgba(79,168,208,.15);color:#4fa8d0;font-size:13px;font-weight:800;cursor:pointer;opacity:${atEnd?.3:1};">통과 →</button>
+      <button id="tlSkipBtn_${idx}" onclick="event.stopPropagation();tlSkipTeam(${idx})" ${!canSkip?'disabled':''} style="flex:1;padding:11px;border-radius:8px;border:1px solid rgba(255,255,255,.1);background:transparent;color:rgba(255,255,255,.38);font-size:12px;font-weight:600;cursor:pointer;opacity:${canSkip?1:.3};">건너뛰기</button>
+    </div>
+    ${showFull?`<div id="tlWpList_${idx}" style="max-height:230px;overflow-y:auto;border:1px solid rgba(255,255,255,.07);border-radius:8px;padding:6px 8px;margin-bottom:7px;">${team.wps.map((w,i)=>_wpItemHtmlTeam(w,i,team,idx)).join('')}</div>`:''}
+    <button onclick="event.stopPropagation();_toggleTlFull(${idx})" style="width:100%;padding:6px;border-radius:7px;border:1px solid rgba(255,255,255,.08);background:transparent;color:rgba(255,255,255,.28);font-size:11px;cursor:pointer;">${showFull?'▲ 경로 접기':'▾ 전체 경로 ('+team.wps.length+'개)'}</button>`;
+  return compact;
 }
 
 function _tlTeamFullHtml(team,idx){
   const isSel=idx===_tlSelTeam&&!team.collapsed;
   const si=_teamStageIdx(team);
   const typeIco=team.type==='heli'?'🚁':team.type==='vehicle'?'🚐':'🥾';
-  // Stage palette
-  const stagePalette=[
-    {c:'rgba(255,255,255,.35)',bg:'rgba(255,255,255,.04)',br:'rgba(255,255,255,.1)',label:'출발'},
-    {c:'#4fa8d0',bg:'rgba(79,168,208,.15)',br:'rgba(79,168,208,.35)',label:'이동중'},
-    {c:'#f0a500',bg:'rgba(240,165,0,.15)',br:'rgba(240,165,0,.35)',label:'환자조우'},
-    {c:'#27ae60',bg:'rgba(39,174,96,.15)',br:'rgba(39,174,96,.35)',label:'하산'},
-  ];
-  const pal=stagePalette[si]||stagePalette[3];
-  const isCollapsed=!!team.collapsed;
-  const routeInner=team.wps.length>1
-    ?_compactRouteHtml(team,idx)
-    :`<div style="text-align:center;font-size:11px;color:rgba(255,255,255,.25);padding:16px 0;">경로 데이터 없음</div>`;
-
-  // 4-dot progress bar
+  const sc=si>=2?'#27ae60':si>=1?'#4fa8d0':'rgba(255,255,255,.38)';
   const dots=_TL_STAGES.map((s,di)=>{
     const done=di<si,act=di===si;
-    const p=stagePalette[di];
-    return (di>0?`<div style="flex:1;height:2px;align-self:center;border-radius:1px;background:${done?stagePalette[di-1].c:'rgba(255,255,255,.07)'};transition:background .3s;margin:0 2px;"></div>`:'')
-      +`<div style="text-align:center;flex-shrink:0;">
-          <div style="width:${act?26:20}px;height:${act?26:20}px;border-radius:50%;
-            background:${done?p.bg:act?p.bg:'rgba(255,255,255,.03)'};
-            border:2px solid ${done?p.c:act?p.c:'rgba(255,255,255,.1)'};
-            display:flex;align-items:center;justify-content:center;
-            font-size:${act?12:9}px;color:${done?p.c:act?p.c:'rgba(255,255,255,.2)'};
-            margin:0 auto;transition:all .3s;
-            ${act?'animation:wpPulse 1.6s ease-in-out infinite;':''}">
-            ${done?'✓':act?typeIco:''}
-          </div>
-          <div style="font-size:9px;margin-top:3px;white-space:nowrap;font-weight:${act?700:400};
-            color:${done?p.c:act?p.c:'rgba(255,255,255,.2)'};">
-            ${s}
-          </div>
-        </div>`;
+    const dc=done?'#27ae60':act?'#4fa8d0':'rgba(255,255,255,.12)';
+    const tc=done?'#5dbf8a':act?'#4fa8d0':'rgba(255,255,255,.22)';
+    const dotContent=done?'✓':act?typeIco:'';
+    return (di>0?`<div style="flex:1;height:2px;background:${done?'#27ae60':act?'rgba(79,168,208,.3)':'rgba(255,255,255,.07)'};margin:0 1px;align-self:center;"></div>`:'')
+      +`<div style="text-align:center;flex-shrink:0;"><div style="width:20px;height:20px;border-radius:50%;background:${done?'rgba(39,174,96,.2)':act?'rgba(79,168,208,.18)':'rgba(255,255,255,.04)'};border:1.5px solid ${dc};display:flex;align-items:center;justify-content:center;font-size:${act?'11':'9'}px;color:${dc};margin:0 auto;${act?'animation:wpPulse 1.6s ease-in-out infinite;':''}">${dotContent}</div><div style="font-size:8px;color:${tc};margin-top:2px;white-space:nowrap;">${s}</div></div>`;
   }).join('');
-
-  return `<div id="tlTeamCard_${idx}"
-    style="background:${isSel?pal.bg:'rgba(255,255,255,.02)'};
-    border:1.5px solid ${isSel?pal.br:'rgba(255,255,255,.07)'};
-    border-radius:16px;margin-bottom:10px;overflow:hidden;transition:border-color .25s,background .25s;">
-
-    <div onclick="toggleTlTeamRoute(${idx})" style="padding:14px 15px;cursor:pointer;user-select:none;">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
-        <div style="display:flex;align-items:center;gap:8px;">
-          <span style="font-size:14px;font-weight:900;color:${isSel?'#e0edf8':'#b8d4e8'};">${typeIco} ${team.name}</span>
-        </div>
+  const isCollapsed=!!team.collapsed;
+  const atEnd=team.wpIdx>=team.wps.length-1;
+  const canSkip=team.wpIdx<team.wps.length-2;
+  const routeInner=team.wps.length>1
+    ?_compactRouteHtml(team,idx)
+    :`<div style="text-align:center;font-size:11px;color:rgba(255,255,255,.25);padding:10px 0;">경로 데이터 없음</div>`;
+  return `<div id="tlTeamCard_${idx}" style="background:${isSel?'rgba(79,168,208,.07)':'rgba(255,255,255,.02)'};border:1px solid ${isSel?'rgba(79,168,208,.3)':'rgba(255,255,255,.07)'};border-radius:10px;margin-bottom:7px;overflow:hidden;">
+    <div onclick="toggleTlTeamRoute(${idx})" style="padding:10px 12px;cursor:pointer;user-select:none;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:7px;">
+        <span style="font-size:11px;font-weight:700;color:${isSel?'#4fa8d0':'#b8d4e8'};">${typeIco} ${team.name}</span>
         <div style="display:flex;align-items:center;gap:7px;">
-          <span style="font-size:11px;font-weight:700;color:${pal.c};
-            background:${pal.bg};border:1px solid ${pal.br};
-            padding:3px 10px;border-radius:20px;letter-spacing:.2px;">
-            ${pal.label}
-          </span>
-          <span style="font-size:11px;color:rgba(255,255,255,.2);">${isCollapsed?'▼':'▲'}</span>
+          <span style="font-size:9px;font-weight:600;color:${sc};">${_TL_STAGES[si]}</span>
+          <span style="font-size:10px;color:rgba(255,255,255,.3);font-weight:600;">${isCollapsed?'▼ 경로':'▲'}</span>
         </div>
       </div>
-      <div style="display:flex;align-items:flex-start;padding:0 2px;">${dots}</div>
+      <div style="display:flex;align-items:flex-start;">${dots}</div>
     </div>
-
-    <div id="tlTeamRoute_${idx}" style="display:${isCollapsed?'none':'block'};padding:0 12px 14px;border-top:1px solid rgba(255,255,255,.04);">
+    <div id="tlTeamRoute_${idx}" style="display:${isCollapsed?'none':'block'};padding:0 12px 12px;border-top:.5px solid rgba(255,255,255,.05);">
       ${routeInner}
     </div>
   </div>`;
@@ -4274,7 +4455,7 @@ function _rerenderTlWps(){
 function tlWarpTo(idx){
   if(_tlAnimating||idx<1||idx>=_tlWps.length)return;
   _tlWps.forEach((w,i)=>{if(w.status!=='skipped')w.status=i<idx?'passed':i===idx?'active':'pending';});
-  _tlWpIdx=idx;_saveTeamState();_rerenderTlFull();
+  _tlWpIdx=idx;_saveTeamState();_persistTeams();_rerenderTlFull();
 }
 
 function tlPass(){
@@ -4289,7 +4470,8 @@ function tlPass(){
     _tlWps[_tlWpIdx].passedAt=now();_tlWps[_tlWpIdx].status='passed';_tlWps[next].status='active';
     _tlWpIdx=next;_saveTeamState();_tlAnimating=false;_rerenderTlFull();
     if(_tlWps[next].isTarget)toast('🎯 환자 조우!');
-    // 통과 기록 저장
+    // 통과 기록 + 팀 상태 저장
+    _persistTeams();
     if(_tlWpResId){
       const _res=DB.g('rescues')||[];const _ri=_res.findIndex(x=>x.id===_tlWpResId);
       if(_ri>=0){
@@ -4307,7 +4489,7 @@ function tlSkip(){
   if(_tlAnimating||_tlWpIdx>=_tlWps.length-2)return;
   const si=_tlWpIdx+1;_tlWps[si].status='skipped';
   if(si+1<_tlWps.length){_tlWps[si+1].status='active';_tlWpIdx=si+1;}else _tlWpIdx=si;
-  _saveTeamState();_rerenderTlFull();
+  _saveTeamState();_persistTeams();_rerenderTlFull();
 }
 
 function toggleTlVehicle(){
@@ -7379,13 +7561,6 @@ window.onload=function(){
       function checkAuth(){
         updateUserUI();
         var authType=typeof DB!=='undefined'?DB.g('authType'):'';
-        // 마스터 관리자: localStorage 세션이 있으면 로그인 화면 스킵
-        if(!authType&&localStorage.getItem('_adminAuthed')==='1'){
-          DB.s('authType','admin');
-          var _cu=DB.g('currentUser')||{};
-          if(!_cu.name||!_cu.dept){DB.s('currentUser',Object.assign({name:'관리자',dept:'재난안전과',rank:'팀장',approvalStatus:'approved'},_cu));}
-          authType='admin';
-        }
         if(!authType){showLoginScreen();}
         else{_checkAndRequireProfile();}
       }
@@ -7428,16 +7603,16 @@ window.onload=function(){
   window.addEventListener('popstate', function(e){
     // 열린 모달이 있으면 닫기
     var openModal=document.querySelector('.modal.on,.modal-bottom.on');
-    if(openModal){openModal.classList.remove('on');history.replaceState(e.state||{view:'home'},'','');return;}
+    if(openModal){openModal.classList.remove('on');history.pushState({view:'home'},'','');return;}
     // 서브뷰: 유형 세부통계
     if(document.getElementById('v-type-detail').classList.contains('on')){
-      showV('v-rescue-stats');renderRescueStats();history.replaceState({view:'rescue-stats'},'','');return;
+      showV('v-rescue-stats');renderRescueStats();history.pushState({view:'rescue-stats'},'','');return;
     }
     // 서브뷰: 위키 페이지
     if(document.getElementById('wikiPageWrap').style.display==='block'){
-      showWikiList();history.replaceState({view:'wiki'},'','');return;
+      showWikiList();history.pushState({view:'wiki'},'','');return;
     }
-    // v-report(구조 타임라인) → 13번(구조 목록)으로 복귀
+    // v-report(구조 타임라인) → 목록으로 복귀
     if(document.getElementById('v-report').classList.contains('on')){
       _hideRepFooter();
       showV('v-rescue-list');renderResList();
@@ -7446,7 +7621,7 @@ window.onload=function(){
       var _bn=document.getElementById('bnav');_bn.style.display='flex';
       [1,2,3].forEach(function(i){document.getElementById('nv'+i).classList.remove('on');});
       document.getElementById('nv2').classList.add('on');
-      history.replaceState({view:'rescue'},'','');
+      history.pushState({view:'rescue'},'','');
       return;
     }
     var homeActive=document.getElementById('v-home').classList.contains('on');
@@ -7456,21 +7631,25 @@ window.onload=function(){
       document.getElementById('appHdr').style.display='none';
       document.getElementById('bnav').style.display='none';
       closeDB();updateSummary();
-      history.replaceState({view:'home'},'','');
+      history.pushState({view:'home'},'','');
     } else {
-      // 홈 화면: 두 번 누르면 종료
+      // 홈 화면: 항상 home 상태를 다시 push해서 앱 밖으로 절대 못 나가게
+      history.pushState({view:'home'},'','');
+      var isPWA=window.matchMedia('(display-mode: standalone)').matches||!!window.navigator.standalone;
       if(_backExitReady){
-        clearTimeout(_backExitTimer);
-        history.go(-1); // PWA/브라우저가 앱 이전 페이지로 이동 = 종료 효과
+        clearTimeout(_backExitTimer);_backExitReady=false;
+        if(isPWA){window.close();}
+        else{toast('브라우저 탭을 닫아 종료하세요');}
       } else {
         _backExitReady=true;
-        toast('한 번 더 누르면 종료됩니다');
+        toast(isPWA?'한 번 더 누르면 종료됩니다':'종료하려면 탭을 닫으세요');
         _backExitTimer=setTimeout(function(){_backExitReady=false;},2000);
-        history.replaceState({view:'home'},'','');
       }
     }
   });
-  history.replaceState({view:'home'},'','');
+  // 앱 시작: guard + home 두 개 push → 뒤로가기가 앱 밖으로 절대 이탈 안 함
+  history.pushState({view:'_guard_'},'','');
+  history.pushState({view:'home'},'','');
 
   // ── 권한 배너 ──────────────────────────────────
   function _permBanner(type,state){
@@ -7541,12 +7720,6 @@ window.onload=function(){
     initDB();
     if(window._KR){ initMaps(); } else { window._KCB=function(){initMaps();}; }
     updateSummary();updateUserUI();renderHotSearch();fetchWeather();
-    // 첫 동기화 완료 시 이미 열려있는 화면 재렌더 (진입 직후 데이터 없던 경우 보강)
-    try{
-      var _app=typeof curApp!=='undefined'?curApp:'';
-      if(_app==='rescue'){renderResList();renderRescueMap();}
-      else if(_app==='inspect'){renderFacList();renderInspectMap();}
-    }catch(e){}
     const d=new Date();const days=['일','월','화','수','목','금','토'];
     document.getElementById('homeDate').textContent=d.getFullYear()+'년 '+(d.getMonth()+1)+'월 '+d.getDate()+'일 ('+days[d.getDay()]+')';
     if(window._kakaoAuthCode){var _kc=window._kakaoAuthCode;window._kakaoAuthCode=null;_handleKakaoCode(_kc);return;}
