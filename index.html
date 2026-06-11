@@ -3580,15 +3580,28 @@ function openResPopup(id,type='rescue'){
     const _skip=v=>{if(!v)return true;const s=String(v).trim();return !s||s==='-'||['미상','없음','알수없음','미정'].includes(s);};
     const row=(ico,val)=>val?`<div style="display:flex;gap:5px;margin-bottom:3px;"><span style="color:#4a7090;flex-shrink:0;">${ico}</span><span style="color:#c0d8ec;font-size:11px;">${val}</span></div>`:'';
     const d=data;
+    const curSt=d.hazStatus||'미조치';
     document.getElementById('resPopMeta').innerHTML=[
       row('📍',!_skip(d.loc)?d.loc:''),
       row('⚠️',!_skip(d.danger)?d.danger:''),
-      row('📋',!_skip(d.hazStatus)?d.hazStatus:''),
+      row('📝',!_skip(d.desc)?String(d.desc).slice(0,60):''),
       row('👤',!_skip(d.author)?d.author:''),
     ].filter(Boolean).join('')||'<div style="color:#4a7090;font-size:11px;">상세 정보 없음</div>';
     document.getElementById('btnViewRep').style.display='none';
     document.getElementById('btnViewTl').style.display='none';
-    const rEl2=document.getElementById('resPopRoutes');if(rEl2)rEl2.style.display='none';
+    // 처리상태 변경 버튼 (팝업에서 바로 변경)
+    const rEl2=document.getElementById('resPopRoutes');
+    if(rEl2){
+      const sts=['미조치','조치중','제거 완료','통제중'];
+      const stCol={'미조치':'#e05050','조치중':'#e67e22','제거 완료':'#27ae60','통제중':'#4fa8d0'};
+      rEl2.innerHTML='<div style="font-size:10px;color:#3a6a8a;font-weight:600;margin-bottom:5px;">📋 처리상태</div><div style="display:flex;gap:5px;">'
+        +sts.map(s=>{const on=s===curSt;const c=stCol[s];
+          return `<button onclick="setHazStatus(${d.id},'${s}')" style="flex:1;padding:8px 2px;border-radius:8px;font-size:11px;font-weight:700;cursor:pointer;
+            background:${on?c+'33':'transparent'};color:${on?c:'rgba(255,255,255,.3)'};
+            border:1.5px solid ${on?c:'rgba(255,255,255,.1)'};">${s}</button>`;}).join('')
+        +'</div>';
+      rEl2.style.display='block';
+    }
   }
   document.getElementById('facPopup').classList.remove('on');
   document.getElementById('resPopup').classList.add('on');
@@ -3603,7 +3616,25 @@ function viewOnResMap(){
 
 function openHazDetail(id){
   const h=(DB.g('hazards')||[]).find(x=>x.id===id);if(!h)return;
-  toast('⚠️ '+h.hazType+' — '+h.hazStatus);
+  // 지도 탭으로 전환 후 팝업 열기 (좌표 있으면 해당 위치로 이동)
+  if(curApp!=='rescue'){openApp('rescue');}
+  else{switchTab(1,document.getElementById('nv1'));}
+  setTimeout(function(){
+    try{
+      if(h.lat&&h.lng&&mapR){mapR.setCenter(new kakao.maps.LatLng(h.lat,h.lng));mapR.setLevel(5);}
+      openResPopup(id,'hazard');
+    }catch(e){}
+  },250);
+}
+// 위험상황 처리상태 변경 (팝업에서 바로)
+function setHazStatus(id,status){
+  const haz=DB.g('hazards')||[];
+  const idx=haz.findIndex(x=>x.id===id);if(idx===-1)return;
+  haz[idx].hazStatus=status;
+  DB.s('hazards',haz);
+  toast('✅ 상태 변경: '+status);
+  openResPopup(id,'hazard'); // 팝업 갱신
+  try{renderRescueMap();renderResList();}catch(e){}
 }
 
 // ══════════════════════════════════════════
