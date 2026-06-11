@@ -196,7 +196,7 @@ button{-webkit-tap-highlight-color:transparent;touch-action:manipulation;}
 .p-tree{border-color:#ca6f1e;background:#ca6f1e;color:#fff;}.p-fire{border-color:#a93226;background:#a93226;color:#fff;}
 .p-haz{border-color:#e67e22;background:#e67e22;color:#fff;}.p-etc{border-color:#5d6d7e;background:#4a5568;color:#fff;}.p-done{opacity:.4;}
 .p-me{border-color:#4fa8d0;background:#4fa8d0;color:#fff;}
-@keyframes blink{0%,100%{box-shadow:0 0 4px 2px rgba(192,57,43,.5);}50%{transform:scale(1.2);box-shadow:0 0 16px 6px rgba(192,57,43,.85);}}
+@keyframes blink{0%,100%{box-shadow:0 0 0 3px rgba(192,57,43,.35),0 0 8px 3px rgba(192,57,43,.4);}50%{transform:scale(1.3);box-shadow:0 0 0 6px rgba(192,57,43,.5),0 0 20px 8px rgba(192,57,43,.75);}}
 .blink{animation:blink .95s infinite;}
 .dbcard{position:absolute;bottom:-420px;left:9px;right:9px;background:#0b1c30;border-radius:14px;padding:13px;border:1px solid rgba(79,168,208,.14);box-shadow:0 -4px 20px rgba(0,0,0,.7);transition:bottom .25s cubic-bezier(.4,0,.2,1);z-index:15;max-height:60vh;overflow-y:auto;}
 .dbcard.on{bottom:62px;}
@@ -1936,8 +1936,13 @@ function _scaleOvs(els,level,off){
   els.forEach(el=>{
     if(!el)return;
     if(el.classList.contains('mpin')||el.classList.contains('mpin-sm')){
-      el.style.width=s.sz+'px';el.style.height=s.sz+'px';
-      el.style.fontSize=s.fs+'px';el.style.borderWidth=s.bw+'px';
+      // 사건 마커(data-ev)는 최소 크기 보장 — 어떤 줌에서도 안 사라짐
+      const isEv=el.dataset&&el.dataset.ev==='1';
+      const sz=isEv?Math.max(s.sz,18):s.sz;
+      const fs=isEv?Math.max(s.fs,8):s.fs;
+      const bw=isEv?Math.max(s.bw,1.5):s.bw;
+      el.style.width=sz+'px';el.style.height=sz+'px';
+      el.style.fontSize=fs+'px';el.style.borderWidth=bw+'px';
     } else if(el.classList.contains('mpin-num')){
       if(s.numFs===0){el.style.display='none';}
       else{el.style.display='';el.style.fontSize=s.numFs+'px';el.style.padding=s.numPad;}
@@ -3204,7 +3209,7 @@ function _syncRFacPool(){
   all.forEach(f=>{
     if(_rFacPool.has(String(f.id)))return;
     const el=_buildRFacEl(f);
-    const ov=new kakao.maps.CustomOverlay({position:new kakao.maps.LatLng(f.lat,f.lng),content:el,clickable:true});
+    const ov=new kakao.maps.CustomOverlay({position:new kakao.maps.LatLng(f.lat,f.lng),content:el,clickable:true,zIndex:1});
     _rFacPool.set(String(f.id),{ov,el,type:f.type});
   });
   _applyRFacFilter();
@@ -3245,12 +3250,12 @@ function renderRescueMap(){
     if(!_stOkRes(r.status))return;
     if(!_resDateOk(r.date))return;
     const isOg=r.status==='ongoing';const ti=RES_TYPES[r.type]||RES_TYPES['기타'];
-    const el=document.createElement('div');el.className=`mpin ${ti.pc}${isOg?' blink':' p-done'}`;el.innerHTML=ti.ico;
+    const el=document.createElement('div');el.className=`mpin ${ti.pc}${isOg?' blink':' p-done'}`;el.innerHTML=ti.ico;el.dataset.ev='1';
     let _ts=null;
     el.addEventListener('touchstart',e=>{_ts={x:e.touches[0].clientX,y:e.touches[0].clientY};},{passive:true});
     el.addEventListener('touchend',e=>{if(!_ts)return;const dx=e.changedTouches[0].clientX-_ts.x,dy=e.changedTouches[0].clientY-_ts.y;_ts=null;if(Math.abs(dx)<8&&Math.abs(dy)<8){e.stopPropagation();e.preventDefault();openResPopup(r.id,'rescue');}});
     el.addEventListener('click',e=>{e.stopPropagation();openResPopup(r.id,'rescue');});
-    const ov=new kakao.maps.CustomOverlay({position:new kakao.maps.LatLng(r.lat,r.lng),content:el,clickable:true});
+    const ov=new kakao.maps.CustomOverlay({position:new kakao.maps.LatLng(r.lat,r.lng),content:el,clickable:true,zIndex:3});
     ov.setMap(mapR);_rEvOvs.push(ov);_rEvEls.push(el);
   });
   // 위험상황 핀
@@ -3259,12 +3264,12 @@ function renderRescueMap(){
     if(!_stOkHaz(h.hazStatus))return;
     if(!_resDateOk(h.date))return;
     const done=h.hazStatus&&h.hazStatus!=='미조치'&&h.hazStatus!=='조치중';
-    const el=document.createElement('div');el.className=`mpin p-haz${done?' p-done':''}`;el.innerHTML='⚠️';
+    const el=document.createElement('div');el.className=`mpin p-haz${done?' p-done':''}`;el.innerHTML='⚠️';el.dataset.ev='1';
     let _ts=null;
     el.addEventListener('touchstart',e=>{_ts={x:e.touches[0].clientX,y:e.touches[0].clientY};},{passive:true});
     el.addEventListener('touchend',e=>{if(!_ts)return;const dx=e.changedTouches[0].clientX-_ts.x,dy=e.changedTouches[0].clientY-_ts.y;_ts=null;if(Math.abs(dx)<8&&Math.abs(dy)<8){e.stopPropagation();e.preventDefault();openResPopup(h.id,'hazard');}});
     el.addEventListener('click',e=>{e.stopPropagation();openResPopup(h.id,'hazard');});
-    const ov=new kakao.maps.CustomOverlay({position:new kakao.maps.LatLng(h.lat,h.lng),content:el,clickable:true});
+    const ov=new kakao.maps.CustomOverlay({position:new kakao.maps.LatLng(h.lat,h.lng),content:el,clickable:true,zIndex:3});
     ov.setMap(mapR);_rEvOvs.push(ov);_rEvEls.push(el);
   });
   // 시설물: 풀 동기화 후 필터 적용 (DOM 재생성 없이 show/hide)
