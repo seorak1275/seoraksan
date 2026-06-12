@@ -4,8 +4,9 @@
 // - PWA 오프라인 캐싱 (app shell)
 // - FCM 백그라운드 메시지 수신 → 시스템 알림 표시
 // ──────────────────────────────────────────────
-const _CACHE = 'seoraksan-v8';
-const _SHELL = ['/'];
+const _CACHE = 'seoraksan-v9';
+// 프로젝트 경로(/seoraksan/) 배포이므로 반드시 상대 경로 사용
+const _SHELL = ['./', './index.html', './manifest.json', './icons/icon-192.png', './icons/icon-512.png'];
 
 // Firebase Messaging SDK (SW 컨텍스트용)
 importScripts('https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js');
@@ -65,8 +66,8 @@ messaging.onBackgroundMessage(payload => {
   const body  = n.body  || '';
   return self.registration.showNotification(title, {
     body,
-    icon:    '/icons/icon-192.png',
-    badge:   '/icons/icon-72.png',
+    icon:    'icons/icon-192.png',
+    badge:   'icons/icon-192.png',
     tag:     (payload.data && payload.data.type) || 'noti',
     data:    payload.data || {},
     vibrate: [200, 100, 200],
@@ -84,7 +85,7 @@ self.addEventListener('notificationclick', e => {
           c.url.includes(self.location.origin) && 'focus' in c
         );
         if (app) return app.focus();
-        return self.clients.openWindow('/');
+        return self.clients.openWindow('./');
       })
   );
 });
@@ -94,7 +95,7 @@ self.addEventListener('message', e => {
   if (!e.data || e.data.type !== 'SHOW_NOTI') return;
   self.registration.showNotification(e.data.title || '설악산 현장관리', {
     body:    e.data.body  || '',
-    icon:    '/icons/icon-192.png',
+    icon:    'icons/icon-192.png',
     tag:     e.data.tag   || 'noti',
     vibrate: [200, 100, 200],
   });

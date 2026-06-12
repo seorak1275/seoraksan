@@ -21,6 +21,7 @@
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-storage-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-messaging-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
 <!-- 카카오 SDK (지도 + 로그인) -->
 <script src="https://t1.kakaocdn.net/kakao_js_sdk/2.7.2/kakao.min.js" crossorigin="anonymous"></script>
 <script>
@@ -758,6 +759,10 @@ body.hi-contrast .stat-lbl{color:rgba(255,255,255,.65)!important;}
     <button class="mbtn-sm" onclick="openApp('settings')"><span class="mbtn-sm-ico">⚙️</span><div class="mbtn-sm-text"><div class="mbtn-sm-title">내 설정</div><div class="mbtn-sm-desc">알림·계정·API키</div></div></button>
     <button class="mbtn-sm" style="background:#150e2a;border:1px solid rgba(139,92,246,.2);" onclick="openApp('admin')"><span class="mbtn-sm-ico">🔐</span><div class="mbtn-sm-text"><div class="mbtn-sm-title" style="color:#c4b5fd;">관리자 전용</div><div class="mbtn-sm-desc">관제·데이터 관리</div></div></button>
   </div>
+  <!-- 버전 + 동기화 상태 -->
+  <div style="flex-shrink:0;text-align:center;padding:4px 0 2px;font-size:9px;color:rgba(255,255,255,.22);user-select:none;">
+    <span id="appVerLabel"></span><span id="syncBadge" onclick="_flushSyncQueue()" style="display:none;margin-left:8px;color:#f0a500;cursor:pointer;">⏳ 동기화 대기 <span id="syncBadgeN">0</span>건</span>
+  </div>
 </div>
 </div>
 
@@ -1433,6 +1438,9 @@ body.hi-contrast .stat-lbl{color:rgba(255,255,255,.65)!important;}
 
 <script>
 'use strict';
+// ── 앱 버전 (배포 시 갱신) ──
+const APP_VER='v9.0 (2026.06.12)';
+try{document.getElementById('appVerLabel').textContent='설악산 현장관리 '+APP_VER;}catch(e){}
 // ══════════════════════════════════════════
 // DB
 // ══════════════════════════════════════════
@@ -1469,6 +1477,55 @@ let _maxSharedNotiAt=0,_sharedNotiInited=false;
 // 호출부가 제자리 수정하면 _fs[k]와 새 값이 동일 객체가 되어 비교가 무의미해짐.
 // 동기화 시점의 JSON을 따로 보관해 그것과 비교해야 변경이 정확히 감지됨.
 const _fsSync={};
+
+// ── 저장 재시도 큐: Firebase 미준비/쓰기 거부 시 localStorage에 보관 후 자동 재전송 ──
+// (오프라인 중 쓰기는 Firestore persistence가 자체 보존하므로, 여기서는
+//  _fdb가 아직 null인 부팅 직후 호출과 권한 거부 등 하드 실패만 담당)
+function _loadSyncQ(){try{return JSON.parse(localStorage.getItem('_syncQ')||'[]');}catch{return[];}}
+function _saveSyncQ(q){try{localStorage.setItem('_syncQ',JSON.stringify(q));}catch{}_updateSyncBadge();}
+function _updateSyncBadge(){
+  const n=_loadSyncQ().length;
+  const b=document.getElementById('syncBadge'),c=document.getElementById('syncBadgeN');
+  if(b)b.style.display=n?'inline':'none';
+  if(c)c.textContent=n;
+}
+let _syncQWarnedAt=0;
+function _syncWriteFailed(item){ // item: {key, op:'set'|'del', coll?, id?, doc?, json?}
+  const q=_loadSyncQ();
+  const i=q.findIndex(x=>x.key===item.key);
+  if(i>=0)q[i]=item;else q.push(item); // 같은 문서는 최신 내용으로 교체
+  _saveSyncQ(q);
+  if(Date.now()-_syncQWarnedAt>30000){
+    _syncQWarnedAt=Date.now();
+    try{toast('⚠️ 서버 저장 대기 중 — 연결되면 자동 재시도');}catch(e){}
+  }
+}
+let _syncQFlushing=false;
+function _flushSyncQueue(){
+  if(_syncQFlushing||!_fdb)return;
+  const q=_loadSyncQ();
+  if(!q.length){_updateSyncBadge();return;}
+  _syncQFlushing=true;
+  (async()=>{
+    let ok=0;
+    for(const it of q){
+      try{
+        if(it.doc!==undefined)await _fdb.collection('appData').doc(it.doc).set({d:it.json});
+        else if(it.op==='del')await _fdb.collection(it.coll).doc(it.id).delete();
+        else await _fdb.collection(it.coll).doc(it.id).set(JSON.parse(it.json));
+        const cur=_loadSyncQ();const ci=cur.findIndex(x=>x.key===it.key&&x.json===it.json);
+        if(ci>=0){cur.splice(ci,1);_saveSyncQ(cur);}
+        ok++;
+      }catch(e){break;} // 여전히 실패 → 다음 주기에 재시도
+    }
+    _syncQFlushing=false;
+    if(ok&&!_loadSyncQ().length)try{toast('✅ 대기 변경 '+ok+'건 동기화 완료');}catch(e){}
+  })();
+}
+window.addEventListener('online',()=>setTimeout(_flushSyncQueue,1500));
+setInterval(_flushSyncQueue,45000);
+_updateSyncBadge(); // 이전 세션에서 남은 대기 건 표시
+
 const DB={
   g(k){
     if(_SHARED.includes(k)) return (_fs[k]!==undefined)?_fs[k]:null;
@@ -1478,25 +1535,27 @@ const DB={
     if(k==='facilities')_invalidateSignCache();
     if(_SHARED_COLL.includes(k)){
       _fs[k]=v||[];
-      if(_fdb){
-        const prevJson=_fsSync[k]||new Map();
-        const newJson=new Map();
-        (v||[]).forEach(r=>{newJson.set(String(r.id),JSON.stringify(r));});
-        // 새로 추가되거나 변경된 항목만 개별 문서에 저장
-        newJson.forEach((json,id)=>{
-          if(prevJson.get(id)!==json){
-            _fdb.collection(k).doc(id).set(JSON.parse(json)).catch(()=>{});
-          }
-        });
-        // 삭제된 항목 제거
-        prevJson.forEach((_,id)=>{
-          if(!newJson.has(id)) _fdb.collection(k).doc(id).delete().catch(()=>{});
-        });
-        _fsSync[k]=newJson;
-      }
+      const prevJson=_fsSync[k]||new Map();
+      const newJson=new Map();
+      (v||[]).forEach(r=>{newJson.set(String(r.id),JSON.stringify(r));});
+      // 새로 추가되거나 변경된 항목만 개별 문서에 저장 (실패 시 재시도 큐)
+      newJson.forEach((json,id)=>{
+        if(prevJson.get(id)===json)return;
+        if(_fdb)_fdb.collection(k).doc(id).set(JSON.parse(json)).catch(()=>_syncWriteFailed({key:k+'/'+id,op:'set',coll:k,id,json}));
+        else _syncWriteFailed({key:k+'/'+id,op:'set',coll:k,id,json});
+      });
+      // 삭제된 항목 제거
+      prevJson.forEach((_,id)=>{
+        if(newJson.has(id))return;
+        if(_fdb)_fdb.collection(k).doc(id).delete().catch(()=>_syncWriteFailed({key:k+'/'+id,op:'del',coll:k,id}));
+        else _syncWriteFailed({key:k+'/'+id,op:'del',coll:k,id});
+      });
+      _fsSync[k]=newJson;
     }else if(_SHARED_DOC.includes(k)){
       _fs[k]=v;
-      if(_fdb) _fdb.collection('appData').doc(k).set({d:JSON.stringify(v)}).catch(()=>{});
+      const json=JSON.stringify(v);
+      if(_fdb)_fdb.collection('appData').doc(k).set({d:json}).catch(()=>_syncWriteFailed({key:'doc/'+k,doc:k,json}));
+      else _syncWriteFailed({key:'doc/'+k,doc:k,json});
     }else{
       try{localStorage.setItem('v7_'+k,JSON.stringify(v));}catch{}
     }
@@ -1505,7 +1564,8 @@ const DB={
     if(_SHARED_COLL.includes(k)){
       const prev=_fs[k]||[];
       _fs[k]=[];
-      if(_fdb) prev.forEach(r=>_fdb.collection(k).doc(String(r.id)).delete().catch(()=>{}));
+      if(_fdb) prev.forEach(r=>_fdb.collection(k).doc(String(r.id)).delete().catch(()=>_syncWriteFailed({key:k+'/'+r.id,op:'del',coll:k,id:String(r.id)})));
+      _fsSync[k]=new Map();
     }else if(_SHARED_DOC.includes(k)){
       _fs[k]=null;
       if(_fdb) _fdb.collection('appData').doc(k).delete().catch(()=>{});
@@ -1519,10 +1579,14 @@ const DB={
 function initFirebase(onReady){
   try{
     if(!firebase.apps.length) firebase.initializeApp(_FB_CFG);
+    // 익명 인증: Firestore 보안 규칙(request.auth != null)을 적용하기 위한 기반.
+    // 콘솔에서 Anonymous 로그인 활성화 전에는 실패해도 무방 (규칙 적용 전이므로)
+    try{firebase.auth().signInAnonymously().catch(()=>{});}catch(e){}
     _fdb=firebase.firestore();
     _fdb.enablePersistence().catch(()=>{});
     _fst=firebase.storage();
     try{_fmsg=firebase.messaging();}catch(e){}
+    setTimeout(_flushSyncQueue,3000); // 부팅 직후 대기 큐 재전송
     const totalKeys=_SHARED.length;
     const loaded=new Set();
     function _checkReady(){if(loaded.size===totalKeys){onReady&&onReady();onReady=null;}}
@@ -1865,7 +1929,7 @@ function _showSystemNoti(body,ico){
   if(Notification.permission!=='granted')return;
   const title='설악산 현장관리 '+(ico||'🔔');
   if(_swReg){
-    _swReg.showNotification(title,{body,icon:'/icons/icon-192.png',vibrate:[200,100,200]});
+    _swReg.showNotification(title,{body,icon:'icons/icon-192.png',vibrate:[200,100,200]});
   }else if('Notification' in window){
     try{new Notification(title,{body});}catch(e){}
   }
@@ -7624,7 +7688,7 @@ window.onload=function(){
 
   // ── Service Worker 등록 (PWA 오프라인 + FCM 백그라운드 알림) ──
   if('serviceWorker' in navigator){
-    navigator.serviceWorker.register('/sw.js').then(function(reg){
+    navigator.serviceWorker.register('sw.js').then(function(reg){
       _swReg=reg;
       if(Notification.permission==='granted') _initFCM();
     }).catch(function(){});
