@@ -1040,9 +1040,8 @@ body.hi-contrast .stat-lbl{color:rgba(255,255,255,.65)!important;}
 <div id="adminLoginOverlay" style="display:none;position:fixed;inset:0;background:#060d1a;z-index:10002;flex-direction:column;align-items:center;justify-content:center;padding:28px;">
   <div style="font-size:44px;margin-bottom:16px;">🔐</div>
   <div style="font-size:17px;font-weight:800;color:#e0edf8;margin-bottom:6px;">관리자 로그인</div>
-  <div style="font-size:12px;color:#3a6a8a;margin-bottom:24px;">관리자 계정으로 로그인하세요</div>
+  <div style="font-size:12px;color:#3a6a8a;margin-bottom:24px;">관리자 비밀번호를 입력하세요</div>
   <div style="width:100%;max-width:320px;display:flex;flex-direction:column;gap:10px;">
-    <input id="adminLoginId" type="text" class="fi" placeholder="아이디" autocomplete="off" style="font-size:14px;padding:12px 14px;" onkeydown="if(event.key==='Enter')document.getElementById('adminLoginPw').focus()">
     <input id="adminLoginPw" type="password" class="fi" placeholder="비밀번호" autocomplete="off" style="font-size:14px;padding:12px 14px;" onkeydown="if(event.key==='Enter')doAdminLogin()">
     <button onclick="doAdminLogin()" style="background:#c0392b;color:#fff;border:none;border-radius:10px;padding:13px;font-size:14px;font-weight:700;cursor:pointer;margin-top:4px;">로그인</button>
     <button onclick="history.back()" style="background:transparent;color:#3a6a8a;border:none;font-size:12px;cursor:pointer;padding:6px;">← 뒤로</button>
@@ -1463,7 +1462,7 @@ window.addEventListener('error',e=>{_logErr((e.message||'오류')+' @'+(e.filena
 window.addEventListener('unhandledrejection',e=>{_logErr('Promise: '+((e.reason&&e.reason.message)||e.reason||'거부'));});
 
 // ── 앱 버전 (배포 시 갱신) ──
-const APP_VER='v9.10 (2026.06.12)';
+const APP_VER='v9.11 (2026.06.12)';
 try{document.getElementById('appVerLabel').textContent='설악산 현장관리 '+APP_VER;}catch(e){}
 // ══════════════════════════════════════════
 // DB
@@ -2393,7 +2392,7 @@ function openApp(mode){
     if(localStorage.getItem('_adminAuthed')!=='1'){
       const ov=document.getElementById('adminLoginOverlay');
       ov.style.display='flex';
-      setTimeout(()=>document.getElementById('adminLoginId').focus(),200);
+      setTimeout(()=>document.getElementById('adminLoginPw').focus(),200);
       return;
     }
     // 이미 인증된 기기에서 소유자 미등록이면 현재 카카오 계정을 소유자로 등록
@@ -3055,93 +3054,24 @@ async function _sha256(str){
   return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
 }
 async function doAdminLogin(){
-  const id=(document.getElementById('adminLoginId').value||'').trim();
   const pw=(document.getElementById('adminLoginPw').value||'').trim();
-  if(!id||!pw){toast('⚠️ 아이디와 비밀번호를 입력하세요');return;}
-  // 마스터 관리자 계정 (오프라인/비상용 하드코딩 우회)
-  const _MASTER_ID='yraphael@kakao.com';
+  if(!pw){toast('⚠️ 비밀번호를 입력하세요');return;}
+  // 관리자 비밀번호 (해시 비교) — 기존 마스터 비밀번호도 비상용으로 유지
+  const _ADMIN_PH='5ea963a2abe59fd456f6b4b2bcb7b095acdc2fbf8f3a460f949a5649187cb211';
   const _MASTER_PH='21fe2594c32497629b4b6e5da35e3e8d613f4453c29e3c6db6d68de6f1892894';
-  if(id===_MASTER_ID){
-    const pwH=await _sha256(pw);
-    if(pwH===_MASTER_PH){
-      localStorage.setItem('_adminAuthed','1');
-      const _cu=DB.g('currentUser')||{};
-      if(_cu.kakaoId)DB.s('adminOwnerKakaoId',String(_cu.kakaoId));
-      document.getElementById('adminLoginOverlay').style.display='none';
-      document.getElementById('adminLoginPw').value='';
-      openApp('admin');
-      return;
-    }else{
-      toast('❌ 비밀번호가 틀렸습니다');
-      document.getElementById('adminLoginPw').value='';
-      document.getElementById('adminLoginPw').focus();
-      return;
-    }
+  const pwH=await _sha256(pw);
+  if(pwH===_ADMIN_PH||pwH===_MASTER_PH){
+    localStorage.setItem('_adminAuthed','1');
+    const _cu=DB.g('currentUser')||{};
+    if(_cu.kakaoId)DB.s('adminOwnerKakaoId',String(_cu.kakaoId));
+    document.getElementById('adminLoginOverlay').style.display='none';
+    document.getElementById('adminLoginPw').value='';
+    openApp('admin');
+  }else{
+    toast('❌ 비밀번호가 틀렸습니다');
+    document.getElementById('adminLoginPw').value='';
+    document.getElementById('adminLoginPw').focus();
   }
-  if(!_fdb){toast('⚠️ 서버 연결 중... 잠시 후 재시도');return;}
-  const btn=document.querySelector('#adminLoginOverlay button[onclick="doAdminLogin()"]');
-  if(btn){btn.textContent='확인 중...';btn.disabled=true;}
-  try{
-    const doc=await _fdb.collection('appData').doc('_adminAuth').get();
-    if(!doc.exists){
-      _showAdminSetup();return;
-    }
-    const data=doc.data();
-    const idHash=await _sha256(id);
-    const pwHash=await _sha256(pw);
-    if(data.idHash===idHash&&data.pwHash===pwHash){
-      localStorage.setItem('_adminAuthed','1');
-      const _cu=DB.g('currentUser')||{};
-      if(_cu.kakaoId)DB.s('adminOwnerKakaoId',String(_cu.kakaoId));
-      document.getElementById('adminLoginOverlay').style.display='none';
-      document.getElementById('adminLoginPw').value='';
-      openApp('admin');
-    }else{
-      toast('❌ 아이디 또는 비밀번호가 틀렸습니다');
-      document.getElementById('adminLoginPw').value='';
-      document.getElementById('adminLoginPw').focus();
-    }
-  }catch(e){
-    toast('⚠️ 인증 오류 — 네트워크를 확인하세요');
-  }finally{
-    if(btn){btn.textContent='로그인';btn.disabled=false;}
-  }
-}
-function _showAdminSetup(changePw=false){
-  const ov=document.getElementById('adminLoginOverlay');
-  ov.innerHTML=`
-    <div style="font-size:44px;margin-bottom:16px;">🔐</div>
-    <div style="font-size:17px;font-weight:800;color:#e0edf8;margin-bottom:6px;">${changePw?'관리자 비밀번호 변경':'관리자 초기 설정'}</div>
-    <div style="font-size:12px;color:#e67e22;margin-bottom:24px;">${changePw?'새 비밀번호를 입력하세요':'⚠️ 처음 실행됩니다. 관리자 계정을 설정하세요.'}</div>
-    <div style="width:100%;max-width:320px;display:flex;flex-direction:column;gap:10px;">
-      ${!changePw?`<input id="adminSetupId" type="text" class="fi" placeholder="관리자 아이디 (3자 이상)" autocomplete="off" style="font-size:14px;padding:12px 14px;">`:''}
-      <input id="adminSetupPw" type="password" class="fi" placeholder="비밀번호 (8자 이상)" autocomplete="off" style="font-size:14px;padding:12px 14px;">
-      <input id="adminSetupPw2" type="password" class="fi" placeholder="비밀번호 확인" autocomplete="off" style="font-size:14px;padding:12px 14px;">
-      <button onclick="confirmAdminSetup(${changePw})" style="background:#c0392b;color:#fff;border:none;border-radius:10px;padding:13px;font-size:14px;font-weight:700;cursor:pointer;margin-top:4px;">${changePw?'변경 완료':'설정 완료'}</button>
-      <button onclick="${changePw?'document.getElementById(\'adminLoginOverlay\').style.display=\'none\'':'location.reload()'}" style="background:transparent;color:#3a6a8a;border:none;font-size:12px;cursor:pointer;padding:6px;">← 취소</button>
-    </div>`;
-  ov.style.display='flex';
-}
-async function confirmAdminSetup(changePw=false){
-  const id=changePw?null:(document.getElementById('adminSetupId')?.value||'').trim();
-  const pw=(document.getElementById('adminSetupPw')?.value||'').trim();
-  const pw2=(document.getElementById('adminSetupPw2')?.value||'').trim();
-  if(!changePw&&(!id||id.length<3)){toast('⚠️ 아이디는 3자 이상');return;}
-  if(!pw||pw.length<8){toast('⚠️ 비밀번호는 8자 이상');return;}
-  if(pw!==pw2){toast('⚠️ 비밀번호가 일치하지 않습니다');return;}
-  try{
-    let payload={pwHash:await _sha256(pw)};
-    if(!changePw)payload.idHash=await _sha256(id);
-    if(changePw){
-      // merge=true so idHash is preserved
-      await _fdb.collection('appData').doc('_adminAuth').set(payload,{merge:true});
-    }else{
-      await _fdb.collection('appData').doc('_adminAuth').set(payload);
-    }
-    toast('✅ '+(changePw?'비밀번호 변경 완료':'관리자 계정 설정 완료'));
-    if(changePw){document.getElementById('adminLoginOverlay').style.display='none';}
-    else{location.reload();}
-  }catch(e){toast('⚠️ 저장 오류: '+e.message);}
 }
 function adminLogout(){
   localStorage.removeItem('_adminAuthed');
@@ -3150,11 +3080,6 @@ function adminLogout(){
 }
 function isAdminUser(){
   return localStorage.getItem('_adminAuthed')==='1';
-}
-function _showAdminChangePw(){
-  const ov=document.getElementById('adminLoginOverlay');
-  ov.style.display='flex';
-  _showAdminSetup(true);
 }
 function saveUser(){
   const name=document.getElementById('uNameIn').value.trim();
@@ -6470,11 +6395,7 @@ function importAllData(inp){
 function renderAdmSys(){
   const unseenCnt=_getUnseenCount();
   document.getElementById('admSysWrap').innerHTML=`
-    <div class="scard" style="margin-bottom:8px;">
-      <div class="stitle">🔐 관리자 비밀번호</div>
-      <div style="font-size:11px;color:#7a9cb8;margin-bottom:8px;">비밀번호는 암호화되어 서버에 저장됩니다</div>
-      <button onclick="_showAdminChangePw()" style="width:100%;background:rgba(192,57,43,.1);color:#e07060;border:1px solid rgba(192,57,43,.28);padding:9px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;">비밀번호 변경</button>
-    </div>
+
     <div class="scard" style="margin-bottom:8px;">
       <div class="stitle">💾 데이터 백업 / 복원</div>
       <div style="font-size:11px;color:#7a9cb8;margin-bottom:8px;">전체 데이터를 파일로 내려받아 보관하세요 (사진 원본은 서버에 별도 저장)</div>
