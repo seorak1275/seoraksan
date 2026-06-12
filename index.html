@@ -758,6 +758,7 @@ body.hi-contrast .stat-lbl{color:rgba(255,255,255,.65)!important;}
   <div class="home-menu-bottom" style="flex-shrink:0;">
     <button class="mbtn-sm" onclick="openApp('settings')"><span class="mbtn-sm-ico">⚙️</span><div class="mbtn-sm-text"><div class="mbtn-sm-title">내 설정</div><div class="mbtn-sm-desc">알림·계정·API키</div></div></button>
     <button class="mbtn-sm" style="background:#150e2a;border:1px solid rgba(139,92,246,.2);" onclick="openApp('admin')"><span class="mbtn-sm-ico">🔐</span><div class="mbtn-sm-text"><div class="mbtn-sm-title" style="color:#c4b5fd;">관리자 전용</div><div class="mbtn-sm-desc">관제·데이터 관리</div></div></button>
+    <button class="mbtn-sm" style="grid-column:1/-1;background:#06121f;border:1px solid rgba(79,168,208,.22);" onclick="openBoard()"><span class="mbtn-sm-ico">🖥️</span><div class="mbtn-sm-text"><div class="mbtn-sm-title" style="color:#7dd3fa;">본부 상황판</div><div class="mbtn-sm-desc">모니터 거치용 실시간 관제 화면 (주소 뒤 ?board=1 북마크 시 바로 진입)</div></div></button>
   </div>
   <!-- 버전 + 동기화 상태 -->
   <div style="flex-shrink:0;text-align:center;padding:4px 0 2px;font-size:9px;color:rgba(255,255,255,.22);user-select:none;">
@@ -975,6 +976,18 @@ body.hi-contrast .stat-lbl{color:rgba(255,255,255,.65)!important;}
 </div>
 
 <!-- ══ 전체 통계 ══ -->
+<!-- ══ 본부 상황판 (모니터 거치용) ══ -->
+<div id="v-board" class="view" style="background:#040a14;padding:0;overflow-y:auto;">
+  <div style="display:flex;justify-content:space-between;align-items:center;padding:14px 18px;border-bottom:1px solid rgba(79,168,208,.18);position:sticky;top:0;background:#040a14;z-index:5;">
+    <div style="display:flex;align-items:baseline;gap:12px;">
+      <span style="font-size:19px;font-weight:900;color:#e0edf8;">🏔️ 설악산 구조 상황판</span>
+      <span id="boardClock" style="font-size:15px;font-weight:700;color:#4fa8d0;font-family:monospace;"></span>
+    </div>
+    <button onclick="closeBoard()" style="background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);color:rgba(255,255,255,.5);border-radius:9px;padding:7px 14px;font-size:13px;cursor:pointer;">✕ 닫기</button>
+  </div>
+  <div id="boardBody" style="padding:16px 18px 30px;"></div>
+</div>
+
 <div id="v-stats" class="view">
   <div class="bpad" id="statsWrap"></div>
 </div>
@@ -1439,7 +1452,7 @@ body.hi-contrast .stat-lbl{color:rgba(255,255,255,.65)!important;}
 <script>
 'use strict';
 // ── 앱 버전 (배포 시 갱신) ──
-const APP_VER='v9.2 (2026.06.12)';
+const APP_VER='v9.3 (2026.06.12)';
 try{document.getElementById('appVerLabel').textContent='설악산 현장관리 '+APP_VER;}catch(e){}
 // ══════════════════════════════════════════
 // DB
@@ -2184,6 +2197,89 @@ function gpsFromPhone(id){
 // ══════════════════════════════════════════
 let curApp='';
 function showV(id){document.querySelectorAll('.view').forEach(v=>v.classList.remove('on'));document.getElementById(id).classList.add('on');}
+// ══ 본부 상황판 ══════════════════════════
+let _boardTimer=null;
+function openBoard(){
+  showV('v-board');
+  document.getElementById('appHdr').style.display='none';
+  document.getElementById('bnav').style.display='none';
+  renderBoard();
+  clearInterval(_boardTimer);
+  _boardTimer=setInterval(()=>{
+    if(!document.getElementById('v-board').classList.contains('on')){clearInterval(_boardTimer);return;}
+    renderBoard();
+  },10000);
+  history.pushState({view:'board'},'','');
+}
+function closeBoard(){clearInterval(_boardTimer);goHome();}
+function renderBoard(){
+  const clock=document.getElementById('boardClock');
+  if(clock){const d=new Date();clock.textContent=pad(d.getHours())+':'+pad(d.getMinutes());}
+  const body=document.getElementById('boardBody');if(!body)return;
+  const res=DB.g('rescues')||[];
+  const ongoing=res.filter(r=>r.status==='ongoing');
+  const haz=(DB.g('hazards')||[]).filter(h=>!h.hazStatus||h.hazStatus==='미조치'||h.hazStatus==='조치중');
+  const recentDone=res.filter(r=>r.status==='done').slice(0,4);
+  const stageLbl=['출발','이동중','환자조우','하산'];
+  const stageCol=['rgba(255,255,255,.45)','#4fa8d0','#f0a500','#27ae60'];
+  let html='';
+  // 요약 스트립
+  html+=`<div style="display:flex;gap:10px;margin-bottom:16px;">
+    <div style="flex:1;background:${ongoing.length?'rgba(192,57,43,.12)':'rgba(39,174,96,.08)'};border:1px solid ${ongoing.length?'rgba(192,57,43,.4)':'rgba(39,174,96,.25)'};border-radius:12px;padding:12px 16px;text-align:center;">
+      <div style="font-size:30px;font-weight:900;color:${ongoing.length?'#e05050':'#27ae60'};">${ongoing.length}</div>
+      <div style="font-size:12px;color:rgba(255,255,255,.5);">진행중 구조</div>
+    </div>
+    <div style="flex:1;background:rgba(230,126,34,.08);border:1px solid rgba(230,126,34,.25);border-radius:12px;padding:12px 16px;text-align:center;">
+      <div style="font-size:30px;font-weight:900;color:#e67e22;">${haz.length}</div>
+      <div style="font-size:12px;color:rgba(255,255,255,.5);">미조치 위험상황</div>
+    </div>
+  </div>`;
+  if(!ongoing.length){
+    html+=`<div style="text-align:center;padding:50px 0 30px;font-size:17px;color:rgba(255,255,255,.3);">✅ 진행중인 구조 상황 없음</div>`;
+  }
+  ongoing.forEach(r=>{
+    const elp=_elapsedStr(r.date);
+    const ti=RES_TYPES[r.type]||RES_TYPES['기타'];
+    const lastLog=(r.wpLog||[]).slice(-1)[0];
+    html+=`<div style="background:#0a1626;border:1.5px solid rgba(192,57,43,.35);border-radius:14px;padding:16px 18px;margin-bottom:14px;">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:6px;margin-bottom:4px;">
+        <div style="font-size:18px;font-weight:800;color:#e0edf8;">${ti.ico} ${r.title}</div>
+        ${elp?`<div style="font-size:16px;font-weight:800;color:#f0a500;font-family:monospace;">⏱ ${elp}</div>`:''}
+      </div>
+      <div style="font-size:13px;color:#5a85a8;margin-bottom:12px;">${r.type} · ${r.location||'위치 미상'} · ${r.date}</div>
+      ${(r.teams&&r.teams.length)?r.teams.map((t,ti2)=>{
+        const col=TEAM_COLORS[ti2%TEAM_COLORS.length];
+        const si=_teamStageIdx(t);
+        const done=_teamDone(t);
+        const total=Math.max(t.wps.length-1,1);
+        const pct=Math.round((t.wpIdx/total)*100);
+        const cur=t.wps[t.wpIdx]||{};
+        const curName=(cur.code?cur.code+' ':'')+(cur.name||'').slice(0,16);
+        return `<div style="display:flex;align-items:center;gap:12px;padding:7px 0;border-top:1px solid rgba(255,255,255,.05);">
+          <span style="font-size:14px;font-weight:800;color:${col};flex-shrink:0;min-width:110px;">${_teamIco(t)} ${t.name}</span>
+          <div style="flex:1;height:8px;background:rgba(255,255,255,.07);border-radius:4px;overflow:hidden;"><div style="height:100%;width:${pct}%;background:${col};border-radius:4px;"></div></div>
+          <span style="font-size:12px;color:rgba(255,255,255,.55);flex-shrink:0;min-width:130px;">📍 ${curName||'-'}</span>
+          <span style="font-size:12px;font-weight:800;color:${done?'#27ae60':stageCol[si]};flex-shrink:0;">${done?'✓ 완료':stageLbl[si]}</span>
+        </div>`;
+      }).join(''):'<div style="font-size:12px;color:rgba(255,255,255,.3);padding:6px 0;">출동팀 미편성</div>'}
+      <div style="display:flex;justify-content:space-between;margin-top:10px;font-size:12px;color:#4a7090;">
+        <span>${lastLog?`최근: ${lastLog.time} ${lastLog.teamName} ${lastLog.code||''} 통과`:''}</span>
+        <span>${r.handover&&r.handover.to?`🤝 인계: ${r.handover.to}`:''}</span>
+      </div>
+    </div>`;
+  });
+  if(recentDone.length){
+    html+=`<div style="margin-top:20px;font-size:12px;color:rgba(255,255,255,.35);font-weight:700;margin-bottom:6px;">최근 종료</div>`;
+    recentDone.forEach(r=>{
+      html+=`<div style="display:flex;justify-content:space-between;padding:7px 12px;background:rgba(255,255,255,.02);border-radius:8px;margin-bottom:4px;font-size:12px;">
+        <span style="color:rgba(255,255,255,.5);">✅ ${r.title}</span><span style="color:#3a5a74;">${r.date}</span>
+      </div>`;
+    });
+  }
+  html+=`<div style="text-align:center;margin-top:18px;font-size:10px;color:rgba(255,255,255,.18);">10초마다 자동 갱신 · ${APP_VER}</div>`;
+  body.innerHTML=html;
+}
+
 function goHome(){
   const ov=document.getElementById('adminLoginOverlay');
   if(ov)ov.style.display='none';
@@ -7787,6 +7883,8 @@ window.onload=function(){
     if(window._kakaoAuthCode){var _kc=window._kakaoAuthCode;window._kakaoAuthCode=null;_handleKakaoCode(_kc);return;}
     // Firebase 준비 후 FCM 토큰 갱신 (권한·SW·VAPID 모두 준비된 경우만)
     if(Notification.permission==='granted') _initFCM();
+    // 모니터 거치용: 주소에 ?board=1 붙이면 켜자마자 상황판
+    if(/[?&]board=1/.test(location.search))setTimeout(openBoard,300);
     if(window._hideLoading) window._hideLoading();
   });
 };
