@@ -1452,7 +1452,7 @@ body.hi-contrast .stat-lbl{color:rgba(255,255,255,.65)!important;}
 <script>
 'use strict';
 // ── 앱 버전 (배포 시 갱신) ──
-const APP_VER='v9.5 (2026.06.12)';
+const APP_VER='v9.6 (2026.06.12)';
 try{document.getElementById('appVerLabel').textContent='설악산 현장관리 '+APP_VER;}catch(e){}
 // ══════════════════════════════════════════
 // DB
@@ -4826,6 +4826,7 @@ function renderTimeline(r,viewMode){
       <div id="tlBuildArea">
         ${_tlBuilding?_renderBuildPanelHtml():_renderCreateBtnsHtml()}
       </div>
+      ${_scenePhotosHtml(r)}
       ${(r.wpLog&&r.wpLog.length)?`<div style="background:#060d1a;border-radius:9px;padding:10px 13px;margin-top:4px;border:.5px solid rgba(79,168,208,.15);"><div style="font-size:11px;color:#4fa8d0;font-weight:700;margin-bottom:5px;">📍 위치 통과 기록</div>${r.wpLog.map(l=>`<div style="font-size:11px;color:#b8d4e8;line-height:1.9;font-family:monospace;">${l.time} · ${l.teamName} · ${l.code||'?'}${l.wpName?' ('+l.wpName+')':''} 통과</div>`).join('')}</div>`:''}
       `;
     if(_tlTeams.some(t=>t.wps.some(w=>w.lat&&w.lng)))setTimeout(()=>_initTlMiniMap((_tlTeams.find(t=>t.wps.some(w=>w.lat&&w.lng))||{wps:[]}).wps),150);
@@ -4881,6 +4882,7 @@ function renderTimeline(r,viewMode){
         ${rows.join('')||'<div style="font-size:11px;color:rgba(255,255,255,.25);">입력된 정보 없음</div>'}
         ${updHtml}
       </div>
+      ${_scenePhotosHtml(r)}
 
       <div style="background:#0b1c30;border-radius:10px;padding:12px;border:.5px solid rgba(255,255,255,.07);margin-top:10px;">
         <div style="font-size:11px;color:#4fa8d0;font-weight:700;margin-bottom:8px;">💬 댓글</div>
@@ -4961,6 +4963,64 @@ function showPrevHistModal(id){
   ov.onclick=e=>{if(e.target===ov)ov.style.display='none';};
 }
 function getRes(id){return (DB.g('rescues')||[]).find(r=>r.id===id)||{};}
+
+// ── 현장 사진 갤러리: 구조 건에 사진 여러 장 추가/열람 ──
+function _scenePhotosHtml(r){
+  const pics=[];
+  if(r.injuryPhoto)pics.push({url:r.injuryPhoto,label:'부상'});
+  if(r.transPhoto)pics.push({url:r.transPhoto,label:'이송'});
+  (r.photos||[]).forEach(p=>pics.push({url:p.url,label:(p.time||'').slice(11,16)}));
+  return `<div style="background:#0b1c30;border-radius:10px;padding:11px 12px;border:.5px solid rgba(255,255,255,.07);margin-top:8px;">
+    <div style="font-size:11px;color:#4fa8d0;font-weight:700;margin-bottom:7px;">📷 현장 사진 <span style="color:rgba(255,255,255,.3);font-weight:400;">${pics.length}장</span></div>
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;">
+      ${pics.map(p=>`<div onclick="openLightbox('${p.url}')" style="aspect-ratio:1;border-radius:8px;overflow:hidden;cursor:pointer;position:relative;background:#060d1a;">
+        <img src="${p.url}" style="width:100%;height:100%;object-fit:cover;" loading="lazy">
+        ${p.label?`<span style="position:absolute;bottom:2px;left:4px;font-size:8px;color:#fff;text-shadow:0 1px 2px #000;">${p.label}</span>`:''}
+      </div>`).join('')}
+      <div onclick="addScenePhotos(${r.id})" style="aspect-ratio:1;border-radius:8px;border:1.5px dashed rgba(79,168,208,.35);display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;color:#4fa8d0;gap:2px;">
+        <span style="font-size:17px;line-height:1;">＋</span><span style="font-size:8px;">사진 추가</span>
+      </div>
+    </div>
+  </div>`;
+}
+function addScenePhotos(resId){
+  const inp=document.createElement('input');
+  inp.type='file';inp.accept='image/*';inp.multiple=true;
+  inp.onchange=async()=>{
+    const files=[...(inp.files||[])];
+    if(!files.length)return;
+    if(!navigator.onLine){toast('📵 오프라인 — 연결 후 다시 시도하세요');return;}
+    toast('⬆️ 사진 '+files.length+'장 업로드 중...');
+    const u=DB.g('currentUser')||{};
+    let ok=0;
+    for(const f of files){
+      try{
+        const c=await _compressImage(f);
+        const url=await uploadImageToStorage(c,'photos/scene_'+resId);
+        const res=DB.g('rescues')||[];const ri=res.findIndex(x=>x.id===resId);
+        if(ri<0)break;
+        if(!res[ri].photos)res[ri].photos=[];
+        res[ri].photos.push({url,time:now(),by:u.name||''});
+        DB.s('rescues',res);ok++;
+      }catch(e){}
+    }
+    toast(ok?('✅ 사진 '+ok+'장 추가'):'⚠️ 업로드 실패');
+    try{const r=getRes(resId);if(r&&r.id)renderTimeline(r,_tlViewMode==='write'?'write':'advanced');}catch(e){}
+  };
+  inp.click();
+}
+function openLightbox(url){
+  let lb=document.getElementById('photoLightbox');
+  if(!lb){
+    lb=document.createElement('div');lb.id='photoLightbox';
+    lb.style.cssText='position:fixed;inset:0;z-index:99;background:rgba(0,0,0,.93);display:flex;align-items:center;justify-content:center;padding:18px;';
+    lb.onclick=()=>{lb.style.display='none';};
+    lb.innerHTML='<img id="lightboxImg" style="max-width:100%;max-height:100%;border-radius:10px;object-fit:contain;">';
+    document.body.appendChild(lb);
+  }
+  document.getElementById('lightboxImg').src=url;
+  lb.style.display='flex';
+}
 function submitComment(resId){
   const inp=document.getElementById('cmtInput_'+resId);if(!inp)return;
   const text=inp.value.trim();if(!text){toast('⚠️ 댓글을 입력하세요');return;}
@@ -6130,7 +6190,7 @@ function admDelRes(id){
   const res=DB.g('rescues')||[];const r=res.find(x=>x.id===id);
   // Storage 사진 동반 삭제 (고아 파일 방지)
   if(r&&_fst){
-    [r.injuryPhoto,r.transPhoto,...(r.reports||[]).map(p=>p.photo)]
+    [r.injuryPhoto,r.transPhoto,...(r.reports||[]).map(p=>p.photo),...(r.photos||[]).map(p=>p.url)]
       .filter(u=>u&&String(u).startsWith('http'))
       .forEach(u=>{try{_fst.refFromURL(u).delete().catch(()=>{});}catch(e){}});
   }
