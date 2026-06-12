@@ -1463,7 +1463,7 @@ window.addEventListener('error',e=>{_logErr((e.message||'오류')+' @'+(e.filena
 window.addEventListener('unhandledrejection',e=>{_logErr('Promise: '+((e.reason&&e.reason.message)||e.reason||'거부'));});
 
 // ── 앱 버전 (배포 시 갱신) ──
-const APP_VER='v9.8 (2026.06.12)';
+const APP_VER='v9.9 (2026.06.12)';
 try{document.getElementById('appVerLabel').textContent='설악산 현장관리 '+APP_VER;}catch(e){}
 // ══════════════════════════════════════════
 // DB
@@ -1481,7 +1481,7 @@ const _FB_CFG={
 // _SHARED_COLL: 항목마다 개별 Firestore 문서 (Race Condition 방지)
 const _SHARED_COLL=['rescues','hazards'];
 // _SHARED_DOC: 단일 문서에 JSON 배열 저장 (관리자 전용, 동시 쓰기 없음)
-const _SHARED_DOC=['history','wikis','facilities','staff','catFac','catFacMeta','wikiCats','pendingUsers','approvedUsers','deletedKakaoIds'];
+const _SHARED_DOC=['history','wikis','facilities','staff','catFac','catFacMeta','wikiCats','pendingUsers','approvedUsers','deletedKakaoIds','adminOwnerKakaoId'];
 const _SHARED=[..._SHARED_COLL,..._SHARED_DOC]; // 하위 호환용
 var _remoteUpdateTimer=null; // module scope: shared across all Firebase listeners
 const _fs={};   // Firestore 인메모리 캐시
@@ -2384,12 +2384,20 @@ function openApp(mode){
     document.getElementById('topTitle').textContent='설악위키';
     bn.style.display='none';showV('v-wiki');history.pushState({view:mode},'','');renderHotSearch();renderWikiList('');
   } else if(mode==='admin'){
+    // 소유자 카카오 계정은 비밀번호 생략 (최초 1회 관리자 로그인 시 자동 등록)
+    const _au=DB.g('currentUser')||{};
+    const _owner=DB.g('adminOwnerKakaoId');
+    if(_au.kakaoId&&_owner&&String(_au.kakaoId)===String(_owner)){
+      localStorage.setItem('_adminAuthed','1');
+    }
     if(localStorage.getItem('_adminAuthed')!=='1'){
       const ov=document.getElementById('adminLoginOverlay');
       ov.style.display='flex';
       setTimeout(()=>document.getElementById('adminLoginId').focus(),200);
       return;
     }
+    // 이미 인증된 기기에서 소유자 미등록이면 현재 카카오 계정을 소유자로 등록
+    if(_au.kakaoId&&!_owner)DB.s('adminOwnerKakaoId',String(_au.kakaoId));
     document.getElementById('topTitle').textContent='관리자 전용';
     bn.style.display='none';showV('v-admin');history.pushState({view:mode},'','');admTab('ctrl',document.querySelector('.adm-tab'));
   } else if(mode==='settings'){
@@ -3057,6 +3065,8 @@ async function doAdminLogin(){
     const pwH=await _sha256(pw);
     if(pwH===_MASTER_PH){
       localStorage.setItem('_adminAuthed','1');
+      const _cu=DB.g('currentUser')||{};
+      if(_cu.kakaoId)DB.s('adminOwnerKakaoId',String(_cu.kakaoId));
       document.getElementById('adminLoginOverlay').style.display='none';
       document.getElementById('adminLoginPw').value='';
       openApp('admin');
@@ -3081,6 +3091,8 @@ async function doAdminLogin(){
     const pwHash=await _sha256(pw);
     if(data.idHash===idHash&&data.pwHash===pwHash){
       localStorage.setItem('_adminAuthed','1');
+      const _cu=DB.g('currentUser')||{};
+      if(_cu.kakaoId)DB.s('adminOwnerKakaoId',String(_cu.kakaoId));
       document.getElementById('adminLoginOverlay').style.display='none';
       document.getElementById('adminLoginPw').value='';
       openApp('admin');
