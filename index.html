@@ -2353,6 +2353,7 @@ const SEORAK_BASES = {
   '점봉산':   {name:'점봉산탐방지원센터',      lat:38.0913, lng:128.5621},
   '공단':     {name:'설악산국립공원사무소',    lat:38.2064, lng:128.4638},
   '대청':     {name:'대청봉대피소',           lat:38.1195, lng:128.4649},
+  '특구대':   {name:'특수산악구조대',          lat:38.1768, lng:128.4762},
 };
 const _SOKCHO_HOSP = {name:'속초의료원', lat:38.2080, lng:128.5866};
 
@@ -2362,7 +2363,7 @@ const DEPT_HUBS = {
   '재난안전과':   '공단',
   '탐방시설과':   '공단',
   '자원보전과':   '공단',
-  '특수산악구조대':'소공원',
+  '특수산악구조대':'특구대',
   '대청분소':     '대청',
   '백담분소':     '백담',
   '오색분소':     '남설악',
@@ -3224,6 +3225,8 @@ var _rEvOvs=[],_rEvEls=[]; // event overlays only (rescues + hazards)
 var _rTeamOvs=[],_rTeamEls=[]; // team position markers
 var _rFocusResId=null; // currently focused rescue id (focus mode)
 var _rFocusPolylines=[]; // route polylines for focus mode
+var _rRouteCache={}; // cacheKey → {path,duration,distance,fallback}
+var _rRouteInfo={}; // {resId:[{carMin,carKm,walkMin,walkKm},...]}}
 function _buildRFacEl(f){
   const el=document.createElement('div');el.className='mpin-num';
   if(f.type.includes('다목적위치표지판')){
@@ -3301,14 +3304,6 @@ function renderRescueMap(){
     if(!_stOkRes(r.status))return;
     if(!_resDateOk(r.date))return;
     const isOg=r.status==='ongoing';const ti=RES_TYPES[r.type]||RES_TYPES['기타'];
-<<<<<<< Updated upstream
-    const el=document.createElement('div');el.className=`mpin ${ti.pc}${isOg?' blink':' p-done'}`;el.innerHTML=ti.ico;
-    let _ts=null;
-    el.addEventListener('touchstart',e=>{_ts={x:e.touches[0].clientX,y:e.touches[0].clientY};},{passive:true});
-    el.addEventListener('touchend',e=>{if(!_ts)return;const dx=e.changedTouches[0].clientX-_ts.x,dy=e.changedTouches[0].clientY-_ts.y;_ts=null;if(Math.abs(dx)<8&&Math.abs(dy)<8){e.stopPropagation();e.preventDefault();openResPopup(r.id,'rescue');}});
-    el.addEventListener('click',e=>{e.stopPropagation();openResPopup(r.id,'rescue');});
-    const ov=new kakao.maps.CustomOverlay({position:new kakao.maps.LatLng(r.lat,r.lng),content:el,clickable:true});
-=======
     const el=document.createElement('div');el.className=`mpin ${ti.pc}${isOg?' blink':' p-done'}`;el.innerHTML=ti.ico;el.dataset.ev='1';
     el.dataset.rid=String(r.id);
     let _ts=null;
@@ -3321,7 +3316,6 @@ function renderRescueMap(){
     el.addEventListener('click',e=>{e.stopPropagation();
       if(isOg&&r.teams&&r.teams.length)enterFocusMode(r.id);else openResPopup(r.id,'rescue');});
     const ov=new kakao.maps.CustomOverlay({position:new kakao.maps.LatLng(r.lat,r.lng),content:el,clickable:true,zIndex:3});
->>>>>>> Stashed changes
     ov.setMap(mapR);_rEvOvs.push(ov);_rEvEls.push(el);
   });
   // 위험상황 핀
@@ -3361,21 +3355,68 @@ function renderRescueMap(){
   });
   // 시설물: 풀 동기화 후 필터 적용 (DOM 재생성 없이 show/hide)
   _syncRFacPool();
-<<<<<<< Updated upstream
-=======
   // Focus mode: apply dimming to non-focused overlays
   if(_rFocusResId){
     _applyFocusDim();
     _drawFocusRoutes(_rFocusResId);
   }
-  _updateOgBanner();
->>>>>>> Stashed changes
   updateSummary();
 }
 
 // ══════════════════════════════════════════
 // 포커스 모드: 사고 탭 → 팀 경로 + 진행 패널
 // ══════════════════════════════════════════
+function _haversineKm(lat1,lng1,lat2,lng2){
+  const R=6371,dLat=(lat2-lat1)*Math.PI/180,dLng=(lng2-lng1)*Math.PI/180;
+  const a=Math.sin(dLat/2)**2+Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLng/2)**2;
+  return R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
+}
+function _fmtMin(min){
+  if(min<60)return Math.round(min)+'분';
+  const h=Math.floor(min/60),m=Math.round(min%60);
+  return h+'시간'+(m>0?' '+m+'분':'');
+}
+
+async function _fetchCarRoute(key,fromLat,fromLng,toLat,toLng){
+  if(_rRouteCache[key])return _rRouteCache[key];
+  try{
+    const url='https://apis-navi.kakaomobility.com/v1/directions?origin='+fromLng+','+fromLat+'&destination='+toLng+','+toLat+'&priority=RECOMMEND';
+    const resp=await fetch(url,{headers:{'Authorization':'KakaoAK 4ba2cd810d516a4f336d4dee5fa5eba5'}});
+    if(!resp.ok)throw new Error('HTTP '+resp.status);
+    const d=await resp.json();
+    const route=d.routes&&d.routes[0];
+    if(!route||route.result_code!==0)throw new Error('no route');
+    const sum=route.summary;
+    const path=[];
+    (route.sections||[]).forEach(sec=>{
+      (sec.roads||[]).forEach(road=>{
+        const vx=road.vertexes||[];
+        for(let i=0;i+1<vx.length;i+=2)path.push(new kakao.maps.LatLng(vx[i+1],vx[i]));
+      });
+    });
+    const result={path,duration:Math.round((sum.duration||0)/60),distance:+((sum.distance||0)/1000).toFixed(1),fallback:false};
+    _rRouteCache[key]=result;
+    return result;
+  }catch(e){
+    const km=+(_haversineKm(fromLat,fromLng,toLat,toLng)*1.35).toFixed(1);
+    const result={path:null,duration:Math.round(km/45*60),distance:km,fallback:true};
+    _rRouteCache[key]=result;
+    return result;
+  }
+}
+
+function _renderFocusPanelRouteInfo(resId){
+  const infos=_rRouteInfo[resId]||[];
+  infos.forEach((info,ti)=>{
+    const el=document.getElementById('rinfo-'+resId+'-'+ti);
+    if(!el||!info)return;
+    const carStr=info.carMin!=null?(info.fallback?'🚗 약 ':' 🚗 ')+_fmtMin(info.carMin)+' '+info.carKm+'km':'🚗 계산중…';
+    const walkStr=info.walkKm?'🚶 '+_fmtMin(info.walkMin)+' '+info.walkKm+'km':'';
+    el.textContent=carStr+(walkStr?' · '+walkStr:'');
+    el.style.color=info.fallback?'rgba(240,192,64,.55)':'rgba(240,192,64,.85)';
+  });
+}
+
 function _getBaseByName(name){
   return Object.values(SEORAK_BASES).find(b=>b.name===name)||null;
 }
@@ -3414,51 +3455,75 @@ function _drawFocusRoutes(resId){
   if(!rescue||!rescue.teams)return;
   const teamColors=['#4fa8d0','#27ae60','#e67e22','#9b59b6'];
   const bounds=new kakao.maps.LatLngBounds();
-  // Add incident point to bounds
   if(rescue.lat&&rescue.lng)bounds.extend(new kakao.maps.LatLng(rescue.lat,rescue.lng));
+  if(!_rRouteInfo[resId])_rRouteInfo[resId]=[];
 
   rescue.teams.forEach((team,ti)=>{
     const col=teamColors[ti%teamColors.length];
     const wps=team.wps||[];
     if(!wps.length)return;
-    // Find base station coords from first waypoint name (isBase)
     const baseWp=wps.find(w=>w.isBase);
     const baseCoords=baseWp?_getBaseByName(baseWp.name):null;
-    // Trail waypoints with coords (skip isBase since it has no lat/lng)
     const trailPts=wps.filter(w=>!w.isBase&&w.lat&&w.lng);
     if(!trailPts.length)return;
 
-    // Car segment: base station → first trail waypoint (dashed)
-    if(baseCoords){
-      const carPath=[
-        new kakao.maps.LatLng(baseCoords.lat,baseCoords.lng),
-        new kakao.maps.LatLng(trailPts[0].lat,trailPts[0].lng)
-      ];
-      const carLine=new kakao.maps.Polyline({
-        path:carPath,strokeWeight:3,strokeColor:'#f0c040',
-        strokeOpacity:.75,strokeStyle:'shortdash',map:mapR
-      });
-      _rFocusPolylines.push(carLine);
-      bounds.extend(carPath[0]);bounds.extend(carPath[1]);
+    // Walk distance: sum haversine × trail factor
+    let walkKm=0;
+    for(let i=1;i<trailPts.length;i++)walkKm+=_haversineKm(trailPts[i-1].lat,trailPts[i-1].lng,trailPts[i].lat,trailPts[i].lng);
+    walkKm=+(walkKm*1.45).toFixed(1);
+    const walkMin=Math.round(walkKm/2.5*60);
+    _rRouteInfo[resId][ti]={carMin:null,carKm:null,walkMin,walkKm,fallback:true};
 
-      // Base label marker
+    // Car segment: draw dashed placeholder immediately, then fetch actual road geometry
+    if(baseCoords){
+      const tp0=trailPts[0];
+      const placeholder=new kakao.maps.Polyline({
+        path:[new kakao.maps.LatLng(baseCoords.lat,baseCoords.lng),new kakao.maps.LatLng(tp0.lat,tp0.lng)],
+        strokeWeight:3,strokeColor:'#f0c040',strokeOpacity:.5,strokeStyle:'shortdash',map:mapR
+      });
+      _rFocusPolylines.push(placeholder);
+      bounds.extend(new kakao.maps.LatLng(baseCoords.lat,baseCoords.lng));
+      bounds.extend(new kakao.maps.LatLng(tp0.lat,tp0.lng));
+
+      // Base label
       const baseLbl=document.createElement('div');
       baseLbl.style.cssText='background:rgba(10,20,40,.9);border:1px solid #f0c040;border-radius:8px;padding:2px 7px;font-size:10px;font-weight:700;color:#f0c040;white-space:nowrap;pointer-events:none;';
       baseLbl.textContent='🏠 '+(baseWp.name||'').replace('탐방지원센터','').replace('설악산국립공원사무소','공단사무소').slice(0,8);
-      const baseOv=new kakao.maps.CustomOverlay({position:carPath[0],content:baseLbl,yAnchor:1.5,zIndex:5});
+      const baseOv=new kakao.maps.CustomOverlay({position:new kakao.maps.LatLng(baseCoords.lat,baseCoords.lng),content:baseLbl,yAnchor:1.5,zIndex:5});
       baseOv.setMap(mapR);_rFocusPolylines.push(baseOv);
+
+      // Async: fetch actual car route
+      const cacheKey=baseCoords.lat+','+baseCoords.lng+'>'+tp0.lat+','+tp0.lng;
+      _fetchCarRoute(cacheKey,baseCoords.lat,baseCoords.lng,tp0.lat,tp0.lng).then(result=>{
+        if(_rFocusResId!==resId||!mapR)return;
+        if(_rRouteInfo[resId]&&_rRouteInfo[resId][ti]){
+          _rRouteInfo[resId][ti].carMin=result.duration;
+          _rRouteInfo[resId][ti].carKm=result.distance;
+          _rRouteInfo[resId][ti].fallback=result.fallback;
+        }
+        if(!result.fallback&&result.path&&result.path.length>1){
+          try{placeholder.setMap(null);}catch(e){}
+          const roadLine=new kakao.maps.Polyline({
+            path:result.path,strokeWeight:4,strokeColor:'#f0c040',strokeOpacity:.9,strokeStyle:'solid',map:mapR
+          });
+          _rFocusPolylines.push(roadLine);
+        }else{
+          // Fallback: show dashed line at full opacity
+          try{placeholder.setStrokeOpacity(.75);}catch(e){}
+        }
+        _renderFocusPanelRouteInfo(resId);
+      });
     }
 
-    // Walk segment: connect trail waypoints (solid)
+    // Walk segment: solid colored polyline through trail waypoints
     if(trailPts.length>=2){
       const walkPath=trailPts.map(w=>new kakao.maps.LatLng(w.lat,w.lng));
       const walkLine=new kakao.maps.Polyline({
-        path:walkPath,strokeWeight:4,strokeColor:col,
-        strokeOpacity:.85,strokeStyle:'solid',map:mapR
+        path:walkPath,strokeWeight:4,strokeColor:col,strokeOpacity:.85,strokeStyle:'solid',map:mapR
       });
       _rFocusPolylines.push(walkLine);
       walkPath.forEach(p=>bounds.extend(p));
-    } else if(trailPts.length===1){
+    }else if(trailPts.length===1){
       bounds.extend(new kakao.maps.LatLng(trailPts[0].lat,trailPts[0].lng));
     }
 
@@ -3468,13 +3533,12 @@ function _drawFocusRoutes(resId){
       const posLbl=document.createElement('div');
       posLbl.style.cssText=`background:rgba(10,20,40,.9);border:1.5px solid ${col};border-radius:8px;padding:2px 7px;font-size:10px;font-weight:700;color:${col};white-space:nowrap;pointer-events:none;`;
       const typeIco=team.type==='heli'?'🚁':team.type==='vehicle'?'🚐':'🥾';
-      posLbl.textContent=`${typeIco} ${team.name}`;
+      posLbl.textContent=typeIco+' '+team.name;
       const posOv=new kakao.maps.CustomOverlay({position:new kakao.maps.LatLng(cur.lat,cur.lng),content:posLbl,yAnchor:1.5,zIndex:5});
       posOv.setMap(mapR);_rFocusPolylines.push(posOv);
     }
   });
 
-  // Fit map to show all relevant elements
   try{if(mapR)mapR.setBounds(bounds,60);}catch(e){}
 }
 
@@ -3498,6 +3562,7 @@ function _renderFocusPanel(resId){
     {c:'#27ae60',label:'하산'},
   ];
   const teamColors=['#4fa8d0','#27ae60','#e67e22','#9b59b6'];
+  const rInfos=_rRouteInfo[resId]||[];
   teamsEl.innerHTML=teams.map((team,ti)=>{
     const col=teamColors[ti%teamColors.length];
     const si=_teamStageIdx(team);
@@ -3508,6 +3573,18 @@ function _renderFocusPanel(resId){
     const atEnd=team.wpIdx>=team.wps.length-1;
     const curWp=team.wps[team.wpIdx]||team.wps[0]||{};
     const curName=(curWp.code?curWp.code+' ':'')+(curWp.name||'').slice(0,14);
+    const info=rInfos[ti];
+    const baseWp=team.wps.find(w=>w.isBase);
+    const hasBase=baseWp&&_getBaseByName(baseWp.name);
+    const tps=team.wps.filter(w=>!w.isBase&&w.lat&&w.lng);
+    let routeStr='';
+    if(hasBase&&info){
+      const carStr=info.carMin!=null?(info.fallback?'🚗 약 ':'🚗 ')+_fmtMin(info.carMin)+' '+info.carKm+'km':'🚗 계산중…';
+      const walkStr=info.walkKm&&tps.length>1?'· 🚶 '+_fmtMin(info.walkMin)+' '+info.walkKm+'km':'';
+      routeStr=`<div id="rinfo-${resId}-${ti}" style="font-size:10px;color:rgba(240,192,64,.65);margin-top:5px;padding-top:5px;border-top:1px solid rgba(255,255,255,.05);">${carStr} ${walkStr}</div>`;
+    }else if(hasBase){
+      routeStr=`<div id="rinfo-${resId}-${ti}" style="font-size:10px;color:rgba(240,192,64,.45);margin-top:5px;padding-top:5px;border-top:1px solid rgba(255,255,255,.05);">🚗 계산중… ${tps.length>1?'· 🚶 …':''}</div>`;
+    }
     return `<div style="background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.07);border-radius:10px;padding:10px 11px;margin-bottom:8px;">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
         <span style="font-size:12px;font-weight:800;color:${col};">${typeIco} ${team.name}</span>
@@ -3520,37 +3597,12 @@ function _renderFocusPanel(resId){
         <span style="font-size:10px;color:rgba(255,255,255,.4);">📍 ${curName||'-'} · ${team.wpIdx}/${total}</span>
         ${!atEnd?`<button onclick="_focusPassTeam(${resId},${ti})" style="background:rgba(79,168,208,.15);border:1px solid rgba(79,168,208,.35);color:#4fa8d0;border-radius:7px;padding:4px 12px;font-size:11px;font-weight:700;cursor:pointer;">▶ 통과</button>`:`<span style="font-size:10px;color:#27ae60;font-weight:700;">✓ 완료</span>`}
       </div>
-      ${(()=>{
-        // 카카오맵 길찾기 버튼: 차량(기지→들머리) + 도보(들머리→사고지점)
-        const baseWp=team.wps.find(w=>w.isBase);
-        const baseC=baseWp?_getBaseByName(baseWp.name):null;
-        const tps=team.wps.filter(w=>!w.isBase&&w.lat&&w.lng);
-        if(!tps.length)return'';
-        const tp0=tps[0],tpEnd=tps[tps.length-1];
-        const btns=[];
-        if(baseC)btns.push(`<button onclick="openKakaoRoute(${baseC.lat},${baseC.lng},'${(baseWp.name||'기지').replace(/'/g,'')}',${tp0.lat},${tp0.lng},'${(tp0.code||'들머리').replace(/'/g,'')}','CAR')" style="flex:1;background:rgba(240,192,64,.1);border:1px solid rgba(240,192,64,.35);color:#f0c040;border-radius:7px;padding:5px 4px;font-size:10px;font-weight:700;cursor:pointer;">🚗 차량 길찾기</button>`);
-        if(tps.length>1)btns.push(`<button onclick="openKakaoRoute(${tp0.lat},${tp0.lng},'${(tp0.code||'들머리').replace(/'/g,'')}',${tpEnd.lat},${tpEnd.lng},'${(tpEnd.code||'사고지점').replace(/'/g,'')}','FOOT')" style="flex:1;background:rgba(39,174,96,.1);border:1px solid rgba(39,174,96,.35);color:#27ae60;border-radius:7px;padding:5px 4px;font-size:10px;font-weight:700;cursor:pointer;">🚶 도보 길찾기</button>`);
-        return btns.length?`<div style="display:flex;gap:6px;margin-top:7px;">${btns.join('')}</div>`:'';
-      })()}
+      ${routeStr}
     </div>`;
   }).join('');
   panel.classList.add('on');
 }
 
-// 카카오맵 길찾기 열기: 모바일은 앱 스킴(차량/도보 모드 지정), 데스크탑은 웹
-function openKakaoRoute(sLat,sLng,sName,eLat,eLng,eName,by){
-  const isMobile=/Android|iPhone|iPad/i.test(navigator.userAgent);
-  if(isMobile){
-    // 카카오맵 앱: by=CAR|FOOT 모드 지정 가능
-    location.href='kakaomap://route?sp='+sLat+','+sLng+'&ep='+eLat+','+eLng+'&by='+by;
-    // 앱 미설치 시 1.5초 후 웹 폴백
-    setTimeout(()=>{
-      if(!document.hidden)window.open('https://map.kakao.com/link/from/'+encodeURIComponent(sName)+','+sLat+','+sLng+'/to/'+encodeURIComponent(eName)+','+eLat+','+eLng,'_blank');
-    },1500);
-  }else{
-    window.open('https://map.kakao.com/link/from/'+encodeURIComponent(sName)+','+sLat+','+sLng+'/to/'+encodeURIComponent(eName)+','+eLat+','+eLng,'_blank');
-  }
-}
 
 function enterFocusMode(resId){
   if(!resId)return;
