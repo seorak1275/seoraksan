@@ -1452,7 +1452,7 @@ body.hi-contrast .stat-lbl{color:rgba(255,255,255,.65)!important;}
 <script>
 'use strict';
 // ── 앱 버전 (배포 시 갱신) ──
-const APP_VER='v9.3 (2026.06.12)';
+const APP_VER='v9.4 (2026.06.12)';
 try{document.getElementById('appVerLabel').textContent='설악산 현장관리 '+APP_VER;}catch(e){}
 // ══════════════════════════════════════════
 // DB
@@ -3857,6 +3857,11 @@ function renderRescueStats(){
           ${mini('이번달',res.filter(r=>r.date&&r.date.startsWith(mon)).length,'#4fa8d0')}
         </div>
       </div>
+      <div class="scard">
+        <div class="stitle">🔥 사고 다발 구간 (히트맵)</div>
+        <div id="heatMapEl" style="width:100%;height:280px;border-radius:9px;overflow:hidden;background:#060d1a;"></div>
+        <div id="heatTopList" style="margin-top:8px;"></div>
+      </div>
       ${chartCard('⏰ 발생 시간대',timeMap,'#4fa8d0')}
       ${chartCard('👤 연령대',ageMap,'#9b59b6')}
       ${chartCard('⚧ 성별',genderMap,'#3498db')}
@@ -3868,6 +3873,7 @@ function renderRescueStats(){
       ${chartCard('📍 장소구분',loctypeMap,'#1abc9c')}
       ${chartCard('🌤 날씨',weatherMap,'#f39c12')}
     `;
+    setTimeout(()=>_renderHeatMap('rescue'),120);
   } else {
     const typMap={},statusMap={},monMap={};
     haz.forEach(h=>{
@@ -3887,14 +3893,72 @@ function renderRescueStats(){
           ${mini('완료',haz.filter(h=>h.hazStatus==='제거 완료'||h.hazStatus==='조치 완료'||h.hazStatus==='통제중').length,'#27ae60')}
         </div>
       </div>
+      <div class="scard">
+        <div class="stitle">🔥 사고 다발 구간 (히트맵)</div>
+        <div id="heatMapEl" style="width:100%;height:280px;border-radius:9px;overflow:hidden;background:#060d1a;"></div>
+        <div id="heatTopList" style="margin-top:8px;"></div>
+      </div>
       ${chartCard('🪨 위험 유형',typMap,'#e67e22')}
       ${chartCard('📋 처리 현황',statusMap,'#3498db')}
       ${chartCard('📅 월별 발생 (최근 6개월)',monSorted,'#9b59b6')}
     `;
+    setTimeout(()=>_renderHeatMap('haz'),120);
   }
 }
 
 // 통계 자료 엑셀(CSV) 다운로드: 날짜 범위 필터
+// ── 사고 다발 구간 히트맵: 좌표를 ~250m 격자로 묶어 원으로 표시 ──
+function _renderHeatMap(tab){
+  const el=document.getElementById('heatMapEl');
+  if(!el||!window._KR)return;
+  const data=(tab==='haz'?(DB.g('hazards')||[]):(DB.g('rescues')||[])).filter(x=>x.lat&&x.lng);
+  if(!data.length){el.innerHTML='<div style="display:flex;align-items:center;justify-content:center;height:100%;font-size:11px;color:rgba(255,255,255,.25);">좌표가 입력된 기록 없음</div>';return;}
+  // 격자 집계 (0.0025° ≈ 250m)
+  const CELL=0.0025;
+  const bins={};
+  data.forEach(x=>{
+    const key=Math.round(x.lat/CELL)+'_'+Math.round(x.lng/CELL);
+    if(!bins[key])bins[key]={lat:0,lng:0,n:0};
+    bins[key].lat+=x.lat;bins[key].lng+=x.lng;bins[key].n++;
+  });
+  const cells=Object.values(bins).map(b=>({lat:b.lat/b.n,lng:b.lng/b.n,n:b.n})).sort((a,b)=>b.n-a.n);
+  try{
+    const map=new kakao.maps.Map(el,{center:new kakao.maps.LatLng(38.13,128.43),level:8});
+    map.setMapTypeId(kakao.maps.MapTypeId.HYBRID);
+    const bounds=new kakao.maps.LatLngBounds();
+    const colOf=n=>n>=5?'#c0392b':n>=3?'#e74c3c':n>=2?'#e67e22':'#f1c40f';
+    cells.forEach(c=>{
+      const pos=new kakao.maps.LatLng(c.lat,c.lng);
+      bounds.extend(pos);
+      new kakao.maps.Circle({
+        center:pos,radius:140+Math.min(c.n,8)*45,
+        fillColor:colOf(c.n),fillOpacity:.42,strokeWeight:1,strokeColor:colOf(c.n),strokeOpacity:.6,map
+      });
+      if(c.n>=2){
+        const lbl=document.createElement('div');
+        lbl.style.cssText='font-size:11px;font-weight:800;color:#fff;text-shadow:0 1px 3px rgba(0,0,0,.9);pointer-events:none;';
+        lbl.textContent=c.n;
+        new kakao.maps.CustomOverlay({position:pos,content:lbl,zIndex:3}).setMap(map);
+      }
+    });
+    if(cells.length>1)map.setBounds(bounds,30);else map.setCenter(new kakao.maps.LatLng(cells[0].lat,cells[0].lng));
+  }catch(e){}
+  // 다발 구간 TOP 5: 가장 가까운 표지판 기준 표기
+  const top=document.getElementById('heatTopList');
+  if(top){
+    top.innerHTML=cells.slice(0,5).map((c,i)=>{
+      let label='';
+      try{const s=_nearestSignFull(c.lat,c.lng);if(s)label=s.code+(s.dist!=null?' 부근':'');}catch(e){}
+      if(!label)label=c.lat.toFixed(4)+', '+c.lng.toFixed(4);
+      return `<div style="display:flex;align-items:center;gap:7px;padding:3px 0;">
+        <span style="font-size:9px;font-weight:800;color:${i===0?'#e74c3c':'#9bbdd4'};width:14px;">${i+1}</span>
+        <span style="font-size:11px;color:#b8d4e8;flex:1;">${label}</span>
+        <span style="font-size:10px;font-weight:700;color:${c.n>=3?'#e74c3c':'#e67e22'};">${c.n}건</span>
+      </div>`;
+    }).join('');
+  }
+}
+
 function downloadStatsExcel(tab){
   const from=window._statExpFrom||'';
   const to=window._statExpTo||'';
