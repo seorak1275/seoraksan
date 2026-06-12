@@ -1439,7 +1439,7 @@ body.hi-contrast .stat-lbl{color:rgba(255,255,255,.65)!important;}
 <script>
 'use strict';
 // ── 앱 버전 (배포 시 갱신) ──
-const APP_VER='v9.1 (2026.06.12)';
+const APP_VER='v9.2 (2026.06.12)';
 try{document.getElementById('appVerLabel').textContent='설악산 현장관리 '+APP_VER;}catch(e){}
 // ══════════════════════════════════════════
 // DB
@@ -4694,8 +4694,28 @@ function renderTimeline(r,viewMode){
     if(_ok(r.extra))rows.push(_row('특이',r.extra));
     const updates=(r.reports||[]).filter(p=>p.update||(p.victimChange&&p.victimChange!=='변화없음')||p.addMem||p.extra);
     const updHtml=updates.length?`<div style="margin-top:7px;padding-top:7px;border-top:.5px solid rgba(255,255,255,.08);">${updates.map(p=>{const pts=[];if(p.update)pts.push(p.update);if(p.victimChange&&p.victimChange!=='변화없음')pts.push('부상자 '+p.victimChange);if(p.addMem)pts.push('추가대원 '+p.addMem);if(p.extra)pts.push(p.extra);return `<div style="padding:5px 0;border-bottom:.5px solid rgba(255,255,255,.04);"><span style="font-size:10px;color:#4a7090;font-weight:600;">${p.repTime||''} · ${p.author||''}</span><br><span style="font-size:11px;color:#b8d4e8;line-height:1.5;">${pts.join(' / ')}</span></div>`;}).join('')}</div>`:'';
-    const wpLog=r.wpLog||[];
-    const logHtml=wpLog.length?`<div style="background:#060d1a;border-radius:9px;padding:10px 13px;margin-bottom:8px;border:.5px solid rgba(79,168,208,.15);"><div style="font-size:11px;color:#4fa8d0;font-weight:700;margin-bottom:5px;">📍 위치 통과 기록</div>${wpLog.map(l=>`<div style="font-size:11px;color:#b8d4e8;line-height:1.9;letter-spacing:.2px;">${l.time} · ${l.teamName} · ${l.code||'?'}${l.wpName?' ('+l.wpName+')':''} 통과</div>`).join('')}</div>`:'';
+    // 통합 상황일지: 1보 접수 + 타임테이블 + 표지판 통과 + 추가보고 + 인계를 시간순 병합
+    const baseDate=(r.date||'').slice(0,10);
+    const _tKey=t=>{ // 정렬키: 날짜 포함이면 그대로, HH:MM뿐이면 접수일 기준
+      const s=String(t||'').trim();
+      if(/^\d{4}-\d{2}-\d{2}/.test(s))return s;
+      return baseDate+' '+s;
+    };
+    const _tShow=t=>{const s=String(t||'').trim();return s.length>5?s.slice(11,16)||s.slice(-5):s;};
+    const logEntries=[];
+    if(r.date)logEntries.push({k:_tKey(r.date),t:_tShow(r.date),ico:'🚨',label:'1보 접수',sub:r.reception||''});
+    (r.timetable||[]).forEach(e=>{if(e.time)logEntries.push({k:_tKey(e.time),t:_tShow(e.time),ico:e.stage==='요구조자 조우'?'🎯':'📌',label:e.stage,sub:e.note||''});});
+    (r.wpLog||[]).forEach(l=>{logEntries.push({k:_tKey(l.time),t:l.time,ico:'📍',label:(l.teamName||'팀')+' · '+(l.code||'?')+' 통과',sub:l.wpName||''});});
+    (r.reports||[]).forEach((p,pi)=>{if(p.repTime)logEntries.push({k:_tKey(p.repTime),t:_tShow(p.repTime),ico:'📋',label:(pi+2)+'보 보고'+(p.author?' ('+p.author+')':''),sub:p.update||''});});
+    if(r.handover&&r.handover.to)logEntries.push({k:_tKey(r.handover.time),t:_tShow(r.handover.time),ico:'🤝',label:'환자 인계: '+r.handover.to,sub:r.handover.by||''});
+    logEntries.sort((a,b)=>a.k.localeCompare(b.k));
+    const logHtml=logEntries.length?`<div style="background:#060d1a;border-radius:9px;padding:10px 13px;margin-bottom:8px;border:.5px solid rgba(79,168,208,.15);">
+      <div style="font-size:11px;color:#4fa8d0;font-weight:700;margin-bottom:6px;">📜 상황 일지 (자동 통합)</div>
+      ${logEntries.map(e=>`<div style="display:flex;gap:8px;padding:3px 0;align-items:baseline;">
+        <span style="font-size:10px;color:#4a7090;font-family:monospace;flex-shrink:0;width:38px;">${e.t}</span>
+        <span style="font-size:11px;color:#b8d4e8;line-height:1.5;">${e.ico} ${e.label}${e.sub?` <span style="color:#5a7a94;">— ${e.sub}</span>`:''}</span>
+      </div>`).join('')}
+    </div>`:'';
     w.innerHTML=tabHdr+logHtml+`
       <div style="background:#0b1c30;border-radius:10px;padding:12px;border:.5px solid rgba(255,255,255,.07);margin-bottom:8px;">
         ${rows.join('')||'<div style="font-size:11px;color:rgba(255,255,255,.25);">입력된 정보 없음</div>'}
