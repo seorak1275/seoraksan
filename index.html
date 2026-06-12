@@ -1465,6 +1465,10 @@ const _MY_DEVICE_ID=(function(){
 })();
 let _maxSharedNotiAt=0,_sharedNotiInited=false;
 
+// 마지막 동기화 상태 스냅샷 (k → Map(id→json)) — DB.g가 캐시 참조를 그대로 반환하므로
+// 호출부가 제자리 수정하면 _fs[k]와 새 값이 동일 객체가 되어 비교가 무의미해짐.
+// 동기화 시점의 JSON을 따로 보관해 그것과 비교해야 변경이 정확히 감지됨.
+const _fsSync={};
 const DB={
   g(k){
     if(_SHARED.includes(k)) return (_fs[k]!==undefined)?_fs[k]:null;
@@ -1473,22 +1477,22 @@ const DB={
   s(k,v){
     if(k==='facilities')_invalidateSignCache();
     if(_SHARED_COLL.includes(k)){
-      const prev=_fs[k]||[];
       _fs[k]=v||[];
       if(_fdb){
-        const newMap=new Map((v||[]).map(r=>[String(r.id),r]));
-        const prevMap=new Map(prev.map(r=>[String(r.id),r]));
+        const prevJson=_fsSync[k]||new Map();
+        const newJson=new Map();
+        (v||[]).forEach(r=>{newJson.set(String(r.id),JSON.stringify(r));});
         // 새로 추가되거나 변경된 항목만 개별 문서에 저장
-        newMap.forEach((r,id)=>{
-          const p=prevMap.get(id);
-          if(!p||JSON.stringify(p)!==JSON.stringify(r)){
-            _fdb.collection(k).doc(id).set(r).catch(()=>{});
+        newJson.forEach((json,id)=>{
+          if(prevJson.get(id)!==json){
+            _fdb.collection(k).doc(id).set(JSON.parse(json)).catch(()=>{});
           }
         });
         // 삭제된 항목 제거
-        prevMap.forEach((_,id)=>{
-          if(!newMap.has(id)) _fdb.collection(k).doc(id).delete().catch(()=>{});
+        prevJson.forEach((_,id)=>{
+          if(!newJson.has(id)) _fdb.collection(k).doc(id).delete().catch(()=>{});
         });
+        _fsSync[k]=newJson;
       }
     }else if(_SHARED_DOC.includes(k)){
       _fs[k]=v;
@@ -1537,6 +1541,10 @@ function initFirebase(onReady){
       _fdb.collection(k).onSnapshot(snap=>{
         _fs[k]=snap.docs.map(d=>d.data());
         try{_fs[k].sort((a,b)=>(Number(b.id)||0)-(Number(a.id)||0));}catch{}
+        // 동기화 기준 스냅샷 갱신 (서버 상태 = 마지막 동기화 상태)
+        const syncMap=new Map();
+        _fs[k].forEach(r=>{syncMap.set(String(r.id),JSON.stringify(r));});
+        _fsSync[k]=syncMap;
         if(!loaded.has(k)){loaded.add(k);_checkReady();}
         else{_onRemoteUpdate();}
       },()=>{if(!loaded.has(k)){loaded.add(k);_checkReady();}});
@@ -4424,11 +4432,14 @@ function _initTlTeams(r){
   }
 }
 
+function _snapshotTeams(){
+  return _tlTeams.map(t=>({id:t.id,name:t.name,type:t.type,wpIdx:t.wpIdx,wps:(t.wps||[]).map(w=>({...w})),members:(t.members||[]).slice()}));
+}
 function _persistTeams(){
   if(!_tlWpResId)return;
   const _res=DB.g('rescues')||[];const _ri=_res.findIndex(x=>x.id===_tlWpResId);
   if(_ri<0)return;
-  _res[_ri].teams=_tlTeams.map(t=>({id:t.id,name:t.name,type:t.type,wpIdx:t.wpIdx,wps:t.wps,members:t.members||[]}));
+  _res[_ri].teams=_snapshotTeams();
   DB.s('rescues',_res);
 }
 
@@ -5265,6 +5276,11 @@ function submit1Bo(){
     timetable: sortTTByTime(_ttInlineEntries||[]),
     status:'ongoing', reports:[],
   };
+  // 등록 폼 타임라인에서 만든 팀이 있으면 새 구조 레코드로 이관
+  if(_tlWpResId==='_form_tl_'&&_tlTeams.length){
+    r.teams=_snapshotTeams();
+    _tlWpResId=r.id;
+  }
   const res=DB.g('rescues')||[];
   res.push(r);
   DB.s('rescues',res);
