@@ -1489,7 +1489,7 @@ window.addEventListener('error',e=>{_logErr((e.message||'오류')+' @'+(e.filena
 window.addEventListener('unhandledrejection',e=>{_logErr('Promise: '+((e.reason&&e.reason.message)||e.reason||'거부'));});
 
 // ── 앱 버전 (배포 시 갱신) ──
-const APP_VER='v9.26 (2026.06.13)';
+const APP_VER='v9.27 (2026.06.13)';
 try{document.getElementById('appVerLabel').textContent='설악산 현장관리 '+APP_VER;}catch(e){}
 // ══════════════════════════════════════════
 // DB
@@ -2373,6 +2373,15 @@ function _boardFocus(id){
   if(!r||!_boardMap||!r.lat||!r.lng)return;
   try{_boardMap.setCenter(new kakao.maps.LatLng(r.lat,r.lng));_boardMap.setLevel(5);}catch(e){}
 }
+// 상황판 위험상황 카드/핀 클릭 → 해당 위험상황으로 지도 이동
+function _boardFocusHaz(id){
+  const h=(DB.g('hazards')||[]).find(x=>x.id===id);
+  if(!h||!_boardMap||!h.lat||!h.lng){toast('⚠️ 좌표 없음');return;}
+  try{_boardMap.setCenter(new kakao.maps.LatLng(h.lat,h.lng));_boardMap.setLevel(5);}catch(e){}
+}
+// 상황판 상단 토글: 'rescue'=진행중 구조 카드 / 'hazard'=미조치 위험상황 카드
+let _boardView='rescue';
+function setBoardView(v){_boardView=v;renderBoard();}
 // 상황판 우측: 타임라인/보고서 상세를 사이드 패널에 표시 (컴퓨터 화면 유지)
 let _boardDetailId=null;
 function _boardOpenDetail(id,mode){
@@ -2425,20 +2434,39 @@ function renderBoard(){
   const haz=(DB.g('hazards')||[]).filter(h=>!h.hazStatus||h.hazStatus==='미조치'||h.hazStatus==='조치중');
   const _td=today();
   const todayList=res.filter(r=>(r.date||'').slice(0,10)===_td).sort((a,b)=>(b.date||'').localeCompare(a.date||''));
+  const recentList=res.filter(r=>(r.date||'').slice(0,10)!==_td).sort((a,b)=>(b.date||'').localeCompare(a.date||'')).slice(0,15);
   const stageLbl=['출발','이동중','환자조우','하산'];
   const stageCol=['rgba(255,255,255,.45)','#4fa8d0','#f0a500','#27ae60'];
+  const rescueActive=_boardView==='rescue', hazActive=_boardView==='hazard';
   let html='';
-  // 요약 스트립
+  // 요약 스트립 (클릭 시 하단 카드 영역 전환)
   html+=`<div style="display:flex;gap:10px;margin-bottom:16px;">
-    <div style="flex:1;background:${ongoing.length?'rgba(192,57,43,.12)':'rgba(39,174,96,.08)'};border:1px solid ${ongoing.length?'rgba(192,57,43,.4)':'rgba(39,174,96,.25)'};border-radius:12px;padding:12px 16px;text-align:center;">
+    <div onclick="setBoardView('rescue')" style="flex:1;background:${ongoing.length?'rgba(192,57,43,.12)':'rgba(39,174,96,.08)'};border:1px solid ${rescueActive?(ongoing.length?'rgba(192,57,43,.9)':'rgba(39,174,96,.75)'):(ongoing.length?'rgba(192,57,43,.4)':'rgba(39,174,96,.25)')};border-radius:12px;padding:12px 16px;text-align:center;cursor:pointer;transition:all .15s;${rescueActive?'box-shadow:inset 0 0 0 2px rgba(192,57,43,.3);':''}">
       <div style="font-size:30px;font-weight:900;color:${ongoing.length?'#e05050':'#27ae60'};">${ongoing.length}</div>
-      <div style="font-size:12px;color:rgba(255,255,255,.5);">진행중 구조</div>
+      <div style="font-size:12px;color:${rescueActive?'#e0edf8':'rgba(255,255,255,.5)'};font-weight:${rescueActive?'700':'400'};">🚨 진행중 구조${rescueActive?' ▾':''}</div>
     </div>
-    <div style="flex:1;background:rgba(230,126,34,.08);border:1px solid rgba(230,126,34,.25);border-radius:12px;padding:12px 16px;text-align:center;">
+    <div onclick="setBoardView('hazard')" style="flex:1;background:rgba(230,126,34,.08);border:1px solid ${hazActive?'rgba(230,126,34,.9)':'rgba(230,126,34,.25)'};border-radius:12px;padding:12px 16px;text-align:center;cursor:pointer;transition:all .15s;${hazActive?'box-shadow:inset 0 0 0 2px rgba(230,126,34,.3);':''}">
       <div style="font-size:30px;font-weight:900;color:#e67e22;">${haz.length}</div>
-      <div style="font-size:12px;color:rgba(255,255,255,.5);">미조치 위험상황</div>
+      <div style="font-size:12px;color:${hazActive?'#e0edf8':'rgba(255,255,255,.5)'};font-weight:${hazActive?'700':'400'};">⚠️ 미조치 위험상황${hazActive?' ▾':''}</div>
     </div>
   </div>`;
+  if(hazActive){
+    if(!haz.length){
+      html+=`<div style="text-align:center;padding:50px 0 30px;font-size:17px;color:rgba(255,255,255,.3);">✅ 미조치 위험상황 없음</div>`;
+    }
+    haz.slice().sort((a,b)=>(b.date||'').localeCompare(a.date||'')).forEach(h=>{
+      const hasCoord=!!(h.lat&&h.lng);
+      html+=`<div onclick="_boardFocusHaz(${h.id})" style="background:#0a1626;border:1.5px solid rgba(230,126,34,.35);border-radius:14px;padding:13px 16px;margin-bottom:10px;cursor:pointer;">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;">
+          <div style="font-size:16px;font-weight:800;color:#e0edf8;">${h.hazType?.split(' ')[0]||'⚠️'} ${_esc((h.hazType||'위험상황').replace(/^\S+\s/,''))||'위험상황'}</div>
+          <span style="flex-shrink:0;font-size:11px;font-weight:800;color:#e67e22;background:rgba(230,126,34,.14);border-radius:6px;padding:3px 8px;">${_esc(h.hazStatus||'미조치')}</span>
+        </div>
+        <div style="font-size:13px;color:#5a85a8;margin-top:5px;">📍 ${_esc(h.loc||'위치 미상')}${h.danger?' · '+_esc(h.danger):''}${h.date?' · '+h.date:''}</div>
+        ${h.desc?`<div style="font-size:12px;color:#7a9cb8;margin-top:6px;line-height:1.5;">${_esc((h.desc||'').slice(0,80))}${(h.desc||'').length>80?'…':''}</div>`:''}
+        ${!hasCoord?`<div style="font-size:11px;color:rgba(255,255,255,.3);margin-top:6px;">좌표 없음 — 지도 이동 불가</div>`:''}
+      </div>`;
+    });
+  } else {
   if(!ongoing.length){
     html+=`<div style="text-align:center;padding:50px 0 30px;font-size:17px;color:rgba(255,255,255,.3);">✅ 진행중인 구조 상황 없음</div>`;
   }
@@ -2480,20 +2508,28 @@ function renderBoard(){
       </div>
     </div>`;
   });
+  }
+  // ── 하단: 사고 목록 (뷰와 무관하게 항상 표시) ──
+  const _accRow=r=>{
+    const og=r.status==='ongoing';
+    const ti=RES_TYPES[r.type]||RES_TYPES['기타'];
+    const dd=(r.date||'').slice(5,10), tm=(r.date||'').slice(11,16);
+    return `<div onclick="_boardOpenDetail(${r.id},'${og?'advanced':'write'}')" style="display:flex;align-items:center;gap:8px;padding:8px 12px;background:rgba(255,255,255,.02);border-radius:8px;margin-bottom:4px;font-size:12px;cursor:pointer;border-left:3px solid ${og?'#e05050':'#27ae60'};">
+      <span style="flex-shrink:0;font-size:9px;font-weight:800;color:${og?'#e05050':'#27ae60'};background:${og?'rgba(224,80,80,.12)':'rgba(39,174,96,.12)'};border-radius:5px;padding:2px 6px;">${og?'진행중':'종료'}</span>
+      <span style="flex:1;color:rgba(255,255,255,.7);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${ti.ico} ${_esc(r.title)}</span>
+      <span style="flex-shrink:0;color:#3a5a74;font-family:monospace;">${dd} ${tm}</span>
+    </div>`;
+  };
   html+=`<div style="margin-top:20px;font-size:12px;color:rgba(255,255,255,.35);font-weight:700;margin-bottom:6px;">📋 오늘 사고 목록 <span style="color:rgba(255,255,255,.25);font-weight:400;">(${_td} · ${todayList.length}건)</span></div>`;
   if(!todayList.length){
     html+=`<div style="padding:10px 12px;background:rgba(255,255,255,.02);border-radius:8px;font-size:12px;color:rgba(255,255,255,.3);">오늘 접수된 사고 없음</div>`;
   }else{
-    todayList.forEach(r=>{
-      const og=r.status==='ongoing';
-      const ti=RES_TYPES[r.type]||RES_TYPES['기타'];
-      const tm=(r.date||'').slice(11,16);
-      html+=`<div onclick="_boardOpenDetail(${r.id},'${og?'advanced':'write'}')" style="display:flex;align-items:center;gap:8px;padding:8px 12px;background:rgba(255,255,255,.02);border-radius:8px;margin-bottom:4px;font-size:12px;cursor:pointer;border-left:3px solid ${og?'#e05050':'#27ae60'};">
-        <span style="flex-shrink:0;font-size:9px;font-weight:800;color:${og?'#e05050':'#27ae60'};background:${og?'rgba(224,80,80,.12)':'rgba(39,174,96,.12)'};border-radius:5px;padding:2px 6px;">${og?'진행중':'종료'}</span>
-        <span style="flex:1;color:rgba(255,255,255,.7);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${ti.ico} ${_esc(r.title)}</span>
-        <span style="flex-shrink:0;color:#3a5a74;font-family:monospace;">${tm}</span>
-      </div>`;
-    });
+    todayList.forEach(r=>{html+=_accRow(r);});
+  }
+  // 최근 사고 목록 (오늘 제외, 최신순 최대 15건)
+  if(recentList.length){
+    html+=`<div style="margin-top:18px;font-size:12px;color:rgba(255,255,255,.35);font-weight:700;margin-bottom:6px;">🕑 최근 사고 목록 <span style="color:rgba(255,255,255,.25);font-weight:400;">(최신순 ${recentList.length}건)</span></div>`;
+    recentList.forEach(r=>{html+=_accRow(r);});
   }
   html+=`<div style="text-align:center;margin-top:18px;font-size:10px;color:rgba(255,255,255,.18);">10초마다 자동 갱신 · ${APP_VER}</div>`;
   body.innerHTML=html;
