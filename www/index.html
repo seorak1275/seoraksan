@@ -1489,7 +1489,7 @@ window.addEventListener('error',e=>{_logErr((e.message||'오류')+' @'+(e.filena
 window.addEventListener('unhandledrejection',e=>{_logErr('Promise: '+((e.reason&&e.reason.message)||e.reason||'거부'));});
 
 // ── 앱 버전 (배포 시 갱신) ──
-const APP_VER='v9.25 (2026.06.13)';
+const APP_VER='v9.26 (2026.06.13)';
 try{document.getElementById('appVerLabel').textContent='설악산 현장관리 '+APP_VER;}catch(e){}
 // ══════════════════════════════════════════
 // DB
@@ -1649,7 +1649,13 @@ function initFirebase(onReady){
     setTimeout(_processPhotoQueue,5000); // 이전 세션 오프라인 사진 이어서 업로드
     const totalKeys=_SHARED.length;
     const loaded=new Set();
-    function _checkReady(){if(loaded.size===totalKeys){onReady&&onReady();onReady=null;}}
+    // 첫 화면(지도·구조·시설·인력)에 꼭 필요한 핵심 키만 모이면 앱을 띄운다.
+    // 위키·이력 등 나머지는 백그라운드로 흘러들어오며 _onRemoteUpdate가 반영한다.
+    const _CRITICAL_KEYS=['rescues','hazards','facilities','catFac','catFacMeta','staff'];
+    function _checkReady(){
+      const critDone=_CRITICAL_KEYS.every(k=>loaded.has(k));
+      if((critDone||loaded.size===totalKeys)&&onReady){onReady();onReady=null;}
+    }
     function _onRemoteUpdate(){
       _checkDeletedUser();updateSummary();
       clearTimeout(_remoteUpdateTimer);
@@ -1677,6 +1683,8 @@ function initFirebase(onReady){
     _SHARED_DOC.forEach(k=>{
       _fdb.collection('appData').doc(k).onSnapshot(snap=>{
         _fs[k]=snap.exists?(()=>{try{return JSON.parse(snap.data().d);}catch{return null;}})():null;
+        // 표지판/시설 데이터가 원격에서 도착하면 사인 캐시·지도 풀을 무효화해 즉시 반영
+        if(k==='facilities'||k==='catFacMeta')try{_invalidateSignCache();}catch(e){}
         if(!loaded.has(k)){loaded.add(k);_checkReady();}
         else{_onRemoteUpdate();}
       },()=>{if(!loaded.has(k)){loaded.add(k);_checkReady();}});
@@ -8235,15 +8243,15 @@ window.onload=function(){
         var ls=document.getElementById('loadingScreen');
         if(ls){
           ls.style.pointerEvents='none';
-          ls.style.transition='opacity .6s';ls.style.opacity='0';
+          ls.style.transition='opacity .35s';ls.style.opacity='0';
           setTimeout(function(){
             if(ls.parentNode)ls.parentNode.removeChild(ls);
             checkAuth();
-          },600);
+          },350);
         } else {
           checkAuth();
         }
-      },400);
+      },120);
     };
     // 3초 폴백: initFirebase가 느릴 경우 강제 전환
     setTimeout(function(){if(window._hideLoading)window._hideLoading();},3000);
