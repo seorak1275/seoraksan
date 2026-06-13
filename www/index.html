@@ -1489,7 +1489,7 @@ window.addEventListener('error',e=>{_logErr((e.message||'오류')+' @'+(e.filena
 window.addEventListener('unhandledrejection',e=>{_logErr('Promise: '+((e.reason&&e.reason.message)||e.reason||'거부'));});
 
 // ── 앱 버전 (배포 시 갱신) ──
-const APP_VER='v9.24 (2026.06.13)';
+const APP_VER='v9.25 (2026.06.13)';
 try{document.getElementById('appVerLabel').textContent='설악산 현장관리 '+APP_VER;}catch(e){}
 // ══════════════════════════════════════════
 // DB
@@ -4622,16 +4622,7 @@ function _initTlMiniMap(wps){
 
 // ── Zone-based trail routing ──
 function _buildRoute(r,facs){
-  if((r.loctype||'')!=='법정탐방로'){
-    // For non-trail types (암벽/빙벽/비법정탐방로), return minimal base→target route
-    const _u=DB.g('currentUser')||{};
-    const _hk=DEPT_HUBS[_u.dept||'']||'소공원';
-    const _hb=SEORAK_BASES[_hk]||SEORAK_BASES['소공원'];
-    const _res=[{code:'',name:_hb.name,isBase:true,status:'active'}];
-    if(r.lat&&r.lng)_res.push({code:'',name:r.location||'사고지점',lat:r.lat,lng:r.lng,isTarget:true,status:'pending'});
-    else if(r.location)_res.push({code:'',name:r.location,isTarget:true,status:'pending'});
-    return _res.length>1?_res:[];
-  }
+  if((r.loctype||'')!=='법정탐방로')return[];
   const lm=(r.location||'').match(/(\d+)-(\d+)/);
   if(!lm)return[];
   const zone=parseInt(lm[1]),code=parseInt(lm[2]);
@@ -4676,15 +4667,28 @@ function _buildRoute(r,facs){
   // If target code not in wm, find nearest waypoint in same zone
   const _tzs=String(zone).padStart(2,'0');
   const _tKey=`${_tzs}-${String(code).padStart(2,'0')}`;
-  if(!wm[_tKey]&&base){
+  const _hasTargetSign=!!wm[_tKey];
+  if(!_hasTargetSign&&base){
     let _nearest=null;
     for(let _d=1;_d<=15&&!_nearest;_d++){
       for(const _s of [1,-1]){const _n=code+_d*_s;if(_n<1)continue;const _k=`${_tzs}-${String(_n).padStart(2,'0')}`;if(wm[_k]){_nearest={...wm[_k],approx:true};break;}}
     }
     if(_nearest&&!route.some(w=>w.code===_nearest.code))route.push(_nearest);
   }
-  const res=[{code:'',name:base,isBase:true,status:'active'}];
+  // base 좌표를 SEORAK_BASES에서 채워 거점→목표 직선이라도 지도에 표시되게 함
+  const _baseObj=Object.values(SEORAK_BASES).find(b=>b.name===base)||null;
+  const res=[{code:'',name:base,isBase:true,lat:_baseObj?_baseObj.lat:null,lng:_baseObj?_baseObj.lng:null,status:'active'}];
   route.forEach((w,i)=>res.push({code:w.code,name:w.name,lat:w.lat,lng:w.lng,approx:w.approx||false,isTarget:i===route.length-1,status:'pending'}));
+  // 목표 표지판 좌표가 시설 데이터에 없어도 사고 GPS가 있으면 그 좌표로 목표 지점 보정/추가
+  if(r.lat&&r.lng){
+    const _last=res[res.length-1];
+    const _targetHasCoord=_last&&_last.isTarget&&_last.lat&&_last.lng;
+    if(!_targetHasCoord){
+      // 정확한 목표 표지판이 없었던 경우 → 실제 사고 좌표를 목표 지점으로 추가
+      res.forEach(w=>{w.isTarget=false;});
+      res.push({code:_tKey,name:r.location||(`${_tKey} 부근`),lat:r.lat,lng:r.lng,approx:!_hasTargetSign,isTarget:true,status:'pending'});
+    }
+  }
   return res;
 }
 
