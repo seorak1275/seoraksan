@@ -1003,6 +1003,14 @@ body.hi-contrast .stat-lbl{color:rgba(255,255,255,.65)!important;}
     <div id="boardMap" style="flex:1;min-width:0;position:relative;background:#06101e;"></div>
     <div id="boardSide" style="width:430px;flex-shrink:0;border-left:1px solid rgba(79,168,208,.18);overflow-y:auto;background:#040a14;">
       <div id="boardBody" style="padding:14px 16px 30px;"></div>
+      <div id="boardDetail" style="display:none;flex-direction:column;height:100%;">
+        <div style="display:flex;align-items:center;gap:8px;padding:10px 14px;border-bottom:1px solid rgba(255,255,255,.08);flex-shrink:0;background:#040a14;position:sticky;top:0;z-index:3;">
+          <button onclick="_boardCloseDetail()" style="background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.14);color:rgba(255,255,255,.6);border-radius:8px;padding:6px 12px;font-size:12px;font-weight:700;cursor:pointer;">← 목록으로</button>
+          <span style="font-size:11px;color:rgba(255,255,255,.3);">상황판 상세</span>
+        </div>
+        <div id="boardDetailContent" style="flex:1;overflow-y:auto;padding:12px 14px 40px;"></div>
+        <div id="boardDetailFooter" style="flex-shrink:0;padding:10px 14px;border-top:1px solid rgba(255,255,255,.08);background:#040a14;"></div>
+      </div>
     </div>
   </div>
 </div>
@@ -1481,7 +1489,7 @@ window.addEventListener('error',e=>{_logErr((e.message||'오류')+' @'+(e.filena
 window.addEventListener('unhandledrejection',e=>{_logErr('Promise: '+((e.reason&&e.reason.message)||e.reason||'거부'));});
 
 // ── 앱 버전 (배포 시 갱신) ──
-const APP_VER='v9.22 (2026.06.13)';
+const APP_VER='v9.23 (2026.06.13)';
 try{document.getElementById('appVerLabel').textContent='설악산 현장관리 '+APP_VER;}catch(e){}
 // ══════════════════════════════════════════
 // DB
@@ -2285,6 +2293,10 @@ function openBoard(){
   showV('v-board');
   document.getElementById('appHdr').style.display='none';
   document.getElementById('bnav').style.display='none';
+  // 상세 패널 닫고 목록 표시 상태로 초기화
+  _boardDetailId=null;
+  const _bd=document.getElementById('boardDetail');if(_bd)_bd.style.display='none';
+  const _bb=document.getElementById('boardBody');if(_bb)_bb.style.display='';
   setTimeout(_initBoardMap,250);
   renderBoard();
   clearInterval(_boardTimer);
@@ -2352,6 +2364,40 @@ function _boardFocus(id){
   const r=(DB.g('rescues')||[]).find(x=>x.id===id);
   if(!r||!_boardMap||!r.lat||!r.lng)return;
   try{_boardMap.setCenter(new kakao.maps.LatLng(r.lat,r.lng));_boardMap.setLevel(5);}catch(e){}
+}
+// 상황판 우측: 타임라인/보고서 상세를 사이드 패널에 표시 (컴퓨터 화면 유지)
+let _boardDetailId=null;
+function _boardOpenDetail(id,mode){
+  const r=(DB.g('rescues')||[]).find(x=>x.id===id);
+  if(!r)return;
+  _boardDetailId=id;
+  document.getElementById('boardBody').style.display='none';
+  const det=document.getElementById('boardDetail');
+  det.style.display='flex';
+  // 상세 컨텐츠 영역을 맨 위로 스크롤
+  const dc=document.getElementById('boardDetailContent');if(dc)dc.scrollTop=0;
+  // repContent를 비워 id 충돌 방지
+  const rc=document.getElementById('repContent');if(rc)rc.innerHTML='';
+  _boardFocus(id);
+  renderTimeline(r,mode,'boardDetailContent');
+  // 상황판 푸터: 모달이 상황판에 가리므로 종료 버튼만 노출 (상세 편집은 앱에서)
+  const ft=document.getElementById('boardDetailFooter');
+  if(ft){
+    if(r.status==='ongoing'){
+      ft.innerHTML=`<button class="btn-submit" style="width:100%;background:#0d5040;color:#fff;" onclick="selResId=${r.id};curResId=${r.id};endSit();">✅ 상황 종료</button>`;
+    }else{
+      ft.innerHTML='<div style="text-align:center;font-size:12px;color:#27ae60;padding:6px;">✅ 상황 종료됨</div>';
+    }
+  }
+}
+function _boardCloseDetail(){
+  _boardDetailId=null;
+  const det=document.getElementById('boardDetail');
+  if(det)det.style.display='none';
+  const c=document.getElementById('boardDetailContent');if(c)c.innerHTML='';
+  const f=document.getElementById('boardDetailFooter');if(f)f.innerHTML='';
+  const bb=document.getElementById('boardBody');if(bb)bb.style.display='';
+  renderBoard();
 }
 // 구조 위치 라벨: 장소명 > 가장 가까운 표지판 > 좌표 > 미상
 function _resLocLabel(r){
@@ -2421,8 +2467,8 @@ function renderBoard(){
         ${(r.teams&&r.teams.length>0&&r.teams.every(t=>_teamDone(t)))?`<div style="background:rgba(39,174,96,.12);border:1px solid rgba(39,174,96,.35);border-radius:8px;padding:8px 12px;margin-top:8px;text-align:center;font-size:13px;font-weight:800;color:#27ae60;">🏁 전 팀 완료 — 상황 종료 대기중</div>`:''}
       </div>
       <div style="display:flex;gap:7px;margin-top:11px;padding-top:10px;border-top:1px solid rgba(255,255,255,.07);">
-        <button onclick="closeBoard();selResId=${r.id};curResId=${r.id};viewTimeline();" style="flex:1;padding:8px 0;border-radius:9px;border:1px solid rgba(79,168,208,.35);background:rgba(79,168,208,.1);color:#4fa8d0;font-size:12px;font-weight:700;cursor:pointer;">📍 타임라인</button>
-        <button onclick="closeBoard();selResId=${r.id};curResId=${r.id};viewReport();" style="flex:1;padding:8px 0;border-radius:9px;border:1px solid rgba(79,168,208,.2);background:rgba(79,168,208,.06);color:#7abcd4;font-size:12px;font-weight:700;cursor:pointer;">📄 보고서</button>
+        <button onclick="_boardOpenDetail(${r.id},'advanced')" style="flex:1;padding:8px 0;border-radius:9px;border:1px solid rgba(79,168,208,.35);background:rgba(79,168,208,.1);color:#4fa8d0;font-size:12px;font-weight:700;cursor:pointer;">📍 타임라인</button>
+        <button onclick="_boardOpenDetail(${r.id},'write')" style="flex:1;padding:8px 0;border-radius:9px;border:1px solid rgba(79,168,208,.2);background:rgba(79,168,208,.06);color:#7abcd4;font-size:12px;font-weight:700;cursor:pointer;">📄 보고서</button>
       </div>
     </div>`;
   });
@@ -2434,7 +2480,7 @@ function renderBoard(){
       const og=r.status==='ongoing';
       const ti=RES_TYPES[r.type]||RES_TYPES['기타'];
       const tm=(r.date||'').slice(11,16);
-      html+=`<div onclick="closeBoard();selResId=${r.id};curResId=${r.id};viewTimeline();" style="display:flex;align-items:center;gap:8px;padding:8px 12px;background:rgba(255,255,255,.02);border-radius:8px;margin-bottom:4px;font-size:12px;cursor:pointer;border-left:3px solid ${og?'#e05050':'#27ae60'};">
+      html+=`<div onclick="_boardOpenDetail(${r.id},'${og?'advanced':'write'}')" style="display:flex;align-items:center;gap:8px;padding:8px 12px;background:rgba(255,255,255,.02);border-radius:8px;margin-bottom:4px;font-size:12px;cursor:pointer;border-left:3px solid ${og?'#e05050':'#27ae60'};">
         <span style="flex-shrink:0;font-size:9px;font-weight:800;color:${og?'#e05050':'#27ae60'};background:${og?'rgba(224,80,80,.12)':'rgba(39,174,96,.12)'};border-radius:5px;padding:2px 6px;">${og?'진행중':'종료'}</span>
         <span style="flex:1;color:rgba(255,255,255,.7);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${ti.ico} ${_esc(r.title)}</span>
         <span style="flex-shrink:0;color:#3a5a74;font-family:monospace;">${tm}</span>
@@ -4990,13 +5036,15 @@ function toggleTlVehicle(){
   }
 }
 
-function renderTimeline(r,viewMode){
-  _hideRepFooter();
+function renderTimeline(r,viewMode,outId){
+  const _isBoard=outId&&outId!=='repContent';
+  if(!_isBoard)_hideRepFooter();
   _curViewResId=r.id;
   const mode=(viewMode==='full'||viewMode==='write')?'write':'advanced';
   _tlMode=mode;_tlViewMode=mode;
   const all=[r,...(r.reports||[])];
-  const w=document.getElementById('repContent');
+  const w=document.getElementById(outId||'repContent');
+  if(!w)return;
 
   function renderComments(resId){
     // 구조 레코드 내장 댓글(동기화됨) + 구버전 로컬 댓글 병합
@@ -5016,8 +5064,8 @@ function renderTimeline(r,viewMode){
     <div style="font-size:14px;font-weight:700;color:#e0edf8;">${r.title}</div>
     <div style="font-size:11px;color:#3a6a8a;margin-top:3px;">${r.type} · ${r.status==='ongoing'?'<span style="color:#c0392b;font-weight:700;">진행중</span>':'<span style="color:#27ae60;font-weight:700;">종료</span>'} · ${r.date}${r.status==='ongoing'&&_elapsedStr(r.date)?` · <span style="color:#f0a500;font-weight:700;">⏱ ${_elapsedStr(r.date)}</span>`:''}</div>
     <div style="display:flex;gap:5px;margin-top:9px;">
-      <button onclick="renderTimeline(getRes(${r.id}),'advanced')" style="flex:1;padding:6px;border-radius:7px;border:1px solid;font-size:11px;font-weight:600;cursor:pointer;background:${'advanced'===mode?'rgba(79,168,208,.15)':'transparent'};color:${'advanced'===mode?'#4fa8d0':'rgba(255,255,255,.35)'};border-color:${'advanced'===mode?'rgba(79,168,208,.5)':'rgba(255,255,255,.1)'};">📍 고도화 타임라인</button>
-      <button onclick="renderTimeline(getRes(${r.id}),'write')" style="flex:1;padding:6px;border-radius:7px;border:1px solid;font-size:11px;font-weight:600;cursor:pointer;background:${'write'===mode?'rgba(79,168,208,.15)':'transparent'};color:${'write'===mode?'#4fa8d0':'rgba(255,255,255,.35)'};border-color:${'write'===mode?'rgba(79,168,208,.5)':'rgba(255,255,255,.1)'};">📄 보고서</button>
+      <button onclick="${_isBoard?`_boardOpenDetail(${r.id},'advanced')`:`renderTimeline(getRes(${r.id}),'advanced')`}" style="flex:1;padding:6px;border-radius:7px;border:1px solid;font-size:11px;font-weight:600;cursor:pointer;background:${'advanced'===mode?'rgba(79,168,208,.15)':'transparent'};color:${'advanced'===mode?'#4fa8d0':'rgba(255,255,255,.35)'};border-color:${'advanced'===mode?'rgba(79,168,208,.5)':'rgba(255,255,255,.1)'};">📍 고도화 타임라인</button>
+      <button onclick="${_isBoard?`_boardOpenDetail(${r.id},'write')`:`renderTimeline(getRes(${r.id}),'write')`}" style="flex:1;padding:6px;border-radius:7px;border:1px solid;font-size:11px;font-weight:600;cursor:pointer;background:${'write'===mode?'rgba(79,168,208,.15)':'transparent'};color:${'write'===mode?'#4fa8d0':'rgba(255,255,255,.35)'};border-color:${'write'===mode?'rgba(79,168,208,.5)':'rgba(255,255,255,.1)'};">📄 보고서</button>
     </div>
   </div>`;
 
@@ -5139,7 +5187,7 @@ function renderTimeline(r,viewMode){
       </div>`;
   }
   // sticky footer
-  const _ftEl=document.getElementById('rep1BoFooter');
+  const _ftEl=document.getElementById(_isBoard?'boardDetailFooter':'rep1BoFooter');
   if(_ftEl){
     if(r.status==='ongoing'){
       _ftEl.style.display='block';
@@ -5287,6 +5335,11 @@ function endSit(){
   // 타임라인 뷰에 있으면 갱신
   if(document.getElementById('v-report').classList.contains('on')){
     renderTimeline(res[idx],_tlViewMode||'brief');
+  }
+  // 상황판 상세 패널이 열려 있으면 갱신
+  if(_boardDetailId===res[idx].id){
+    const bd=document.getElementById('boardDetail');
+    if(bd&&bd.style.display!=='none')renderTimeline(res[idx],_tlViewMode||'advanced','boardDetailContent');
   }
 }
 
