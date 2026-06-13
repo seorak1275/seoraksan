@@ -772,7 +772,7 @@ body.hi-contrast .stat-lbl{color:rgba(255,255,255,.65)!important;}
   <div class="home-menu-bottom" style="flex-shrink:0;">
     <button class="mbtn-sm" onclick="openApp('settings')"><span class="mbtn-sm-ico">⚙️</span><div class="mbtn-sm-text"><div class="mbtn-sm-title">내 설정</div><div class="mbtn-sm-desc">알림·계정·API키</div></div></button>
     <button class="mbtn-sm" style="background:#150e2a;border:1px solid rgba(139,92,246,.2);" onclick="openApp('admin')"><span class="mbtn-sm-ico">🔐</span><div class="mbtn-sm-text"><div class="mbtn-sm-title" style="color:#c4b5fd;">관리자 전용</div><div class="mbtn-sm-desc">관제·데이터 관리</div></div></button>
-    <button class="mbtn-sm" style="grid-column:1/-1;background:#06121f;border:1px solid rgba(79,168,208,.22);" onclick="openBoard()"><span class="mbtn-sm-ico">🖥️</span><div class="mbtn-sm-text"><div class="mbtn-sm-title" style="color:#7dd3fa;">본부 상황판</div><div class="mbtn-sm-desc">모니터 거치용 실시간 관제 화면 (주소 뒤 ?board=1 북마크 시 바로 진입)</div></div></button>
+    <button class="mbtn-sm" style="grid-column:1/-1;background:#06121f;border:1px solid rgba(79,168,208,.22);" onclick="openBoard()"><span class="mbtn-sm-ico">🖥️</span><div class="mbtn-sm-text"><div class="mbtn-sm-title" style="color:#7dd3fa;">본소 상황판</div><div class="mbtn-sm-desc">본소 모니터 거치용 관제 화면 — 지도+진행중 구조 (주소 뒤 ?board=1 북마크)</div></div></button>
   </div>
   <!-- 버전 + 동기화 상태 -->
   <div style="flex-shrink:0;text-align:center;padding:4px 0 2px;font-size:9px;color:rgba(255,255,255,.22);user-select:none;">
@@ -994,7 +994,7 @@ body.hi-contrast .stat-lbl{color:rgba(255,255,255,.65)!important;}
 <div id="v-board" class="view" style="background:#040a14;padding:0;overflow:hidden;">
   <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 18px;border-bottom:1px solid rgba(79,168,208,.18);background:#040a14;z-index:5;flex-shrink:0;">
     <div style="display:flex;align-items:baseline;gap:12px;">
-      <span class="board-title" style="font-size:19px;font-weight:900;color:#e0edf8;">🏔️ 설악산 구조 상황판</span>
+      <span class="board-title" style="font-size:19px;font-weight:900;color:#e0edf8;">🏔️ 본소 상황판</span>
       <span id="boardClock" class="board-clock" style="font-size:15px;font-weight:700;color:#4fa8d0;font-family:monospace;"></span>
     </div>
     <button onclick="closeBoard()" style="background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);color:rgba(255,255,255,.5);border-radius:9px;padding:7px 14px;font-size:13px;cursor:pointer;">✕ 닫기</button>
@@ -1481,7 +1481,7 @@ window.addEventListener('error',e=>{_logErr((e.message||'오류')+' @'+(e.filena
 window.addEventListener('unhandledrejection',e=>{_logErr('Promise: '+((e.reason&&e.reason.message)||e.reason||'거부'));});
 
 // ── 앱 버전 (배포 시 갱신) ──
-const APP_VER='v9.20 (2026.06.13)';
+const APP_VER='v9.21 (2026.06.13)';
 try{document.getElementById('appVerLabel').textContent='설악산 현장관리 '+APP_VER;}catch(e){}
 // ══════════════════════════════════════════
 // DB
@@ -2391,32 +2391,38 @@ function renderBoard(){
     const elp=_elapsedStr(r.date);
     const ti=RES_TYPES[r.type]||RES_TYPES['기타'];
     const lastLog=(r.wpLog||[]).slice(-1)[0];
-    html+=`<div onclick="_boardFocus(${r.id})" style="background:#0a1626;border:1.5px solid rgba(192,57,43,.35);border-radius:14px;padding:14px 16px;margin-bottom:12px;cursor:pointer;">
-      <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:6px;margin-bottom:4px;">
-        <div style="font-size:18px;font-weight:800;color:#e0edf8;">${ti.ico} ${r.title}</div>
-        ${elp?`<div style="font-size:16px;font-weight:800;color:#f0a500;font-family:monospace;">⏱ ${elp}</div>`:''}
+    html+=`<div style="background:#0a1626;border:1.5px solid rgba(192,57,43,.35);border-radius:14px;padding:14px 16px;margin-bottom:12px;">
+      <div onclick="_boardFocus(${r.id})" style="cursor:pointer;">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:6px;margin-bottom:4px;">
+          <div style="font-size:18px;font-weight:800;color:#e0edf8;">${ti.ico} ${r.title}</div>
+          ${elp?`<div style="font-size:16px;font-weight:800;color:#f0a500;font-family:monospace;">⏱ ${elp}</div>`:''}
+        </div>
+        <div style="font-size:13px;color:#5a85a8;margin-bottom:12px;">${r.type} · ${_resLocLabel(r)} · ${r.date}</div>
+        ${(r.teams&&r.teams.length)?r.teams.map((t,ti2)=>{
+          const col=TEAM_COLORS[ti2%TEAM_COLORS.length];
+          const si=_teamStageIdx(t);
+          const done=_teamDone(t);
+          const total=Math.max(t.wps.length-1,1);
+          const pct=Math.round((t.wpIdx/total)*100);
+          const cur=t.wps[t.wpIdx]||{};
+          const curName=(cur.code?cur.code+' ':'')+(cur.name||'').slice(0,16);
+          return `<div style="display:flex;align-items:center;gap:12px;padding:7px 0;border-top:1px solid rgba(255,255,255,.05);">
+            <span style="font-size:14px;font-weight:800;color:${col};flex-shrink:0;min-width:110px;">${_teamIco(t)} ${t.name}</span>
+            <div style="flex:1;height:8px;background:rgba(255,255,255,.07);border-radius:4px;overflow:hidden;"><div style="height:100%;width:${pct}%;background:${col};border-radius:4px;"></div></div>
+            <span style="font-size:12px;color:rgba(255,255,255,.55);flex-shrink:0;min-width:130px;">📍 ${curName||'-'}</span>
+            <span style="font-size:12px;font-weight:800;color:${done?'#27ae60':stageCol[si]};flex-shrink:0;">${done?'✓ 완료':stageLbl[si]}</span>
+          </div>`;
+        }).join(''):'<div style="font-size:12px;color:rgba(255,255,255,.3);padding:6px 0;">출동팀 미편성</div>'}
+        <div style="display:flex;justify-content:space-between;margin-top:8px;font-size:12px;color:#4a7090;">
+          <span>${lastLog?`최근: ${lastLog.time} ${lastLog.teamName} ${lastLog.code||''} 통과`:''}</span>
+          <span>${r.handover&&r.handover.to?`🤝 인계: ${r.handover.to}`:''}</span>
+        </div>
+        ${(r.teams&&r.teams.length>0&&r.teams.every(t=>_teamDone(t)))?`<div style="background:rgba(39,174,96,.12);border:1px solid rgba(39,174,96,.35);border-radius:8px;padding:8px 12px;margin-top:8px;text-align:center;font-size:13px;font-weight:800;color:#27ae60;">🏁 전 팀 완료 — 상황 종료 대기중</div>`:''}
       </div>
-      <div style="font-size:13px;color:#5a85a8;margin-bottom:12px;">${r.type} · ${_resLocLabel(r)} · ${r.date}</div>
-      ${(r.teams&&r.teams.length)?r.teams.map((t,ti2)=>{
-        const col=TEAM_COLORS[ti2%TEAM_COLORS.length];
-        const si=_teamStageIdx(t);
-        const done=_teamDone(t);
-        const total=Math.max(t.wps.length-1,1);
-        const pct=Math.round((t.wpIdx/total)*100);
-        const cur=t.wps[t.wpIdx]||{};
-        const curName=(cur.code?cur.code+' ':'')+(cur.name||'').slice(0,16);
-        return `<div style="display:flex;align-items:center;gap:12px;padding:7px 0;border-top:1px solid rgba(255,255,255,.05);">
-          <span style="font-size:14px;font-weight:800;color:${col};flex-shrink:0;min-width:110px;">${_teamIco(t)} ${t.name}</span>
-          <div style="flex:1;height:8px;background:rgba(255,255,255,.07);border-radius:4px;overflow:hidden;"><div style="height:100%;width:${pct}%;background:${col};border-radius:4px;"></div></div>
-          <span style="font-size:12px;color:rgba(255,255,255,.55);flex-shrink:0;min-width:130px;">📍 ${curName||'-'}</span>
-          <span style="font-size:12px;font-weight:800;color:${done?'#27ae60':stageCol[si]};flex-shrink:0;">${done?'✓ 완료':stageLbl[si]}</span>
-        </div>`;
-      }).join(''):'<div style="font-size:12px;color:rgba(255,255,255,.3);padding:6px 0;">출동팀 미편성</div>'}
-      <div style="display:flex;justify-content:space-between;margin-top:10px;font-size:12px;color:#4a7090;">
-        <span>${lastLog?`최근: ${lastLog.time} ${lastLog.teamName} ${lastLog.code||''} 통과`:''}</span>
-        <span>${r.handover&&r.handover.to?`🤝 인계: ${r.handover.to}`:''}</span>
+      <div style="display:flex;gap:7px;margin-top:11px;padding-top:10px;border-top:1px solid rgba(255,255,255,.07);">
+        <button onclick="closeBoard();selResId=${r.id};curResId=${r.id};viewTimeline();" style="flex:1;padding:8px 0;border-radius:9px;border:1px solid rgba(79,168,208,.35);background:rgba(79,168,208,.1);color:#4fa8d0;font-size:12px;font-weight:700;cursor:pointer;">📍 타임라인</button>
+        <button onclick="closeBoard();selResId=${r.id};curResId=${r.id};viewReport();" style="flex:1;padding:8px 0;border-radius:9px;border:1px solid rgba(79,168,208,.2);background:rgba(79,168,208,.06);color:#7abcd4;font-size:12px;font-weight:700;cursor:pointer;">📄 보고서</button>
       </div>
-      ${(r.teams&&r.teams.length>0&&r.teams.every(t=>_teamDone(t)))?`<div style="background:rgba(39,174,96,.12);border:1px solid rgba(39,174,96,.35);border-radius:8px;padding:8px 12px;margin-top:8px;text-align:center;font-size:13px;font-weight:800;color:#27ae60;">🏁 전 팀 완료 — 상황 종료 대기중</div>`:''}
     </div>`;
   });
   if(recentDone.length){
