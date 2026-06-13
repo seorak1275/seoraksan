@@ -1481,7 +1481,7 @@ window.addEventListener('error',e=>{_logErr((e.message||'오류')+' @'+(e.filena
 window.addEventListener('unhandledrejection',e=>{_logErr('Promise: '+((e.reason&&e.reason.message)||e.reason||'거부'));});
 
 // ── 앱 버전 (배포 시 갱신) ──
-const APP_VER='v9.21 (2026.06.13)';
+const APP_VER='v9.22 (2026.06.13)';
 try{document.getElementById('appVerLabel').textContent='설악산 현장관리 '+APP_VER;}catch(e){}
 // ══════════════════════════════════════════
 // DB
@@ -2369,7 +2369,8 @@ function renderBoard(){
   const res=DB.g('rescues')||[];
   const ongoing=res.filter(r=>r.status==='ongoing');
   const haz=(DB.g('hazards')||[]).filter(h=>!h.hazStatus||h.hazStatus==='미조치'||h.hazStatus==='조치중');
-  const recentDone=res.filter(r=>r.status==='done').slice(0,4);
+  const _td=today();
+  const todayList=res.filter(r=>(r.date||'').slice(0,10)===_td).sort((a,b)=>(b.date||'').localeCompare(a.date||''));
   const stageLbl=['출발','이동중','환자조우','하산'];
   const stageCol=['rgba(255,255,255,.45)','#4fa8d0','#f0a500','#27ae60'];
   let html='';
@@ -2425,11 +2426,18 @@ function renderBoard(){
       </div>
     </div>`;
   });
-  if(recentDone.length){
-    html+=`<div style="margin-top:20px;font-size:12px;color:rgba(255,255,255,.35);font-weight:700;margin-bottom:6px;">최근 종료</div>`;
-    recentDone.forEach(r=>{
-      html+=`<div style="display:flex;justify-content:space-between;padding:7px 12px;background:rgba(255,255,255,.02);border-radius:8px;margin-bottom:4px;font-size:12px;">
-        <span style="color:rgba(255,255,255,.5);">✅ ${r.title}</span><span style="color:#3a5a74;">${r.date}</span>
+  html+=`<div style="margin-top:20px;font-size:12px;color:rgba(255,255,255,.35);font-weight:700;margin-bottom:6px;">📋 오늘 사고 목록 <span style="color:rgba(255,255,255,.25);font-weight:400;">(${_td} · ${todayList.length}건)</span></div>`;
+  if(!todayList.length){
+    html+=`<div style="padding:10px 12px;background:rgba(255,255,255,.02);border-radius:8px;font-size:12px;color:rgba(255,255,255,.3);">오늘 접수된 사고 없음</div>`;
+  }else{
+    todayList.forEach(r=>{
+      const og=r.status==='ongoing';
+      const ti=RES_TYPES[r.type]||RES_TYPES['기타'];
+      const tm=(r.date||'').slice(11,16);
+      html+=`<div onclick="closeBoard();selResId=${r.id};curResId=${r.id};viewTimeline();" style="display:flex;align-items:center;gap:8px;padding:8px 12px;background:rgba(255,255,255,.02);border-radius:8px;margin-bottom:4px;font-size:12px;cursor:pointer;border-left:3px solid ${og?'#e05050':'#27ae60'};">
+        <span style="flex-shrink:0;font-size:9px;font-weight:800;color:${og?'#e05050':'#27ae60'};background:${og?'rgba(224,80,80,.12)':'rgba(39,174,96,.12)'};border-radius:5px;padding:2px 6px;">${og?'진행중':'종료'}</span>
+        <span style="flex:1;color:rgba(255,255,255,.7);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${ti.ico} ${_esc(r.title)}</span>
+        <span style="flex-shrink:0;color:#3a5a74;font-family:monospace;">${tm}</span>
       </div>`;
     });
   }
