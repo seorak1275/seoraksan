@@ -369,6 +369,7 @@ button{-webkit-tap-highlight-color:transparent;touch-action:manipulation;}
 /* ── 뷰 전환 ── */
 .view.on{animation:viewFadeIn .2s var(--qt) both;}
 @keyframes viewFadeIn{from{opacity:0;transform:translateY(5px);}to{opacity:1;transform:translateY(0);}}
+@keyframes spin{to{transform:rotate(360deg);}}
 
 /* ── 본부 상황판: 모니터 전체 화면 사용 (430px 제약 탈출) ── */
 #v-board.on{position:fixed;inset:0;width:100vw;height:100vh;max-width:none;z-index:60;flex-direction:column;}
@@ -1515,7 +1516,7 @@ window.addEventListener('error',e=>{_logErr((e.message||'오류')+' @'+(e.filena
 window.addEventListener('unhandledrejection',e=>{_logErr('Promise: '+((e.reason&&e.reason.message)||e.reason||'거부'));});
 
 // ── 앱 버전 (배포 시 갱신) ──
-const APP_VER='v9.34 (2026.06.14)';
+const APP_VER='v9.35 (2026.06.14)';
 try{document.getElementById('appVerLabel').textContent='설악산 현장관리 '+APP_VER;}catch(e){}
 // ══════════════════════════════════════════
 // DB
@@ -3442,6 +3443,12 @@ function setExtAgencyCode(){
   if(!code){toast('⚠️ 코드를 입력하세요');return;}
   DB.s('extAgencyCode',code);
   toast('✅ 외부기관 코드 저장: '+code);
+}
+function saveAnthropicKey(){
+  const key=(document.getElementById('anthropicKeyInp')||{}).value.trim();
+  if(!key){toast('⚠️ API 키를 입력하세요');return;}
+  DB.s('anthropicApiKey',key);
+  toast('✅ Anthropic API 키 저장됨');
 }
 
 function updateUserUI(){
@@ -5494,6 +5501,103 @@ function submitComment(resId,variant){
   pushNoti(`💬 댓글: ${text.slice(0,20)}...`,'💬','info',{app:'rescue',tab:2,id:resId});
 }
 
+// ══ AI 출동지령서 스캔 ══
+async function aiScanDispatch(input){
+  const file=input.files&&input.files[0];
+  if(!file)return;
+  const apiKey=(DB.g('anthropicApiKey')||'').trim();
+  const spinner=document.getElementById('aiScanSpinner');
+  const statusEl=document.getElementById('aiScanStatus');
+  if(!apiKey){
+    if(statusEl){statusEl.style.display='block';statusEl.textContent='⚠️ Anthropic API 키가 설정되지 않았습니다. 관리자 > 시스템에서 입력하세요.';}
+    input.value='';return;
+  }
+  // base64 변환
+  const b64=await new Promise(res=>{
+    const r=new FileReader();r.onload=e=>res(e.target.result.split(',')[1]);r.readAsDataURL(file);
+  });
+  if(spinner)spinner.style.display='block';
+  if(statusEl){statusEl.style.display='block';statusEl.textContent='🤖 AI가 출동지령서를 분석중입니다...';}
+  const prompt=`이 출동지령서(산악구조 신고/출동 문서) 이미지에서 아래 항목을 추출하여 반드시 JSON 형식으로만 응답하세요. 코드블록 없이 JSON만 출력하세요. 없는 항목은 null로 표시하세요.
+{
+  "date": "사고 발생 또는 신고 접수 일시 (YYYY-MM-DDTHH:MM 형식, 연도 없으면 올해 기준)",
+  "dispatch": "신고 접수 시각 (HH:MM)",
+  "arrival": "공단 출동 또는 현장 도착 시각 (HH:MM)",
+  "location": "사고 발생 장소 (표지판 번호 포함, 예: 12-03 부근)",
+  "loctype": "장소 구분 — 법정탐방로/비법정탐방로/암벽/빙벽 중 하나만",
+  "type": "사고 유형 — 실족추락/심장마비/탈진/길잃음/뇌졸중/기타 중 가장 가까운 것",
+  "vName": "사고자(피해자) 이름",
+  "vBirth": "사고자 생년월일 (YYYY-MM-DD, 나이만 있으면 추정 생년 계산)",
+  "vGender": "성별 (남/여/알수없음)",
+  "vTel": "사고자 또는 신고자 연락처",
+  "severity": "중증도 (경증/중증/중경증/사망/알수없음)",
+  "situation": "사고 경위 및 상황 요약 (2-3문장)",
+  "reception": "최초 신고 내용 요약",
+  "weather": "기상 정보 (있으면)"
+}`;
+  try{
+    const resp=await fetch('https://api.anthropic.com/v1/messages',{
+      method:'POST',
+      headers:{
+        'x-api-key':apiKey,
+        'anthropic-version':'2023-06-01',
+        'content-type':'application/json',
+        'anthropic-dangerous-direct-browser-calls':'true'
+      },
+      body:JSON.stringify({
+        model:'claude-haiku-4-5-20251001',
+        max_tokens:1024,
+        messages:[{role:'user',content:[
+          {type:'image',source:{type:'base64',media_type:file.type,data:b64}},
+          {type:'text',text:prompt}
+        ]}]
+      })
+    });
+    if(!resp.ok){const err=await resp.json().catch(()=>({}));throw new Error(err.error?.message||resp.status);}
+    const data=await resp.json();
+    const raw=(data.content&&data.content[0]&&data.content[0].text)||'';
+    let parsed;
+    try{parsed=JSON.parse(raw.replace(/```json|```/g,'').trim());}
+    catch(e){throw new Error('JSON 파싱 실패: '+raw.slice(0,80));}
+    _applyAiScanResult(parsed);
+    const filled=Object.values(parsed).filter(v=>v!==null).length;
+    if(statusEl)statusEl.textContent=`✅ ${filled}개 항목 자동 입력 완료 — 확인 후 저장하세요`;
+  }catch(e){
+    if(statusEl)statusEl.textContent='❌ 오류: '+e.message;
+    toast('❌ AI 스캔 실패: '+e.message);
+  }finally{
+    if(spinner)spinner.style.display='none';
+    input.value='';
+  }
+}
+function _applyAiScanResult(d){
+  const _set=(id,v)=>{if(v===null||v===undefined)return;const el=document.getElementById(id);if(el){el.value=v;el.dispatchEvent(new Event('input'));}};
+  if(d.date)_set('r_date',d.date.slice(0,16));
+  if(d.dispatch)_set('r_disp',d.dispatch);
+  if(d.arrival)_set('r_arrival',d.arrival);
+  if(d.location){_set('r_loc',d.location);}
+  if(d.loctype&&['법정탐방로','비법정탐방로','암벽','빙벽'].includes(d.loctype)){
+    selLoctype(d.loctype);
+    const hi=document.getElementById('r_loctype');if(hi)hi.value=d.loctype;
+  }
+  if(d.type){
+    const tEl=document.getElementById('r_type');if(tEl)tEl.value=d.type;
+  }
+  if(d.vName)_set('r_vName',d.vName);
+  if(d.vBirth)_set('r_vBirth',d.vBirth);
+  if(d.vGender&&d.vGender!=='알수없음'){
+    document.querySelectorAll('#genderPills .pill').forEach(p=>{if(p.textContent.trim()===d.vGender)p.click();});
+  }
+  if(d.vTel)_set('r_vTel',d.vTel);
+  if(d.severity){
+    const sEl=document.getElementById('r_severity');if(sEl)sEl.value=d.severity;
+  }
+  if(d.situation)_set('r_situation',d.situation);
+  if(d.reception)_set('r_reception',d.reception);
+  if(d.weather)_set('r_weather',d.weather);
+  try{autoGenTitle();}catch(e){}
+  toast('📋 출동지령서 자동 입력됨');
+}
 function openNpsResponse(resId){
   var txt=prompt('공단 응소 내용을 입력하세요:','공단에서 응소를 실시하고 있어요');
   if(txt===null)return;
@@ -5580,6 +5684,20 @@ function render1BoForm(prefill=null){
         <button onclick="history.back()" style="background:rgba(255,255,255,.07);color:#c0d8ec;border:none;padding:5px 10px;border-radius:6px;font-size:11px;cursor:pointer;">✕</button>
       </div>
     </div>`:''}
+
+    <!-- AI 출동지령서 스캔 버튼 -->
+    <div style="padding:9px 12px;background:#06101e;border-bottom:1px solid rgba(255,255,255,.06);flex-shrink:0;">
+      <label style="display:flex;align-items:center;gap:9px;background:rgba(139,92,246,.1);border:1px solid rgba(139,92,246,.3);border-radius:10px;padding:10px 13px;cursor:pointer;touch-action:manipulation;">
+        <span style="font-size:18px;">📷</span>
+        <div style="flex:1;">
+          <div style="font-size:12px;font-weight:700;color:#c4b5fd;">AI 출동지령서 스캔</div>
+          <div style="font-size:10px;color:#7a6a9a;margin-top:1px;">사진 촬영 또는 선택 → 자동 입력</div>
+        </div>
+        <div id="aiScanSpinner" style="display:none;width:18px;height:18px;border:2px solid rgba(139,92,246,.3);border-top-color:#c4b5fd;border-radius:50%;animation:spin .8s linear infinite;flex-shrink:0;"></div>
+        <input type="file" accept="image/*" capture="environment" style="display:none;" onchange="aiScanDispatch(this)">
+      </label>
+      <div id="aiScanStatus" style="display:none;font-size:10px;color:#7a9cb8;margin-top:6px;padding:0 4px;line-height:1.6;"></div>
+    </div>
 
     <div style="display:flex;background:#040a16;border-bottom:1px solid rgba(255,255,255,.06);overflow-x:auto;scrollbar-width:none;flex-shrink:0;">
       ${tabs.map((t,i)=>`<div class="rep-tab${i===0?' rep-tab-on':''}" onclick="switchRepTab('${t.id}',this)"
@@ -6906,6 +7024,15 @@ function renderAdmSys(){
         <input id="extAgencyCodeInp" class="fi" value="${DB.g('extAgencyCode')||'HWANDONGHA'}" style="flex:1;font-family:monospace;font-size:14px;letter-spacing:2px;">
         <button onclick="setExtAgencyCode()" style="background:#7a3010;color:#fff;border:none;padding:8px 14px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;">저장</button>
       </div>
+    </div>
+    <div class="scard" style="margin-bottom:8px;">
+      <div class="stitle">🤖 AI 출동지령서 스캔 키</div>
+      <div style="font-size:11px;color:#7a9cb8;margin-bottom:8px;">Anthropic API 키 — <a href="https://console.anthropic.com" target="_blank" style="color:#c4b5fd;">console.anthropic.com</a>에서 발급</div>
+      <div style="display:flex;gap:6px;">
+        <input id="anthropicKeyInp" type="password" class="fi" value="${DB.g('anthropicApiKey')||''}" placeholder="sk-ant-..." style="flex:1;font-family:monospace;font-size:13px;">
+        <button onclick="saveAnthropicKey()" style="background:#4a2080;color:#c4b5fd;border:1px solid rgba(139,92,246,.4);padding:8px 14px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;">저장</button>
+      </div>
+      <div style="font-size:10px;color:#3a4a6a;margin-top:7px;">키는 이 기기의 Firestore에만 저장됩니다. 출동지령서 사진 1장당 약 $0.001 과금됩니다.</div>
     </div>
     <div class="scard" style="margin-bottom:8px;">
       <div class="stitle">👥 새 가입자 알림${unseenCnt>0?` <span style="background:#c0392b;color:#fff;font-size:10px;padding:1px 7px;border-radius:20px;margin-left:6px;font-weight:700;">${unseenCnt}</span>`:''}</div>
