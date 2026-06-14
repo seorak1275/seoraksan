@@ -6,3 +6,4 @@ android/.gradle/
 android/app/build/
 android/local.properties
 android/app/release/
+android/app/google-services.json

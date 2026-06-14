@@ -1516,7 +1516,7 @@ window.addEventListener('error',e=>{_logErr((e.message||'오류')+' @'+(e.filena
 window.addEventListener('unhandledrejection',e=>{_logErr('Promise: '+((e.reason&&e.reason.message)||e.reason||'거부'));});
 
 // ── 앱 버전 (배포 시 갱신) ──
-const APP_VER='v9.36 (2026.06.14)';
+const APP_VER='v9.37 (2026.06.14)';
 try{document.getElementById('appVerLabel').textContent='설악산 현장관리 '+APP_VER;}catch(e){}
 // ══════════════════════════════════════════
 // DB
@@ -2066,11 +2066,13 @@ function chkNation(sel){
 // ══════════════════════════════════════════
 // 알림
 // ══════════════════════════════════════════
-function pushNoti(msg,ico,type='info',link=null){
+function pushNoti(msg,ico,type='info',link=null,pushCat=null){
   const s=DB.g('notiSetting')||{};if(type!=='info'&&s[type]===false)return;
   const id=Date.now();
   const ns=DB.g('notis')||[];ns.unshift({id,msg,ico,time:now(),read:false,link});
   if(ns.length>80)ns.splice(80);DB.s('notis',ns);updateBell();
+  // 꺼진 폰까지 OS 푸시 (중요 알림만, 받는 사람별 알림설정 적용)
+  _sendFcmPush('설악산 현장관리',msg,pushCat||type,link);
   // 기기 간 Firestore 브로드캐스트
   if(_fdb){
     _fdb.collection('sharedNotis').doc(String(id)).set({
@@ -2109,11 +2111,85 @@ async function _initFCM(){
   if(!_fmsg||!_fdb||!_swReg||Notification.permission!=='granted'||!_FCM_VAPID)return;
   try{
     const token=await _fmsg.getToken({vapidKey:_FCM_VAPID,serviceWorkerRegistration:_swReg});
-    if(token){
-      const u=DB.g('currentUser')||{};
-      _fdb.collection('fcmTokens').doc(_MY_DEVICE_ID).set({
-        token,userId:u.id||'',name:u.name||'',updatedAt:Date.now()
-      }).catch(()=>{});
+    if(token)_saveFcmToken(token,'web');
+  }catch(e){}
+}
+
+// ══ 네이티브 푸시 (Capacitor / 안드로이드 APK) ══
+// 웹 VAPID와 달리 OS 차원 푸시 → 앱이 완전히 꺼져 있어도 수신.
+let _pnListenersSet=false;
+async function _initNativePush(){
+  const Cap=window.Capacitor;
+  if(!Cap||!Cap.isNativePlatform||!Cap.isNativePlatform())return; // 웹은 _initFCM 사용
+  const PN=Cap.Plugins&&Cap.Plugins.PushNotifications;
+  if(!PN)return;
+  try{
+    // 긴급 알림 채널(안드로이드 8+, 헤드업 표시)
+    if(PN.createChannel){try{await PN.createChannel({id:'seoraksan_alerts',name:'긴급 알림',description:'구조·위험상황 푸시',importance:5,visibility:1,vibration:true,sound:'default'});}catch(e){}}
+    let perm=await PN.checkPermissions();
+    if(perm.receive!=='granted')perm=await PN.requestPermissions();
+    if(perm.receive!=='granted')return;
+    if(!_pnListenersSet){
+      _pnListenersSet=true;
+      PN.addListener('registration',t=>{_saveFcmToken(t.value,'android');});
+      PN.addListener('registrationError',()=>{});
+      PN.addListener('pushNotificationActionPerformed',act=>{
+        const d=(act.notification&&act.notification.data)||{};
+        if(d.app){try{goNotiLink({app:d.app,tab:d.tab?+d.tab:0,id:d.id||null});}catch(e){}}
+      });
+    }
+    await PN.register();
+  }catch(e){}
+}
+let _fcmTokenCache=null;
+function _saveFcmToken(token,platform){
+  if(!token)return;
+  _fcmTokenCache={token,platform:platform||'web'};   // Firebase 준비 전이면 캐시 후 재시도
+  if(!_fdb)return;
+  const u=DB.g('currentUser')||{};
+  _fdb.collection('fcmTokens').doc(_MY_DEVICE_ID).set({
+    token,userId:u.id||'',name:u.name||'',
+    notiSetting:DB.g('notiSetting')||{},platform:_fcmTokenCache.platform,updatedAt:Date.now()
+  },{merge:true}).catch(()=>{});
+}
+function _flushFcmToken(){if(_fcmTokenCache)_saveFcmToken(_fcmTokenCache.token,_fcmTokenCache.platform);}
+// 알림 설정 변경 시 내 토큰 문서에도 반영 (받는 사람별 필터용)
+function _updateFcmTokenSettings(){
+  if(!_fdb)return;
+  _fdb.collection('fcmTokens').doc(_MY_DEVICE_ID).set(
+    {notiSetting:DB.g('notiSetting')||{},updatedAt:Date.now()},{merge:true}
+  ).catch(()=>{});
+}
+// 중요 알림을 꺼진 폰까지 발송 (Apps Script 경유). cat=알림설정 키, 'info'면 발송 안 함.
+async function _sendFcmPush(title,body,cat,link){
+  if(!_fdb)return;
+  const url=(DB.g('fcmPushUrl')||'').trim();
+  if(!url||!cat||cat==='info')return;
+  try{
+    const snap=await _fdb.collection('fcmTokens').get();
+    const targets=[];
+    snap.forEach(d=>{
+      const v=d.data()||{};
+      if(!v.token||d.id===_MY_DEVICE_ID)return;        // 내 폰엔 안 보냄
+      if(((v.notiSetting||{})[cat])===false)return;     // 그 사람이 끈 알림
+      targets.push({id:d.id,token:v.token});
+    });
+    if(!targets.length)return;
+    const res=await fetch(url,{
+      method:'POST',
+      headers:{'content-type':'text/plain;charset=utf-8'}, // Apps Script preflight 회피
+      body:JSON.stringify({
+        secret:(DB.g('fcmPushSecret')||''),title,body,
+        data:link?{app:link.app||'',tab:String(link.tab||''),id:String(link.id||'')}:{},
+        tokens:targets.map(t=>t.token)
+      })
+    });
+    const out=await res.json().catch(()=>({}));
+    if(out&&Array.isArray(out.invalid)){                // 무효 토큰 정리
+      out.invalid.forEach(tok=>{
+        const hit=targets.find(t=>t.token===tok);
+        if(hit)_fdb.collection('fcmTokens').doc(hit.id).delete().catch(()=>{});
+      });
     }
   }catch(e){}
 }
@@ -3449,6 +3525,42 @@ function saveGeminiKey(){
   if(!key){toast('⚠️ API 키를 입력하세요');return;}
   DB.s('geminiApiKey',key);
   toast('✅ Gemini API 키 저장됨');
+}
+function saveFcmCfg(){
+  const url=(document.getElementById('fcmUrlInp')||{}).value.trim();
+  const sec=(document.getElementById('fcmSecInp')||{}).value.trim();
+  DB.s('fcmPushUrl',url);DB.s('fcmPushSecret',sec);
+  toast('✅ 푸시 설정 저장됨');_refreshFcmStatus();
+}
+async function _refreshFcmStatus(){
+  const el=document.getElementById('fcmStatus');if(!el)return;
+  const url=(DB.g('fcmPushUrl')||'').trim();
+  const Cap=window.Capacitor,native=!!(Cap&&Cap.isNativePlatform&&Cap.isNativePlatform());
+  let line=native?'📱 이 기기: 네이티브(APK) — 푸시 수신 가능':'🌐 이 기기: 웹 브라우저 — 앱이 열려 있을 때만 알림';
+  line+=`<br>발송기 URL: ${url?'✅ 설정됨':'❌ 미설정'}`;
+  if(_fdb){
+    try{
+      const snap=await _fdb.collection('fcmTokens').get();
+      let me=false;snap.forEach(d=>{if(d.id===_MY_DEVICE_ID)me=true;});
+      line+=`<br>등록된 기기: <b>${snap.size}대</b>${me?' (내 기기 포함 ✅)':' — 내 기기 미등록, 알림 권한을 허용하세요'}`;
+    }catch(e){line+='<br>등록 기기 조회 실패';}
+  }
+  el.innerHTML=line;
+}
+async function testFcmPush(){
+  const url=(DB.g('fcmPushUrl')||'').trim();
+  if(!url){toast('⚠️ 먼저 발송 URL을 저장하세요');return;}
+  toast('🔔 테스트 푸시 발송 중…');
+  try{
+    const snap=await _fdb.collection('fcmTokens').get();
+    const tokens=[];snap.forEach(d=>{const v=d.data()||{};if(v.token)tokens.push(v.token);});
+    if(!tokens.length){toast('⚠️ 등록된 기기가 없습니다');return;}
+    const res=await fetch(url,{method:'POST',headers:{'content-type':'text/plain;charset=utf-8'},
+      body:JSON.stringify({secret:(DB.g('fcmPushSecret')||''),title:'설악산 현장관리',body:'🔔 테스트 푸시입니다',data:{},tokens})});
+    const out=await res.json().catch(()=>({}));
+    if(out.error){toast('❌ 발송기 오류: '+out.error);}
+    else toast(`✅ ${out.sent||0}대 발송${out.invalid&&out.invalid.length?` · 무효 ${out.invalid.length}`:''}`);
+  }catch(e){toast('❌ 발송 실패: '+e.message);}
 }
 
 function updateUserUI(){
@@ -6068,7 +6180,7 @@ function submit1Bo(){
   // 오프라인 대기 사진을 이 레코드에 연결 (연결 복구 시 자동 반영)
   _registerPendingPhoto('prevInj',{key:'rescues',id:r.id,field:'injuryPhoto'});
   _registerPendingPhoto('prevTrans',{key:'rescues',id:r.id,field:'transPhoto'});
-  pushNoti('🚨 구조 1보: '+title+' ('+r.type+')',RES_TYPES[r.type]?.ico||'🚨',r.type,{app:'rescue',tab:2,id:r.id});
+  pushNoti('🚨 구조 1보: '+title+' ('+r.type+')',RES_TYPES[r.type]?.ico||'🚨',r.type,{app:'rescue',tab:2,id:r.id},'안전사고');
   syncToSheets('rescue',{id:r.id,title,type:r.type,date:r.date,author:r.author});
   toast('🚨 1보 등록 완료');
   // 저장 즉시 고도화 타임라인으로 이동
@@ -7029,6 +7141,21 @@ function renderAdmSys(){
       <div style="font-size:10px;color:#3a4a6a;margin-top:7px;">무료 티어: 1일 1,500회 · 분당 100만 토큰 · 결제 불필요</div>
     </div>
     <div class="scard" style="margin-bottom:8px;">
+      <div class="stitle">📲 푸시 알림 (꺼진 폰까지)</div>
+      <div style="font-size:11px;color:#7a9cb8;margin-bottom:8px;">구조 1보·위험상황 발생 시 OS 푸시 발송. Apps Script 발송기 URL과 비밀번호를 입력하세요. (설정법: 저장소 <b>PUSH_SETUP.md</b>)</div>
+      <div class="fg"><span class="fl">Apps Script 발송 URL</span>
+        <input id="fcmUrlInp" class="fi" type="text" placeholder="https://script.google.com/macros/s/.../exec" value="${DB.g('fcmPushUrl')||''}" style="font-family:monospace;font-size:11px;">
+      </div>
+      <div class="fg"><span class="fl">공유 비밀번호</span>
+        <input id="fcmSecInp" class="fi" type="text" placeholder="Code.gs의 SHARED_SECRET과 동일" value="${DB.g('fcmPushSecret')||''}" style="font-family:monospace;font-size:12px;">
+      </div>
+      <div style="display:flex;gap:6px;margin-top:4px;">
+        <button onclick="saveFcmCfg()" style="flex:1;background:#1a4a6e;color:#fff;border:none;padding:9px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;">💾 저장</button>
+        <button onclick="testFcmPush()" style="flex:1;background:rgba(79,168,208,.15);color:#4fa8d0;border:1px solid rgba(79,168,208,.35);padding:9px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;">🔔 테스트 발송</button>
+      </div>
+      <div id="fcmStatus" style="font-size:10px;color:#3a6a8a;margin-top:8px;line-height:1.7;">등록된 기기 확인 중…</div>
+    </div>
+    <div class="scard" style="margin-bottom:8px;">
       <div class="stitle">👥 새 가입자 알림${unseenCnt>0?` <span style="background:#c0392b;color:#fff;font-size:10px;padding:1px 7px;border-radius:20px;margin-left:6px;font-weight:700;">${unseenCnt}</span>`:''}</div>
       ${_renderPendingList()}
     </div>
@@ -7059,6 +7186,7 @@ function renderAdmSys(){
         <button onclick="clearNotisOnly()" style="width:100%;background:rgba(255,255,255,.05);color:#b8d4e8;border:none;padding:10px;border-radius:8px;font-size:12px;cursor:pointer;">알림 이력만 삭제</button>
       </div>
     </div>`;
+  setTimeout(_refreshFcmStatus,100);
 }
 function deleteUser(id){
   const list=DB.g('pendingUsers')||[];
@@ -7216,7 +7344,7 @@ function renderSettings(){
       </div>`;
   }
 }
-function togNotiSet(k,el){const s=DB.g('notiSetting')||{};const cur=s[k]!==false;s[k]=!cur;DB.s('notiSetting',s);el.className='toggle '+(!cur?'on':'off');toast(!cur?'✅ 알림 켜짐':'🔕 꺼짐');}
+function togNotiSet(k,el){const s=DB.g('notiSetting')||{};const cur=s[k]!==false;s[k]=!cur;DB.s('notiSetting',s);el.className='toggle '+(!cur?'on':'off');_updateFcmTokenSettings();toast(!cur?'✅ 알림 켜짐':'🔕 꺼짐');}
 
 // ══════════════════════════════════════════
 // Google Sheets
@@ -8780,6 +8908,8 @@ window.onload=function(){
       if(Notification.permission==='granted') _initFCM();
     }).catch(function(){});
   }
+  // 네이티브 푸시(APK): 권한 요청 + 토큰 등록
+  _initNativePush();
 
   initFirebase(function(){
     initDB();
@@ -8790,6 +8920,7 @@ window.onload=function(){
     if(window._kakaoAuthCode){var _kc=window._kakaoAuthCode;window._kakaoAuthCode=null;_handleKakaoCode(_kc);return;}
     // Firebase 준비 후 FCM 토큰 갱신 (권한·SW·VAPID 모두 준비된 경우만)
     if(Notification.permission==='granted') _initFCM();
+    _flushFcmToken(); // 네이티브 토큰이 Firebase 준비 전 등록됐으면 지금 저장
     // 모니터 거치용: 주소에 ?board=1 붙이면 켜자마자 상황판
     if(/[?&]board=1/.test(location.search))setTimeout(openBoard,300);
     if(window._hideLoading) window._hideLoading();
