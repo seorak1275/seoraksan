@@ -1515,7 +1515,7 @@ window.addEventListener('error',e=>{_logErr((e.message||'오류')+' @'+(e.filena
 window.addEventListener('unhandledrejection',e=>{_logErr('Promise: '+((e.reason&&e.reason.message)||e.reason||'거부'));});
 
 // ── 앱 버전 (배포 시 갱신) ──
-const APP_VER='v9.32 (2026.06.14)';
+const APP_VER='v9.33 (2026.06.14)';
 try{document.getElementById('appVerLabel').textContent='설악산 현장관리 '+APP_VER;}catch(e){}
 // ══════════════════════════════════════════
 // DB
@@ -2395,6 +2395,15 @@ function _renderBoardPins(){
     const ov=new kakao.maps.CustomOverlay({position:pos,content:el,yAnchor:1,zIndex:4});
     ov.setMap(_boardMap);_boardOvs.push(ov);bounds.extend(pos);n++;
   });
+  // 다목적위치표지판 핀 (번호 표시, 작은 레이블)
+  (DB.g('facilities')||[]).filter(f=>f.type&&f.type.includes('다목적위치표지판')&&f.lat&&f.lng).forEach(f=>{
+    const code=(f.name.match(/\d[\d\-]*\d|\d/)||[f.name.slice(0,6)])[0];
+    const el=document.createElement('div');
+    el.innerHTML=`<div style="background:rgba(10,30,55,.85);border:1px solid rgba(79,168,208,.6);color:#7dd3fa;border-radius:5px;padding:1px 5px;font-size:9px;font-weight:700;white-space:nowrap;box-shadow:0 1px 3px rgba(0,0,0,.5);cursor:default;">${code}</div>`;
+    const pos=new kakao.maps.LatLng(f.lat,f.lng);
+    const ov=new kakao.maps.CustomOverlay({position:pos,content:el,yAnchor:1,zIndex:2});
+    ov.setMap(_boardMap);_boardOvs.push(ov);
+  });
   if(n>1){try{_boardMap.setBounds(bounds,60,60,60,60);}catch(e){}}
   else if(n===1){try{_boardMap.setCenter(bounds.getSouthWest());_boardMap.setLevel(6);}catch(e){}}
 }
@@ -3265,7 +3274,16 @@ function _renderStaffQuickPick(){
   const wrap=document.getElementById('staffQuickPick');
   const chips=document.getElementById('staffQuickChips');
   if(!wrap||!chips)return;
-  const users=(DB.g('pendingUsers')||[]).filter(u=>u.approvalStatus==='approved'&&(u.realName||u.name)&&(!dept||u.dept===dept));
+  const me=DB.g('currentUser')||{};
+  const myKakaoId=me.kakaoId?String(me.kakaoId):null;
+  const users=(DB.g('pendingUsers')||[]).filter(u=>{
+    if(u.approvalStatus!=='approved')return false;
+    if(!(u.realName||u.name))return false;
+    if(dept&&u.dept!==dept)return false;
+    // 현재 카카오 로그인 계정과 일치하면 자기 자신 — 칩 제외
+    if(myKakaoId&&(String(u.id)===myKakaoId||String(u.kakaoId||'')===myKakaoId))return false;
+    return true;
+  });
   if(!users.length){wrap.style.display='none';return;}
   wrap.style.display='block';
   chips.innerHTML=users.map(u=>{
