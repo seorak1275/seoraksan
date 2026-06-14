@@ -1083,12 +1083,17 @@ body.hi-contrast .stat-lbl{color:rgba(255,255,255,.65)!important;}
       💬 카카오 계정으로 로그인됨 — 이름·소속만 확인하세요
     </div>
     <div class="fg"><span class="fl">소속 과/분소 <span style="color:#c0392b;">*</span></span>
-      <select id="uDeptIn" class="fsel">
+      <select id="uDeptIn" class="fsel" onchange="_renderStaffQuickPick()">
         <option value="">선택하세요</option>
         <option>행정과</option><option>재난안전과</option><option>탐방시설과</option><option>자원보전과</option>
         <option>특수산악구조대</option><option>대청분소</option><option>백담분소</option>
         <option>오색분소</option><option>한계산성분소</option><option>점봉산분소</option>
       </select>
+    </div>
+    <!-- 등록 직원 빠른 선택 -->
+    <div id="staffQuickPick" style="display:none;margin-bottom:10px;">
+      <div style="font-size:10px;color:#4a7090;font-weight:600;margin-bottom:5px;">👥 등록된 직원 — 탭하면 자동 입력</div>
+      <div id="staffQuickChips" style="display:flex;flex-wrap:wrap;gap:5px;"></div>
     </div>
     <div class="fg"><span class="fl">직위</span>
       <div class="pills" id="rankPills">
@@ -1489,7 +1494,7 @@ window.addEventListener('error',e=>{_logErr((e.message||'오류')+' @'+(e.filena
 window.addEventListener('unhandledrejection',e=>{_logErr('Promise: '+((e.reason&&e.reason.message)||e.reason||'거부'));});
 
 // ── 앱 버전 (배포 시 갱신) ──
-const APP_VER='v9.29 (2026.06.14)';
+const APP_VER='v9.30 (2026.06.14)';
 try{document.getElementById('appVerLabel').textContent='설악산 현장관리 '+APP_VER;}catch(e){}
 // ══════════════════════════════════════════
 // DB
@@ -3224,6 +3229,37 @@ function selTTActor(el,actor){
 // ══════════════════════════════════════════
 // 작성자 관리
 // ══════════════════════════════════════════
+function _renderStaffQuickPick(){
+  const dept=(document.getElementById('uDeptIn')||{}).value||'';
+  const wrap=document.getElementById('staffQuickPick');
+  const chips=document.getElementById('staffQuickChips');
+  if(!wrap||!chips)return;
+  const users=(DB.g('pendingUsers')||[]).filter(u=>u.approvalStatus==='approved'&&(u.realName||u.name)&&(!dept||u.dept===dept));
+  if(!users.length){wrap.style.display='none';return;}
+  wrap.style.display='block';
+  chips.innerHTML=users.map(u=>{
+    const name=u.realName||u.name||'';
+    const rank=u.rank||'';
+    return `<div onclick="_fillFromStaff('${name.replace(/'/g,"\\'")}','${rank.replace(/'/g,"\\'")}','${(u.dept||'').replace(/'/g,"\\'")}') "
+      style="cursor:pointer;background:rgba(79,168,208,.1);color:#4fa8d0;border:1px solid rgba(79,168,208,.3);border-radius:20px;font-size:10px;font-weight:700;padding:5px 11px;">
+      ${name}${rank?` <span style="font-size:9px;opacity:.7;">${rank}</span>`:''}
+    </div>`;
+  }).join('');
+}
+function _fillFromStaff(name,rank,dept){
+  const ni=document.getElementById('uNameIn');if(ni)ni.value=name;
+  const ds=document.getElementById('uDeptIn');if(ds&&dept)ds.value=dept;
+  document.querySelectorAll('#rankPills .pill').forEach(p=>{
+    p.classList.toggle('on',!!rank&&p.textContent.trim()===rank);
+  });
+  // 칩 강조
+  const chips=document.getElementById('staffQuickChips');
+  if(chips)chips.querySelectorAll('div').forEach(c=>{
+    const isMe=c.textContent.trim().startsWith(name);
+    c.style.background=isMe?'rgba(79,168,208,.3)':'rgba(79,168,208,.1)';
+    c.style.borderColor=isMe?'rgba(79,168,208,.7)':'rgba(79,168,208,.3)';
+  });
+}
 function openChangeUser(){
   const u=DB.g('currentUser')||{};
   const authType=DB.g('authType');
@@ -3242,6 +3278,7 @@ function openChangeUser(){
   if(u.rank){document.querySelectorAll('#rankPills .pill').forEach(p=>{if(p.textContent===u.rank)p.classList.add('on');});}
   const banner=document.getElementById('kakaoUserBanner');
   if(banner)banner.style.display=(u.kakaoId||u.kakaoImg)?'block':'none';
+  _renderStaffQuickPick();
   document.getElementById('modalUser').classList.add('on');
 }
 async function _sha256(str){
@@ -6563,20 +6600,80 @@ function renderAdmMembers(){
   if(!fp.length){
     html+=`<div style="font-size:11px;color:#4a7090;padding:8px 0;">가입자 없음</div>`;
   }else{
-    html+=fp.slice().reverse().map(u=>`<div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid rgba(255,255,255,.05);">`
-      +(u.kakaoImg?`<img src="${u.kakaoImg}" style="width:32px;height:32px;border-radius:50%;object-fit:cover;flex-shrink:0;" onerror="this.style.display='none'">`
-        :`<div style="width:32px;height:32px;border-radius:50%;background:#1a3a5a;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0;">👤</div>`)
-      +`<div style="flex:1;min-width:0;"><div style="font-size:12px;font-weight:700;color:#e0edf8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${u.realName||u.name||'이름없음'}</div>`
-      +`<div style="font-size:10px;color:#4a7090;margin-top:1px;">${u.dept||''}${u.rank?' · '+u.rank:''} · ${u.approvalStatus==='approved'?'<span style="color:#7ec8a0;">✅승인</span>':'<span style="color:#e67e22;">⏳대기</span>'}</div></div>`
-      +`<div style="display:flex;gap:4px;flex-shrink:0;">`
-      +(u.approvalStatus!=='approved'?`<button onclick="approveUser('${u.id}')" style="background:rgba(39,174,96,.15);color:#7ec8a0;border:1px solid rgba(39,174,96,.3);border-radius:6px;padding:4px 8px;font-size:10px;cursor:pointer;">승인</button>`:'')
-      +`<button onclick="deleteUser('${u.id}')" style="background:rgba(192,57,43,.15);color:#ff8a80;border:1px solid rgba(192,57,43,.25);border-radius:6px;padding:4px 8px;font-size:10px;cursor:pointer;">삭제</button></div></div>`
+    const deptOpts=['행정과','재난안전과','탐방시설과','자원보전과','특수산악구조대','대청분소','백담분소','오색분소','한계산성분소','점봉산분소'];
+    const rankOpts=['주임','계장','팀장','과장','분소장','소장'];
+    html+=fp.slice().reverse().map(u=>`
+      <div style="padding:8px 0;border-bottom:1px solid rgba(255,255,255,.05);">
+        <div style="display:flex;align-items:center;gap:8px;">`
+        +(u.kakaoImg?`<img src="${u.kakaoImg}" style="width:32px;height:32px;border-radius:50%;object-fit:cover;flex-shrink:0;" onerror="this.style.display='none'">`
+          :`<div style="width:32px;height:32px;border-radius:50%;background:#1a3a5a;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0;">👤</div>`)
+        +`<div style="flex:1;min-width:0;">
+            <div style="font-size:12px;font-weight:700;color:#e0edf8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${_esc(u.realName||u.name||'이름없음')}</div>
+            <div style="font-size:10px;color:#4a7090;margin-top:1px;">${_esc(u.dept||'')}${u.rank?' · '+_esc(u.rank):''} · ${u.approvalStatus==='approved'?'<span style="color:#7ec8a0;">✅승인</span>':'<span style="color:#e67e22;">⏳대기</span>'}</div>
+          </div>
+          <div style="display:flex;gap:4px;flex-shrink:0;">
+            <button onclick="_toggleAdmMemberEdit('${u.id}')" style="background:rgba(79,168,208,.12);color:#4fa8d0;border:1px solid rgba(79,168,208,.25);border-radius:6px;padding:4px 8px;font-size:10px;cursor:pointer;">수정</button>`
+            +(u.approvalStatus!=='approved'?`<button onclick="approveUser('${u.id}')" style="background:rgba(39,174,96,.15);color:#7ec8a0;border:1px solid rgba(39,174,96,.3);border-radius:6px;padding:4px 8px;font-size:10px;cursor:pointer;">승인</button>`:'')
+            +`<button onclick="deleteUser('${u.id}')" style="background:rgba(192,57,43,.15);color:#ff8a80;border:1px solid rgba(192,57,43,.25);border-radius:6px;padding:4px 8px;font-size:10px;cursor:pointer;">삭제</button>
+          </div>
+        </div>
+        <div id="admMemberEdit_${u.id}" style="display:none;margin-top:8px;background:rgba(0,0,0,.25);border-radius:9px;padding:10px;">
+          <div style="font-size:10px;color:#4a7090;font-weight:600;margin-bottom:7px;">✏️ 직원 정보 수정</div>
+          <input id="admME_name_${u.id}" class="fi" value="${_esc(u.realName||u.name||'')}" placeholder="이름" style="margin-bottom:6px;">
+          <select id="admME_dept_${u.id}" class="fsel" style="margin-bottom:6px;">
+            ${deptOpts.map(d=>`<option value="${d}"${u.dept===d?' selected':''}>${d}</option>`).join('')}
+          </select>
+          <div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:8px;" id="admME_ranks_${u.id}">
+            ${rankOpts.map(r=>`<div onclick="_toggleAdmRank('${u.id}','${r}')" id="admMER_${u.id}_${r}" style="cursor:pointer;border-radius:20px;font-size:10px;font-weight:700;padding:4px 10px;border:1px solid;${u.rank===r?'background:rgba(79,168,208,.2);color:#4fa8d0;border-color:rgba(79,168,208,.5);':'background:rgba(255,255,255,.04);color:rgba(255,255,255,.4);border-color:rgba(255,255,255,.12);'}">${r}</div>`).join('')}
+          </div>
+          <div style="display:flex;gap:6px;">
+            <button onclick="_saveAdmMember('${u.id}')" style="flex:1;background:#1a4a6e;color:#fff;border:none;padding:7px;border-radius:7px;font-size:11px;font-weight:700;cursor:pointer;">저장</button>
+            <button onclick="_toggleAdmMemberEdit('${u.id}')" style="background:none;border:1px solid rgba(255,255,255,.12);color:rgba(255,255,255,.4);padding:7px 10px;border-radius:7px;font-size:11px;cursor:pointer;">취소</button>
+          </div>
+        </div>
+      </div>`
     ).join('');
   }
   document.getElementById('admMembersWrap').innerHTML=html;
 }
 var _admMemberFilter='전체';
 function setAdmMemberFilter(f){_admMemberFilter=f;renderAdmMembers();}
+function _toggleAdmMemberEdit(id){
+  const el=document.getElementById('admMemberEdit_'+id);
+  if(el)el.style.display=el.style.display==='none'?'block':'none';
+}
+function _toggleAdmRank(uid,rank){
+  const rankOpts=['주임','계장','팀장','과장','분소장','소장'];
+  rankOpts.forEach(r=>{
+    const el=document.getElementById(`admMER_${uid}_${r}`);
+    if(!el)return;
+    const on=r===rank;
+    el.style.background=on?'rgba(79,168,208,.2)':'rgba(255,255,255,.04)';
+    el.style.color=on?'#4fa8d0':'rgba(255,255,255,.4)';
+    el.style.borderColor=on?'rgba(79,168,208,.5)':'rgba(255,255,255,.12)';
+    el.dataset.sel=on?'1':'';
+  });
+}
+function _saveAdmMember(id){
+  const list=DB.g('pendingUsers')||[];
+  const idx=list.findIndex(u=>String(u.id)===String(id));
+  if(idx<0){toast('⚠️ 직원을 찾을 수 없습니다');return;}
+  const name=(document.getElementById('admME_name_'+id)||{}).value?.trim();
+  const dept=(document.getElementById('admME_dept_'+id)||{}).value||'';
+  const rankEl=document.querySelector(`#admME_ranks_${id} [data-sel="1"]`);
+  const rank=rankEl?rankEl.textContent.trim():'';
+  if(!name){toast('⚠️ 이름을 입력하세요');return;}
+  list[idx]={...list[idx],realName:name,name,dept,rank};
+  DB.s('pendingUsers',list);
+  // 현재 로그인 사용자와 같은 kakaoId면 currentUser도 갱신
+  const me=DB.g('currentUser')||{};
+  if(me.kakaoId&&String(me.kakaoId)===String(list[idx].kakaoId||list[idx].id)){
+    DB.s('currentUser',{...me,realName:name,name,dept,rank});
+    updateUserUI();
+  }
+  renderAdmMembers();
+  toast('✅ 직원 정보 수정됨');
+}
 function renderAdmCat(){
   const cats=DB.g('catFac')||[];
   const meta=DB.g('catFacMeta')||{};
