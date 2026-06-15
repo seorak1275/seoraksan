@@ -1,0 +1,24 @@
+rules_version = '2';
+// ══════════════════════════════════════════════════════════════
+// 설악산 현장관리 Firestore 보안 규칙
+//
+// 적용 방법:
+//  1. Firebase 콘솔 → Authentication → Sign-in method → "익명" 활성화
+//  2. Firebase 콘솔 → Firestore Database → 규칙 탭 → 이 파일 내용 붙여넣기 → 게시
+//
+// 앱은 부팅 시 signInAnonymously()를 호출하므로(v9.0+) 익명 인증을 켜고
+// 규칙을 게시하면 즉시 적용됩니다. 규칙 게시 전에는 앱 동작에 영향 없음.
+//
+// 효과: 인증 토큰 없는 외부 REST 요청(환자 개인정보 열람·데이터 삭제 등)을
+//       전부 차단. 댓글 컬렉션(comments_<구조ID>)이 동적 이름이므로
+//       전체 경로에 동일하게 인증 필수를 적용한다.
+// ══════════════════════════════════════════════════════════════
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 모든 최상위 컬렉션: 익명 인증 포함, 인증된 요청만 허용
+    // (그 외 경로는 Firestore 기본값인 전체 거부)
+    match /{collection}/{doc} {
+      allow read, write: if request.auth != null;
+    }
+  }
+}
