@@ -8,6 +8,7 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    if: secrets.SIGNING_KEY != ''
     permissions:
       contents: write
 
@@ -37,8 +38,8 @@ jobs:
       - name: Sync Capacitor
         run: npx cap sync android
 
-      - name: Place google-services.json (FCM 푸시용)
-        if: ${{ secrets.GOOGLE_SERVICES_JSON != '' }}
+      - name: Place google-services.json
+        if: secrets.GOOGLE_SERVICES_JSON != ''
         env:
           GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
         run: echo "$GOOGLE_SERVICES_JSON" > android/app/google-services.json
@@ -58,7 +59,6 @@ jobs:
           ./gradlew assembleRelease --no-daemon -x test
 
       - name: Sign APK
-        if: ${{ secrets.SIGNING_KEY != '' }}
         run: |
           echo "${{ secrets.SIGNING_KEY }}" | base64 -d > /tmp/keystore.jks
           UNSIGNED=android/app/build/outputs/apk/release/app-release-unsigned.apk
@@ -77,20 +77,10 @@ jobs:
         run: echo "version=$(date +%Y%m%d-%H%M)" >> $GITHUB_OUTPUT
 
       - name: Create Release
-        if: ${{ secrets.SIGNING_KEY != '' }}
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v${{ steps.version.outputs.version }}
-          name: 설악산 현장관리 v${{ steps.version.outputs.version }}
-          body: |
-            ## 설악산 현장관리 앱
-
-            ### 설치 방법
-            1. 아래 **seoraksan-signed.apk** 파일 다운로드
-            2. 안드로이드 설정 → 보안 → **출처를 알 수 없는 앱 허용** 켜기
-            3. 다운로드된 APK 실행하여 설치
-
-            ### 변경사항
-            ${{ github.event.head_commit.message }}
+          name: "Seoraksan v${{ steps.version.outputs.version }}"
+          body: "APK build ${{ steps.version.outputs.version }}"
           files: seoraksan-signed.apk
           make_latest: true
