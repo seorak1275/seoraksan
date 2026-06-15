@@ -1516,7 +1516,7 @@ window.addEventListener('error',e=>{_logErr((e.message||'오류')+' @'+(e.filena
 window.addEventListener('unhandledrejection',e=>{_logErr('Promise: '+((e.reason&&e.reason.message)||e.reason||'거부'));});
 
 // ── 앱 버전 (배포 시 갱신) ──
-const APP_VER='v9.42 (2026.06.15)';
+const APP_VER='v9.43 (2026.06.15)';
 try{document.getElementById('appVerLabel').textContent='설악산 현장관리 '+APP_VER;}catch(e){}
 // ══════════════════════════════════════════
 // DB
@@ -4379,21 +4379,56 @@ function renderRescueStats(){
 }
 
 // 통계 자료 엑셀(CSV) 다운로드: 날짜 범위 필터
-// ── 사고 다발 구간 히트맵: 좌표를 ~250m 격자로 묶어 원으로 표시 ──
+// ── 사고 다발 구간 히트맵: 표지판 코드 기준으로 집계 (GPS 없어도 포함) ──
 function _renderHeatMap(tab){
   const el=document.getElementById('heatMapEl');
   if(!el||!window._KR)return;
-  const data=(tab==='haz'?(DB.g('hazards')||[]):(DB.g('rescues')||[])).filter(x=>x.lat&&x.lng);
-  if(!data.length){el.innerHTML='<div style="display:flex;align-items:center;justify-content:center;height:100%;font-size:11px;color:rgba(255,255,255,.25);">좌표가 입력된 기록 없음</div>';return;}
-  // 격자 집계 (0.0025° ≈ 250m)
-  const CELL=0.0025;
-  const bins={};
-  data.forEach(x=>{
-    const key=Math.round(x.lat/CELL)+'_'+Math.round(x.lng/CELL);
-    if(!bins[key])bins[key]={lat:0,lng:0,n:0};
-    bins[key].lat+=x.lat;bins[key].lng+=x.lng;bins[key].n++;
+  const allData=(tab==='haz'?(DB.g('hazards')||[]):(DB.g('rescues')||[]));
+  if(!allData.length){el.innerHTML='<div style="display:flex;align-items:center;justify-content:center;height:100%;font-size:11px;color:rgba(255,255,255,.25);">기록 없음</div>';return;}
+
+  // 표지판 코드 맵 구성 (01-05 → {lat,lng,name})
+  const facs=DB.g('facilities')||[];
+  const signMap={};
+  facs.filter(f=>f.type&&f.type.includes('다목적위치표지판')&&f.lat&&f.lng).forEach(f=>{
+    const m=(f.name||'').match(/^(\d{2}-\d{2})/);
+    if(m)signMap[m[1]]={lat:f.lat,lng:f.lng,code:m[1],name:f.name};
   });
-  const cells=Object.values(bins).map(b=>({lat:b.lat/b.n,lng:b.lng/b.n,n:b.n})).sort((a,b)=>b.n-a.n);
+
+  // 집계: 표지판 코드 우선, 없으면 위치 텍스트 코드, 없으면 GPS 250m 격자
+  const CELL=0.0025;
+  const bins={}; // key → {latSum,lngSum,latN,n,code,label}
+  allData.forEach(x=>{
+    let key,code=null;
+    // 1) GPS → 가장 가까운 표지판 코드로 snap (1km 이내)
+    if(x.lat&&x.lng&&Object.keys(signMap).length){
+      let bestCode=null,bestD=Infinity;
+      Object.values(signMap).forEach(s=>{const d=_haversineKm(x.lat,x.lng,s.lat,s.lng);if(d<bestD){bestD=d;bestCode=s.code;}});
+      if(bestCode&&bestD<1){code=bestCode;key='s_'+code;}
+    }
+    // 2) 위치 텍스트에서 XX-XX 코드 추출 (GPS 없거나 1km 밖)
+    if(!key){
+      const m=(x.location||'').match(/(\d{2}-\d{2})/);
+      if(m){code=m[1];key='s_'+code;}
+    }
+    // 3) GPS만 있고 표지판 없는 구역 → 250m 격자
+    if(!key&&x.lat&&x.lng){key='g_'+Math.round(x.lat/CELL)+'_'+Math.round(x.lng/CELL);}
+    if(!key)return; // GPS도 없고 코드도 없으면 제외
+    if(!bins[key])bins[key]={latSum:0,lngSum:0,latN:0,n:0,code};
+    if(x.lat&&x.lng){bins[key].latSum+=x.lat;bins[key].lngSum+=x.lng;bins[key].latN++;}
+    bins[key].n++;
+  });
+
+  // 각 bin의 대표 좌표: GPS 평균 → 표지판 좌표 → null
+  const cells=Object.values(bins).map(b=>{
+    let lat=b.latN>0?b.latSum/b.latN:null,lng=b.latN>0?b.lngSum/b.latN:null;
+    const s=b.code&&signMap[b.code];
+    if(!lat&&s){lat=s.lat;lng=s.lng;} // GPS 없는 기록만 있는 경우 표지판 좌표 사용
+    const label=b.code?b.code+(s&&s.name?' '+s.name.replace(/^\d{2}-\d{2}\s*/,'').slice(0,8):'')
+                :(lat?lat.toFixed(4)+','+lng.toFixed(4):'?');
+    return {lat,lng,n:b.n,label};
+  }).filter(c=>c.lat&&c.lng).sort((a,b)=>b.n-a.n);
+
+  if(!cells.length){el.innerHTML='<div style="display:flex;align-items:center;justify-content:center;height:100%;font-size:11px;color:rgba(255,255,255,.25);">좌표·위치 정보 없음</div>';return;}
   try{
     const map=new kakao.maps.Map(el,{center:new kakao.maps.LatLng(38.13,128.43),level:8});
     map.setMapTypeId(kakao.maps.MapTypeId.HYBRID);
@@ -4406,28 +4441,21 @@ function _renderHeatMap(tab){
         center:pos,radius:140+Math.min(c.n,8)*45,
         fillColor:colOf(c.n),fillOpacity:.42,strokeWeight:1,strokeColor:colOf(c.n),strokeOpacity:.6,map
       });
-      if(c.n>=2){
-        const lbl=document.createElement('div');
-        lbl.style.cssText='font-size:11px;font-weight:800;color:#fff;text-shadow:0 1px 3px rgba(0,0,0,.9);pointer-events:none;';
-        lbl.textContent=c.n;
-        new kakao.maps.CustomOverlay({position:pos,content:lbl,zIndex:3}).setMap(map);
-      }
+      const lbl=document.createElement('div');
+      lbl.style.cssText='font-size:11px;font-weight:800;color:#fff;text-shadow:0 1px 3px rgba(0,0,0,.9);pointer-events:none;';
+      lbl.textContent=c.n;
+      new kakao.maps.CustomOverlay({position:pos,content:lbl,zIndex:3}).setMap(map);
     });
     if(cells.length>1)map.setBounds(bounds,30);else map.setCenter(new kakao.maps.LatLng(cells[0].lat,cells[0].lng));
   }catch(e){}
-  // 다발 구간 TOP 5: 가장 가까운 표지판 기준 표기
+  // TOP 5 순위
   const top=document.getElementById('heatTopList');
   if(top){
-    top.innerHTML=cells.slice(0,5).map((c,i)=>{
-      let label='';
-      try{const s=_nearestSignFull(c.lat,c.lng);if(s)label=s.code+(s.dist!=null?' 부근':'');}catch(e){}
-      if(!label)label=c.lat.toFixed(4)+', '+c.lng.toFixed(4);
-      return `<div style="display:flex;align-items:center;gap:7px;padding:3px 0;">
-        <span style="font-size:9px;font-weight:800;color:${i===0?'#e74c3c':'#9bbdd4'};width:14px;">${i+1}</span>
-        <span style="font-size:11px;color:#b8d4e8;flex:1;">${label}</span>
-        <span style="font-size:10px;font-weight:700;color:${c.n>=3?'#e74c3c':'#e67e22'};">${c.n}건</span>
-      </div>`;
-    }).join('');
+    top.innerHTML=cells.slice(0,5).map((c,i)=>`<div style="display:flex;align-items:center;gap:7px;padding:3px 0;">
+      <span style="font-size:9px;font-weight:800;color:${i===0?'#e74c3c':'#9bbdd4'};width:14px;">${i+1}</span>
+      <span style="font-size:11px;color:#b8d4e8;flex:1;">${c.label}</span>
+      <span style="font-size:10px;font-weight:700;color:${c.n>=3?'#e74c3c':'#e67e22'};">${c.n}건</span>
+    </div>`).join('');
   }
 }
 
