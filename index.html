@@ -798,7 +798,7 @@ body.hi-contrast .stat-lbl{color:rgba(255,255,255,.65)!important;}
   </div>
   <!-- 버전 + 동기화 상태 -->
   <div style="flex-shrink:0;text-align:center;padding:4px 0 2px;font-size:9px;color:rgba(255,255,255,.22);user-select:none;">
-    <span id="appVerLabel"></span><span id="syncBadge" onclick="_flushSyncQueue()" style="display:none;margin-left:8px;color:#f0a500;cursor:pointer;">⏳ 동기화 대기 <span id="syncBadgeN">0</span>건</span>
+    <span id="appVerLabel"></span><span id="syncBadge" style="display:none;margin-left:8px;color:#f0a500;cursor:pointer;">⏳ 동기화 대기 <span id="syncBadgeN">0</span>건 <span onclick="_flushSyncQueue()" style="font-size:10px;opacity:.7;">↻</span><span onclick="_clearSyncQueue()" style="font-size:10px;opacity:.55;margin-left:3px;" title="대기 항목 강제 삭제">✕</span></span>
   </div>
 </div>
 </div>
@@ -1516,7 +1516,7 @@ window.addEventListener('error',e=>{_logErr((e.message||'오류')+' @'+(e.filena
 window.addEventListener('unhandledrejection',e=>{_logErr('Promise: '+((e.reason&&e.reason.message)||e.reason||'거부'));});
 
 // ── 앱 버전 (배포 시 갱신) ──
-const APP_VER='v9.41 (2026.06.15)';
+const APP_VER='v9.42 (2026.06.15)';
 try{document.getElementById('appVerLabel').textContent='설악산 현장관리 '+APP_VER;}catch(e){}
 // ══════════════════════════════════════════
 // DB
@@ -1598,6 +1598,11 @@ function _flushSyncQueue(){
     _syncQFlushing=false;
     if(ok&&!_loadSyncQ().length)try{toast('✅ 대기 변경 '+ok+'건 동기화 완료');}catch(e){}
   })();
+}
+function _clearSyncQueue(){
+  if(!confirm('서버에 아직 전송되지 않은 변경 '+_loadSyncQ().length+'건을 삭제하시겠습니까?\n(이미 저장된 데이터는 영향 없음)'))return;
+  _saveSyncQ([]);
+  toast('✅ 대기 항목 삭제됨');
 }
 window.addEventListener('online',()=>setTimeout(_flushSyncQueue,1500));
 setInterval(_flushSyncQueue,45000);

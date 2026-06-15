@@ -58,6 +58,7 @@ jobs:
           ./gradlew assembleRelease --no-daemon -x test
 
       - name: Sign APK
+        if: ${{ secrets.SIGNING_KEY != '' }}
         run: |
           echo "${{ secrets.SIGNING_KEY }}" | base64 -d > /tmp/keystore.jks
           UNSIGNED=android/app/build/outputs/apk/release/app-release-unsigned.apk
@@ -76,6 +77,7 @@ jobs:
         run: echo "version=$(date +%Y%m%d-%H%M)" >> $GITHUB_OUTPUT
 
       - name: Create Release
+        if: ${{ secrets.SIGNING_KEY != '' }}
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v${{ steps.version.outputs.version }}
