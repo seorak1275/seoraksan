@@ -1516,7 +1516,7 @@ window.addEventListener('error',e=>{_logErr((e.message||'오류')+' @'+(e.filena
 window.addEventListener('unhandledrejection',e=>{_logErr('Promise: '+((e.reason&&e.reason.message)||e.reason||'거부'));});
 
 // ── 앱 버전 (배포 시 갱신) ──
-const APP_VER='v9.43 (2026.06.15)';
+const APP_VER='v9.44 (2026.06.15)';
 try{document.getElementById('appVerLabel').textContent='설악산 현장관리 '+APP_VER;}catch(e){}
 // ══════════════════════════════════════════
 // DB
@@ -1578,25 +1578,46 @@ function _syncWriteFailed(item){ // item: {key, op:'set'|'del', coll?, id?, doc?
   }
 }
 let _syncQFlushing=false;
+// 큐에서 특정 항목 제거 (key+json 동시 일치 — 플러시 중 갱신된 최신본 보호)
+function _removeSyncItem(it){
+  const cur=_loadSyncQ();const ci=cur.findIndex(x=>x.key===it.key&&x.json===it.json);
+  if(ci>=0){cur.splice(ci,1);_saveSyncQ(cur);}
+}
 function _flushSyncQueue(){
   if(_syncQFlushing||!_fdb)return;
   const q=_loadSyncQ();
   if(!q.length){_updateSyncBadge();return;}
   _syncQFlushing=true;
   (async()=>{
-    let ok=0;
+    let ok=0,dropped=0;
     for(const it of q){
       try{
         if(it.doc!==undefined)await _fdb.collection('appData').doc(it.doc).set({d:it.json});
         else if(it.op==='del')await _fdb.collection(it.coll).doc(it.id).delete();
         else await _fdb.collection(it.coll).doc(it.id).set(JSON.parse(it.json));
-        const cur=_loadSyncQ();const ci=cur.findIndex(x=>x.key===it.key&&x.json===it.json);
-        if(ci>=0){cur.splice(ci,1);_saveSyncQ(cur);}
-        ok++;
-      }catch(e){break;} // 여전히 실패 → 다음 주기에 재시도
+        _removeSyncItem(it);ok++;
+      }catch(e){
+        // 영구 실패(권한 거부·1MB 초과·잘못된 데이터 등)는 재시도해도 성공 불가 → 폐기.
+        // 일시적(네트워크 등)이거나 판단 불가면 보존하되, 8회 초과 시 강제 폐기(무한 적체 방지).
+        const code=(e&&e.code)||'';
+        const permanent=/permission-denied|invalid-argument|not-found|unauthenticated|failed-precondition/.test(code);
+        const tries=(it._n||0)+1;
+        if(permanent||tries>=8){
+          console.warn('[syncQ] 동기화 불가로 폐기:',it.key,'code='+code,'tries='+tries,e&&e.message);
+          _removeSyncItem(it);dropped++;
+        }else{
+          // 시도 횟수만 누적 기록 후 다음 주기 재시도 (큐 맨 앞에서 막힘 → 중단)
+          const cur=_loadSyncQ();const ci=cur.findIndex(x=>x.key===it.key&&x.json===it.json);
+          if(ci>=0){cur[ci]=Object.assign({},cur[ci],{_n:tries});_saveSyncQ(cur);}
+          break;
+        }
+      }
     }
     _syncQFlushing=false;
-    if(ok&&!_loadSyncQ().length)try{toast('✅ 대기 변경 '+ok+'건 동기화 완료');}catch(e){}
+    if(!_loadSyncQ().length){
+      if(ok)try{toast('✅ 대기 변경 '+ok+'건 동기화 완료');}catch(e){}
+      else if(dropped)try{toast('⚠️ 동기화 불가 '+dropped+'건 폐기됨 (서버 거부)');}catch(e){}
+    }
   })();
 }
 function _clearSyncQueue(){
