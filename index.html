@@ -1518,7 +1518,7 @@ window.addEventListener('error',e=>{_logErr((e.message||'오류')+' @'+(e.filena
 window.addEventListener('unhandledrejection',e=>{_logErr('Promise: '+((e.reason&&e.reason.message)||e.reason||'거부'));});
 
 // ── 앱 버전 (배포 시 갱신) ──
-const APP_VER='v9.46 (2026.06.16)';
+const APP_VER='v9.47 (2026.06.16)';
 try{document.getElementById('appVerLabel').textContent='설악산 현장관리 '+APP_VER;}catch(e){}
 // ══════════════════════════════════════════
 // DB
@@ -1543,6 +1543,8 @@ const _fs={};   // Firestore 인메모리 캐시
 let _fdb=null;
 let _fst=null;
 let _fmsg=null;
+let _authReady=false;  // 익명 인증 성공 여부
+let _authErrCode='';   // 인증 실패 코드 (auth/operation-not-allowed 등)
 let _swReg=null;
 // 기기 고유 ID (localStorage 영속, 알림 브로드캐스트 출처 구분용)
 const _MY_DEVICE_ID=(function(){
@@ -1576,7 +1578,11 @@ function _syncWriteFailed(item){ // item: {key, op:'set'|'del', coll?, id?, doc?
   _saveSyncQ(q);
   if(Date.now()-_syncQWarnedAt>30000){
     _syncQWarnedAt=Date.now();
-    try{toast('⚠️ 서버 저장 대기 중 — 연결되면 자동 재시도');}catch(e){}
+    // 인증이 안 된 상태면 원인을 명확히 안내 (콘솔 익명 인증 누락이 가장 흔함)
+    var msg=_authErrCode==='auth/operation-not-allowed'
+      ?'⚠️ 동기화 차단: Firebase 익명 인증이 꺼져 있습니다 (관리자 설정 필요)'
+      :(!_authReady?'⚠️ 인증 대기 중 — 동기화는 인증 완료 후 자동 재시도':'⚠️ 서버 저장 대기 중 — 연결되면 자동 재시도');
+    try{toast(msg);}catch(e){}
   }
 }
 let _syncQFlushing=false;
@@ -1700,8 +1706,22 @@ function initFirebase(onReady){
   try{
     if(!firebase.apps.length) firebase.initializeApp(_FB_CFG);
     // 익명 인증: Firestore 보안 규칙(request.auth != null)을 적용하기 위한 기반.
-    // 콘솔에서 Anonymous 로그인 활성화 전에는 실패해도 무방 (규칙 적용 전이므로)
-    try{firebase.auth().signInAnonymously().catch(()=>{});}catch(e){}
+    // 인증 성공/실패를 추적하고, 성공 시 대기 큐를 즉시 재전송한다.
+    try{
+      firebase.auth().onAuthStateChanged(function(u){
+        if(u){
+          _authReady=true;_authErrCode='';
+          setTimeout(_flushSyncQueue,300); // 인증 완료 → 막혔던 쓰기 즉시 재시도
+        }
+      });
+      firebase.auth().signInAnonymously().catch(function(e){
+        _authErrCode=(e&&e.code)||'auth/unknown';
+        // 익명 인증이 콘솔에서 꺼져 있으면 모든 쓰기가 막힌다 → 사용자에게 명확히 안내
+        if(_authErrCode==='auth/operation-not-allowed'){
+          setTimeout(function(){try{toast('⚠️ Firebase 익명 인증이 꺼져 있어 동기화가 안 됩니다 (관리자: 콘솔에서 익명 로그인 활성화 필요)');}catch(e){}},2500);
+        }
+      });
+    }catch(e){_authErrCode='auth/init-failed';}
     _fdb=firebase.firestore();
     _fdb.enablePersistence().catch(()=>{});
     _fst=firebase.storage();
@@ -4347,7 +4367,8 @@ function renderRescueStats(){
       if(r.loctype)loctypeMap[r.loctype]=(loctypeMap[r.loctype]||0)+1;
       if(r.weather)weatherMap[r.weather]=(weatherMap[r.weather]||0)+1;
       if(r.vBirth){const age=new Date().getFullYear()-parseInt(r.vBirth.slice(0,4));const ag=age<20?'10대 이하':age<30?'20대':age<40?'30대':age<50?'40대':age<60?'50대':age<70?'60대':'70대+';ageMap[ag]=(ageMap[ag]||0)+1;}
-      if(r.time){const h=parseInt((r.time||'').split(':')[0]||0);if(h<6)timeMap['새벽(0-6시)']++;else if(h<12)timeMap['오전(6-12시)']++;else if(h<18)timeMap['오후(12-18시)']++;else timeMap['저녁(18-24시)']++;}
+      // 발생 시각: r.date("YYYY-MM-DD HH:MM" 또는 "...THH:MM")에서 시(時) 추출 (r.time 필드는 존재하지 않음)
+      {const _tm=(r.date||'').match(/[ T](\d{1,2}):/);if(_tm){const h=parseInt(_tm[1],10);if(h<6)timeMap['새벽(0-6시)']++;else if(h<12)timeMap['오전(6-12시)']++;else if(h<18)timeMap['오후(12-18시)']++;else timeMap['저녁(18-24시)']++;}}
     });
     w.innerHTML=`
       ${expCard}
