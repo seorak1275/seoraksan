@@ -1518,7 +1518,7 @@ window.addEventListener('error',e=>{_logErr((e.message||'오류')+' @'+(e.filena
 window.addEventListener('unhandledrejection',e=>{_logErr('Promise: '+((e.reason&&e.reason.message)||e.reason||'거부'));});
 
 // ── 앱 버전 (배포 시 갱신) ──
-const APP_VER='v9.49 (2026.06.16)';
+const APP_VER='v9.50 (2026.06.16)';
 try{document.getElementById('appVerLabel').textContent='설악산 현장관리 '+APP_VER;}catch(e){}
 // ══════════════════════════════════════════
 // DB
@@ -4990,9 +4990,11 @@ function confirmTlBuild(){
 
 
 
-function _initTlMiniMap(wps){
+function _initTlMiniMap(wps,curPos){
   const el=document.getElementById('tlMiniMap');
   if(!el||!window._KR)return;
+  // 현위치: 인자 우선, 없으면 선택 팀의 curPos
+  if(!curPos){try{curPos=(_tlTeams[_tlSelTeam]||{}).curPos||null;}catch(e){}}
   const pts=wps.filter(w=>w.lat&&w.lng);
   if(!pts.length){el.innerHTML='<div style="text-align:center;font-size:10px;color:rgba(255,255,255,.25);padding:12px;">위치 좌표 없음</div>';return;}
   try{
@@ -5025,6 +5027,14 @@ function _initTlMiniMap(wps){
       content.innerHTML=`<div style="background:${bg};color:#fff;border-radius:12px;padding:2px 7px;font-size:9px;font-weight:700;white-space:nowrap;box-shadow:0 1px 4px rgba(0,0,0,.4);">${ico} ${w.code||w.name}</div>`;
       new kakao.maps.CustomOverlay({position:latlng,content,yAnchor:1.3}).setMap(map);
     });
+    // 실제 현위치 마커 (파란 펄스) — 사고지점과 별개로 팀의 GPS 위치
+    if(curPos&&curPos.lat&&curPos.lng){
+      const cll=new kakao.maps.LatLng(curPos.lat,curPos.lng);
+      bounds.extend(cll);
+      const cc=document.createElement('div');
+      cc.innerHTML=`<div style="position:relative;"><div style="width:16px;height:16px;border-radius:50%;background:#2d7dff;border:2.5px solid #fff;box-shadow:0 0 0 5px rgba(45,125,255,.3);"></div><div style="position:absolute;top:-22px;left:50%;transform:translateX(-50%);background:#2d7dff;color:#fff;border-radius:8px;padding:1px 7px;font-size:9px;font-weight:700;white-space:nowrap;">현위치</div></div>`;
+      new kakao.maps.CustomOverlay({position:cll,content:cc,yAnchor:.5,zIndex:10}).setMap(map);
+    }
     if(pts.length>1)map.setBounds(bounds,40);
   }catch(e){console.warn('tlMiniMap',e);}
 }
@@ -5150,7 +5160,7 @@ function _initTlTeams(r){
 }
 
 function _snapshotTeams(){
-  return _tlTeams.map(t=>({id:t.id,name:t.name,type:t.type,wpIdx:t.wpIdx,wps:(t.wps||[]).map(w=>({...w})),members:(t.members||[]).slice()}));
+  return _tlTeams.map(t=>({id:t.id,name:t.name,type:t.type,wpIdx:t.wpIdx,wps:(t.wps||[]).map(w=>({...w})),members:(t.members||[]).slice(),curPos:t.curPos||null}));
 }
 function _persistTeams(){
   if(!_tlWpResId)return;
@@ -5262,6 +5272,35 @@ function toggleGpsAuto(){
   const b=document.getElementById('gpsAutoBtn');
   if(b){b.textContent='📡 GPS 자동 통과 ON';b.style.background='rgba(39,174,96,.15)';b.style.color='#27ae60';b.style.borderColor='rgba(39,174,96,.45)';}
   toast('📡 GPS 자동 통과 켬 — 다음 표지판 60m 접근 시 알림 (화면을 켜둔 동안만 동작)');
+}
+// 팀의 실제 현재 위치를 GPS로 받아 미니맵에 표시하고, 가장 가까운 경로 지점으로
+// 진행도를 맞춘다. (사고지점/목표는 그대로 유지)
+function tlSetCurPos(idx){
+  const team=_tlTeams[idx];if(!team)return;
+  if(!navigator.geolocation){toast('⚠️ 이 기기는 GPS를 지원하지 않습니다');return;}
+  toast('📡 현재 위치 확인 중...');
+  navigator.geolocation.getCurrentPosition(function(pos){
+    const lat=pos.coords.latitude,lng=pos.coords.longitude;
+    team.curPos={lat:lat,lng:lng,at:now()};
+    // 좌표가 있는 지점 중 가장 가까운 곳 찾기
+    let nearest=-1,nd=Infinity;
+    team.wps.forEach(function(w,i){
+      if(!(w.lat&&w.lng))return;
+      const d=_haversineKm(lat,lng,w.lat,w.lng);
+      if(d<nd){nd=d;nearest=i;}
+    });
+    if(nearest>=0){
+      // 진행도 스냅: 이전=통과, 현재=활성, 이후=대기 (스킵은 유지)
+      team.wps.forEach(function(w,i){if(w.status!=='skipped')w.status=i<nearest?'passed':i===nearest?'active':'pending';});
+      team.wpIdx=nearest;
+      if(idx===_tlSelTeam){_tlWps=team.wps;_tlWpIdx=team.wpIdx;}
+    }
+    _persistTeams();
+    _rerenderTlFull();
+    if(team.wps.some(w=>w.lat&&w.lng))setTimeout(function(){_initTlMiniMap(team.wps,team.curPos);},120);
+    const nm=nearest>=0?(team.wps[nearest].code||team.wps[nearest].name||''):'';
+    toast('📍 '+team.name+' 현위치 갱신'+(nearest>=0?' — '+nm+' 부근 (약 '+Math.round(nd*1000)+'m)':''));
+  },function(){toast('⚠️ GPS 권한 거부 또는 수신 불가');},{enableHighAccuracy:true,timeout:15000,maximumAge:5000});
 }
 function _onGpsAutoFix(pos){
   if(!_gpsAutoOn)return;
@@ -5379,6 +5418,7 @@ function _compactRouteHtml(team,idx){
         ${_canReturn?`<button onclick="event.stopPropagation();tlReturnTeam(${idx})" style="flex:1;padding:11px;border-radius:8px;border:1px solid rgba(230,126,34,.35);background:rgba(230,126,34,.1);color:#e67e22;font-size:12px;font-weight:600;cursor:pointer;">↩️ 복귀</button>`:''}
       </div>`;
     })()}
+    <button onclick="event.stopPropagation();tlSetCurPos(${idx})" style="width:100%;padding:8px;border-radius:7px;border:1px solid rgba(45,125,255,.35);background:rgba(45,125,255,.1);color:#6aa8ff;font-size:11px;font-weight:700;cursor:pointer;margin-bottom:7px;">📍 GPS로 현위치 갱신${team.curPos?' <span style="font-size:9px;color:rgba(255,255,255,.4);font-weight:400;">('+team.curPos.at+')</span>':''}</button>
     ${showFull?`<div id="tlWpList_${idx}" style="max-height:230px;overflow-y:auto;border:1px solid rgba(255,255,255,.07);border-radius:8px;padding:6px 8px;margin-bottom:7px;">${team.wps.map((w,i)=>_wpItemHtmlTeam(w,i,team,idx)).join('')}</div>`:''}
     <button onclick="event.stopPropagation();_toggleTlFull(${idx})" style="width:100%;padding:6px;border-radius:7px;border:1px solid rgba(255,255,255,.08);background:transparent;color:rgba(255,255,255,.28);font-size:11px;cursor:pointer;">${showFull?'▲ 경로 접기':'▾ 전체 경로 ('+team.wps.length+'개)'}</button>`;
   return compact;
