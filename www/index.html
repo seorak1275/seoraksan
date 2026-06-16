@@ -798,7 +798,7 @@ body.hi-contrast .stat-lbl{color:rgba(255,255,255,.65)!important;}
   </div>
   <!-- 버전 + 동기화 상태 -->
   <div style="flex-shrink:0;text-align:center;padding:4px 0 2px;font-size:9px;color:rgba(255,255,255,.22);user-select:none;">
-    <span id="appVerLabel"></span><span id="syncBadge" style="display:none;margin-left:8px;color:#f0a500;cursor:pointer;">⏳ 동기화 대기 <span id="syncBadgeN">0</span>건 <span onclick="_flushSyncQueue()" style="font-size:10px;opacity:.7;">↻</span><span onclick="_clearSyncQueue()" style="font-size:10px;opacity:.55;margin-left:3px;" title="대기 항목 강제 삭제">✕</span></span>
+    <span id="appVerLabel"></span><span id="syncBadge" style="display:none;margin-left:8px;color:#f0a500;cursor:pointer;">⏳ 동기화 대기 <span id="syncBadgeN">0</span>건 <span onclick="_flushSyncQueue()" style="font-size:10px;opacity:.7;" title="지금 재시도">↻</span><span onclick="_showSyncQueueInfo()" style="font-size:10px;opacity:.7;margin-left:3px;" title="대기 항목 상세·원인 보기">ℹ️</span><span onclick="_clearSyncQueue()" style="font-size:10px;opacity:.55;margin-left:3px;" title="대기 항목 강제 삭제">✕</span></span>
   </div>
 </div>
 </div>
@@ -1516,7 +1516,7 @@ window.addEventListener('error',e=>{_logErr((e.message||'오류')+' @'+(e.filena
 window.addEventListener('unhandledrejection',e=>{_logErr('Promise: '+((e.reason&&e.reason.message)||e.reason||'거부'));});
 
 // ── 앱 버전 (배포 시 갱신) ──
-const APP_VER='v9.44 (2026.06.15)';
+const APP_VER='v9.45 (2026.06.16)';
 try{document.getElementById('appVerLabel').textContent='설악산 현장관리 '+APP_VER;}catch(e){}
 // ══════════════════════════════════════════
 // DB
@@ -1589,7 +1589,7 @@ function _flushSyncQueue(){
   if(!q.length){_updateSyncBadge();return;}
   _syncQFlushing=true;
   (async()=>{
-    let ok=0,dropped=0;
+    let ok=0;
     for(const it of q){
       try{
         if(it.doc!==undefined)await _fdb.collection('appData').doc(it.doc).set({d:it.json});
@@ -1597,28 +1597,34 @@ function _flushSyncQueue(){
         else await _fdb.collection(it.coll).doc(it.id).set(JSON.parse(it.json));
         _removeSyncItem(it);ok++;
       }catch(e){
-        // 영구 실패(권한 거부·1MB 초과·잘못된 데이터 등)는 재시도해도 성공 불가 → 폐기.
-        // 일시적(네트워크 등)이거나 판단 불가면 보존하되, 8회 초과 시 강제 폐기(무한 적체 방지).
+        // 데이터 신뢰성 최우선 — 실패해도 절대 폐기하지 않고 큐에 보존, 무한 재시도.
+        // 단 한 항목의 실패가 뒤 항목을 막지 않도록 break 대신 continue(head-of-line blocking 제거).
         const code=(e&&e.code)||'';
-        const permanent=/permission-denied|invalid-argument|not-found|unauthenticated|failed-precondition/.test(code);
-        const tries=(it._n||0)+1;
-        if(permanent||tries>=8){
-          console.warn('[syncQ] 동기화 불가로 폐기:',it.key,'code='+code,'tries='+tries,e&&e.message);
-          _removeSyncItem(it);dropped++;
-        }else{
-          // 시도 횟수만 누적 기록 후 다음 주기 재시도 (큐 맨 앞에서 막힘 → 중단)
-          const cur=_loadSyncQ();const ci=cur.findIndex(x=>x.key===it.key&&x.json===it.json);
-          if(ci>=0){cur[ci]=Object.assign({},cur[ci],{_n:tries});_saveSyncQ(cur);}
-          break;
-        }
+        console.warn('[syncQ] 저장 실패(보존·재시도 예정):',it.key,'code='+code,e&&e.message);
+        _markSyncFail(it,code,e&&e.message);
       }
     }
     _syncQFlushing=false;
-    if(!_loadSyncQ().length){
-      if(ok)try{toast('✅ 대기 변경 '+ok+'건 동기화 완료');}catch(e){}
-      else if(dropped)try{toast('⚠️ 동기화 불가 '+dropped+'건 폐기됨 (서버 거부)');}catch(e){}
-    }
+    if(ok&&!_loadSyncQ().length)try{toast('✅ 대기 변경 '+ok+'건 동기화 완료');}catch(e){}
   })();
+}
+// 실패 항목에 진단 정보 누적 (시도 횟수·마지막 에러) — 폐기는 하지 않음
+function _markSyncFail(it,code,msg){
+  const cur=_loadSyncQ();const ci=cur.findIndex(x=>x.key===it.key&&x.json===it.json);
+  if(ci>=0){cur[ci]=Object.assign({},cur[ci],{_n:(cur[ci]._n||0)+1,_err:code||'unknown',_errMsg:(msg||'').slice(0,140),_at:Date.now()});_saveSyncQ(cur);}
+}
+// 대기 항목 상세 — 무엇이/왜 안 되는지 사용자가 직접 확인
+function _showSyncQueueInfo(){
+  const q=_loadSyncQ();
+  if(!q.length){try{toast('대기 중인 변경 없음');}catch(e){}return;}
+  const lines=q.map(function(it,i){
+    var what=it.doc!==undefined?('문서 '+it.doc):((it.op==='del'?'삭제 ':'저장 ')+it.coll+'/'+it.id);
+    var sz=it.json?(' ~'+Math.round(it.json.length/1024)+'KB'):'';
+    var tries=it._n?(' · 시도 '+it._n+'회'):'';
+    var err=it._err?('\n   사유: '+it._err+(it._errMsg?(' — '+it._errMsg):'')):'';
+    return (i+1)+'. '+what+sz+tries+err;
+  });
+  alert('서버에 아직 저장되지 못한 변경 '+q.length+'건:\n\n'+lines.join('\n\n')+'\n\n※ 자동으로 계속 재시도하며, 데이터는 이 기기에 안전하게 보존됩니다.\n※ 1000KB(1MB) 이상이면 Firestore 문서 한계로 저장 불가 — 사진을 줄여야 합니다.');
 }
 function _clearSyncQueue(){
   if(!confirm('서버에 아직 전송되지 않은 변경 '+_loadSyncQ().length+'건을 삭제하시겠습니까?\n(이미 저장된 데이터는 영향 없음)'))return;
