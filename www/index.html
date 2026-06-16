@@ -1260,6 +1260,14 @@ body.hi-contrast .stat-lbl{color:rgba(255,255,255,.65)!important;}
         <div class="pill" onclick="sPill(this,'hazStatusPills')">통제중</div>
       </div>
     </div>
+    <!-- 산불 전용: 응소 요청 -->
+    <div id="hazFireMobilizeWrap" style="display:none;background:rgba(231,76,60,.08);border:1px solid rgba(231,76,60,.25);border-radius:8px;padding:10px 11px;margin-bottom:12px;">
+      <div class="rsec-t" style="font-size:11px;color:#e74c3c;font-weight:700;margin-bottom:6px;">🚨 산불 응소 요청</div>
+      <div class="pills" id="hazMobilizePills">
+        <div class="pill" onclick="tPill(this)">🚨 재난과 응소</div>
+        <div class="pill" onclick="tPill(this)">👥 전직원 응소</div>
+      </div>
+    </div>
     <!-- 산불 전용: 타임라인 -->
     <div id="hazFireTimelineWrap" style="display:none;">
       <div class="rsec-t" style="font-size:11px;color:#c0392b;font-weight:700;margin-bottom:6px;">🔥 산불 진행 타임라인</div>
@@ -1519,7 +1527,7 @@ window.addEventListener('error',e=>{_logErr((e.message||'오류')+' @'+(e.filena
 window.addEventListener('unhandledrejection',e=>{_logErr('Promise: '+((e.reason&&e.reason.message)||e.reason||'거부'));});
 
 // ── 앱 버전 (배포 시 갱신) ──
-const APP_VER='v9.51 (2026.06.16)';
+const APP_VER='v9.52 (2026.06.16)';
 try{document.getElementById('appVerLabel').textContent='설악산 현장관리 '+APP_VER;}catch(e){}
 // ══════════════════════════════════════════
 // DB
@@ -3398,6 +3406,12 @@ function getHwandonghaTeam(){
   return [2,3,1][((dayDiff%3)+3)%3];
 }
 
+// 야간(18시~익일9시) 시간대 여부 — 구조출동 응소 선택 UI 노출 기준
+function _isOffHours(){
+  const h=new Date().getHours();
+  return h>=18||h<9;
+}
+
 // 유관기관 데이터 수집
 function getAgencies(){
   return {
@@ -4316,7 +4330,7 @@ function renderResList(){
       const hasCoord=!!(r.lat&&r.lng);
       return `<div class="lcard" onclick="openResListDetail(${r.id})" style="position:relative;">
         <div class="lico" style="background:${isOg?ti.color:'#1a3a1a'};border:none;color:#fff;">${ti.ico}</div>
-        <div class="linfo"><div class="lname">🚨 ${r.title}${r.extAgency?` <span style="font-size:9px;background:rgba(255,120,30,.18);color:#f08050;border:1px solid rgba(255,120,30,.35);border-radius:9px;padding:1px 6px;font-weight:700;vertical-align:middle;">🚒 ${r.extAgency}</span>`:''}</div>
+        <div class="linfo"><div class="lname">🚨 ${r.title}${r.extAgency?` <span style="font-size:9px;background:rgba(255,120,30,.18);color:#f08050;border:1px solid rgba(255,120,30,.35);border-radius:9px;padding:1px 6px;font-weight:700;vertical-align:middle;">🚒 ${r.extAgency}</span>`:''}${(r.mobilize&&r.mobilize.length)?` <span style="font-size:9px;background:rgba(231,76,60,.18);color:#e74c3c;border:1px solid rgba(231,76,60,.4);border-radius:9px;padding:1px 6px;font-weight:700;vertical-align:middle;">🚨 ${r.mobilize.join('·')}</span>`:''}</div>
           <div class="lmeta">${r.type} · ${r.date}</div>
           <div class="lmeta">작성: ${r.author||'-'} · ${totalPh}보 기록 · 사고자: ${r.vName||'미상'}</div>
           ${hasCoord?`<button onclick="event.stopPropagation();viewOnMap(${r.lat},${r.lng})" style="margin-top:5px;padding:4px 10px;background:rgba(79,168,208,.12);border:1px solid rgba(79,168,208,.35);color:#4fa8d0;border-radius:7px;font-size:11px;font-weight:600;cursor:pointer;">🗺️ 지도보기</button>`:''}
@@ -4333,7 +4347,7 @@ function renderResList(){
         <div style="display:flex;align-items:center;gap:10px;">
           <div style="font-size:22px;">${h.hazType?.split(' ')[0]||'⚠️'}</div>
           <div style="flex:1;min-width:0;">
-            <div style="font-size:13px;color:#e0edf8;font-weight:600;">${h.hazType||'위험상황'} · ${h.loc||'-'}</div>
+            <div style="font-size:13px;color:#e0edf8;font-weight:600;">${h.hazType||'위험상황'} · ${h.loc||'-'}${(h.mobilize&&h.mobilize.length)?` <span style="font-size:9px;background:rgba(231,76,60,.18);color:#e74c3c;border:1px solid rgba(231,76,60,.4);border-radius:9px;padding:1px 6px;font-weight:700;vertical-align:middle;">🚨 ${h.mobilize.join('·')}</span>`:''}</div>
             <div style="font-size:10px;color:rgba(255,255,255,.32);margin-top:2px;">${h.dt||'-'} · ${h.danger||'-'} · ${h.author||'-'}</div>
             <div style="font-size:11px;color:#7a9cb8;margin-top:2px;">${(h.desc||'').slice(0,40)}${(h.desc||'').length>40?'...':''}</div>
             ${hasCoord?`<button onclick="event.stopPropagation();viewOnMap(${h.lat},${h.lng})" style="margin-top:5px;padding:4px 10px;background:rgba(230,126,34,.12);border:1px solid rgba(230,126,34,.35);color:#e67e22;border-radius:7px;font-size:11px;font-weight:600;cursor:pointer;">🗺️ 지도보기</button>`:''}
@@ -4632,6 +4646,7 @@ function openResPopup(id,type='rescue'){
       row('⚡',!_skip(d.cause)?d.cause:''),
       row('🦵',_arr(d.injuryParts).join(', ')),
       row('🚑',_arr(d.rescueMethod).join(', ')),
+      row('🚨',_arr(d.mobilize).length?'응소: '+_arr(d.mobilize).join(', '):''),
       row('🏥',!_skip(d.hospital)&&d.hospital!=='미정'?d.hospital:''),
       row('🍺',!_skip(d.alcohol)&&d.alcohol!=='알수없음'?'음주: '+d.alcohol:''),
     ].filter(Boolean).join('');
@@ -4655,6 +4670,7 @@ function openResPopup(id,type='rescue'){
       row('📍',!_skip(d.loc)?d.loc:''),
       row('⚠️',!_skip(d.danger)?d.danger:''),
       row('📋',!_skip(d.hazStatus)?d.hazStatus:''),
+      row('🚨',(d.mobilize&&d.mobilize.length)?'응소: '+d.mobilize.join(', '):''),
       row('👤',!_skip(d.author)?d.author:''),
     ].filter(Boolean).join('')||'<div style="color:#4a7090;font-size:11px;">상세 정보 없음</div>';
     document.getElementById('btnViewRep').style.display='none';
@@ -5656,6 +5672,7 @@ function renderTimeline(r,viewMode,outId){
     if(_ok(r.severity))rows.push(_row('중증도',r.severity));
     const inj=_okA(r.injuryParts);if(inj.length)rows.push(_row('부상',inj.join(', ')));
     const rm=_okA(r.rescueMethod);if(rm.length)rows.push(_row('구조',rm.join(', ')));
+    const mob=_okA(r.mobilize);if(mob.length)rows.push(_row('응소',mob.join(', ')));
     if(_ok(r.cause))rows.push(_row('원인',r.cause));
     if(_ok(r.alcohol)&&r.alcohol!=='알수없음')rows.push(_row('음주',r.alcohol));
     if(_ok(r.situation))rows.push(_row('경위',r.situation));
@@ -6038,6 +6055,13 @@ function render1BoForm(prefill=null){
       <div id="aiScanStatus" style="display:none;font-size:10px;color:#7a9cb8;margin-top:6px;padding:0 4px;line-height:1.6;"></div>
     </div>
 
+    ${(!isNbo&&_isOffHours())?`<div id="mobilizeWrap" style="background:rgba(231,76,60,.08);border-bottom:1px solid rgba(231,76,60,.25);padding:10px 13px;flex-shrink:0;">
+      <div style="font-size:11px;color:#e74c3c;font-weight:700;margin-bottom:6px;">🌙 야간 출동(18~09시) — 응소 여부 선택</div>
+      <div class="pills" id="mobilizePills">
+        ${['특구대','재난과','전직원응소'].map(o=>`<div class="pill${(p.mobilize||[]).includes(o)?' on':''}" onclick="tPill(this)">${o}</div>`).join('')}
+      </div>
+    </div>`:''}
+
     <div style="display:flex;background:#040a16;border-bottom:1px solid rgba(255,255,255,.06);overflow-x:auto;scrollbar-width:none;flex-shrink:0;">
       ${tabs.map((t,i)=>`<div class="rep-tab${i===0?' rep-tab-on':''}" onclick="switchRepTab('${t.id}',this)"
         style="flex:1;min-width:52px;padding:8px 3px;text-align:center;font-size:10px;cursor:pointer;
@@ -6401,6 +6425,7 @@ function submit1Bo(){
     injuryPhoto:_photoUrl('prevInj'),
     transPhoto:_photoUrl('prevTrans'),
     timetable: sortTTByTime(_ttInlineEntries||[]),
+    mobilize:getSelPills('mobilizePills'),
     status:'ongoing', reports:[],
   };
   // 등록 폼 타임라인에서 만든 팀이 있으면 새 구조 레코드로 이관
@@ -6415,8 +6440,9 @@ function submit1Bo(){
   _registerPendingPhoto('prevInj',{key:'rescues',id:r.id,field:'injuryPhoto'});
   _registerPendingPhoto('prevTrans',{key:'rescues',id:r.id,field:'transPhoto'});
   pushNoti('🚨 구조 1보: '+title+' ('+r.type+')',RES_TYPES[r.type]?.ico||'🚨',r.type,{app:'rescue',tab:2,id:r.id},'안전사고');
+  if(r.mobilize&&r.mobilize.length)pushNoti('🚨 야간 응소 요청: '+r.mobilize.join(', ')+' — '+title,'🚨',r.type,{app:'rescue',tab:2,id:r.id},'안전사고');
   syncToSheets('rescue',{id:r.id,title,type:r.type,date:r.date,author:r.author});
-  toast('🚨 1보 등록 완료');
+  toast('🚨 1보 등록 완료'+(r.mobilize&&r.mobilize.length?' · 응소: '+r.mobilize.join(', '):''));
   // 저장 즉시 고도화 타임라인으로 이동
   selResId=r.id;curResId=r.id;
   document.getElementById('bnav').style.display='none';
@@ -6438,6 +6464,7 @@ let _hazFireTL=[];
 function chkHazType(txt){
   const isFire=txt.includes('산불');
   document.getElementById('hazFireTimelineWrap').style.display=isFire?'block':'none';
+  document.getElementById('hazFireMobilizeWrap').style.display=isFire?'block':'none';
   if(isFire){
     const el=document.getElementById('hazFireTLTime');
     if(el)el.value=new Date().toISOString().slice(0,16);
@@ -6478,7 +6505,8 @@ function openNewHazard(){
   document.getElementById('hz_desc').value='';const _ha=document.getElementById('hz_author');_ha.value=getAuthor();_ha.disabled=true;
   document.getElementById('prevHaz').innerHTML='📸 현장 사진';
   document.getElementById('hazFireTimelineWrap').style.display='none';
-  ['hazTypePills','hazDangerPills','hazStatusPills','hazOnSitePills','hazResponsePills'].forEach(id=>{document.querySelectorAll(`#${id} .pill`).forEach(p=>p.classList.remove('on'));});
+  document.getElementById('hazFireMobilizeWrap').style.display='none';
+  ['hazTypePills','hazDangerPills','hazStatusPills','hazOnSitePills','hazResponsePills','hazMobilizePills'].forEach(id=>{document.querySelectorAll(`#${id} .pill`).forEach(p=>p.classList.remove('on'));});
   document.querySelector('#hazStatusPills .pill').classList.add('on');
   renderHazFireTL();
   document.getElementById('modalHazard').classList.add('on');
@@ -6499,11 +6527,13 @@ function submitHazard(){
     author:document.getElementById('hz_author').value,
     photo:_photoUrl('prevHaz'),
     fireTL:type.includes('산불')?[..._hazFireTL]:[],
+    mobilize:type.includes('산불')?getSelPills('hazMobilizePills'):[],
   };
   const haz=DB.g('hazards')||[];haz.push(h);DB.s('hazards',haz);
   _registerPendingPhoto('prevHaz',{key:'hazards',id:h.id,field:'photo'});
   pushNoti(`⚠️ 위험상황: ${type} · ${h.loc||'-'}`,'⚠️','낙석',{app:'rescue',tab:2});
-  closeM('modalHazard');try{renderRescueMap();}catch(e){}toast('⚠️ 위험상황 등록');updateSummary();
+  if(h.mobilize&&h.mobilize.length)pushNoti(`🚨 산불 응소 요청: ${h.mobilize.join(', ')} — ${h.loc||'-'}`,'🚨','화재',{app:'rescue',tab:2});
+  closeM('modalHazard');try{renderRescueMap();}catch(e){}toast('⚠️ 위험상황 등록'+(h.mobilize&&h.mobilize.length?' · 응소: '+h.mobilize.join(', '):''));updateSummary();
 }
 
 // ══════════════════════════════════════════
