@@ -1541,7 +1541,7 @@ window.addEventListener('error',e=>{_logErr((e.message||'오류')+' @'+(e.filena
 window.addEventListener('unhandledrejection',e=>{_logErr('Promise: '+((e.reason&&e.reason.message)||e.reason||'거부'));});
 
 // ── 앱 버전 (배포 시 갱신) ──
-const APP_VER='v9.61 (2026.06.17)';
+const APP_VER='v9.62 (2026.06.17)';
 try{document.getElementById('appVerLabel').textContent='설악산 현장관리 '+APP_VER;}catch(e){}
 // ══════════════════════════════════════════
 // DB
@@ -1957,6 +1957,7 @@ const pad=n=>String(n).padStart(2,'0');
 // 생년월일(YYYY...) → 만 나이(연도 기준). 값 없으면 '' 반환
 function _ageFromBirth(b){return b?(new Date().getFullYear()-parseInt(String(b).slice(0,4))):'';}
 function now(){const d=new Date();return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate())+' '+pad(d.getHours())+':'+pad(d.getMinutes());}
+function _debounce(fn,ms){let t;return function(...a){clearTimeout(t);t=setTimeout(()=>fn.apply(this,a),ms);};}
 // '2026-06-12 14:30' → '2시간 13분 경과' (골든타임 표시용)
 function _elapsedStr(dateStr){
   try{
@@ -3324,7 +3325,7 @@ function gpsToFormMap(){
     toast(err.code===1?'⚠️ 위치 권한 거부됨':'⚠️ GPS 신호 없음');
   },{enableHighAccuracy:true,timeout:15000,maximumAge:0});
 }
-function syncFormMapFromInput(){
+const syncFormMapFromInput=_debounce(function(){
   const v=(document.getElementById('r_gps')?.value||'').split(',');
   if(v.length===2){
     const lat=parseFloat(v[0]),lng=parseFloat(v[1]);
@@ -3334,7 +3335,7 @@ function syncFormMapFromInput(){
       _updateFormMiniMap(lat,lng);
     }
   }
-}
+},400);
 function _autoFillLoc(lat,lng){
   var el=document.getElementById('r_loc');
   if(!el)return;
@@ -4429,11 +4430,12 @@ function setResListTab(tab){
   renderResList();
 }
 let _resSearchQ='';
+const _renderResListDebounced=_debounce(()=>renderResList(),250);
 function onResSearch(v){
   _resSearchQ=(v||'').trim().toLowerCase();
   const clr=document.getElementById('resSearchClear');
   if(clr)clr.style.display=_resSearchQ?'block':'none';
-  renderResList();
+  _renderResListDebounced();
 }
 function clearResSearch(){
   _resSearchQ='';
@@ -7295,7 +7297,8 @@ function submitAddFac(){
 // 위키
 // ══════════════════════════════════════════
 let _editWikiId=null,_selCats=new Set();
-function onWikiSearch(val){renderWikiList(val);if(val&&val.length>=2)logHS(val);}
+const _logHSDebounced=_debounce(v=>logHS(v),500);
+function onWikiSearch(val){renderWikiList(val);if(val&&val.length>=2)_logHSDebounced(val);}
 function logHS(q){
   const hs=DB.g('hotSearch')||{};const k=q.trim();if(!hs[k])hs[k]=[];
   const cutoff=Date.now()-86400000;hs[k]=hs[k].filter(t=>t>cutoff);hs[k].push(Date.now());
@@ -8466,8 +8469,9 @@ function _renderWeatherDetailOM(cache){
   }
   document.getElementById('weatherDetailBody').innerHTML=html;
 }
-// ── 날씨 30분마다 자동 갱신 ──────────────────────
+// ── 날씨 30분마다 자동 갱신 (백그라운드 시 정지) ──
 setInterval(function(){
+  if(document.hidden)return;
   _weatherFetched=false;_wDetailCache=null;fetchWeather();
 },30*60*1000);
 
