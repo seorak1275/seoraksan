@@ -1537,7 +1537,7 @@ window.addEventListener('error',e=>{_logErr((e.message||'오류')+' @'+(e.filena
 window.addEventListener('unhandledrejection',e=>{_logErr('Promise: '+((e.reason&&e.reason.message)||e.reason||'거부'));});
 
 // ── 앱 버전 (배포 시 갱신) ──
-const APP_VER='v9.58 (2026.06.17)';
+const APP_VER='v9.59 (2026.06.17)';
 try{document.getElementById('appVerLabel').textContent='설악산 현장관리 '+APP_VER;}catch(e){}
 // ══════════════════════════════════════════
 // DB
@@ -1950,6 +1950,8 @@ function initDB(){
 // 유틸
 // ══════════════════════════════════════════
 const pad=n=>String(n).padStart(2,'0');
+// 생년월일(YYYY...) → 만 나이(연도 기준). 값 없으면 '' 반환
+function _ageFromBirth(b){return b?(new Date().getFullYear()-parseInt(String(b).slice(0,4))):'';}
 function now(){const d=new Date();return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate())+' '+pad(d.getHours())+':'+pad(d.getMinutes());}
 // '2026-06-12 14:30' → '2시간 13분 경과' (골든타임 표시용)
 function _elapsedStr(dateStr){
@@ -2101,6 +2103,8 @@ function getAuthor(){const u=DB.g('currentUser')||{};return u.name||'미지정';
 function getSelPills(id){return [...document.querySelectorAll(`#${id} .pill.on`)].map(p=>p.textContent);}
 function tPill(el){el.classList.toggle('on');}
 function sPill(el,wrId){document.querySelectorAll(`#${wrId} .pill`).forEach(p=>p.classList.remove('on'));el.classList.add('on');}
+// 여러 핀 그룹의 선택(.on) 일괄 해제
+function _resetPills(...ids){ids.forEach(id=>document.querySelectorAll(`#${id} .pill`).forEach(p=>p.classList.remove('on')));}
 function chkIllegal(sel){
   document.getElementById('fineWrap').style.display=sel.value.includes('비법정')?'block':'none';
   const pw=document.getElementById('permitWrap');
@@ -4587,7 +4591,7 @@ function renderRescueStats(){
       if(r.vGender)genderMap[r.vGender]=(genderMap[r.vGender]||0)+1;
       if(r.loctype)loctypeMap[r.loctype]=(loctypeMap[r.loctype]||0)+1;
       if(r.weather)weatherMap[r.weather]=(weatherMap[r.weather]||0)+1;
-      if(r.vBirth){const age=new Date().getFullYear()-parseInt(r.vBirth.slice(0,4));const ag=age<20?'10대 이하':age<30?'20대':age<40?'30대':age<50?'40대':age<60?'50대':age<70?'60대':'70대+';ageMap[ag]=(ageMap[ag]||0)+1;}
+      if(r.vBirth){const age=_ageFromBirth(r.vBirth);const ag=age<20?'10대 이하':age<30?'20대':age<40?'30대':age<50?'40대':age<60?'50대':age<70?'60대':'70대+';ageMap[ag]=(ageMap[ag]||0)+1;}
       // 발생 시각: r.date("YYYY-MM-DD HH:MM" 또는 "...THH:MM")에서 시(時) 추출 (r.time 필드는 존재하지 않음)
       {const _tm=(r.date||'').match(/[ T](\d{1,2}):/);if(_tm){const h=parseInt(_tm[1],10);if(h<6)timeMap['새벽(0-6시)']++;else if(h<12)timeMap['오전(6-12시)']++;else if(h<18)timeMap['오후(12-18시)']++;else timeMap['저녁(18-24시)']++;}}
     });
@@ -4815,7 +4819,7 @@ function openResPopup(id,type='rescue'){
       row('📅',d.date),
       row('📍',[d.location,d.loctype].filter(x=>!_skip(x)).join(' · ')||''),
       row('🌤',(!_skip(d.weather)?d.weather:'')+(!_skip(d.weatherAlert)?' '+d.weatherAlert:'')||''),
-      row('👤',[!_skip(d.vName)?d.vName:'',(!_skip(d.vBirth)?new Date().getFullYear()-parseInt(d.vBirth.slice(0,4))+'세':''),(!_skip(d.vGender)&&d.vGender!=='알수없음'?d.vGender:''),(!_skip(d.vNation)&&d.vNation!=='알수없음'?d.vNation:'')].filter(Boolean).join(' · ')||''),
+      row('👤',[!_skip(d.vName)?d.vName:'',(!_skip(d.vBirth)?_ageFromBirth(d.vBirth)+'세':''),(!_skip(d.vGender)&&d.vGender!=='알수없음'?d.vGender:''),(!_skip(d.vNation)&&d.vNation!=='알수없음'?d.vNation:'')].filter(Boolean).join(' · ')||''),
       row('🩺',!_skip(d.severity)?d.severity:''),
       row('👥',(d.victims2&&d.victims2.length)?('추가 사고자 '+d.victims2.length+'명: '+_victims2Str(d.victims2)):''),
       row('⚡',!_skip(d.cause)?d.cause:''),
@@ -5469,6 +5473,14 @@ function toggleGpsAuto(){
   if(b){b.textContent='📡 GPS 자동 통과 ON';b.style.background='rgba(39,174,96,.15)';b.style.color='#27ae60';b.style.borderColor='rgba(39,174,96,.45)';}
   toast('📡 GPS 자동 통과 켬 — 다음 표지판 60m 접근 시 알림 (화면을 켜둔 동안만 동작)');
 }
+// 백그라운드(화면 꺼짐·앱 전환) 시 GPS 연속수신 일시정지 → 배터리 절약, 복귀 시 자동 재개
+document.addEventListener('visibilitychange',function(){
+  if(document.hidden){
+    if(_gpsAutoOn&&_gpsWatchId!=null){try{navigator.geolocation.clearWatch(_gpsWatchId);}catch(e){}_gpsWatchId=null;}
+  }else if(_gpsAutoOn&&_gpsWatchId==null&&navigator.geolocation){
+    _gpsWatchId=navigator.geolocation.watchPosition(_onGpsAutoFix,()=>{},{enableHighAccuracy:true,maximumAge:5000,timeout:20000});
+  }
+});
 // 팀의 실제 현재 위치를 GPS로 받아 미니맵에 표시하고, 가장 가까운 경로 지점으로
 // 진행도를 맞춘다. (사고지점/목표는 그대로 유지)
 function tlSetCurPos(idx){
@@ -5845,7 +5857,7 @@ function renderTimeline(r,viewMode,outId){
     if(_ok(r.location))rows.push(_row('위치',r.location+(_ok(r.loctype)?' · '+r.loctype:'')));
     const wx=[_ok(r.weather)?r.weather:'',_ok(r.weatherAlert)?r.weatherAlert:''].filter(Boolean).join(' ');
     if(wx)rows.push(_row('기상',wx));
-    const vp=[_ok(r.vName)?r.vName:'',_ok(r.vBirth)?new Date().getFullYear()-parseInt((r.vBirth||'').slice(0,4))+'세':'',_ok(r.vGender)&&r.vGender!=='알수없음'?r.vGender:'',_ok(r.vNation)&&r.vNation!=='알수없음'?r.vNation:''].filter(Boolean);
+    const vp=[_ok(r.vName)?r.vName:'',_ok(r.vBirth)?_ageFromBirth(r.vBirth)+'세':'',_ok(r.vGender)&&r.vGender!=='알수없음'?r.vGender:'',_ok(r.vNation)&&r.vNation!=='알수없음'?r.vNation:''].filter(Boolean);
     if(vp.length)rows.push(_row('사고자',vp.join(' · ')+((r.victims2&&r.victims2.length)?` <span style="color:#e9897e;font-weight:700;">외 ${r.victims2.length}명</span>`:'')));
     if(r.victims2&&r.victims2.length)rows.push(_row('추가자',r.victims2.map(v=>[v.name||'미상',v.gender&&v.gender!=='알수없음'?v.gender:'',v.age?v.age+'세':'',v.severity,v.note].filter(Boolean).join(' · ')).join('<br>')));
     if(_ok(r.vTel))rows.push(_row('연락처',r.vTel));
@@ -6197,7 +6209,7 @@ function _buildReportText(r){
   if(_ok(r.lat)&&_ok(r.lng))L.push('좌표: '+(+r.lat).toFixed(5)+', '+(+r.lng).toFixed(5));
   const wx=[_ok(r.weather)?r.weather:'',_ok(r.weatherAlert)?r.weatherAlert:''].filter(Boolean).join(' ');
   if(wx)L.push('기상: '+wx);
-  const vp=[_ok(r.vName)?r.vName:'',_ok(r.vBirth)?(new Date().getFullYear()-parseInt((r.vBirth||'').slice(0,4)))+'세':'',_ok(r.vGender)&&r.vGender!=='알수없음'?r.vGender:'',_ok(r.vNation)&&r.vNation!=='알수없음'?r.vNation:''].filter(Boolean);
+  const vp=[_ok(r.vName)?r.vName:'',_ok(r.vBirth)?_ageFromBirth(r.vBirth)+'세':'',_ok(r.vGender)&&r.vGender!=='알수없음'?r.vGender:'',_ok(r.vNation)&&r.vNation!=='알수없음'?r.vNation:''].filter(Boolean);
   if(vp.length)L.push('사고자: '+vp.join(' · ')+((r.victims2&&r.victims2.length)?' 외 '+r.victims2.length+'명':''));
   if(r.victims2&&r.victims2.length){r.victims2.forEach((v,i)=>L.push('  추가자'+(i+1)+': '+[v.name||'미상',v.gender&&v.gender!=='알수없음'?v.gender:'',v.age?v.age+'세':'',v.severity,v.note].filter(Boolean).join(' · ')));}
   if(_ok(r.vTel))L.push('연락처: '+r.vTel);
@@ -6818,7 +6830,7 @@ function openNewHazard(){
   document.getElementById('prevHaz').innerHTML='📸 현장 사진';
   document.getElementById('hazFireTimelineWrap').style.display='none';
   document.getElementById('hazFireMobilizeWrap').style.display='none';
-  ['hazTypePills','hazDangerPills','hazStatusPills','hazOnSitePills','hazResponsePills','hazMobilizePills'].forEach(id=>{document.querySelectorAll(`#${id} .pill`).forEach(p=>p.classList.remove('on'));});
+  _resetPills('hazTypePills','hazDangerPills','hazStatusPills','hazOnSitePills','hazResponsePills','hazMobilizePills');
   document.querySelector('#hazStatusPills .pill').classList.add('on');
   renderHazFireTL();
   document.getElementById('modalHazard').classList.add('on');
@@ -7756,7 +7768,7 @@ function renderAdmSys(){
         <button onclick="exportAllData()" style="width:100%;background:rgba(39,174,96,.12);color:#5dbf8a;border:1px solid rgba(39,174,96,.3);padding:10px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;">📤 JSON 내보내기 (백업)</button>
         <label style="width:100%;background:rgba(79,168,208,.1);color:#4fa8d0;border:1px solid rgba(79,168,208,.28);padding:10px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;text-align:center;display:block;">
           📥 JSON 가져오기 (복원)
-          <input type="file" accept=".json" style="display:none;" onchange="importAllData(this.files[0]);this.value=''">
+          <input type="file" accept=".json" style="display:none;" onchange="importAllData(this)">
         </label>
         <button onclick="forceSyncFirestore()" style="width:100%;background:rgba(255,165,0,.1);color:#f0a020;border:1px solid rgba(255,165,0,.28);padding:10px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;">🔄 Firebase 강제 동기화</button>
         <button onclick="fixMisclassifiedTemples()" style="width:100%;background:rgba(79,168,208,.1);color:#4fa8d0;border:1px solid rgba(79,168,208,.28);padding:10px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;">🪧 암지형 오분류 복구 (귀면암 등)</button>
@@ -7811,38 +7823,8 @@ function _checkDeletedUser(){
 function resetAll(){if(!confirm('모든 데이터 초기화. 되돌릴 수 없습니다.'))return;['members','catFac','wikiCats','facilities','rescues','hazards','history','wikis','notis','hotSearch','notiSetting','currentUser','sheetsUrl'].forEach(k=>DB.d(k));initDB();toast('✅ 초기화');renderAdmSys();updateSummary();}
 function clearNotisOnly(){DB.s('notis',[]);updateBell();toast('🗑️ 알림 이력 삭제');renderAdmSys();}
 
-function exportAllData(){
-  const keys=['facilities','wikis','history','catFac','catFacMeta','wikiCats','members','rescues','hazards'];
-  const out={_exported:new Date().toISOString(),_version:'v8'};
-  keys.forEach(k=>{const v=DB.g(k);if(v)out[k]=v;});
-  const blob=new Blob([JSON.stringify(out,null,2)],{type:'application/json'});
-  const a=document.createElement('a');
-  a.href=URL.createObjectURL(blob);
-  a.download='seoraksan_backup_'+new Date().toISOString().slice(0,10)+'.json';
-  document.body.appendChild(a);a.click();document.body.removeChild(a);
-  URL.revokeObjectURL(a.href);
-  toast('✅ 내보내기 완료 — 다운로드 파일을 보관하세요');
-}
-
-function importAllData(file){
-  if(!file)return;
-  const reader=new FileReader();
-  reader.onload=function(e){
-    try{
-      const data=JSON.parse(e.target.result);
-      const importable=['facilities','wikis','history','catFac','catFacMeta','wikiCats','members'];
-      const found=importable.filter(k=>data[k]!==undefined);
-      if(!found.length){toast('⚠️ 유효한 백업 파일이 아닙니다');return;}
-      if(!confirm('백업 파일에서 '+found.join(', ')+' 데이터를 복원합니다.\n현재 데이터를 덮어씁니다. 계속하시겠습니까?'))return;
-      found.forEach(k=>DB.s(k,data[k]));
-      renderAdmSys();updateSummary();
-      try{renderFacList();renderInspectMap();}catch(ex){}
-      try{renderWikiList('');}catch(ex){}
-      toast('✅ 복원 완료 — '+found.length+'개 항목');
-    }catch(ex){toast('⚠️ 파일 읽기 오류: '+ex.message);}
-  };
-  reader.readAsText(file);
-}
+// (구버전 exportAllData/importAllData 중복 정의 제거 — 권한 데이터 누락·복원버튼 버그 유발.
+//  더 완전한 상단 정의(_BACKUP_KEYS 기반, app 마커·검증·이중확인)로 일원화)
 
 function forceSyncFirestore(){
   if(!_fdb){toast('⚠️ Firebase 미연결 — 인터넷 연결 확인');return;}
@@ -8542,7 +8524,6 @@ function updateSummary(){
   sd('hdW',`문서 ${(DB.g('wikis')||[]).length}건`,'');
   updateBell();
 }
-const pad2=n=>String(n).padStart(2,'0');
 // ══════════════════════════════════════════
 // 전체 통계 (일반직원도 열람 가능)
 // ══════════════════════════════════════════
