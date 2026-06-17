@@ -1541,7 +1541,7 @@ window.addEventListener('error',e=>{_logErr((e.message||'오류')+' @'+(e.filena
 window.addEventListener('unhandledrejection',e=>{_logErr('Promise: '+((e.reason&&e.reason.message)||e.reason||'거부'));});
 
 // ── 앱 버전 (배포 시 갱신) ──
-const APP_VER='v9.60 (2026.06.17)';
+const APP_VER='v9.61 (2026.06.17)';
 try{document.getElementById('appVerLabel').textContent='설악산 현장관리 '+APP_VER;}catch(e){}
 // ══════════════════════════════════════════
 // DB
@@ -5868,7 +5868,7 @@ function renderTimeline(r,viewMode,outId){
     if(_ok(r.severity))rows.push(_row('중증도',r.severity));
     // 활력징후 추이: 1보 + 각 보고의 vitals 수집
     {const vseq=[];if(r.vitals&&_vitalsStr(r.vitals))vseq.push(r.vitals);(r.reports||[]).forEach(p=>{if(p.vitals&&_vitalsStr(p.vitals))vseq.push(p.vitals);});
-     if(vseq.length){const vhtml=vseq.map(v=>`<div style="font-size:10px;color:#9bbdd4;line-height:1.6;"><span style="color:#4a7090;">${(v.at||'').slice(11)||'-'}</span> ${_vitalsStr(v)}</div>`).join('');rows.push(_row('활력',vhtml));}}
+     if(vseq.length){const vhtml=vseq.map(v=>`<div style="font-size:10px;color:#9bbdd4;line-height:1.6;"><span style="color:#4a7090;">${(v.at||'').slice(5,16)||'-'}</span> ${_vitalsStr(v)}</div>`).join('');rows.push(_row('활력',vhtml));}}
     const inj=_okA(r.injuryParts);if(inj.length)rows.push(_row('부상',inj.join(', ')));
     const rm=_okA(r.rescueMethod);if(rm.length)rows.push(_row('구조',rm.join(', ')));
     const mob=_okA(r.mobilize);if(mob.length)rows.push(_row('응소',mob.join(', ')));
@@ -5878,8 +5878,8 @@ function renderTimeline(r,viewMode,outId){
     if(_ok(r.hospital)&&r.hospital!=='미정')rows.push(_row('이송',r.hospital));
     if(r.handover&&r.handover.to)rows.push(_row('인계',r.handover.to+(r.handover.time?' · '+r.handover.time.slice(11):'')+(r.handover.by?' ('+r.handover.by+')':'')));
     if(_ok(r.extra))rows.push(_row('특이',r.extra));
-    const updates=(r.reports||[]).filter(p=>p.update||(p.victimChange&&p.victimChange!=='변화없음')||p.addMem||p.extra);
-    const updHtml=updates.length?`<div style="margin-top:7px;padding-top:7px;border-top:.5px solid rgba(255,255,255,.08);">${updates.map(p=>{const pts=[];if(p.update)pts.push(p.update);if(p.victimChange&&p.victimChange!=='변화없음')pts.push('부상자 '+p.victimChange);if(p.addMem)pts.push('추가대원 '+p.addMem);if(p.extra)pts.push(p.extra);return `<div style="padding:5px 0;border-bottom:.5px solid rgba(255,255,255,.04);"><span style="font-size:10px;color:#4a7090;font-weight:600;">${p.repTime||''} · ${p.author||''}</span><br><span style="font-size:11px;color:#b8d4e8;line-height:1.5;">${pts.join(' / ')}</span></div>`;}).join('')}</div>`:'';
+    const updates=(r.reports||[]).map((p,i)=>({p,pn:i+2})).filter(({p})=>p.update||(p.victimChange&&p.victimChange!=='변화없음')||p.addMem||p.extra);
+    const updHtml=updates.length?`<div style="margin-top:7px;padding-top:7px;border-top:.5px solid rgba(255,255,255,.08);"><div style="font-size:10px;color:#4a7090;font-weight:700;margin-bottom:3px;">추가 보고</div>${updates.map(({p,pn})=>{const pts=[];if(p.update)pts.push(p.update);if(p.victimChange&&p.victimChange!=='변화없음')pts.push('부상자 '+p.victimChange);if(p.addMem)pts.push('추가대원 '+p.addMem);if(p.extra)pts.push(p.extra);return `<div style="padding:5px 0;border-bottom:.5px solid rgba(255,255,255,.04);"><span style="font-size:10px;color:#4fa8d0;font-weight:700;">${pn}보</span> <span style="font-size:10px;color:#4a7090;font-weight:600;">${p.repTime||''} · ${p.author||''}</span><br><span style="font-size:11px;color:#b8d4e8;line-height:1.5;">${pts.join(' / ')}</span></div>`;}).join('')}</div>`:'';
     const logHtml=_buildLogHtml(r);
     w.innerHTML=tabHdr+logHtml+`
       <div style="display:flex;gap:6px;margin-bottom:8px;">
@@ -5888,6 +5888,7 @@ function renderTimeline(r,viewMode,outId){
         <button onclick="printReport(${r.id})" style="flex:1;padding:8px;border-radius:8px;border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.04);color:#b8d4e8;font-size:11px;font-weight:700;cursor:pointer;">🖨 인쇄/PDF</button>
       </div>
       <div style="background:#0b1c30;border-radius:10px;padding:12px;border:.5px solid rgba(255,255,255,.07);margin-bottom:8px;">
+        <div style="font-size:10px;color:#4fa8d0;font-weight:700;margin-bottom:3px;">1보 · ${r.date||''}</div>
         ${rows.join('')||'<div style="font-size:11px;color:rgba(255,255,255,.25);">입력된 정보 없음</div>'}
         ${updHtml}
       </div>
@@ -6347,10 +6348,7 @@ function render1BoForm(prefill=null){
   w.innerHTML=`
     ${isNbo?`<div id="nboBanner" style="background:rgba(79,168,208,.1);border:1px solid rgba(79,168,208,.25);border-radius:0;padding:9px 13px;font-size:11px;color:#4fa8d0;display:flex;align-items:center;justify-content:space-between;">
       <span>📋 <b>${p._phaseNum||2}보 작성중</b> — 변경사항만 수정</span>
-      <div style="display:flex;gap:5px;">
-        <button onclick="submitNBoFromForm()" style="background:#1a4a6e;color:#fff;border:none;padding:5px 11px;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;">💾 저장</button>
-        <button onclick="history.back()" style="background:rgba(255,255,255,.07);color:#c0d8ec;border:none;padding:5px 10px;border-radius:6px;font-size:11px;cursor:pointer;">✕</button>
-      </div>
+      <button onclick="history.back()" style="background:rgba(255,255,255,.07);color:#c0d8ec;border:none;padding:5px 10px;border-radius:6px;font-size:11px;cursor:pointer;">✕</button>
     </div>`:''}
 
     ${_offHrs?_mobilizeHtml:''}
@@ -6612,20 +6610,15 @@ function render1BoForm(prefill=null){
           <textarea id="r_extra" class="fta" rows="3">${p.extra||''}</textarea>
         </div>
       </div>
-      ${isNbo
-        ?`<button class="btn-submit" style="background:#1a4a6e;color:#fff;margin-top:6px;" onclick="submitNBoFromForm()">💾 ${p._phaseNum||2}보 저장</button>`
-        :''}
     </div>
   `;
 
   const _footer=document.getElementById('rep1BoFooter');
   if(_footer){
-    if(!isNbo){
-      _footer.style.display='block';
-      _footer.innerHTML=`<button class="btn-submit" style="background:#1a4a6e;color:#fff;" onclick="submit1Bo()">💾 1보 등록</button>`;
-    } else {
-      _footer.style.display='none';
-    }
+    _footer.style.display='block';
+    _footer.innerHTML=isNbo
+      ?`<button class="btn-submit" style="background:#1a4a6e;color:#fff;" onclick="submitNBoFromForm()">💾 ${p._phaseNum||2}보 저장</button>`
+      :`<button class="btn-submit" style="background:#1a4a6e;color:#fff;" onclick="submit1Bo()">💾 1보 등록</button>`;
   }
 
   _ttEntries=p.timetable||[];
