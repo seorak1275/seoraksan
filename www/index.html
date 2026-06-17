@@ -192,6 +192,8 @@ button{-webkit-tap-highlight-color:transparent;touch-action:manipulation;}
 .mpin{width:34px;height:34px;border-radius:50%;background:#0b1c30;display:flex;align-items:center;justify-content:center;font-size:15px;cursor:pointer;border:2.5px solid;box-shadow:0 3px 8px rgba(0,0,0,.8);user-select:none;-webkit-user-select:none;}
 .mpin-sm{width:20px;height:20px;border-radius:50%;background:#0b2a3f;display:flex;align-items:center;justify-content:center;font-size:10px;cursor:pointer;border:1.5px solid #4fa8d0;box-shadow:0 2px 5px rgba(0,0,0,.7);opacity:.9;user-select:none;-webkit-user-select:none;}
 .mpin-num{background:rgba(8,20,40,.88);border:1px solid rgba(79,168,208,.6);border-radius:3px;padding:1px 3px;font-size:6px;font-weight:700;color:#7ac8e8;white-space:nowrap;cursor:pointer;box-shadow:0 1px 4px rgba(0,0,0,.6);line-height:1.2;user-select:none;-webkit-user-select:none;}
+.map-cluster{min-width:30px;height:30px;padding:0 8px;border-radius:16px;background:rgba(192,57,43,.93);border:2px solid #fff;color:#fff;font-weight:800;font-size:13px;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 9px rgba(0,0,0,.55);cursor:pointer;user-select:none;-webkit-user-select:none;}
+.map-cluster.fac{background:rgba(26,74,110,.94);border-color:rgba(125,211,250,.9);}
 .mpin-shelter{border-color:#27ae60;}
 .p-ok{border-color:#27ae60;}.p-warn{border-color:#e67e22;}.p-bad{border-color:#c0392b;}
 .p-acc{border-color:#c0392b;background:#c0392b;color:#fff;}.p-rock{border-color:#7d3c98;background:#7d3c98;color:#fff;}
@@ -1535,7 +1537,7 @@ window.addEventListener('error',e=>{_logErr((e.message||'오류')+' @'+(e.filena
 window.addEventListener('unhandledrejection',e=>{_logErr('Promise: '+((e.reason&&e.reason.message)||e.reason||'거부'));});
 
 // ── 앱 버전 (배포 시 갱신) ──
-const APP_VER='v9.57 (2026.06.17)';
+const APP_VER='v9.58 (2026.06.17)';
 try{document.getElementById('appVerLabel').textContent='설악산 현장관리 '+APP_VER;}catch(e){}
 // ══════════════════════════════════════════
 // DB
@@ -2393,6 +2395,51 @@ function _scaleOvs(els,level,off){
     }
   });
 }
+// ── 경량 커스텀 클러스터: 커스텀 오버레이를 화면 픽셀 격자로 묶어 개수 버블 표시 ──
+// items: [{ov, lat, lng}] — 단독은 그대로 표시, 같은 격자 2개 이상이면 멤버 숨기고 개수 버블
+function _clusterByPixels(map,items,cellPx,onClick,cls){
+  const out=[];
+  let proj;try{proj=map.getProjection();}catch(e){proj=null;}
+  if(!proj){items.forEach(it=>{try{it.ov.setMap(map);}catch(e){}});return out;}
+  const cells=new Map();
+  items.forEach(it=>{
+    if(!(it.lat&&it.lng)){try{it.ov.setMap(map);}catch(e){}return;}
+    let pt;try{pt=proj.pointFromCoords(new kakao.maps.LatLng(it.lat,it.lng));}catch(e){pt=null;}
+    if(!pt){try{it.ov.setMap(map);}catch(e){}return;}
+    const key=Math.floor(pt.x/cellPx)+'_'+Math.floor(pt.y/cellPx);
+    if(!cells.has(key))cells.set(key,[]);
+    cells.get(key).push(it);
+  });
+  cells.forEach(group=>{
+    if(group.length<2){group.forEach(it=>{try{it.ov.setMap(map);}catch(e){}});return;}
+    group.forEach(it=>{try{it.ov.setMap(null);}catch(e){}});
+    let lat=0,lng=0;group.forEach(it=>{lat+=it.lat;lng+=it.lng;});lat/=group.length;lng/=group.length;
+    const el=document.createElement('div');
+    el.className='map-cluster'+(cls?' '+cls:'');el.textContent=group.length;
+    el.addEventListener('click',e=>{e.stopPropagation();onClick&&onClick(lat,lng);});
+    const ov=new kakao.maps.CustomOverlay({position:new kakao.maps.LatLng(lat,lng),content:el,clickable:true,zIndex:6});
+    ov.setMap(map);out.push(ov);
+  });
+  return out;
+}
+function _clusterZoom(map,lat,lng){
+  try{map.setLevel(Math.max(1,map.getLevel()-2),{anchor:new kakao.maps.LatLng(lat,lng)});}
+  catch(e){try{map.setCenter(new kakao.maps.LatLng(lat,lng));map.setLevel(Math.max(1,map.getLevel()-2));}catch(e2){}}
+}
+// 구조 지도: 사고/위험 '상황' 핀만 클러스터 (다목적위치표지판 등 시설물은 제외)
+var _rClusterOvs=[],_rEvItems=[];
+function _reclusterRescue(){
+  if(!mapR)return;
+  _rClusterOvs.forEach(o=>{try{o.setMap(null);}catch(e){}});_rClusterOvs=[];
+  _rClusterOvs=_clusterByPixels(mapR,_rEvItems,52,(la,ln)=>_clusterZoom(mapR,la,ln),'');
+}
+// 시설물 점검 지도: 시설물 핀 클러스터
+var _iClusterOvs=[],_iItems=[];
+function _reclusterInspect(){
+  if(!mapI)return;
+  _iClusterOvs.forEach(o=>{try{o.setMap(null);}catch(e){}});_iClusterOvs=[];
+  _iClusterOvs=_clusterByPixels(mapI,_iItems,48,(la,ln)=>_clusterZoom(mapI,la,ln),'fac');
+}
 const DC={lat:38.1328,lng:128.4107};
 // HTML/attribute escaping for user-generated content
 function _esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');}
@@ -2480,8 +2527,8 @@ function initMaps(){
     kakao.maps.event.addListener(mapI,'center_changed',saveInspectCenter);
     saveInspectCenter();
     // 줌 레벨에 따른 핀 크기 자동 조절
-    kakao.maps.event.addListener(mapR,'zoom_changed',()=>_scaleOvs(rEls,mapR.getLevel(),5));
-    kakao.maps.event.addListener(mapI,'zoom_changed',()=>_scaleOvs(iEls,mapI.getLevel(),1));
+    kakao.maps.event.addListener(mapR,'zoom_changed',()=>{_scaleOvs(rEls,mapR.getLevel(),5);try{_reclusterRescue();}catch(e){}});
+    kakao.maps.event.addListener(mapI,'zoom_changed',()=>{_scaleOvs(iEls,mapI.getLevel(),1);try{_reclusterInspect();}catch(e){}});
     if(window._hideLoading)setTimeout(window._hideLoading,600);
   }
   if(window._KR)doInit();else window._KCB=doInit;
@@ -3863,6 +3910,7 @@ function renderRescueMap(){
     el.addEventListener('click',e=>{e.stopPropagation();
       if(isOg&&r.teams&&r.teams.length)enterFocusMode(r.id);else openResPopup(r.id,'rescue');});
     const ov=new kakao.maps.CustomOverlay({position:new kakao.maps.LatLng(r.lat,r.lng),content:el,clickable:true,zIndex:3});
+    ov._lat=r.lat;ov._lng=r.lng;
     ov.setMap(mapR);_rEvOvs.push(ov);_rEvEls.push(el);
   });
   // 위험상황 핀
@@ -3877,8 +3925,12 @@ function renderRescueMap(){
     el.addEventListener('touchend',e=>{if(!_ts)return;const dx=e.changedTouches[0].clientX-_ts.x,dy=e.changedTouches[0].clientY-_ts.y;_ts=null;if(Math.abs(dx)<8&&Math.abs(dy)<8){e.stopPropagation();e.preventDefault();openResPopup(h.id,'hazard');}});
     el.addEventListener('click',e=>{e.stopPropagation();openResPopup(h.id,'hazard');});
     const ov=new kakao.maps.CustomOverlay({position:new kakao.maps.LatLng(h.lat,h.lng),content:el,clickable:true});
+    ov._lat=h.lat;ov._lng=h.lng;
     ov.setMap(mapR);_rEvOvs.push(ov);_rEvEls.push(el);
   });
+  // 사고/위험 상황 핀 클러스터링 (밀집 시 개수 버블로 묶음 — 시설물은 제외)
+  _rEvItems=_rEvOvs.map(ov=>({ov,lat:ov._lat,lng:ov._lng}));
+  try{_reclusterRescue();}catch(e){}
   // 팀 위치 마커: 진행중 구조 팀의 현재 위치
   _rebuildTeamChips();
   // 시설물: 풀 동기화 후 필터 적용 (DOM 재생성 없이 show/hide)
@@ -6804,6 +6856,7 @@ let facMapStatusF=new Set(),facMapTypeF=new Set(),facMapLocF=new Set();
 function renderInspectMap(){
   if(!mapI){return;}
   iOvs.forEach(o=>{try{o.setMap(null);}catch(e){}});iOvs=[];iEls=[];
+  _iClusterOvs.forEach(o=>{try{o.setMap(null);}catch(e){}});_iClusterOvs=[];
   const _admin=isAdminUser();const _meta=DB.g('catFacMeta')||{};
   const facs=(DB.g('facilities')||[]).filter(f=>_admin||!(_meta[f.type]||{}).adminOnly);
   const sMap={'전체':null,'양호':'ok','요주의':'warn','위험':'bad'};
@@ -6831,9 +6884,13 @@ function renderInspectMap(){
     });
     el.addEventListener('click',e=>{e.stopPropagation();openFacFromMap(f.id);});
     const ov=new kakao.maps.CustomOverlay({position:new kakao.maps.LatLng(f.lat,f.lng),content:el,clickable:true});
+    ov._lat=f.lat;ov._lng=f.lng;
     ov.setMap(mapI);iOvs.push(ov);iEls.push(el);
   });
   if(mapI)_scaleOvs(iEls,mapI.getLevel(),1);
+  // 시설물 클러스터링 (밀집 시 개수 버블로 묶음)
+  _iItems=iOvs.map(ov=>({ov,lat:ov._lat,lng:ov._lng}));
+  try{_reclusterInspect();}catch(e){}
 }
 function setMapFacF(t,v){
   const set=t==='s'?facMapStatusF:t==='t'?facMapTypeF:facMapLocF;
