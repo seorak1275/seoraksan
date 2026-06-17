@@ -1535,7 +1535,7 @@ window.addEventListener('error',e=>{_logErr((e.message||'오류')+' @'+(e.filena
 window.addEventListener('unhandledrejection',e=>{_logErr('Promise: '+((e.reason&&e.reason.message)||e.reason||'거부'));});
 
 // ── 앱 버전 (배포 시 갱신) ──
-const APP_VER='v9.56 (2026.06.17)';
+const APP_VER='v9.57 (2026.06.17)';
 try{document.getElementById('appVerLabel').textContent='설악산 현장관리 '+APP_VER;}catch(e){}
 // ══════════════════════════════════════════
 // DB
@@ -2154,6 +2154,37 @@ function getCompanions(){
     name:el.querySelector('.comp-name')?.value||'',
     tel:el.querySelector('.comp-tel')?.value||''
   })).filter(c=>c.name||c.tel);
+}
+// 추가 사고자(다수 사상자) — 기본 사고자(vName 등)는 유지하고 추가분만 배열로 보관
+const _V2_SEV=['','KTAS 1 (소생)','KTAS 2 (긴급)','KTAS 3 (응급)','KTAS 4 (준응급)','KTAS 5 (비응급)'];
+function _victim2CardHtml(v){
+  v=v||{};
+  const sevOpts=_V2_SEV.map(o=>`<option value="${o}"${(v.severity||'')===o?' selected':''}>${o||'중증도 선택'}</option>`).join('');
+  const genOpts=['알수없음','남','여'].map(o=>`<option${(v.gender||'알수없음')===o?' selected':''}>${o}</option>`).join('');
+  return `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;"><span style="font-size:11px;color:#e9897e;font-weight:700;">🧑 추가 사고자</span><button onclick="this.closest('.victim2-item').remove()" style="background:rgba(192,57,43,.15);color:#c0392b;border:none;border-radius:5px;padding:3px 8px;font-size:10px;cursor:pointer;">삭제</button></div>
+  <div class="frow"><div class="fg"><span class="fl">성명</span><input type="text" class="fi v2-name" placeholder="이름" value="${(v.name||'').replace(/"/g,'&quot;')}"></div><div class="fg"><span class="fl">성별</span><select class="fsel v2-gender">${genOpts}</select></div></div>
+  <div class="frow"><div class="fg"><span class="fl">나이</span><input type="number" inputmode="numeric" class="fi v2-age" placeholder="세" value="${v.age||''}"></div><div class="fg"><span class="fl">중증도</span><select class="fsel v2-sev">${sevOpts}</select></div></div>
+  <div class="fg"><span class="fl">부상/상태</span><input type="text" class="fi v2-note" placeholder="예: 우측 발목 골절, 의식 명료" value="${(v.note||'').replace(/"/g,'&quot;')}"></div>`;
+}
+function addVictim2(){
+  const list=document.getElementById('victim2List');if(!list)return;
+  const div=document.createElement('div');
+  div.className='victim2-item';
+  div.style.cssText='background:#060d1a;border-radius:8px;padding:10px;margin-bottom:6px;border:1px solid rgba(231,76,60,.15);';
+  div.innerHTML=_victim2CardHtml({});
+  list.appendChild(div);
+}
+function getVictims2(){
+  return [...document.querySelectorAll('#victim2List .victim2-item')].map(el=>({
+    name:el.querySelector('.v2-name')?.value||'',
+    gender:el.querySelector('.v2-gender')?.value||'',
+    age:el.querySelector('.v2-age')?.value||'',
+    severity:el.querySelector('.v2-sev')?.value||'',
+    note:el.querySelector('.v2-note')?.value||''
+  })).filter(v=>v.name||v.note||v.age);
+}
+function _victims2Str(arr){
+  return (arr||[]).map(v=>[v.name||'미상',v.gender&&v.gender!=='알수없음'?v.gender:'',v.age?v.age+'세':'',v.severity,v.note].filter(Boolean).join(' · ')).join(' / ');
 }
 function chkNation(sel){
   const wrap=document.getElementById('r_vNatWrap_extra');
@@ -4374,7 +4405,7 @@ function renderResList(){
         <div class="lico" style="background:${isOg?ti.color:'#1a3a1a'};border:none;color:#fff;">${ti.ico}</div>
         <div class="linfo"><div class="lname">🚨 ${r.title}${r.extAgency?` <span style="font-size:9px;background:rgba(255,120,30,.18);color:#f08050;border:1px solid rgba(255,120,30,.35);border-radius:9px;padding:1px 6px;font-weight:700;vertical-align:middle;">🚒 ${r.extAgency}</span>`:''}${(r.mobilize&&r.mobilize.length)?` <span style="font-size:9px;background:rgba(231,76,60,.18);color:#e74c3c;border:1px solid rgba(231,76,60,.4);border-radius:9px;padding:1px 6px;font-weight:700;vertical-align:middle;">🚨 ${r.mobilize.join('·')}</span>`:''}</div>
           <div class="lmeta">${r.type} · ${r.date}</div>
-          <div class="lmeta">작성: ${r.author||'-'} · ${totalPh}보 기록 · 사고자: ${r.vName||'미상'}</div>
+          <div class="lmeta">작성: ${r.author||'-'} · ${totalPh}보 기록 · 사고자: ${r.vName||'미상'}${(r.victims2&&r.victims2.length)?` <span style="color:#e9897e;font-weight:700;">외 ${r.victims2.length}명</span>`:''}</div>
           ${hasCoord?`<button onclick="event.stopPropagation();viewOnMap(${r.lat},${r.lng})" style="margin-top:5px;padding:4px 10px;background:rgba(79,168,208,.12);border:1px solid rgba(79,168,208,.35);color:#4fa8d0;border-radius:7px;font-size:11px;font-weight:600;cursor:pointer;">🗺️ 지도보기</button>`:''}
         </div>
         <span class="lbadge" style="background:${isOg?'rgba(192,57,43,.15)':'rgba(39,174,96,.15)'};color:${isOg?'#c0392b':'#27ae60'};align-self:flex-start;flex-shrink:0;">${isOg?'진행중':'종료'}</span>
@@ -4677,13 +4708,15 @@ function downloadStatsExcel(tab){
   if(tab==='rescue'){
     const res=(DB.g('rescues')||[]).filter(r=>inRange(r.date));
     if(!res.length){toast('⚠️ 해당 기간에 구조보고가 없습니다');return;}
-    headers=['날짜','시간','제목','구조유형','상태','위치','장소구분','위도','경도','사고자명','성별','출생연도','국적','중증도','부상부위','사고원인','구조방법','날씨','초동팀','출동팀','작성자'];
+    headers=['날짜','시간','제목','구조유형','상태','위치','장소구분','위도','경도','사고자명','성별','출생연도','국적','중증도','부상부위','사고원인','구조방법','날씨','사고자수','추가사고자','초동팀','출동팀','작성자'];
     rows=res.map(r=>[
       (r.date||'').slice(0,10), r.time||(r.date||'').slice(11,16), r.title||'', r.type||'',
       r.status==='ongoing'?'진행중':'종료', r.location||'', r.loctype||'',
       r.lat||'', r.lng||'',
       r.vName||'', r.vGender||'', r.vBirth?String(r.vBirth).slice(0,4):'', r.vNation||r.vNationality||'',
       r.severity||'', (r.injuryParts||[]).join('/'), r.cause||'', (r.rescueMethod||[]).join('/'), r.weather||'',
+      1+((r.victims2||[]).length),
+      (r.victims2||[]).map(v=>[v.name||'미상',v.severity,v.note].filter(Boolean).join(' ')).join(' / '),
       (r.members||[]).join('/'),
       (r.teams||[]).map(t=>t.name+((t.members&&t.members.length)?'('+t.members.join('·')+')':'')).join('/'),
       r.author||''
@@ -4732,6 +4765,7 @@ function openResPopup(id,type='rescue'){
       row('🌤',(!_skip(d.weather)?d.weather:'')+(!_skip(d.weatherAlert)?' '+d.weatherAlert:'')||''),
       row('👤',[!_skip(d.vName)?d.vName:'',(!_skip(d.vBirth)?new Date().getFullYear()-parseInt(d.vBirth.slice(0,4))+'세':''),(!_skip(d.vGender)&&d.vGender!=='알수없음'?d.vGender:''),(!_skip(d.vNation)&&d.vNation!=='알수없음'?d.vNation:'')].filter(Boolean).join(' · ')||''),
       row('🩺',!_skip(d.severity)?d.severity:''),
+      row('👥',(d.victims2&&d.victims2.length)?('추가 사고자 '+d.victims2.length+'명: '+_victims2Str(d.victims2)):''),
       row('⚡',!_skip(d.cause)?d.cause:''),
       row('🦵',_arr(d.injuryParts).join(', ')),
       row('🚑',_arr(d.rescueMethod).join(', ')),
@@ -4854,6 +4888,7 @@ function submitNBoFromForm(){
     vNation: document.getElementById('r_vNat')?.value||res[idx].vNation,
     vNationality: document.getElementById('r_vNationality')?.value||res[idx].vNationality||'',
     companions: getCompanions().length?getCompanions():res[idx].companions||[],
+    victims2: getVictims2().length?getVictims2():res[idx].victims2||[],
     vGender: document.getElementById('r_vGender')?.value||res[idx].vGender,
     vBirth: document.getElementById('r_vBirth')?.value||res[idx].vBirth||'',
     vAddr: document.getElementById('r_vAddr')?.value||res[idx].vAddr||'',
@@ -4899,6 +4934,8 @@ function submitNBoFromForm(){
     if(!res[idx].timetable)res[idx].timetable=[];
     res[idx].timetable=[...res[idx].timetable,..._ttInlineEntries];
   }
+  // 추가 사고자: N보에서 입력했으면 메인 레코드에 반영(표시 일관성)
+  if(phaseData.victims2&&phaseData.victims2.length)res[idx].victims2=phaseData.victims2;
   res[idx].reports.push(phaseData);
   DB.s('rescues',res);
   _ttInlineEntries=[];
@@ -5757,7 +5794,8 @@ function renderTimeline(r,viewMode,outId){
     const wx=[_ok(r.weather)?r.weather:'',_ok(r.weatherAlert)?r.weatherAlert:''].filter(Boolean).join(' ');
     if(wx)rows.push(_row('기상',wx));
     const vp=[_ok(r.vName)?r.vName:'',_ok(r.vBirth)?new Date().getFullYear()-parseInt((r.vBirth||'').slice(0,4))+'세':'',_ok(r.vGender)&&r.vGender!=='알수없음'?r.vGender:'',_ok(r.vNation)&&r.vNation!=='알수없음'?r.vNation:''].filter(Boolean);
-    if(vp.length)rows.push(_row('사고자',vp.join(' · ')));
+    if(vp.length)rows.push(_row('사고자',vp.join(' · ')+((r.victims2&&r.victims2.length)?` <span style="color:#e9897e;font-weight:700;">외 ${r.victims2.length}명</span>`:'')));
+    if(r.victims2&&r.victims2.length)rows.push(_row('추가자',r.victims2.map(v=>[v.name||'미상',v.gender&&v.gender!=='알수없음'?v.gender:'',v.age?v.age+'세':'',v.severity,v.note].filter(Boolean).join(' · ')).join('<br>')));
     if(_ok(r.vTel))rows.push(_row('연락처',r.vTel));
     if(_ok(r.severity))rows.push(_row('중증도',r.severity));
     // 활력징후 추이: 1보 + 각 보고의 vitals 수집
@@ -6108,7 +6146,8 @@ function _buildReportText(r){
   const wx=[_ok(r.weather)?r.weather:'',_ok(r.weatherAlert)?r.weatherAlert:''].filter(Boolean).join(' ');
   if(wx)L.push('기상: '+wx);
   const vp=[_ok(r.vName)?r.vName:'',_ok(r.vBirth)?(new Date().getFullYear()-parseInt((r.vBirth||'').slice(0,4)))+'세':'',_ok(r.vGender)&&r.vGender!=='알수없음'?r.vGender:'',_ok(r.vNation)&&r.vNation!=='알수없음'?r.vNation:''].filter(Boolean);
-  if(vp.length)L.push('사고자: '+vp.join(' · '));
+  if(vp.length)L.push('사고자: '+vp.join(' · ')+((r.victims2&&r.victims2.length)?' 외 '+r.victims2.length+'명':''));
+  if(r.victims2&&r.victims2.length){r.victims2.forEach((v,i)=>L.push('  추가자'+(i+1)+': '+[v.name||'미상',v.gender&&v.gender!=='알수없음'?v.gender:'',v.age?v.age+'세':'',v.severity,v.note].filter(Boolean).join(' · ')));}
   if(_ok(r.vTel))L.push('연락처: '+r.vTel);
   if(_ok(r.severity))L.push('중증도: '+r.severity);
   {const vseq=[];if(r.vitals&&_vitalsStr(r.vitals))vseq.push(r.vitals);(r.reports||[]).forEach(p=>{if(p.vitals&&_vitalsStr(p.vitals))vseq.push(p.vitals);});
@@ -6441,6 +6480,10 @@ function render1BoForm(prefill=null){
         <div class="fg"><span class="fl">알레르기</span><input type="text" id="r_vAll" class="fi" placeholder="없음 또는 항목" value="${p.vAllergy||''}"></div>
         <div class="fg"><span class="fl">복용약</span><input type="text" id="r_vMed" class="fi" placeholder="없음 또는 항목" value="${p.vMeds||''}"></div>
       </div>
+      <div class="rsec"><div class="rsec-t">👥 추가 사고자 <span style="font-size:9px;color:#4a7090;font-weight:400;">(다수 사상자 발생 시)</span></div>
+        <div id="victim2List">${(p.victims2||[]).map(v=>`<div class="victim2-item" style="background:#060d1a;border-radius:8px;padding:10px;margin-bottom:6px;border:1px solid rgba(231,76,60,.15);">${_victim2CardHtml(v)}</div>`).join('')}</div>
+        <button onclick="addVictim2()" style="width:100%;padding:9px;background:rgba(231,76,60,.08);border:1px dashed rgba(231,76,60,.3);color:#e9897e;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;margin-top:4px;">＋ 사고자 추가</button>
+      </div>
       <div class="rsec"><div class="rsec-t">📞 신고자</div>
         <div class="fg">
           <div style="display:flex;gap:6px;" id="hasRepBtns">
@@ -6615,6 +6658,7 @@ function submit1Bo(){
     vAllergy:document.getElementById('r_vAll')?.value||'',
     vMeds:document.getElementById('r_vMed')?.value||'',
     companions:getCompanions(),
+    victims2:getVictims2(),
     cause:document.getElementById('r_cause')?.value||'',
     injuryParts:getSelPills('injParts'),
     injuryTypes:getSelPills('injTypes'),
