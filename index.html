@@ -132,6 +132,7 @@ button{-webkit-tap-highlight-color:transparent;touch-action:manipulation;}
 .home-alert-text{flex:1;font-size:11px;font-weight:700;color:#ff8a80;line-height:1.4;}
 .home-chips{display:grid;grid-template-columns:repeat(4,1fr);gap:7px;flex-shrink:0;}
 .home-chips::-webkit-scrollbar{display:none;}
+#homeActiveStrip div::-webkit-scrollbar{display:none;}
 .weather-strip{display:flex;align-items:center;gap:8px;padding:7px 10px;background:#0a1a2a;border-radius:9px;flex-shrink:0;margin-top:6px;border:1px solid rgba(79,168,208,.1);}
 .weather-ico{font-size:18px;line-height:1;}
 .weather-alert-wrap{display:none;margin-top:5px;flex-direction:column;gap:4px;}
@@ -775,6 +776,9 @@ body.hi-contrast .stat-lbl{color:rgba(255,255,255,.65)!important;}
       <div><div class="hchip-num" id="hs-ft">0</div><div class="hchip-lbl">전체시설</div></div>
     </div>
   </div>
+
+  <!-- 진행중 구조 카드 스트립 (진행중 건 있을 때만 표시) -->
+  <div id="homeActiveStrip" style="display:none;flex-shrink:0;"></div>
 
   <!-- 날씨 -->
   <div id="weatherStrip" class="weather-strip" style="display:none;" onclick="openWeatherDetail()">
@@ -1541,7 +1545,7 @@ window.addEventListener('error',e=>{_logErr((e.message||'오류')+' @'+(e.filena
 window.addEventListener('unhandledrejection',e=>{_logErr('Promise: '+((e.reason&&e.reason.message)||e.reason||'거부'));});
 
 // ── 앱 버전 (배포 시 갱신) ──
-const APP_VER='v9.67 (2026.06.18)';
+const APP_VER='v9.68 (2026.06.18)';
 try{document.getElementById('appVerLabel').textContent='설악산 현장관리 '+APP_VER;}catch(e){}
 // ══════════════════════════════════════════
 // DB
@@ -8525,6 +8529,36 @@ function updateSummary(){
   sd('hdI',bad.length?`⚠️ 위험 ${bad.length}개`:'시설 관리·이력',bad.length?'#ffaaaa':'');
   sd('hdW',`문서 ${(DB.g('wikis')||[]).length}건`,'');
   updateBell();
+  try{renderHomeActive();}catch(e){}
+}
+// 홈: 진행중 구조 건을 가로 스크롤 카드로 즉시 노출 (한눈에 현황 파악)
+function renderHomeActive(){
+  const el=document.getElementById('homeActiveStrip');if(!el)return;
+  if(isExternal()){el.style.display='none';el.innerHTML='';return;}
+  const og=(DB.g('rescues')||[]).filter(r=>r.status==='ongoing');
+  if(!og.length){el.style.display='none';el.innerHTML='';return;}
+  el.style.display='block';
+  const cards=og.slice().reverse().map(r=>{
+    const ti=RES_TYPES[r.type]||RES_TYPES['기타'];
+    const elp=_elapsedStr(r.date);
+    const mob=(r.mobilize&&r.mobilize.length)?`<span style="font-size:8px;background:rgba(231,76,60,.2);color:#ff6b5e;border-radius:7px;padding:1px 5px;font-weight:700;">🚨</span>`:'';
+    return `<div onclick="openRescueFromHome(${r.id})" style="flex:0 0 auto;width:158px;background:linear-gradient(135deg,#13243a,#0d1a2c);border:1px solid rgba(231,76,60,.28);border-radius:12px;padding:9px 11px;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.28);">
+      <div style="display:flex;align-items:center;gap:6px;margin-bottom:5px;">
+        <span style="font-size:15px;">${ti.ico}</span>
+        <span style="font-size:8px;font-weight:800;color:#ff6b5e;background:rgba(231,76,60,.18);border-radius:6px;padding:2px 6px;">진행중</span>
+        ${mob}
+      </div>
+      <div style="font-size:11.5px;font-weight:700;color:#eaf2fa;line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${r.title||r.type}</div>
+      <div style="font-size:9.5px;color:#8ab4cc;margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${r.vName||'미상'}${r.location?' · '+r.location:''}</div>
+      ${elp?`<div style="font-size:10px;font-weight:700;color:#f0a500;margin-top:4px;">⏱ ${elp}</div>`:''}
+    </div>`;
+  }).join('');
+  el.innerHTML=`<div class="sec-label" style="padding:0 0 5px;">🔴 진행중 구조 ${og.length}건</div>
+    <div style="display:flex;gap:8px;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch;padding-bottom:2px;">${cards}</div>`;
+}
+function openRescueFromHome(id){
+  openApp('rescue');
+  setTimeout(()=>{try{openResListDetail(id);}catch(e){}},90);
 }
 // ══════════════════════════════════════════
 // 전체 통계 (일반직원도 열람 가능)
