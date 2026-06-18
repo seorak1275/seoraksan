@@ -1545,7 +1545,7 @@ window.addEventListener('error',e=>{_logErr((e.message||'오류')+' @'+(e.filena
 window.addEventListener('unhandledrejection',e=>{_logErr('Promise: '+((e.reason&&e.reason.message)||e.reason||'거부'));});
 
 // ── 앱 버전 (배포 시 갱신) ──
-const APP_VER='v9.71 (2026.06.18)';
+const APP_VER='v9.72 (2026.06.18)';
 try{document.getElementById('appVerLabel').textContent='설악산 현장관리 '+APP_VER;}catch(e){}
 // ══════════════════════════════════════════
 // DB
@@ -5971,8 +5971,8 @@ function showPrevHistModal(id){
     const author=origIdx===0?r.author||'-':p.author||'-';
     const body=origIdx===0?[r.location,r.situation,r.extra].filter(Boolean).join(' · '):(p.update||'');
     return `<div style="padding:9px 14px;border-bottom:.5px solid rgba(255,255,255,.06);">
-      <div style="font-size:10px;color:#4fa8d0;font-weight:700;margin-bottom:3px;">${label} · ${author}</div>
-      ${body?`<div style="font-size:11px;color:#b8d4e8;line-height:1.5;">${body}</div>`:''}
+      <div style="font-size:10px;color:#4fa8d0;font-weight:700;margin-bottom:3px;">${label} · ${_esc(author)}</div>
+      ${body?`<div style="font-size:11px;color:#b8d4e8;line-height:1.5;">${_esc(body)}</div>`:''}
     </div>`;
   }).join('');
   ov.innerHTML=`<div style="background:#040a16;border-radius:14px 14px 0 0;width:100%;max-height:70vh;max-height:70dvh;overflow:hidden;display:flex;flex-direction:column;border-top:.5px solid rgba(79,168,208,.25);">
@@ -7131,9 +7131,9 @@ function renderFacList(){
   });
   document.getElementById('facListWrap').innerHTML=filtered.length?filtered.map(f=>`
     <div class="lcard" style="padding:7px 10px;" onclick="openFacDetail(${f.id})">
-      <div class="lico" style="width:30px;height:30px;font-size:14px;border-color:${SC(f.status)};color:${SC(f.status)};">${f.type.split(' ')[0]}</div>
-      <div class="linfo"><div class="lname" style="font-size:12px;">${f.name}</div>
-        <div class="lmeta">${f.type.split(' ').slice(1).join(' ')||f.type} · ${f.loc||'-'} · ${f.lat?'📍':''}</div>
+      <div class="lico" style="width:30px;height:30px;font-size:14px;border-color:${SC(f.status)};color:${SC(f.status)};">${_esc(f.type.split(' ')[0])}</div>
+      <div class="linfo"><div class="lname" style="font-size:12px;">${_esc(f.name)}</div>
+        <div class="lmeta">${_esc(f.type.split(' ').slice(1).join(' ')||f.type)} · ${_esc(f.loc||'-')} · ${f.lat?'📍':''}</div>
       </div>
       <span class="lbadge" style="background:${SC(f.status)}22;color:${SC(f.status)};">${SL(f.status)}</span>
     </div>`).join(''):'<div class="empty"><div class="empty-ico">🛠️</div><div class="empty-txt">해당 조건 없음</div></div>';
@@ -7147,9 +7147,9 @@ function renderInspectStats(){
   document.getElementById('fs-ok').textContent=facs.filter(f=>f.status==='ok').length;
   const tm={};facs.forEach(f=>{tm[f.type]=(tm[f.type]||0)+1;});
   document.getElementById('facTypeStatWrap').innerHTML=Object.entries(tm).map(([k,v])=>
-    `<div class="type-row" style="pointer-events:none;"><span class="t-ico">${k.split(' ')[0]}</span><span class="t-lbl">${k.split(' ').slice(1).join(' ')}</span><span class="t-cnt">${v}개</span></div>`).join('');
+    `<div class="type-row" style="pointer-events:none;"><span class="t-ico">${_esc(k.split(' ')[0])}</span><span class="t-lbl">${_esc(k.split(' ').slice(1).join(' '))}</span><span class="t-cnt">${v}개</span></div>`).join('');
   document.getElementById('facRecentWrap').innerHTML=hist.length?hist.map(h=>
-    `<div style="background:#060d1a;border-radius:8px;padding:9px 11px;margin-bottom:5px;"><div style="font-size:10px;color:rgba(255,255,255,.25);">${h.date} · ${h.author||'-'}</div><div style="font-size:12px;font-weight:600;color:${SC(h.status)};margin-top:2px;">${h.facName} — ${SL(h.status)}</div>${h.note?`<div style="font-size:11px;color:rgba(255,255,255,.35);margin-top:3px;">${h.note}</div>`:''}</div>`).join(''):'<div class="muted" style="font-size:12px;padding:5px 0;">점검 이력 없음</div>';
+    `<div style="background:#060d1a;border-radius:8px;padding:9px 11px;margin-bottom:5px;"><div style="font-size:10px;color:rgba(255,255,255,.25);">${h.date} · ${_esc(h.author||'-')}</div><div style="font-size:12px;font-weight:600;color:${SC(h.status)};margin-top:2px;">${_esc(h.facName)} — ${SL(h.status)}</div>${h.note?`<div style="font-size:11px;color:rgba(255,255,255,.35);margin-top:3px;">${_esc(h.note)}</div>`:''}</div>`).join(''):'<div class="muted" style="font-size:12px;padding:5px 0;">점검 이력 없음</div>';
 }
 
 // 시설물 상세 (목록 탭에서 탭하면 모달로 상세 + 점검/이력 버튼)
@@ -7161,20 +7161,20 @@ function openFacDetail(id){
   document.getElementById('facDetailTitle').textContent=f.name;
   document.getElementById('facDetailContent').innerHTML=`
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">
-      <div style="font-size:32px;">${f.type.split(' ')[0]}</div>
-      <div><div style="font-size:14px;font-weight:700;color:#e0edf8;">${f.name}</div>
+      <div style="font-size:32px;">${_esc(f.type.split(' ')[0])}</div>
+      <div><div style="font-size:14px;font-weight:700;color:#e0edf8;">${_esc(f.name)}</div>
         <div style="font-size:12px;color:${SC(f.status)};font-weight:600;margin-top:2px;">${SL(f.status)}</div>
       </div>
     </div>
     <div style="background:#060d1a;border-radius:9px;padding:11px 12px;font-size:12px;color:#7a9cb8;line-height:2.1;">
-      <b style="color:#c0d8ec;">종류:</b> ${f.type}<br>
-      <b style="color:#c0d8ec;">위치:</b> ${f.loc||'-'}<br>
+      <b style="color:#c0d8ec;">종류:</b> ${_esc(f.type)}<br>
+      <b style="color:#c0d8ec;">위치:</b> ${_esc(f.loc||'-')}<br>
       <b style="color:#c0d8ec;">좌표:</b> ${f.lat?f.lat.toFixed(5)+', '+f.lng.toFixed(5):'GPS 미등록'}<br>
-      <b style="color:#c0d8ec;">설치일:</b> ${f.install||'-'}<br>
-      <b style="color:#c0d8ec;">등록자:</b> ${f.author||'-'}<br>
+      <b style="color:#c0d8ec;">설치일:</b> ${_esc(f.install||'-')}<br>
+      <b style="color:#c0d8ec;">등록자:</b> ${_esc(f.author||'-')}<br>
       <b style="color:#c0d8ec;">점검 횟수:</b> ${hist.length}회<br>
       <b style="color:#c0d8ec;">최근 점검:</b> ${lastInsp?lastInsp.date+' ('+SL(lastInsp.status)+')':'없음'}<br>
-      ${f.note?`<b style="color:#c0d8ec;">비고:</b> ${f.note}`:''}
+      ${f.note?`<b style="color:#c0d8ec;">비고:</b> ${_esc(f.note)}`:''}
     </div>`;
   const mapBtn=document.getElementById('facDetailMapBtn');
   if(mapBtn)mapBtn.style.display=(f.lat&&f.lng)?'block':'none';
@@ -7489,10 +7489,11 @@ function renderAdmCtrl(){
     <div class="sec-label">📋 전체 시설물</div>
     ${facs.map(f=>`<div class="adm-row"><div class="adm-info"><div class="adm-name">${f.type.split(' ')[0]} ${f.name}</div><div class="adm-meta"><span style="color:${SC(f.status)};">${SL(f.status)}</span> · ${f.author||'-'}</div></div><button class="abtn del" onclick="admDelFac(${f.id})">삭제</button></div>`).join('')}`;
 }
-function admChangeFacSt(id){const facs=DB.g('facilities')||[];const idx=facs.findIndex(x=>x.id===id);if(idx===-1)return;const ns=prompt(`상태 (ok/warn/bad)\n현재: ${facs[idx].status}`);if(!['ok','warn','bad'].includes(ns)){toast('⚠️ ok, warn, bad 중 입력');return;}facs[idx].status=ns;DB.s('facilities',facs);renderAdmCtrl();try{renderInspectMap();}catch(e){}toast('✅ 변경');updateSummary();}
-function admDelFac(id){if(!confirm('삭제?'))return;DB.s('facilities',(DB.g('facilities')||[]).filter(f=>f.id!==id));DB.s('history',(DB.g('history')||[]).filter(h=>h.facId!==id));renderAdmCtrl();try{renderInspectMap();}catch(e){}toast('🗑️ 삭제');updateSummary();}
-function admEndRes(id){const res=DB.g('rescues')||[];const i=res.findIndex(x=>x.id===id);if(i===-1)return;if(!confirm("'"+(res[i].title||'')+"' 상황을 종료 처리하겠습니까?"))return;res[i].status='done';DB.s('rescues',res);renderAdmCtrl();try{renderRescueMap();}catch(e){}toast('✅ 상황 종료');}
+function admChangeFacSt(id){if(!isAdminUser()){toast('⚠️ 관리자만 가능');return;}const facs=DB.g('facilities')||[];const idx=facs.findIndex(x=>x.id===id);if(idx===-1)return;const ns=prompt(`상태 (ok/warn/bad)\n현재: ${facs[idx].status}`);if(!['ok','warn','bad'].includes(ns)){toast('⚠️ ok, warn, bad 중 입력');return;}facs[idx].status=ns;DB.s('facilities',facs);renderAdmCtrl();try{renderInspectMap();}catch(e){}toast('✅ 변경');updateSummary();}
+function admDelFac(id){if(!isAdminUser()){toast('⚠️ 관리자만 가능');return;}if(!confirm('삭제?'))return;DB.s('facilities',(DB.g('facilities')||[]).filter(f=>f.id!==id));DB.s('history',(DB.g('history')||[]).filter(h=>h.facId!==id));renderAdmCtrl();try{renderInspectMap();}catch(e){}toast('🗑️ 삭제');updateSummary();}
+function admEndRes(id){if(!isAdminUser()){toast('⚠️ 관리자만 가능');return;}const res=DB.g('rescues')||[];const i=res.findIndex(x=>x.id===id);if(i===-1)return;if(!confirm("'"+(res[i].title||'')+"' 상황을 종료 처리하겠습니까?"))return;res[i].status='done';DB.s('rescues',res);renderAdmCtrl();try{renderRescueMap();}catch(e){}toast('✅ 상황 종료');}
 function admDelRes(id){
+  if(!isAdminUser()){toast('⚠️ 관리자만 가능');return;}
   if(!confirm('삭제?'))return;
   const res=DB.g('rescues')||[];const r=res.find(x=>x.id===id);
   // Storage 사진 동반 삭제 (고아 파일 방지)
@@ -7792,6 +7793,7 @@ function renderAdmSys(){
   setTimeout(_refreshFcmStatus,100);
 }
 function deleteUser(id){
+  if(!isAdminUser()){toast('⚠️ 관리자만 가능');return;}
   const list=DB.g('pendingUsers')||[];
   const u=list.find(function(p){return p.id===id;});
   if(!u)return;
@@ -7807,6 +7809,7 @@ function deleteUser(id){
   toast('🗑️ 삭제 완료');
 }
 function approveUser(id){
+  if(!isAdminUser()){toast('⚠️ 관리자만 가능');return;}
   const list=DB.g('pendingUsers')||[];
   const idx=list.findIndex(function(p){return p.id===id;});
   if(idx===-1)return;
@@ -7829,7 +7832,7 @@ function _checkDeletedUser(){
   updateUserUI();
   toast('⚠️ 계정이 관리자에 의해 삭제되었습니다');
 }
-function resetAll(){if(!confirm('모든 데이터 초기화. 되돌릴 수 없습니다.'))return;['members','catFac','wikiCats','facilities','rescues','hazards','history','wikis','notis','hotSearch','notiSetting','currentUser','sheetsUrl'].forEach(k=>DB.d(k));initDB();toast('✅ 초기화');renderAdmSys();updateSummary();}
+function resetAll(){if(!isAdminUser()){toast('⚠️ 관리자만 가능');return;}if(!confirm('모든 데이터 초기화. 되돌릴 수 없습니다.'))return;['members','catFac','wikiCats','facilities','rescues','hazards','history','wikis','notis','hotSearch','notiSetting','currentUser','sheetsUrl'].forEach(k=>DB.d(k));initDB();toast('✅ 초기화');renderAdmSys();updateSummary();}
 function clearNotisOnly(){DB.s('notis',[]);updateBell();toast('🗑️ 알림 이력 삭제');renderAdmSys();}
 
 // (구버전 exportAllData/importAllData 중복 정의 제거 — 권한 데이터 누락·복원버튼 버그 유발.
