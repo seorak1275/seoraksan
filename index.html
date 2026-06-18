@@ -1545,7 +1545,7 @@ window.addEventListener('error',e=>{_logErr((e.message||'오류')+' @'+(e.filena
 window.addEventListener('unhandledrejection',e=>{_logErr('Promise: '+((e.reason&&e.reason.message)||e.reason||'거부'));});
 
 // ── 앱 버전 (배포 시 갱신) ──
-const APP_VER='v9.68 (2026.06.18)';
+const APP_VER='v9.69 (2026.06.18)';
 try{document.getElementById('appVerLabel').textContent='설악산 현장관리 '+APP_VER;}catch(e){}
 // ══════════════════════════════════════════
 // DB
@@ -6396,6 +6396,13 @@ function render1BoForm(prefill=null){
 
     <!-- ══ 섹터1: 위치·기상 ══ -->
     <div id="repSec1" class="rep-sec" style="padding:12px;overflow-y:auto;">
+      <div class="rsec"><div class="rsec-t">🚨 사고 유형</div>
+        <div class="fg"><span class="fl">사고 유형</span>
+          <select id="r_type" class="fsel" onchange="autoGenTitle()">
+            ${['안전사고','조난','고립','실종','낙석','위험수목','화재','기타'].map(o=>`<option${p.type===o?' selected':''}>${o}</option>`).join('')}
+          </select>
+        </div>
+      </div>
       <div class="rsec"><div class="rsec-t">📍 사고 위치</div>
         <div class="fg">
           <span class="fl">GPS 좌표</span>
@@ -6462,12 +6469,7 @@ function render1BoForm(prefill=null){
 
     <!-- ══ 섹터2: 환자·부상 ══ -->
     <div id="repSec2" class="rep-sec" style="display:none;padding:12px;overflow-y:auto;">
-      <div class="rsec"><div class="rsec-t">🚨 사고 유형 및 원인</div>
-        <div class="fg"><span class="fl">사고 유형</span>
-          <select id="r_type" class="fsel" onchange="autoGenTitle()">
-            ${['안전사고','조난','고립','실종','낙석','위험수목','화재','기타'].map(o=>`<option${p.type===o?' selected':''}>${o}</option>`).join('')}
-          </select>
-        </div>
+      <div class="rsec"><div class="rsec-t">⚡ 사고 원인·경위</div>
         <div class="fg"><span class="fl">사고 원인</span>
           <select id="r_cause" class="fsel" onchange="autoGenTitle()">
             ${['본인부주의','실족','추락','낙석 피격','탈진/탈수','저체온','심혈관 이상','동물 피해','익수','기타'].map(o=>`<option${(p.cause||'본인부주의')===o?' selected':''}>${o}</option>`).join('')}
