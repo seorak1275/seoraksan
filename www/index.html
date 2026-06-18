@@ -1545,7 +1545,7 @@ window.addEventListener('error',e=>{_logErr((e.message||'오류')+' @'+(e.filena
 window.addEventListener('unhandledrejection',e=>{_logErr('Promise: '+((e.reason&&e.reason.message)||e.reason||'거부'));});
 
 // ── 앱 버전 (배포 시 갱신) ──
-const APP_VER='v9.72 (2026.06.18)';
+const APP_VER='v9.73 (2026.06.18)';
 try{document.getElementById('appVerLabel').textContent='설악산 현장관리 '+APP_VER;}catch(e){}
 // ══════════════════════════════════════════
 // DB
@@ -1959,7 +1959,7 @@ function initDB(){
 // ══════════════════════════════════════════
 const pad=n=>String(n).padStart(2,'0');
 // 생년월일(YYYY...) → 만 나이(연도 기준). 값 없으면 '' 반환
-function _ageFromBirth(b){return b?(new Date().getFullYear()-parseInt(String(b).slice(0,4))):'';}
+function _ageFromBirth(b){if(!b)return '';const y=parseInt(String(b).slice(0,4));const cy=new Date().getFullYear();if(isNaN(y)||y<1900||y>cy)return '';return cy-y;}
 function now(){const d=new Date();return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate())+' '+pad(d.getHours())+':'+pad(d.getMinutes());}
 function _debounce(fn,ms){let t;return function(...a){clearTimeout(t);t=setTimeout(()=>fn.apply(this,a),ms);};}
 // '2026-06-12 14:30' → '2시간 13분 경과' (골든타임 표시용)
@@ -4604,7 +4604,7 @@ function renderRescueStats(){
       if(r.vGender)genderMap[r.vGender]=(genderMap[r.vGender]||0)+1;
       if(r.loctype)loctypeMap[r.loctype]=(loctypeMap[r.loctype]||0)+1;
       if(r.weather)weatherMap[r.weather]=(weatherMap[r.weather]||0)+1;
-      if(r.vBirth){const age=_ageFromBirth(r.vBirth);const ag=age<20?'10대 이하':age<30?'20대':age<40?'30대':age<50?'40대':age<60?'50대':age<70?'60대':'70대+';ageMap[ag]=(ageMap[ag]||0)+1;}
+      if(r.vBirth){const age=_ageFromBirth(r.vBirth);if(age!==''&&!isNaN(age)){const ag=age<20?'10대 이하':age<30?'20대':age<40?'30대':age<50?'40대':age<60?'50대':age<70?'60대':'70대+';ageMap[ag]=(ageMap[ag]||0)+1;}}
       // 발생 시각: r.date("YYYY-MM-DD HH:MM" 또는 "...THH:MM")에서 시(時) 추출 (r.time 필드는 존재하지 않음)
       {const _tm=(r.date||'').match(/[ T](\d{1,2}):/);if(_tm){const h=parseInt(_tm[1],10);if(h<6)timeMap['새벽(0-6시)']++;else if(h<12)timeMap['오전(6-12시)']++;else if(h<18)timeMap['오후(12-18시)']++;else timeMap['저녁(18-24시)']++;}}
     });
@@ -6701,7 +6701,12 @@ function submit1Bo(){
   autoGenTitle();
   const title=document.getElementById('r_title').value.trim()||autoGenTitle(true);
   const gps=(document.getElementById('r_gps')?.value||'').split(',');
-  const lat=parseFloat(gps[0])||null, lng=parseFloat(gps[1])||null;
+  // 좌표 검증: 범위 밖(위경도 뒤바뀜 포함)·NaN이면 좌표 없이 저장(지도 오표시 방지)
+  let lat=parseFloat(gps[0]), lng=parseFloat(gps[1]);
+  if(isNaN(lat)||isNaN(lng)||lat<-90||lat>90||lng<-180||lng>180){
+    if(gps[0]&&gps[1]&&(isNaN(lat)||isNaN(lng)||Math.abs(lat)>90))toast('⚠️ 좌표 형식 오류 — 위치 없이 저장됩니다');
+    lat=null;lng=null;
+  }
   const members=[...document.querySelectorAll('#memChkGrid .chk-grid .chk-box.on')].map(b=>{
     const txt=b.closest('.chk-item')?.querySelector('.chk-txt');
     return txt?txt.textContent.trim().split(' ')[0]:'';
@@ -8630,7 +8635,7 @@ function renderFullStats(){
           ${mini('위험수목',pHaz.filter(h=>h.hazType?.includes('위험수목')).length,'#ca6f1e')}
           ${mini('산불',pHaz.filter(h=>h.hazType?.includes('산불')).length,'#a93226')}
         </div>
-        <div style="font-size:9px;color:#5a8aaa;">미조치 ${haz.filter(h=>h.hazStatus==='미조치').length} · 완료 ${haz.filter(h=>h.hazStatus==='제거 완료'||h.hazStatus==='조치 완료').length}</div>
+        <div style="font-size:9px;color:#5a8aaa;">미조치 ${pHaz.filter(h=>h.hazStatus==='미조치').length} · 완료 ${pHaz.filter(h=>h.hazStatus==='제거 완료'||h.hazStatus==='조치 완료').length}</div>
       </div>`
     )}
     <div class="scard">
