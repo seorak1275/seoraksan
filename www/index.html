@@ -1545,7 +1545,7 @@ window.addEventListener('error',e=>{_logErr((e.message||'오류')+' @'+(e.filena
 window.addEventListener('unhandledrejection',e=>{_logErr('Promise: '+((e.reason&&e.reason.message)||e.reason||'거부'));});
 
 // ── 앱 버전 (배포 시 갱신) ──
-const APP_VER='v9.73 (2026.06.18)';
+const APP_VER='v9.74 (2026.06.18)';
 try{document.getElementById('appVerLabel').textContent='설악산 현장관리 '+APP_VER;}catch(e){}
 // ══════════════════════════════════════════
 // DB
@@ -2355,7 +2355,7 @@ function openNoti(){
           ${n.read?'':'<div style="position:absolute;top:-2px;right:-2px;width:7px;height:7px;background:#e05050;border-radius:50%;border:1.5px solid #0b1c30;"></div>'}
         </div>
         <div style="flex:1;min-width:0;">
-          <div class="ni-msg">${n.msg}</div>
+          <div class="ni-msg">${_esc(n.msg)}</div>
           <div class="ni-t">${n.time}${hasLink?' · <span style="color:#4fa8d0;font-size:10px;">탭하여 이동 →</span>':''}</div>
         </div>
       </div>`;
@@ -2667,7 +2667,7 @@ function _renderBoardPins(){
   (DB.g('facilities')||[]).filter(f=>f.type&&f.type.includes('다목적위치표지판')&&f.lat&&f.lng).forEach(f=>{
     const code=(f.name.match(/\d[\d\-]*\d|\d/)||[f.name.slice(0,6)])[0];
     const el=document.createElement('div');
-    el.innerHTML=`<div style="background:rgba(10,30,55,.85);border:1px solid rgba(79,168,208,.6);color:#7dd3fa;border-radius:5px;padding:1px 5px;font-size:9px;font-weight:700;white-space:nowrap;box-shadow:0 1px 3px rgba(0,0,0,.5);cursor:default;">${code}</div>`;
+    el.innerHTML=`<div style="background:rgba(10,30,55,.85);border:1px solid rgba(79,168,208,.6);color:#7dd3fa;border-radius:5px;padding:1px 5px;font-size:9px;font-weight:700;white-space:nowrap;box-shadow:0 1px 3px rgba(0,0,0,.5);cursor:default;">${_esc(code)}</div>`;
     const pos=new kakao.maps.LatLng(f.lat,f.lng);
     const ov=new kakao.maps.CustomOverlay({position:pos,content:el,yAnchor:1,zIndex:2});
     ov.setMap(_boardMap);_boardOvs.push(ov);
@@ -2785,10 +2785,10 @@ function renderBoard(){
     html+=`<div style="background:#0a1626;border:1.5px solid rgba(192,57,43,.35);border-radius:14px;padding:14px 16px;margin-bottom:12px;">
       <div onclick="_boardFocus(${r.id})" style="cursor:pointer;">
         <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:6px;margin-bottom:4px;">
-          <div style="font-size:18px;font-weight:800;color:#e0edf8;">${ti.ico} ${r.title}</div>
+          <div style="font-size:18px;font-weight:800;color:#e0edf8;">${ti.ico} ${_esc(r.title)}</div>
           ${elp?`<div style="font-size:16px;font-weight:800;color:#f0a500;font-family:monospace;">⏱ ${elp}</div>`:''}
         </div>
-        <div style="font-size:13px;color:#5a85a8;margin-bottom:12px;">${r.type} · ${_resLocLabel(r)} · ${r.date}</div>
+        <div style="font-size:13px;color:#5a85a8;margin-bottom:12px;">${_esc(r.type)} · ${_esc(_resLocLabel(r))} · ${r.date}</div>
         ${(r.teams&&r.teams.length)?r.teams.map((t,ti2)=>{
           const col=TEAM_COLORS[ti2%TEAM_COLORS.length];
           const si=_teamStageIdx(t);
@@ -2798,15 +2798,15 @@ function renderBoard(){
           const cur=t.wps[t.wpIdx]||{};
           const curName=(cur.code?cur.code+' ':'')+(cur.name||'').slice(0,16);
           return `<div style="display:flex;align-items:center;gap:12px;padding:7px 0;border-top:1px solid rgba(255,255,255,.05);">
-            <span style="font-size:14px;font-weight:800;color:${col};flex-shrink:0;min-width:110px;">${_teamIco(t)} ${t.name}</span>
+            <span style="font-size:14px;font-weight:800;color:${col};flex-shrink:0;min-width:110px;">${_teamIco(t)} ${_esc(t.name)}</span>
             <div style="flex:1;height:8px;background:rgba(255,255,255,.07);border-radius:4px;overflow:hidden;"><div style="height:100%;width:${pct}%;background:${col};border-radius:4px;"></div></div>
-            <span style="font-size:12px;color:rgba(255,255,255,.55);flex-shrink:0;min-width:130px;">📍 ${curName||'-'}</span>
+            <span style="font-size:12px;color:rgba(255,255,255,.55);flex-shrink:0;min-width:130px;">📍 ${_esc(curName||'-')}</span>
             <span style="font-size:12px;font-weight:800;color:${done?'#27ae60':stageCol[si]};flex-shrink:0;">${done?'✓ 완료':stageLbl[si]}</span>
           </div>`;
         }).join(''):'<div style="font-size:12px;color:rgba(255,255,255,.3);padding:6px 0;">출동팀 미편성</div>'}
         <div style="display:flex;justify-content:space-between;margin-top:8px;font-size:12px;color:#4a7090;">
-          <span>${lastLog?`최근: ${lastLog.time} ${lastLog.teamName} ${lastLog.code||''} 통과`:''}</span>
-          <span>${r.handover&&r.handover.to?`🤝 인계: ${r.handover.to}`:''}</span>
+          <span>${lastLog?`최근: ${lastLog.time} ${_esc(lastLog.teamName)} ${_esc(lastLog.code||'')} 통과`:''}</span>
+          <span>${r.handover&&r.handover.to?`🤝 인계: ${_esc(r.handover.to)}`:''}</span>
         </div>
         ${(r.teams&&r.teams.length>0&&r.teams.every(t=>_teamDone(t)))?`<div style="background:rgba(39,174,96,.12);border:1px solid rgba(39,174,96,.35);border-radius:8px;padding:8px 12px;margin-top:8px;text-align:center;font-size:13px;font-weight:800;color:#27ae60;">🏁 전 팀 완료 — 상황 종료 대기중</div>`:''}
       </div>
@@ -5668,7 +5668,7 @@ function _tlTeamFullHtml(team,idx){
   return `<div id="tlTeamCard_${idx}" style="background:${isSel?'rgba(79,168,208,.07)':'rgba(255,255,255,.02)'};border:1px solid ${isSel?'rgba(79,168,208,.3)':'rgba(255,255,255,.07)'};border-radius:10px;margin-bottom:7px;overflow:hidden;">
     <div onclick="toggleTlTeamRoute(${idx})" style="padding:10px 12px;cursor:pointer;user-select:none;">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:7px;">
-        <span style="font-size:11px;font-weight:700;color:${isSel?'#4fa8d0':'#b8d4e8'};">${typeIco} ${team.name}</span>
+        <span style="font-size:11px;font-weight:700;color:${isSel?'#4fa8d0':'#b8d4e8'};">${typeIco} ${_esc(team.name)}</span>
         <div style="display:flex;align-items:center;gap:7px;">
           <span style="font-size:9px;font-weight:600;color:${sc};">${_TL_STAGES[si]}</span>
           <span style="font-size:10px;color:rgba(255,255,255,.3);font-weight:600;">${isCollapsed?'▼ 경로':'▲'}</span>
@@ -5784,7 +5784,7 @@ function _buildLogHtml(r){
     <div style="font-size:11px;color:#4fa8d0;font-weight:700;margin-bottom:6px;">📜 상황 일지 (자동 통합)</div>
     ${logEntries.map(e=>`<div style="display:flex;gap:8px;padding:3px 0;align-items:baseline;">
       <span style="font-size:10px;color:#4a7090;font-family:monospace;flex-shrink:0;width:38px;">${e.t}</span>
-      <span style="font-size:11px;color:#b8d4e8;line-height:1.5;">${e.ico} ${e.label}${e.sub?` <span style="color:#5a7a94;">— ${e.sub}</span>`:''}</span>
+      <span style="font-size:11px;color:#b8d4e8;line-height:1.5;">${e.ico} ${_esc(e.label)}${e.sub?` <span style="color:#5a7a94;">— ${_esc(e.sub)}</span>`:''}</span>
     </div>`).join('')}
   </div>`;
 }
@@ -5848,7 +5848,7 @@ function renderTimeline(r,viewMode,outId){
         ${_tlBuilding?_renderBuildPanelHtml():_renderCreateBtnsHtml()}
       </div>
       ${_scenePhotosHtml(r)}
-      ${(r.wpLog&&r.wpLog.length)?`<div style="background:#060d1a;border-radius:9px;padding:10px 13px;margin-top:4px;border:.5px solid rgba(79,168,208,.15);"><div style="font-size:11px;color:#4fa8d0;font-weight:700;margin-bottom:5px;">📍 위치 통과 기록</div>${r.wpLog.map(l=>`<div style="font-size:11px;color:#b8d4e8;line-height:1.9;font-family:monospace;">${l.time} · ${l.teamName} · ${l.code||'?'}${l.wpName?' ('+l.wpName+')':''} 통과</div>`).join('')}</div>`:''}
+      ${(r.wpLog&&r.wpLog.length)?`<div style="background:#060d1a;border-radius:9px;padding:10px 13px;margin-top:4px;border:.5px solid rgba(79,168,208,.15);"><div style="font-size:11px;color:#4fa8d0;font-weight:700;margin-bottom:5px;">📍 위치 통과 기록</div>${r.wpLog.map(l=>`<div style="font-size:11px;color:#b8d4e8;line-height:1.9;font-family:monospace;">${l.time} · ${_esc(l.teamName)} · ${_esc(l.code||'?')}${l.wpName?' ('+_esc(l.wpName)+')':''} 통과</div>`).join('')}</div>`:''}
       ${_buildLogHtml(r)}
       <div style="background:#0b1c30;border-radius:10px;padding:11px 12px;border:.5px solid rgba(79,168,208,.12);margin-top:8px;">
         <div style="font-size:11px;color:#4fa8d0;font-weight:700;margin-bottom:8px;">💬 댓글</div>
@@ -5915,24 +5915,24 @@ function renderTimeline(r,viewMode,outId){
 
       <div style="background:#0b1c30;border-radius:10px;padding:11px 12px;border:.5px solid rgba(79,168,208,.12);margin-top:8px;">
         <div style="font-size:11px;color:#4fa8d0;font-weight:700;margin-bottom:7px;">👥 출동 인원</div>
-        ${(r.members&&r.members.length)?`<div style="font-size:11px;color:#b8d4e8;margin-bottom:4px;"><span style="color:#4a7090;font-weight:600;">초동팀:</span> ${r.members.join(', ')}</div>`:''}
+        ${(r.members&&r.members.length)?`<div style="font-size:11px;color:#b8d4e8;margin-bottom:4px;"><span style="color:#4a7090;font-weight:600;">초동팀:</span> ${_esc(r.members.join(', '))}</div>`:''}
         ${(r.teams&&r.teams.length)?r.teams.map(t=>{
           const ico=_teamIco(t);
           const si=_teamStageIdx(t);
           const stLbl=['출발','이동중','환자조우','하산'][si]||'';
-          const mem=(t.members&&t.members.length)?': '+t.members.join(', '):'';
-          return `<div style="font-size:11px;color:#b8d4e8;margin-bottom:3px;"><span style="color:#7ec8a0;font-weight:600;">${ico} ${t.name}</span>${mem} <span style="color:#4a7090;font-size:10px;">(${stLbl})</span></div>`;
+          const mem=(t.members&&t.members.length)?': '+_esc(t.members.join(', ')):'';
+          return `<div style="font-size:11px;color:#b8d4e8;margin-bottom:3px;"><span style="color:#7ec8a0;font-weight:600;">${ico} ${_esc(t.name)}</span>${mem} <span style="color:#4a7090;font-size:10px;">(${stLbl})</span></div>`;
         }).join(''):''}
         ${(!r.members||!r.members.length)&&(!r.teams||!r.teams.length)?'<div style="font-size:11px;color:rgba(255,255,255,.3);">미기재 — 타임라인에서 팀을 생성하면 자동 표시됩니다</div>':''}
-        ${(r.extraTeams&&r.extraTeams.length)?r.extraTeams.map(t=>`<div style="font-size:11px;color:#b8d4e8;margin-bottom:3px;"><span style="color:#7ec8a0;font-weight:600;">${t.teamName}:</span> ${t.members.join(', ')}</div>`).join(''):''}
+        ${(r.extraTeams&&r.extraTeams.length)?r.extraTeams.map(t=>`<div style="font-size:11px;color:#b8d4e8;margin-bottom:3px;"><span style="color:#7ec8a0;font-weight:600;">${_esc(t.teamName)}:</span> ${_esc((t.members||[]).join(', '))}</div>`).join(''):''}
         ${(r.agencies)?(()=>{
           const ag=r.agencies;const parts=[];
           if(ag.hwandongha)parts.push(`🚒 ${(DB.g('extAgencyDisplayName')||'환동해 특수대응단').split(' ')[0]} ${ag.hwTeam||'?'}팀`);
-          if(ag.fireAgencies&&ag.fireAgencies.length)ag.fireAgencies.forEach(a=>parts.push(`🚒 ${a.name}`));
+          if(ag.fireAgencies&&ag.fireAgencies.length)ag.fireAgencies.forEach(a=>parts.push(`🚒 ${_esc(a.name)}`));
           if(ag.police)parts.push('🚔 경찰');
           if(ag.forestry)parts.push('🌲 산림청');
-          if(ag.other)parts.push(ag.other);
-          if(ag.agenciesNote)parts.push(`(${ag.agenciesNote})`);
+          if(ag.other)parts.push(_esc(ag.other));
+          if(ag.agenciesNote)parts.push(`(${_esc(ag.agenciesNote)})`);
           return parts.length?`<div style="font-size:11px;color:#b8d4e8;margin-top:2px;"><span style="color:#4a7090;">유관기관:</span> ${parts.join(' · ')}</div>`:'';
         })():''}
       </div>`;
@@ -8212,7 +8212,7 @@ function fetchWeather(){
     else if(lgt){ico='⛈️';desc='낙뢰';}
     else{ico=sky===1?'☀️':sky===3?'⛅':sky===4?'☁️':'🌤️';desc=sky===1?'맑음':sky===3?'구름많음':sky===4?'흐림':'맑음';}
     document.getElementById('wIco').textContent=ico;
-    document.getElementById('wTmp').textContent=Math.round(temp)+'°';
+    document.getElementById('wTmp').textContent=(isNaN(temp)?'--':Math.round(temp))+'°';
     document.getElementById('wDesc').textContent='속초 · '+desc;
     document.getElementById('wWind').textContent='💨 '+Math.round(wspd)+'m/s';
     var ws=document.getElementById('weatherStrip');if(ws)ws.style.display='flex';
@@ -8244,7 +8244,7 @@ function _fetchWeatherFallback(){
       var descs=['맑음','대체로맑음','구름조금','흐림','안개','이슬비','비','눈','소나기','뇌우'];
       var desc=descs[code===0?0:code<=1?1:code<=2?2:code<=3?3:code<=48?4:code<=55?5:code<=65?6:code<=77?7:8]||'';
       document.getElementById('wIco').textContent=ico;
-      document.getElementById('wTmp').textContent=Math.round(temp)+'°';
+      document.getElementById('wTmp').textContent=(isNaN(temp)?'--':Math.round(temp))+'°';
       document.getElementById('wDesc').textContent='속초 · '+desc;
       document.getElementById('wWind').textContent='💨 '+Math.round(wspd)+'m/s';
       var ws=document.getElementById('weatherStrip');if(ws)ws.style.display='flex';
@@ -8389,7 +8389,7 @@ function _renderWeatherDetail(cache){
       +'<div class="wdetail-row">'
         +'<div class="wdetail-ico">'+pi.ico+'</div>'
         +'<div class="wdetail-main">'
-          +'<div class="wdetail-tmp">'+Math.round(temp)+'°</div>'
+          +'<div class="wdetail-tmp">'+(isNaN(temp)?'--':Math.round(temp))+'°</div>'
           +'<div class="wdetail-desc">'+pi.desc+'</div>'
         +'</div>'
       +'</div>'
