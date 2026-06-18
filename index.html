@@ -1541,7 +1541,7 @@ window.addEventListener('error',e=>{_logErr((e.message||'오류')+' @'+(e.filena
 window.addEventListener('unhandledrejection',e=>{_logErr('Promise: '+((e.reason&&e.reason.message)||e.reason||'거부'));});
 
 // ── 앱 버전 (배포 시 갱신) ──
-const APP_VER='v9.62 (2026.06.17)';
+const APP_VER='v9.63 (2026.06.17)';
 try{document.getElementById('appVerLabel').textContent='설악산 현장관리 '+APP_VER;}catch(e){}
 // ══════════════════════════════════════════
 // DB
@@ -6909,30 +6909,31 @@ function setMapFacF(t,v){
   renderInspectMap();renderFacList();
 }
 function _smfs(t,v){setMapFacF(t,v);}
+// 필터 패널 공용 헬퍼 (시설물지도/시설물목록/구조필터 3곳에서 동일 템플릿 사용)
+function _filterChip(label,set,val,onclick,col){
+  const on=set.has(val);
+  const c=col||(on?'#4fa8d0':'rgba(255,255,255,.5)');
+  return `<span onclick="${onclick}" style="display:inline-block;margin:2px 2px;padding:3px 8px;border-radius:20px;font-size:10px;font-weight:600;cursor:pointer;border:1.5px solid ${on?c:'rgba(255,255,255,.12)'};color:${on?c:'rgba(255,255,255,.35)'};background:${on?c+'22':'transparent'};">${label}</span>`;
+}
+function _filterSec(id,title,html,set,extraCnt){
+  const el=document.getElementById(id);if(!el)return;
+  const cnt=(set?set.size:0)+(extraCnt||0),open=window._fpSec&&window._fpSec[id];
+  el.innerHTML=`
+    <div onclick="_toggleFPSec('${id}')"
+      style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid rgba(255,255,255,.05);cursor:pointer;user-select:none;">
+      <span style="font-size:11px;font-weight:700;color:#9bbdd4;">${title}${cnt?` <span style="color:#e05050;font-size:10px;">(${cnt})</span>`:''}</span>
+      <b style="font-size:13px;color:#3a6a8a;font-weight:400;">${open?'⌄':'›'}</b>
+    </div>
+    <div style="display:${open?'block':'none'};padding:4px 0 2px;">${html}</div>`;
+}
 function _updateInspFilterPanel(types,locs){
-  const chip=(label,set,val,onclick,col)=>{
-    const on=set.has(val);
-    const c=col||(on?'#4fa8d0':'rgba(255,255,255,.5)');
-    return `<span onclick="${onclick}" style="display:inline-block;margin:2px 2px;padding:3px 8px;border-radius:20px;font-size:10px;font-weight:600;cursor:pointer;border:1.5px solid ${on?c:'rgba(255,255,255,.12)'};color:${on?c:'rgba(255,255,255,.35)'};background:${on?c+'22':'transparent'};">${label}</span>`;
-  };
   const sChips=[{l:'양호',v:'ok',c:'#27ae60'},{l:'요주의',v:'warn',c:'#e67e22'},{l:'위험',v:'bad',c:'#c0392b'}];
-  const sec=(id,title,html,set)=>{
-    const el=document.getElementById(id);if(!el)return;
-    const cnt=set.size,open=window._fpSec&&window._fpSec[id];
-    el.innerHTML=`
-      <div onclick="_toggleFPSec('${id}')"
-        style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid rgba(255,255,255,.05);cursor:pointer;user-select:none;">
-        <span style="font-size:11px;font-weight:700;color:#9bbdd4;">${title}${cnt?` <span style="color:#e05050;font-size:10px;">(${cnt})</span>`:''}</span>
-        <b style="font-size:13px;color:#3a6a8a;font-weight:400;">${open?'⌄':'›'}</b>
-      </div>
-      <div style="display:${open?'block':'none'};padding:4px 0 2px;">${html}</div>`;
-  };
-  sec('inspFP_status','상태',
-    sChips.map(({l,v,c})=>chip(l,facMapStatusF,v,`_smfs('s','${v}')`,c)).join(''),facMapStatusF);
-  sec('inspFP_type','종류',
-    types.filter(t=>t!=='전체').map(v=>chip(v,facMapTypeF,v,`_smfs('t','${v.replace(/'/g,"\\'")}')`,'#4fa8d0')).join(''),facMapTypeF);
-  sec('inspFP_loc','위치',
-    locs.filter(v=>v!=='전체').map(v=>chip(v,facMapLocF,v,`_smfs('l','${v.replace(/'/g,"\\'")}')`,'#9b59b6')).join(''),facMapLocF);
+  _filterSec('inspFP_status','상태',
+    sChips.map(({l,v,c})=>_filterChip(l,facMapStatusF,v,`_smfs('s','${v}')`,c)).join(''),facMapStatusF);
+  _filterSec('inspFP_type','종류',
+    types.filter(t=>t!=='전체').map(v=>_filterChip(v,facMapTypeF,v,`_smfs('t','${v.replace(/'/g,"\\'")}')`,'#4fa8d0')).join(''),facMapTypeF);
+  _filterSec('inspFP_loc','위치',
+    locs.filter(v=>v!=='전체').map(v=>_filterChip(v,facMapLocF,v,`_smfs('l','${v.replace(/'/g,"\\'")}')`,'#9b59b6')).join(''),facMapLocF);
   // 배지/카운트 업데이트
   const total=facMapStatusF.size+facMapTypeF.size+facMapLocF.size;
   ['inspFilterBadge','facListFilterBadge'].forEach(id=>{const el=document.getElementById(id);if(!el)return;el.style.display=total?'inline-flex':'none';if(total)el.textContent=total;});
@@ -6996,12 +6997,10 @@ function _updateFacListFilterPanel(types,locs){
     const _sf2=(DB.g('facilities')||[]).filter(f=>f.type&&f.type.includes('다목적위치표지판'));
     locs=locs||[...new Set(_sf2.map(f=>(f.name.match(/\d+/)||[''])[0]).filter(Boolean))].sort();
   }
-  const chip=(label,set,val,onclick,col)=>{const on=set.has(val);const c=col||(on?'#4fa8d0':'rgba(255,255,255,.5)');return `<span onclick="${onclick}" style="display:inline-block;margin:2px 2px;padding:3px 8px;border-radius:20px;font-size:10px;font-weight:600;cursor:pointer;border:1.5px solid ${on?c:'rgba(255,255,255,.12)'};color:${on?c:'rgba(255,255,255,.35)'};background:${on?c+'22':'transparent'};">${label}</span>`;};
-  const sec=(id,title,html,set)=>{const el=document.getElementById(id);if(!el)return;const cnt=set.size,open=window._fpSec&&window._fpSec[id];el.innerHTML=`<div onclick="_toggleFPSec('${id}')" style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid rgba(255,255,255,.05);cursor:pointer;user-select:none;"><span style="font-size:11px;font-weight:700;color:#9bbdd4;">${title}${cnt?` <span style="color:#e05050;font-size:10px;">(${cnt})</span>`:''}</span><b style="font-size:13px;color:#3a6a8a;font-weight:400;">${open?'⌄':'›'}</b></div><div style="display:${open?'block':'none'};padding:4px 0 2px;">${html}</div>`;};
   const sChips=[{l:'양호',v:'ok',c:'#27ae60'},{l:'요주의',v:'warn',c:'#e67e22'},{l:'위험',v:'bad',c:'#c0392b'}];
-  sec('facLFP_status','상태',sChips.map(({l,v,c})=>chip(l,facMapStatusF,v,`_smfs('s','${v}');renderFacList();`,c)).join(''),facMapStatusF);
-  sec('facLFP_type','종류',(types||[]).map(v=>chip(v,facMapTypeF,v,`_smfs('t','${v.replace(/'/g,"\\'")}');renderFacList();`,'#4fa8d0')).join(''),facMapTypeF);
-  sec('facLFP_loc','위치',(locs||[]).map(v=>chip(v,facMapLocF,v,`_smfs('l','${v.replace(/'/g,"\\'")}');renderFacList();`,'#9b59b6')).join(''),facMapLocF);
+  _filterSec('facLFP_status','상태',sChips.map(({l,v,c})=>_filterChip(l,facMapStatusF,v,`_smfs('s','${v}');renderFacList();`,c)).join(''),facMapStatusF);
+  _filterSec('facLFP_type','종류',(types||[]).map(v=>_filterChip(v,facMapTypeF,v,`_smfs('t','${v.replace(/'/g,"\\'")}');renderFacList();`,'#4fa8d0')).join(''),facMapTypeF);
+  _filterSec('facLFP_loc','위치',(locs||[]).map(v=>_filterChip(v,facMapLocF,v,`_smfs('l','${v.replace(/'/g,"\\'")}');renderFacList();`,'#9b59b6')).join(''),facMapLocF);
   const total=facMapStatusF.size+facMapTypeF.size+facMapLocF.size;
   ['facListFilterBadge'].forEach(id=>{const el=document.getElementById(id);if(!el)return;el.style.display=total?'inline-flex':'none';if(total)el.textContent=total;});
   const fc=document.getElementById('facListFilterCount');if(fc)fc.textContent=total?`(${total})`:'';
@@ -7012,19 +7011,17 @@ function _updateResFilterPanels(){
   const total=resTypeF.size+resStatusF.size+dateActive;
   ['resMapFilterBadge','resListFilterBadge'].forEach(id=>{const el=document.getElementById(id);if(!el)return;el.style.display=total?'inline-flex':'none';if(total)el.textContent=total;});
   ['resMapFilterCount','resListFilterCount'].forEach(id=>{const el=document.getElementById(id);if(!el)return;el.textContent=total?`(${total})` : '';});
-  const chip=(set,val,label,onclick)=>{const on=set.has(val);return `<span onclick="${onclick}" style="display:inline-block;margin:2px 2px;padding:3px 8px;border-radius:20px;font-size:10px;font-weight:600;cursor:pointer;border:1.5px solid ${on?'#4fa8d0':'rgba(255,255,255,.12)'};color:${on?'#4fa8d0':'rgba(255,255,255,.35)'};background:${on?'rgba(79,168,208,.15)':'transparent'};">${label}</span>`;};
-  const sec=(id,title,html,set,extraCnt)=>{const el=document.getElementById(id);if(!el)return;const cnt=(set?set.size:0)+(extraCnt||0),open=window._fpSec&&window._fpSec[id];el.innerHTML=`<div onclick="_toggleFPSec('${id}')" style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid rgba(255,255,255,.05);cursor:pointer;user-select:none;"><span style="font-size:11px;font-weight:700;color:#9bbdd4;">${title}${cnt?` <span style="color:#e05050;font-size:10px;">(${cnt})</span>`:''}</span><b style="font-size:13px;color:#3a6a8a;font-weight:400;">${open?'⌄':'›'}</b></div><div style="display:${open?'block':'none'};padding:4px 0 2px;">${html}</div>`;};
   const inpSt='background:#0a1828;color:#4fa8d0;border:1px solid rgba(79,168,208,.3);border-radius:6px;padding:5px 6px;font-size:11px;width:100%;box-sizing:border-box;';
   const dateHtml=`<div style="display:flex;gap:6px;align-items:center;margin-top:4px;">
     <input type="date" value="${resDateFrom}" style="${inpSt}" onchange="setResDate('from',this.value)">
     <span style="color:rgba(255,255,255,.3);font-size:11px;flex-shrink:0;">~</span>
     <input type="date" value="${resDateTo}" style="${inpSt}" onchange="setResDate('to',this.value)">
   </div>`;
-  const typeHtml=[{v:'🚨구조',l:'🚨 구조보고'},{v:'⚠️위험상황',l:'⚠️ 위험상황'}].map(({v,l})=>chip(resTypeF,v,l,`setResTypeF('${v}')`)).join('');
-  const stHtml=[{v:'진행중',l:'🔴 진행중/미조치'},{v:'종료',l:'✅ 종료/완료'}].map(({v,l})=>chip(resStatusF,v,l,`setResStatusF('${v}')`)).join('');
-  ['resMFP_date','resLFP_date'].forEach(id=>sec(id,'📅 날짜',dateHtml,null,dateActive));
-  ['resMFP_type','resLFP_type'].forEach(id=>sec(id,'종류',typeHtml,resTypeF));
-  ['resMFP_status','resLFP_status'].forEach(id=>sec(id,'상태',stHtml,resStatusF));
+  const typeHtml=[{v:'🚨구조',l:'🚨 구조보고'},{v:'⚠️위험상황',l:'⚠️ 위험상황'}].map(({v,l})=>_filterChip(l,resTypeF,v,`setResTypeF('${v}')`)).join('');
+  const stHtml=[{v:'진행중',l:'🔴 진행중/미조치'},{v:'종료',l:'✅ 종료/완료'}].map(({v,l})=>_filterChip(l,resStatusF,v,`setResStatusF('${v}')`)).join('');
+  ['resMFP_date','resLFP_date'].forEach(id=>_filterSec(id,'📅 날짜',dateHtml,null,dateActive));
+  ['resMFP_type','resLFP_type'].forEach(id=>_filterSec(id,'종류',typeHtml,resTypeF));
+  ['resMFP_status','resLFP_status'].forEach(id=>_filterSec(id,'상태',stHtml,resStatusF));
 }
 function setResDate(which,v){
   if(which==='from')resDateFrom=v;else resDateTo=v;
