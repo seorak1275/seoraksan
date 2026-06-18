@@ -243,7 +243,7 @@ button{-webkit-tap-highlight-color:transparent;touch-action:manipulation;}
 /* ═══ 카드/섹션 ═══ */
 .scard{background:#0b1c30;border-radius:9px;padding:8px 10px;border:.5px solid rgba(255,255,255,.07);}
 .stitle{font-size:10px;color:#4fa8d0;font-weight:700;margin-bottom:5px;}
-.sec-label{font-size:10px;color:#3a6a8a;font-weight:700;letter-spacing:.4px;padding:4px 0 5px;}
+.sec-label{font-size:10px;color:#6fa6cc;font-weight:700;letter-spacing:.4px;padding:4px 0 5px;}
 
 /* ═══ 통계 ═══ */
 .stat-grid{display:grid;grid-template-columns:1fr 1fr;gap:7px;}
@@ -292,7 +292,7 @@ button{-webkit-tap-highlight-color:transparent;touch-action:manipulation;}
 
 /* ═══ 폼 ═══ */
 .fg{margin-bottom:11px;}.fg:last-child{margin-bottom:0;}
-.fl{display:block;font-size:10px;color:#3a6a8a;margin-bottom:4px;font-weight:600;}
+.fl{display:block;font-size:10.5px;color:#6fa6cc;margin-bottom:5px;font-weight:600;}
 .fi,.fsel,.fta{width:100%;background:#060d1a;border:1px solid rgba(255,255,255,.09);color:#e0edf8;padding:9px 11px;border-radius:8px;font-size:12px;outline:none;font-family:inherit;}
 .fi,.fsel{min-height:44px;}
 .fi:focus,.fsel:focus,.fta:focus{border-color:rgba(79,168,208,.5);}
@@ -302,7 +302,7 @@ button{-webkit-tap-highlight-color:transparent;touch-action:manipulation;}
 .gps-row{display:flex;gap:5px;}
 .sm-btn{background:rgba(79,168,208,.07);color:#4fa8d0;border:1px solid rgba(79,168,208,.18);border-radius:7px;padding:0 10px;font-size:11px;cursor:pointer;white-space:nowrap;font-weight:600;flex-shrink:0;height:42px;}
 .pills{display:flex;flex-wrap:wrap;gap:5px;}
-.pill{padding:5px 10px;border-radius:20px;font-size:11px;font-weight:600;cursor:pointer;border:1.5px solid rgba(255,255,255,.1);color:rgba(255,255,255,.38);background:transparent;transition:all .15s;}
+.pill{padding:6px 11px;border-radius:20px;font-size:11px;font-weight:600;cursor:pointer;border:1.5px solid rgba(255,255,255,.12);color:rgba(255,255,255,.52);background:transparent;transition:all .15s;}
 .pill.on{border-color:rgba(79,168,208,.65);color:#4fa8d0;background:rgba(79,168,208,.09);}
 .chk-grid{display:grid;grid-template-columns:1fr 1fr;gap:5px;}
 .chk-item{display:flex;align-items:center;gap:6px;padding:7px 9px;background:rgba(255,255,255,.03);border-radius:7px;cursor:pointer;border:1px solid transparent;}
@@ -1541,7 +1541,7 @@ window.addEventListener('error',e=>{_logErr((e.message||'오류')+' @'+(e.filena
 window.addEventListener('unhandledrejection',e=>{_logErr('Promise: '+((e.reason&&e.reason.message)||e.reason||'거부'));});
 
 // ── 앱 버전 (배포 시 갱신) ──
-const APP_VER='v9.66 (2026.06.18)';
+const APP_VER='v9.67 (2026.06.18)';
 try{document.getElementById('appVerLabel').textContent='설악산 현장관리 '+APP_VER;}catch(e){}
 // ══════════════════════════════════════════
 // DB
