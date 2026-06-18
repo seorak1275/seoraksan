@@ -1541,7 +1541,7 @@ window.addEventListener('error',e=>{_logErr((e.message||'오류')+' @'+(e.filena
 window.addEventListener('unhandledrejection',e=>{_logErr('Promise: '+((e.reason&&e.reason.message)||e.reason||'거부'));});
 
 // ── 앱 버전 (배포 시 갱신) ──
-const APP_VER='v9.63 (2026.06.17)';
+const APP_VER='v9.64 (2026.06.17)';
 try{document.getElementById('appVerLabel').textContent='설악산 현장관리 '+APP_VER;}catch(e){}
 // ══════════════════════════════════════════
 // DB
@@ -4809,6 +4809,7 @@ function downloadStatsExcel(tab){
 // ══════════════════════════════════════════
 // 팝업 & 상황 종료
 // ══════════════════════════════════════════
+function _popRow(ico,val){return val?`<div style="display:flex;gap:5px;margin-bottom:3px;"><span style="color:#4a7090;flex-shrink:0;">${ico}</span><span style="color:#c0d8ec;font-size:11px;">${val}</span></div>`:'';}
 function openResPopup(id,type='rescue'){
   const data=type==='rescue'?(DB.g('rescues')||[]).find(x=>x.id===id):(DB.g('hazards')||[]).find(x=>x.id===id);if(!data)return;
   selResId=id;
@@ -4819,7 +4820,7 @@ function openResPopup(id,type='rescue'){
     // 빈값/미상 필터 헬퍼
     const _skip=v=>{if(!v)return true;const s=String(v).trim();return !s||s==='-'||['미상','없음','모르겠음','알수없음','미정','해당없음','기타'].includes(s);};
     const _arr=v=>(Array.isArray(v)?v:typeof v==='string'?[v]:[]).filter(x=>!_skip(x));
-    const row=(ico,val)=>val?`<div style="display:flex;gap:5px;margin-bottom:3px;"><span style="color:#4a7090;flex-shrink:0;">${ico}</span><span style="color:#c0d8ec;font-size:11px;">${val}</span></div>`:'';
+    const row=_popRow;
     const d=data;
     const rows=[
       row('📅',d.date),
@@ -4849,7 +4850,7 @@ function openResPopup(id,type='rescue'){
   } else {
     document.getElementById('resPopTitle').textContent='⚠️ '+data.hazType+' 위험상황';
     const _skip=v=>{if(!v)return true;const s=String(v).trim();return !s||s==='-'||['미상','없음','알수없음','미정'].includes(s);};
-    const row=(ico,val)=>val?`<div style="display:flex;gap:5px;margin-bottom:3px;"><span style="color:#4a7090;flex-shrink:0;">${ico}</span><span style="color:#c0d8ec;font-size:11px;">${val}</span></div>`:'';
+    const row=_popRow;
     const d=data;
     document.getElementById('resPopMeta').innerHTML=[
       row('📍',!_skip(d.loc)?d.loc:''),
