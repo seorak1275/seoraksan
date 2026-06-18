@@ -174,13 +174,13 @@ button{-webkit-tap-highlight-color:transparent;touch-action:manipulation;}
 .hchip-num.blink{animation:chipPulse 1.1s ease-in-out infinite;}
 .hchip-lbl{font-size:9px;font-weight:600;opacity:.8;margin-top:1px;}
 .hchip-r{background:rgba(192,57,43,.1);border:1px solid rgba(192,57,43,.25);}
-.hchip-r .hchip-num{color:#ff6b6b;}.hchip-r .hchip-lbl{color:#cc5555;}
+.hchip-r .hchip-num{color:#ff6b6b;}.hchip-r .hchip-lbl{color:#e08585;}
 .hchip-b{background:rgba(79,168,208,.09);border:1px solid rgba(79,168,208,.2);}
-.hchip-b .hchip-num{color:#4fa8d0;}.hchip-b .hchip-lbl{color:#3a7a9a;}
+.hchip-b .hchip-num{color:#4fa8d0;}.hchip-b .hchip-lbl{color:#6fa6cc;}
 .hchip-o{background:rgba(230,126,34,.09);border:1px solid rgba(230,126,34,.22);}
-.hchip-o .hchip-num{color:#e67e22;}.hchip-o .hchip-lbl{color:#b06010;}
+.hchip-o .hchip-num{color:#e67e22;}.hchip-o .hchip-lbl{color:#d08a4a;}
 .hchip-g{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.09);}
-.hchip-g .hchip-num{color:#c0d8ec;}.hchip-g .hchip-lbl{color:#3a6a8a;}
+.hchip-g .hchip-num{color:#c0d8ec;}.hchip-g .hchip-lbl{color:#7a98ac;}
 
 /* ═══ 지도 ═══ */
 .mapwrap{position:absolute;inset:0;overflow:hidden;}
@@ -1541,7 +1541,7 @@ window.addEventListener('error',e=>{_logErr((e.message||'오류')+' @'+(e.filena
 window.addEventListener('unhandledrejection',e=>{_logErr('Promise: '+((e.reason&&e.reason.message)||e.reason||'거부'));});
 
 // ── 앱 버전 (배포 시 갱신) ──
-const APP_VER='v9.65 (2026.06.18)';
+const APP_VER='v9.66 (2026.06.18)';
 try{document.getElementById('appVerLabel').textContent='설악산 현장관리 '+APP_VER;}catch(e){}
 // ══════════════════════════════════════════
 // DB
@@ -4470,7 +4470,10 @@ function renderResList(){
           <div class="lmeta">작성: ${r.author||'-'} · ${totalPh}보 기록 · 사고자: ${r.vName||'미상'}${(r.victims2&&r.victims2.length)?` <span style="color:#e9897e;font-weight:700;">외 ${r.victims2.length}명</span>`:''}</div>
           ${hasCoord?`<button onclick="event.stopPropagation();viewOnMap(${r.lat},${r.lng})" style="margin-top:5px;padding:4px 10px;background:rgba(79,168,208,.12);border:1px solid rgba(79,168,208,.35);color:#4fa8d0;border-radius:7px;font-size:11px;font-weight:600;cursor:pointer;">🗺️ 지도보기</button>`:''}
         </div>
-        <span class="lbadge" style="background:${isOg?'rgba(231,76,60,.22)':'rgba(39,174,96,.2)'};color:${isOg?'#ff6b5e':'#3ad17a'};align-self:flex-start;flex-shrink:0;">${isOg?'진행중':'종료'}</span>
+        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;align-self:flex-start;flex-shrink:0;">
+          <span class="lbadge" style="background:${isOg?'rgba(231,76,60,.22)':'rgba(39,174,96,.2)'};color:${isOg?'#ff6b5e':'#3ad17a'};">${isOg?'진행중':'종료'}</span>
+          ${isOg&&_elapsedStr(r.date)?`<span style="font-size:10px;font-weight:700;color:#f0a500;white-space:nowrap;">⏱ ${_elapsedStr(r.date)}</span>`:''}
+        </div>
       </div>`;
     }).join('');
   }
