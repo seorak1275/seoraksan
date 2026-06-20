@@ -1270,6 +1270,10 @@ body.hi-contrast .stat-lbl{color:rgba(255,255,255,.65)!important;}
         <div class="pill" onclick="sPill(this,'hazStatusPills')">통제중</div>
       </div>
     </div>
+    <!-- 산불 전용: 주관기관(고정) -->
+    <div id="hazFireLeadWrap" style="display:none;background:rgba(39,174,96,.08);border:1px solid rgba(39,174,96,.25);border-radius:8px;padding:9px 11px;margin-bottom:10px;font-size:11px;color:#3ad17a;font-weight:700;">
+      🌲 주관기관: 산림청
+    </div>
     <!-- 산불 전용: 응소 요청 -->
     <div id="hazFireMobilizeWrap" style="display:none;background:rgba(231,76,60,.08);border:1px solid rgba(231,76,60,.25);border-radius:8px;padding:10px 11px;margin-bottom:12px;">
       <div class="rsec-t" style="font-size:11px;color:#e74c3c;font-weight:700;margin-bottom:6px;">🚨 산불 응소 요청</div>
@@ -5005,6 +5009,7 @@ function openHazDetail(id){
     </div>
     <div style="overflow-y:auto;flex:1;padding:12px 14px;">
       <div style="font-size:12px;color:#b8d4e8;line-height:1.8;">
+        ${h.leadAgency?`주관기관: <b style="color:#3ad17a;">🌲 ${_esc(h.leadAgency)}</b><br>`:''}
         위치: <b>${_esc(h.loc||'-')}</b><br>
         시각: ${_esc(h.dt||'-')}<br>
         위험도: ${_esc(h.danger||'-')}<br>
@@ -6948,6 +6953,7 @@ function chkHazType(txt){
   const isFire=txt.includes('산불');
   document.getElementById('hazFireTimelineWrap').style.display=isFire?'block':'none';
   document.getElementById('hazFireMobilizeWrap').style.display=isFire?'block':'none';
+  document.getElementById('hazFireLeadWrap').style.display=isFire?'block':'none';
   if(isFire){
     const el=document.getElementById('hazFireTLTime');
     if(el)el.value=new Date().toISOString().slice(0,16);
@@ -7036,6 +7042,7 @@ function openNewHazard(){
   document.getElementById('prevHaz').innerHTML='📸 현장 사진';
   document.getElementById('hazFireTimelineWrap').style.display='none';
   document.getElementById('hazFireMobilizeWrap').style.display='none';
+  document.getElementById('hazFireLeadWrap').style.display='none';
   _resetPills('hazTypePills','hazDangerPills','hazStatusPills','hazOnSitePills','hazResponsePills','hazMobilizePills');
   document.querySelector('#hazStatusPills .pill').classList.add('on');
   renderHazFireTL();
@@ -7062,6 +7069,7 @@ function submitHazard(){
     photo:_photoUrl('prevHaz'),
     fireTL:type.includes('산불')?[..._hazFireTL]:[],
     mobilize:type.includes('산불')?getSelPills('hazMobilizePills'):[],
+    leadAgency:type.includes('산불')?'산림청':'',
   };
   const haz=DB.g('hazards')||[];haz.push(h);DB.s('hazards',haz);
   _registerPendingPhoto('prevHaz',{key:'hazards',id:h.id,field:'photo'});
