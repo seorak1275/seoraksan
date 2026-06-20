@@ -1760,6 +1760,7 @@ function _txMergeDoc(key,base,localVal){
     return merged;
   }));
 }
+let _lsQuotaWarned=false; // localStorage 용량 초과 통지 1회 제한 플래그
 const DB={
   g(k){
     if(_SHARED.includes(k)) return (_fs[k]!==undefined)?_fs[k]:null;
@@ -1793,7 +1794,10 @@ const DB={
       if(_fdb)_txMergeDoc(k,base,v).catch(()=>_syncWriteFailed({key:'doc/'+k,doc:k,json,base:JSON.stringify(base===undefined?null:base)}));
       else _syncWriteFailed({key:'doc/'+k,doc:k,json,base:JSON.stringify(base===undefined?null:base)});
     }else{
-      try{localStorage.setItem('v7_'+k,JSON.stringify(v));}catch{}
+      try{localStorage.setItem('v7_'+k,JSON.stringify(v));}
+      catch(e){ // 저장 공간 초과 등으로 실패 시 조용히 넘어가지 않고 1회 통지
+        if(!_lsQuotaWarned){_lsQuotaWarned=true;try{toast('⚠️ 기기 저장 공간 부족 — 일부 설정이 저장되지 않았습니다');}catch(_){}}
+      }
     }
   },
   d(k){
@@ -2173,15 +2177,26 @@ async function prevImg(inp,pid){
     _photoQPut(qItem); // 제출 전이라도 보존 (제출 시 dest 연결됨)
     return;
   }
+  // 업로드 완료 전 제출되어도 사진이 유실되지 않도록 큐에 등록(제출 시 _registerPendingPhoto로 dest 연결).
+  prev.dataset.url='pending';
+  const qItem={id:Date.now()+'_'+pid,file:compressed,pid};
+  _offlinePhotoQueue.push(qItem);
   prev.innerHTML=`<img src="${objUrl}" style="opacity:.6"><div class="up-badge" style="font-size:10px;color:#4fa8d0;background:rgba(0,0,0,.75);padding:2px 6px;border-radius:4px;margin-top:3px;text-align:center;">업로드 중...</div>`;
   try{
     const url=await uploadImageToStorage(compressed,'photos/'+pid);
     prev.dataset.url=url;
     prev.innerHTML=`<img src="${url}">`;
+    // 업로드 도중 사용자가 이미 제출했으면(dest 연결됨) 저장된 레코드에 URL 반영
+    const qi=_offlinePhotoQueue.find(x=>x.id===qItem.id);
+    if(qi&&qi.dest)_applyPhotoDest(qi.dest,url);
+    const qidx=_offlinePhotoQueue.findIndex(x=>x.id===qItem.id);
+    if(qidx>=0)_offlinePhotoQueue.splice(qidx,1);
+    try{_photoQDel(qItem.id);}catch(e){}
   }catch(e){
-    prev.innerHTML=`<img src="${objUrl}">`;
-    prev.dataset.url='';
-    toast('⚠️ 사진 업로드 실패 (로컬만 저장)');
+    // 실패해도 큐에 보존 → 연결 복구 시 자동 재시도(제출돼 있으면 레코드에 자동 반영)
+    prev.innerHTML=`<img src="${objUrl}"><div class="up-badge" style="font-size:10px;color:#e67e22;background:rgba(0,0,0,.75);padding:2px 6px;border-radius:4px;margin-top:3px;text-align:center;">⚠️ 업로드 대기 — 자동 재시도</div>`;
+    try{_photoQPut(qItem);}catch(_){}
+    toast('⚠️ 사진 업로드 실패 — 연결 시 자동 재시도');
   }
 }
 function fillSel(id,arr){document.getElementById(id).innerHTML=arr.map(v=>`<option value="${v}">${v}</option>`).join('');}
@@ -3283,7 +3298,7 @@ function renderExtraTeams(){
     const byDept={};
     t.members.forEach(n=>{const d=deptMap[n]||'';if(!byDept[d])byDept[d]=[];byDept[d].push(n);});
     const summaryParts=Object.keys(byDept).map(d=>
-      `<b style="color:#7ec8a0;">${d?DEPT_SHORT[d]||d:''} ${byDept[d].join(', ')}</b>`
+      `<b style="color:#7ec8a0;">${d?_esc(DEPT_SHORT[d]||d):''} ${_esc(byDept[d].join(', '))}</b>`
     );
     const summaryHtml=t.members.length===0
       ?'<span style="color:#4a7090;">(미선택)</span>'
@@ -3293,7 +3308,7 @@ function renderExtraTeams(){
       <div style="display:flex;align-items:center;gap:6px;margin-bottom:${collapsed?0:8}px;">
         ${collapsed
           ?`<span style="font-size:11px;flex:1;">${summaryHtml}</span>`
-          :`<input type="text" value="${t.teamName}" oninput="_extraTeams[${ti}].teamName=this.value"
+          :`<input type="text" value="${_esc(t.teamName)}" oninput="_extraTeams[${ti}].teamName=this.value"
               style="flex:1;background:transparent;border:none;border-bottom:1px solid rgba(126,200,163,.3);color:#7ec8a0;font-size:12px;font-weight:700;outline:none;padding:2px 0;">`}
         ${collapsed
           ?`<button onclick="editExtraTeam(${ti})" style="background:rgba(79,168,208,.12);border:1px solid rgba(79,168,208,.25);color:#4fa8d0;border-radius:6px;font-size:11px;padding:4px 10px;cursor:pointer;">✏️ 수정</button>`
@@ -3301,20 +3316,20 @@ function renderExtraTeams(){
       </div>
       ${collapsed?'':`
         ${t.members.length?`<div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:8px;">
-          ${t.members.map(n=>`<div style="background:rgba(126,200,163,.15);color:#7ec8a0;border:1px solid rgba(126,200,163,.3);border-radius:20px;font-size:10px;font-weight:700;padding:3px 8px;display:flex;align-items:center;gap:4px;">${n}<span onclick="toggleExtraTeamMemberByName(${ti},'${n}')" style="cursor:pointer;color:#c0392b;font-size:12px;line-height:1;">×</span></div>`).join('')}
+          ${t.members.map(n=>`<div style="background:rgba(126,200,163,.15);color:#7ec8a0;border:1px solid rgba(126,200,163,.3);border-radius:20px;font-size:10px;font-weight:700;padding:3px 8px;display:flex;align-items:center;gap:4px;">${_esc(n)}<span onclick="toggleExtraTeamMemberByName(${ti},'${_escq(n)}')" style="cursor:pointer;color:#c0392b;font-size:12px;line-height:1;">×</span></div>`).join('')}
         </div>`:''}
         ${availDepts.length>1?`<div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:8px;">
-          ${['전체',...availDepts].map(d=>`<div onclick="setExtraTeamOtherFilter(${ti},'${d}')" style="padding:3px 9px;border-radius:20px;font-size:10px;font-weight:700;cursor:pointer;${d===filt?'background:#1a4a6e;color:#4fa8d0;':'background:#0b1c30;color:#4a7090;border:1px solid #1a3a5a;'}">${d}</div>`).join('')}
+          ${['전체',...availDepts].map(d=>`<div onclick="setExtraTeamOtherFilter(${ti},'${_escq(d)}')" style="padding:3px 9px;border-radius:20px;font-size:10px;font-weight:700;cursor:pointer;${d===filt?'background:#1a4a6e;color:#4fa8d0;':'background:#0b1c30;color:#4a7090;border:1px solid #1a3a5a;'}">${_esc(d)}</div>`).join('')}
         </div>`:''}
         ${filtered.length?`<div class="chk-grid">
           ${filtered.map(s=>{
             const inThis=t.members.includes(s.name);
             const takenElsewhere=!inThis&&((_initTeamMembers||[]).includes(s.name)||_extraTeams.some((et,ei)=>ei!==ti&&et.members.includes(s.name)));
             return `<div class="chk-item${inThis?' on':''}${takenElsewhere?' disabled':''}"
-              onclick="${takenElsewhere?'':(`toggleExtraTeamMember(${ti},\\'${s.name}\\',this)`)}"
+              onclick="${takenElsewhere?'':(`toggleExtraTeamMember(${ti},\\'${_escq(s.name)}\\',this)`)}"
               style="${takenElsewhere?'opacity:.35;cursor:not-allowed;':''}">
               <div class="chk-box${inThis?' on':''}"></div>
-              <span class="chk-txt">${s.name}<span style="font-size:9px;color:#4a7090;margin-left:3px;">${s.rank}${takenElsewhere?' (배정됨)':''}</span></span>
+              <span class="chk-txt">${_esc(s.name)}<span style="font-size:9px;color:#4a7090;margin-left:3px;">${_esc(s.rank)}${takenElsewhere?' (배정됨)':''}</span></span>
             </div>`;
           }).join('')}
         </div>`:'<div style="font-size:11px;color:#4a7090;padding:6px 0;">가입된 인원 없음</div>'}
@@ -3581,9 +3596,9 @@ function renderFireAgencies(){
   if(!_fireAgencies.length){el.innerHTML='';return;}
   el.innerHTML=_fireAgencies.map((a,i)=>`
     <div style="display:flex;align-items:center;gap:6px;padding:7px 10px;background:#0b1c30;border-radius:7px;margin-bottom:4px;border:1px solid rgba(79,168,208,.1);">
-      <span style="font-size:10px;color:#4a7090;flex-shrink:0;">${a.cat}</span>
-      <span style="font-size:12px;flex:1;color:#e0edf8;font-weight:600;">${a.name}</span>
-      ${a.count?`<span style="font-size:11px;color:#7a9cb8;flex-shrink:0;">${a.count}명</span>`:''}
+      <span style="font-size:10px;color:#4a7090;flex-shrink:0;">${_esc(a.cat)}</span>
+      <span style="font-size:12px;flex:1;color:#e0edf8;font-weight:600;">${_esc(a.name)}</span>
+      ${a.count?`<span style="font-size:11px;color:#7a9cb8;flex-shrink:0;">${_esc(a.count)}명</span>`:''}
       <button onclick="removeFireAgency(${i})" style="background:none;border:none;color:#c0392b;font-size:15px;cursor:pointer;padding:0 2px;">×</button>
     </div>`).join('');
 }
@@ -4376,7 +4391,7 @@ function _renderFocusPanel(resId){
     })();
     return `<div style="background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.07);border-radius:10px;padding:10px 11px;margin-bottom:8px;">
       <div onclick="_fpToggleTeam(${ti})" style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;cursor:pointer;user-select:none;">
-        <span style="font-size:12px;font-weight:800;color:${col};">${typeIco} ${team.name}</span>
+        <span style="font-size:12px;font-weight:800;color:${col};">${typeIco} ${_esc(team.name)}</span>
         <div style="display:flex;align-items:center;gap:6px;">
           <span style="font-size:10px;font-weight:700;color:${pal.c};background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.08);padding:2px 8px;border-radius:10px;">${pal.label}</span>
           <span style="font-size:11px;color:rgba(255,255,255,.3);">${isOpen?'▾':'▸'}</span>
@@ -4386,7 +4401,7 @@ function _renderFocusPanel(resId){
         <div style="height:100%;width:${pct}%;background:${col};border-radius:3px;transition:width .4s;"></div>
       </div>
       <div style="display:flex;align-items:center;justify-content:space-between;gap:6px;">
-        <span style="font-size:10px;color:rgba(255,255,255,.4);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">📍 ${curName||'-'} · ${team.wpIdx}/${total}</span>
+        <span style="font-size:10px;color:rgba(255,255,255,.4);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">📍 ${_esc(curName||'-')} · ${team.wpIdx}/${total}</span>
         <span style="display:flex;gap:5px;flex-shrink:0;">${actionBtn}</span>
       </div>
       ${routeStr}
@@ -4680,7 +4695,7 @@ function renderRescueStats(){
       if(r.severity)sevMap[r.severity]=(sevMap[r.severity]||0)+1;
       if(r.cause)cauMap[r.cause]=(cauMap[r.cause]||0)+1;
       (r.rescueMethod||[]).forEach(m=>{methodMap[m]=(methodMap[m]||0)+1;});
-      if(r.vGender)genderMap[r.vGender]=(genderMap[r.vGender]||0)+1;
+      if(r.vGender&&r.vGender!=='알수없음')genderMap[r.vGender]=(genderMap[r.vGender]||0)+1; // 미상은 차트에서 제외(타 화면과 일관)
       if(r.loctype)loctypeMap[r.loctype]=(loctypeMap[r.loctype]||0)+1;
       if(r.weather)weatherMap[r.weather]=(weatherMap[r.weather]||0)+1;
       if(r.vBirth){const age=_ageFromBirth(r.vBirth);if(age!==''&&!isNaN(age)){const ag=age<20?'10대 이하':age<30?'20대':age<40?'30대':age<50?'40대':age<60?'50대':age<70?'60대':'70대+';ageMap[ag]=(ageMap[ag]||0)+1;}}
@@ -4739,7 +4754,7 @@ function renderRescueStats(){
           ${mini('전체',haz.length)}
           ${mini('미조치',haz.filter(h=>h.hazStatus==='미조치').length,'#e05050')}
           ${mini('조치중',haz.filter(h=>h.hazStatus==='조치중').length,'#e67e22')}
-          ${mini('완료',haz.filter(h=>h.hazStatus==='제거 완료'||h.hazStatus==='조치 완료'||h.hazStatus==='통제중').length,'#27ae60')}
+          ${mini('완료',haz.filter(h=>h.hazStatus&&h.hazStatus!=='미조치'&&h.hazStatus!=='조치중').length,'#27ae60')}
         </div>
       </div>
       <div class="scard">
@@ -6157,6 +6172,7 @@ function submitComment(resId,variant){
   const prefix=variant==='adv'?'cmtInput_adv_':'cmtInput_';
   const inp=document.getElementById(prefix+resId);if(!inp)return;
   const text=inp.value.trim();if(!text){toast('⚠️ 댓글을 입력하세요');return;}
+  inp.value=''; // 즉시 비워 이중 탭 중복 등록 방지
   const res=DB.g('rescues')||[];const ri=res.findIndex(x=>x.id===resId);
   if(ri<0){toast('⚠️ 구조 정보 없음');return;}
   if(!res[ri].comments)res[ri].comments=[];
@@ -6192,8 +6208,12 @@ async function aiScanDispatch(input){
   }
   // base64 변환
   const b64=await new Promise(res=>{
-    const r=new FileReader();r.onload=e=>res(e.target.result.split(',')[1]);r.readAsDataURL(file);
+    const r=new FileReader();
+    r.onload=e=>res(String(e.target.result||'').split(',')[1]||'');
+    r.onerror=()=>res('');
+    r.readAsDataURL(file);
   });
+  if(!b64){if(statusEl){statusEl.style.display='block';statusEl.textContent='⚠️ 이미지를 읽지 못했습니다. 다른 사진으로 시도하세요.';}input.value='';return;}
   if(spinner)spinner.style.display='block';
   if(statusEl){statusEl.style.display='block';statusEl.textContent='🤖 AI가 출동지령서를 분석중입니다...';}
   const prompt=`이 출동지령서(산악구조 신고/출동 문서) 이미지에서 아래 항목을 추출하여 반드시 JSON 형식으로만 응답하세요. 코드블록 없이 JSON만 출력하세요. 없는 항목은 null로 표시하세요.
@@ -6933,7 +6953,7 @@ function renderHazFireTL(){
   if(!el)return;
   el.innerHTML=_hazFireTL.length?_hazFireTL.map((t,i)=>`<div style="display:flex;align-items:center;gap:7px;padding:5px 0;border-bottom:1px solid rgba(255,255,255,.05);">
     <span style="font-size:10px;color:#4fa8d0;flex-shrink:0;">${t.time.slice(11)||t.time}</span>
-    <span style="font-size:11px;color:#e0edf8;flex:1;">${t.note}</span>
+    <span style="font-size:11px;color:#e0edf8;flex:1;">${_esc(t.note)}</span>
     <button onclick="_hazFireTL.splice(${i},1);renderHazFireTL()" style="background:none;border:none;color:#c0392b;font-size:13px;cursor:pointer;">✕</button>
   </div>`).join(''):'<div style="font-size:11px;color:rgba(255,255,255,.25);padding:4px 0;">타임라인 항목 없음</div>';
 }
@@ -6950,9 +6970,13 @@ function openNewHazard(){
   renderHazFireTL();
   document.getElementById('modalHazard').classList.add('on');
 }
+let _hazSubmitting=false;
 function submitHazard(){
   const type=getSelPills('hazTypePills')[0];
   if(!type){toast('⚠️ 유형 선택');return;}
+  if(_hazSubmitting)return; // 이중 탭 중복 등록 방지
+  _hazSubmitting=true;
+  setTimeout(()=>{_hazSubmitting=false;},1500);
   const gps=document.getElementById('hz_gps').value.split(',');
   const lat=parseFloat(gps[0])||null,lng=parseFloat(gps[1])||null;
   const h={
@@ -7586,7 +7610,7 @@ function renderAdmCtrl(){
         <div class="stat-box"><div class="stat-num">${res.length}</div><div class="stat-lbl">구조이력</div></div>
         <div class="stat-box" style="border-color:#c0392b;"><div class="stat-num bad">${res.filter(r=>r.status==='ongoing').length}</div><div class="stat-lbl">진행중</div></div>
       </div>
-      <div style="margin-top:8px;font-size:11px;color:#7a9cb8;">위험상황 보고 ${haz.length}건 (제거완료 ${haz.filter(h=>h.hazStatus==='제거 완료').length}건)</div>
+      <div style="margin-top:8px;font-size:11px;color:#7a9cb8;">위험상황 보고 ${haz.length}건 (완료 ${haz.filter(h=>h.hazStatus&&h.hazStatus!=='미조치'&&h.hazStatus!=='조치중').length}건)</div>
     </div>
     <div class="sec-label">⚠️ 위험·요주의 시설물</div>
     ${facs.filter(f=>f.status!=='ok').map(f=>`<div class="adm-row"><div class="adm-info"><div class="adm-name">${f.type.split(' ')[0]} ${f.name}</div><div class="adm-meta">${f.loc||'-'} · <span style="color:${SC(f.status)};">${SL(f.status)}</span></div></div><div class="adm-btns"><button class="abtn" onclick="admChangeFacSt(${f.id})">변경</button><button class="abtn del" onclick="admDelFac(${f.id})">삭제</button></div></div>`).join('')||'<div class="muted" style="font-size:12px;padding:5px 0;">위험/요주의 없음</div>'}
@@ -8735,7 +8759,7 @@ function renderFullStats(){
   const fy=s=>s&&s.startsWith(now_.getFullYear()+'-');
   const fy_prev=s=>s&&s.startsWith((now_.getFullYear()-1)+'-');
   const fm=s=>s&&s.startsWith(now_.getFullYear()+'-'+(''+(now_.getMonth()+1)).padStart(2,'0'));
-  const fw=s=>{if(!s)return false;const d=new Date((s||'').split(' ')[0]);const day=now_.getDay()||7;const m=new Date(now_);m.setDate(now_.getDate()-(day===0?6:day-1));m.setHours(0,0,0,0);const e=new Date(m);e.setDate(m.getDate()+6);e.setHours(23,59,59,999);return d>=m&&d<=e;};
+  const fw=s=>{if(!s)return false;const ds=String(s).split(' ')[0].split('T')[0];const day=now_.getDay()||7;const m=new Date(now_);m.setDate(now_.getDate()-(day-1));const e=new Date(m);e.setDate(m.getDate()+6);const _f=dt=>dt.getFullYear()+'-'+String(dt.getMonth()+1).padStart(2,'0')+'-'+String(dt.getDate()).padStart(2,'0');return ds>=_f(m)&&ds<=_f(e);}; // UTC파싱 제거 — 로컬 날짜 문자열 비교(주 경계 정확)
   const fd=s=>s&&s.startsWith(todayStr);
   const period=window._statPeriod||'이번달';
   const pf={'오늘':fd,'이번주':fw,'이번달':fm,'올해':fy,'전체':()=>true}[period]||fm;
@@ -8788,7 +8812,7 @@ function renderFullStats(){
           ${mini('위험수목',pHaz.filter(h=>h.hazType?.includes('위험수목')).length,'#ca6f1e')}
           ${mini('산불',pHaz.filter(h=>h.hazType?.includes('산불')).length,'#a93226')}
         </div>
-        <div style="font-size:9px;color:#5a8aaa;">미조치 ${pHaz.filter(h=>h.hazStatus==='미조치').length} · 완료 ${pHaz.filter(h=>h.hazStatus==='제거 완료'||h.hazStatus==='조치 완료').length}</div>
+        <div style="font-size:9px;color:#5a8aaa;">미조치 ${pHaz.filter(h=>h.hazStatus==='미조치').length} · 완료 ${pHaz.filter(h=>h.hazStatus&&h.hazStatus!=='미조치'&&h.hazStatus!=='조치중').length}</div>
       </div>`
     )}
     <div class="scard">
