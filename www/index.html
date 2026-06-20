@@ -1533,7 +1533,7 @@ window.addEventListener('error',e=>{_logErr((e.message||'오류')+' @'+(e.filena
 window.addEventListener('unhandledrejection',e=>{_logErr('Promise: '+((e.reason&&e.reason.message)||e.reason||'거부'));});
 
 // ── 앱 버전 (배포 시 갱신) ──
-const APP_VER='v9.80 (2026.06.18)';
+const APP_VER='v9.81 (2026.06.18)';
 try{document.getElementById('appVerLabel').textContent='설악산 현장관리 '+APP_VER;}catch(e){}
 // ══════════════════════════════════════════
 // DB
@@ -2826,7 +2826,7 @@ function renderBoard(){
             <span style="font-size:12px;font-weight:800;color:${done?'#27ae60':stageCol[si]};flex-shrink:0;">${done?'✓ 완료':stageLbl[si]}</span>
           </div>`;
         }).join(''):'<div style="font-size:12px;color:rgba(255,255,255,.3);padding:6px 0;">출동팀 미편성</div>'}
-        <div style="display:flex;justify-content:space-between;margin-top:8px;font-size:12px;color:#6a93b5;">
+        <div style="display:flex;justify-content:space-between;margin-top:8px;font-size:12px;color:#7aa8c8;">
           <span>${lastLog?`최근: ${lastLog.time} ${_esc(lastLog.teamName)} ${_esc(lastLog.code||'')} 통과`:''}</span>
           <span>${r.handover&&r.handover.to?`🤝 인계: ${_esc(r.handover.to)}`:''}</span>
         </div>
@@ -5045,14 +5045,14 @@ function viewFullPrev(){
   document.getElementById('prevRepTitle').textContent=phNum>0?`${phNum}보 전체 내용`:'1보 전체 내용';
   if(prev){
     document.getElementById('prevRepContent').innerHTML=`<div style="font-size:12px;color:#7a9cb8;line-height:2;">
-      <b>보고 시간:</b> ${prev.repTime}<br><b>상황 내용:</b> ${prev.update||'-'}<br>
-      <b>부상자 상태:</b> ${prev.victimChange||'-'}<br><b>추가 대원:</b> ${prev.addMem||'-'}<br><b>작성자:</b> ${prev.author||'-'}
+      <b>보고 시간:</b> ${_esc(prev.repTime)}<br><b>상황 내용:</b> ${_esc(prev.update||'-')}<br>
+      <b>부상자 상태:</b> ${_esc(prev.victimChange||'-')}<br><b>추가 대원:</b> ${_esc(prev.addMem||'-')}<br><b>작성자:</b> ${_esc(prev.author||'-')}
     </div>`;
   } else {
     document.getElementById('prevRepContent').innerHTML=`<div style="font-size:12px;color:#7a9cb8;line-height:2;">
-      <b>유형:</b> ${r.type}<br><b>발생:</b> ${r.date}<br><b>위치:</b> ${r.location||'-'}<br>
-      <b>사고자:</b> ${r.vName||'미상'} / ${(r.vGender&&r.vGender!=='알수없음')?r.vGender:'-'}<br><b>중증도:</b> ${r.severity||'-'}<br>
-      <b>부상부위:</b> ${(r.injuryParts||[]).join(', ')||'-'}<br><b>구조방법:</b> ${(r.rescueMethod||[]).join(', ')||'-'}
+      <b>유형:</b> ${_esc(r.type)}<br><b>발생:</b> ${r.date}<br><b>위치:</b> ${_esc(r.location||'-')}<br>
+      <b>사고자:</b> ${_esc(r.vName||'미상')} / ${(r.vGender&&r.vGender!=='알수없음')?_esc(r.vGender):'-'}<br><b>중증도:</b> ${_esc(r.severity||'-')}<br>
+      <b>부상부위:</b> ${_esc((r.injuryParts||[]).join(', ')||'-')}<br><b>구조방법:</b> ${_esc((r.rescueMethod||[]).join(', ')||'-')}
     </div>`;
   }
   document.getElementById('modalPrevReport').classList.add('on');
@@ -5621,7 +5621,7 @@ function _compactRouteHtml(team,idx){
   const atEnd=team.wpIdx>=team.wps.length-1;
   const canSkip=team.wpIdx<team.wps.length-2;
   const typeIco=_teamIco(team);
-  const progTxt=(team.wpIdx)+' / '+(team.wps.length-1);
+  const progTxt=(team.wpIdx??0)+' / '+(Math.max((team.wps||[]).length-1,0));
   const showFull=!!team.showFull;
   if(!cur)return`<div style="text-align:center;font-size:11px;color:rgba(255,255,255,.25);padding:10px 0;">경로 데이터 없음</div>`;
   const curCode=cur.code?`<span style="font-size:10px;color:#e74c3c;font-weight:700;font-family:monospace;margin-right:6px;">${cur.code}</span>`:'';
@@ -5693,8 +5693,8 @@ function _tlTeamFullHtml(team,idx){
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:7px;">
         <span style="font-size:11px;font-weight:700;color:${isSel?'#4fa8d0':'#b8d4e8'};">${typeIco} ${_esc(team.name)}</span>
         <div style="display:flex;align-items:center;gap:7px;">
-          <span style="font-size:9px;font-weight:600;color:${sc};">${_TL_STAGES[si]}</span>
-          <span style="font-size:10px;color:rgba(255,255,255,.3);font-weight:600;">${isCollapsed?'▼ 경로':'▲'}</span>
+          <span style="font-size:9px;font-weight:600;color:${sc};">${_TL_STAGES[si]||''}</span>
+          <span style="font-size:10px;color:rgba(255,255,255,.55);font-weight:600;">${isCollapsed?'▼ 경로':'▲'}</span>
         </div>
       </div>
       <div style="display:flex;align-items:flex-start;">${dots}</div>
@@ -5806,8 +5806,8 @@ function _buildLogHtml(r){
   return `<div style="background:#060d1a;border-radius:9px;padding:10px 13px;margin-top:8px;border:.5px solid rgba(79,168,208,.15);">
     <div style="font-size:11px;color:#4fa8d0;font-weight:700;margin-bottom:6px;">📜 상황 일지 (자동 통합)</div>
     ${logEntries.map(e=>`<div style="display:flex;gap:8px;padding:3px 0;align-items:baseline;">
-      <span style="font-size:10px;color:#4a7090;font-family:monospace;flex-shrink:0;width:38px;">${e.t}</span>
-      <span style="font-size:11px;color:#b8d4e8;line-height:1.5;">${e.ico} ${_esc(e.label)}${e.sub?` <span style="color:#5a7a94;">— ${_esc(e.sub)}</span>`:''}</span>
+      <span style="font-size:10px;color:#7a9cb8;font-family:monospace;flex-shrink:0;width:38px;">${e.t}</span>
+      <span style="font-size:11px;color:#b8d4e8;line-height:1.5;">${e.ico} ${_esc(e.label)}${e.sub?` <span style="color:#8ab0c8;">— ${_esc(e.sub)}</span>`:''}</span>
     </div>`).join('')}
   </div>`;
 }
@@ -5944,7 +5944,7 @@ function renderTimeline(r,viewMode,outId){
           const si=_teamStageIdx(t);
           const stLbl=['출발','이동중','환자조우','하산'][si]||'';
           const mem=(t.members&&t.members.length)?': '+_esc(t.members.join(', ')):'';
-          return `<div style="font-size:11px;color:#b8d4e8;margin-bottom:3px;"><span style="color:#7ec8a0;font-weight:600;">${ico} ${_esc(t.name)}</span>${mem} <span style="color:#4a7090;font-size:10px;">(${stLbl})</span></div>`;
+          return `<div style="font-size:11px;color:#b8d4e8;margin-bottom:3px;"><span style="color:#7ec8a0;font-weight:600;">${ico} ${_esc(t.name)}</span>${mem} <span style="color:#7a9cb8;font-size:10px;">(${stLbl})</span></div>`;
         }).join(''):''}
         ${(!r.members||!r.members.length)&&(!r.teams||!r.teams.length)?'<div style="font-size:11px;color:rgba(255,255,255,.3);">미기재 — 타임라인에서 팀을 생성하면 자동 표시됩니다</div>':''}
         ${(r.extraTeams&&r.extraTeams.length)?r.extraTeams.map(t=>`<div style="font-size:11px;color:#b8d4e8;margin-bottom:3px;"><span style="color:#7ec8a0;font-weight:600;">${_esc(t.teamName)}:</span> ${_esc((t.members||[]).join(', '))}</div>`).join(''):''}
@@ -6475,11 +6475,11 @@ function render1BoForm(prefill=null){
         </div>
         <div class="fg"><span class="fl">기상 특보</span>
           <div style="background:#060d1a;border-radius:8px;border:1px solid rgba(255,255,255,.07);padding:10px;margin-top:4px;">
-            <div style="font-size:10px;color:#4a7090;font-weight:700;margin-bottom:5px;">종류</div>
+            <div style="font-size:10px;color:#7a9cb8;font-weight:700;margin-bottom:5px;">종류</div>
             <div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:8px;" id="wAlertTypePills">
               ${['강풍','호우','대설','건조','한파','폭염','황사','태풍'].map(t=>`<div class="pill" onclick="selWAlertType(this,'${t}')" style="font-size:11px;cursor:pointer;">${t}</div>`).join('')}
             </div>
-            <div style="font-size:10px;color:#4a7090;font-weight:700;margin-bottom:5px;">단계</div>
+            <div style="font-size:10px;color:#7a9cb8;font-weight:700;margin-bottom:5px;">단계</div>
             <div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:8px;" id="wAlertLevelPills">
               ${['주의보','경보','특보'].map(l=>`<div class="pill" onclick="selWAlertLevel(this,'${l}')" style="font-size:11px;cursor:pointer;">${l}</div>`).join('')}
             </div>
@@ -6498,23 +6498,23 @@ function render1BoForm(prefill=null){
             ${['본인부주의','실족','추락','낙석 피격','탈진/탈수','저체온','심혈관 이상','동물 피해','익수','기타'].map(o=>`<option${(p.cause||'본인부주의')===o?' selected':''}>${o}</option>`).join('')}
           </select>
         </div>
-        <div class="fg"><span class="fl">사고 경위 <span style="font-size:9px;color:#4a7090;font-weight:400;">(상세 기술)</span></span>
+        <div class="fg"><span class="fl">사고 경위 <span style="font-size:9px;color:#7a9cb8;font-weight:400;">(상세 기술)</span></span>
           <textarea id="r_sit" class="fta" rows="4" placeholder="예) 오전 09:00 비선대 주차장에서 산행 시작, 11:30경 천불동계곡 3km 지점 하산 중 실족하여 우측 발목 부상 발생">${p.situation||''}</textarea>
         </div>
       </div>
       <div class="rsec"><div class="rsec-t">🩺 부상 현황</div>
         <div style="background:#060d1a;border-radius:8px;border:1px solid rgba(255,255,255,.07);padding:10px;margin-bottom:8px;">
-          <div style="font-size:10px;color:#4a7090;font-weight:700;margin-bottom:5px;">부상 유형 <span style="font-weight:400;color:#4a7090;">※ 전신상태 선택 시 부위 불필요</span></div>
+          <div style="font-size:10px;color:#7a9cb8;font-weight:700;margin-bottom:5px;">부상 유형 <span style="font-weight:400;color:#7a9cb8;">※ 전신상태 선택 시 부위 불필요</span></div>
           <div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:8px;" id="injTypePills">
             ${['골절','탈구','염좌','열상','타박상','두부손상','심정지','저체온증','탈진/탈수','익수','기타(부위)','기타(전신)'].map(t=>`<div class="pill" onclick="selInjType(this,'${t}')" style="font-size:11px;cursor:pointer;">${t}</div>`).join('')}
           </div>
           <div id="injPartWrap">
-            <div style="font-size:10px;color:#4a7090;font-weight:700;margin-bottom:5px;">부상 부위</div>
+            <div style="font-size:10px;color:#7a9cb8;font-weight:700;margin-bottom:5px;">부상 부위</div>
             <div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:8px;" id="injPartPills">
               ${['머리','목','어깨','팔꿈치','손목','손','흉부','복부','허리','골반','무릎','발목','발'].map(t=>`<div class="pill" onclick="selInjPart(this,'${t}')" style="font-size:11px;cursor:pointer;">${t}</div>`).join('')}
             </div>
             <div id="injSideWrap" style="display:none;margin-bottom:8px;">
-              <div style="font-size:10px;color:#4a7090;font-weight:700;margin-bottom:5px;">좌/우</div>
+              <div style="font-size:10px;color:#7a9cb8;font-weight:700;margin-bottom:5px;">좌/우</div>
               <div style="display:flex;gap:4px;" id="injSidePills">
                 ${['좌','우','양쪽'].map(s=>`<div class="pill" onclick="selInjSide(this,'${s}')" style="font-size:11px;cursor:pointer;">${s}</div>`).join('')}
               </div>
@@ -6530,7 +6530,7 @@ function render1BoForm(prefill=null){
           <select id="r_alc" class="fsel">${['없음','의심','확인됨'].map(o=>`<option${(p.alcohol||'없음')===o?' selected':''}>${o}</option>`).join('')}</select>
         </div>
       </div>
-      <div class="rsec"><div class="rsec-t">💓 활력징후 <span style="font-size:9px;color:#4a7090;font-weight:400;">(측정 시 입력 — 보고마다 기록되어 추이 확인)</span></div>
+      <div class="rsec"><div class="rsec-t">💓 활력징후 <span style="font-size:9px;color:#7a9cb8;font-weight:400;">(측정 시 입력 — 보고마다 기록되어 추이 확인)</span></div>
         <div class="frow">
           <div class="fg"><span class="fl">맥박 (회/분)</span><input type="number" inputmode="numeric" id="r_hr" class="fi" placeholder="예: 88" value="${p.vitals?.hr||''}"></div>
           <div class="fg"><span class="fl">SpO₂ (%)</span><input type="number" inputmode="numeric" id="r_spo2" class="fi" placeholder="예: 97" value="${p.vitals?.spo2||''}"></div>
@@ -6581,7 +6581,7 @@ function render1BoForm(prefill=null){
         <div class="fg"><span class="fl">알레르기</span><input type="text" id="r_vAll" class="fi" placeholder="없음 또는 항목" value="${p.vAllergy||''}"></div>
         <div class="fg"><span class="fl">복용약</span><input type="text" id="r_vMed" class="fi" placeholder="없음 또는 항목" value="${p.vMeds||''}"></div>
       </div>
-      <div class="rsec"><div class="rsec-t">👥 추가 사고자 <span style="font-size:9px;color:#4a7090;font-weight:400;">(다수 사상자 발생 시)</span></div>
+      <div class="rsec"><div class="rsec-t">👥 추가 사고자 <span style="font-size:9px;color:#7a9cb8;font-weight:400;">(다수 사상자 발생 시)</span></div>
         <div id="victim2List">${(p.victims2||[]).map(v=>`<div class="victim2-item" style="background:#060d1a;border-radius:8px;padding:10px;margin-bottom:6px;border:1px solid rgba(231,76,60,.15);">${_victim2CardHtml(v)}</div>`).join('')}</div>
         <button onclick="addVictim2()" style="width:100%;padding:9px;background:rgba(231,76,60,.08);border:1px dashed rgba(231,76,60,.3);color:#e9897e;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;margin-top:4px;">＋ 사고자 추가</button>
       </div>
@@ -6635,7 +6635,7 @@ function render1BoForm(prefill=null){
       </div>
       <div class="rsec" style="margin-top:12px;"><div class="rsec-t">📋 사고 제목 및 작성 정보</div>
         <div class="fg">
-          <span class="fl">사고 제목 <span style="font-size:9px;color:#4a7090;font-weight:400;">(자동생성 — 수정 가능)</span></span>
+          <span class="fl">사고 제목 <span style="font-size:9px;color:#7a9cb8;font-weight:400;">(자동생성 — 수정 가능)</span></span>
           <input type="text" id="r_title" class="fi" placeholder="위치·기상 탭 입력 시 자동생성" value="${p.title||''}">
         </div>
         <div class="fg"><span class="fl">보고 작성자</span>
@@ -7140,7 +7140,7 @@ function openFacFromMap(id){
   const hist=(DB.g('history')||[]).filter(h=>h.facId===id);
   const last=hist.length?hist[hist.length-1]:null;
   document.getElementById('facPopTitle').textContent=f.type.split(' ')[0]+' '+f.name;
-  document.getElementById('facPopMeta').innerHTML=`<span style="color:${SC(f.status)};font-weight:700;">${SL(f.status)}</span> · ${f.loc||'-'}<br>최근 점검: ${last?last.date+' ('+SL(last.status)+')':'없음'}`;
+  document.getElementById('facPopMeta').innerHTML=`<span style="color:${SC(f.status)};font-weight:700;">${SL(f.status)}</span> · ${_esc(f.loc||'-')}<br>최근 점검: ${last?last.date+' ('+SL(last.status)+')':'없음'}`;
   document.getElementById('resPopup').classList.remove('on');
   document.getElementById('facPopup').classList.add('on');
 }
@@ -7258,9 +7258,9 @@ function openHistModal(){
   document.getElementById('histTitleEl').textContent=f.name+' · '+hist.length+'건';
   document.getElementById('histContent').innerHTML=hist.length?hist.map(h=>`
     <div style="background:#060d1a;border-radius:8px;padding:10px 11px;margin-bottom:5px;">
-      <div style="font-size:10px;color:rgba(255,255,255,.25);">${h.date} · ${h.author||'-'}</div>
+      <div style="font-size:10px;color:rgba(255,255,255,.5);">${h.date} · ${_esc(h.author||'-')}</div>
       <div style="font-size:12px;font-weight:600;color:${SC(h.status)};margin-top:2px;">${SL(h.status)}</div>
-      ${h.note?`<div style="font-size:11px;color:rgba(255,255,255,.35);margin-top:3px;line-height:1.5;">${h.note}</div>`:''}
+      ${h.note?`<div style="font-size:11px;color:rgba(255,255,255,.55);margin-top:3px;line-height:1.5;">${_esc(h.note)}</div>`:''}
     </div>`).join(''):'<div class="empty"><div class="empty-txt">점검 이력 없음</div></div>';
   document.getElementById('modalHist').classList.add('on');closeDB();
 }
@@ -8711,7 +8711,7 @@ function renderFullStats(){
       </div>`
     )}
     <div class="scard">
-      <div class="stitle">🛠️ 시설물 · 점검${pHist.length}건</div>
+      <div class="stitle">🛠️ 시설물 · 점검 ${pHist.length}건</div>
       <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:3px;">
         ${mini('전체',facs.length)}${mini('위험',facs.filter(f=>f.status==='bad').length,'#c0392b')}
         ${mini('요주의',facs.filter(f=>f.status==='warn').length,'#e67e22')}${mini('기간점검',pHist.length,'#27ae60')}
