@@ -1578,6 +1578,10 @@ let _maxSharedNotiAt=0,_sharedNotiInited=false;
 // 호출부가 제자리 수정하면 _fs[k]와 새 값이 동일 객체가 되어 비교가 무의미해짐.
 // 동기화 시점의 JSON을 따로 보관해 그것과 비교해야 변경이 정확히 감지됨.
 const _fsSync={};
+// _SHARED_DOC(단일문서 배열)의 동기화 기준 시점 스냅샷 — DB.s/원격 리스너에서만 갱신.
+// 호출부가 DB.g 반환값을 push 등으로 제자리 수정해도 이 맵은 영향받지 않으므로,
+// "직전 동기화 시점에 있었지만 지금 없는 항목 = 의도적 삭제"를 정확히 구분할 수 있다.
+const _fsDocBase={};
 
 // ── 저장 재시도 큐: Firebase 미준비/쓰기 거부 시 localStorage에 보관 후 자동 재전송 ──
 // (오프라인 중 쓰기는 Firestore persistence가 자체 보존하므로, 여기서는
@@ -1620,7 +1624,7 @@ function _flushSyncQueue(){
     let ok=0;
     for(const it of q){
       try{
-        if(it.doc!==undefined)await _fdb.collection('appData').doc(it.doc).set({d:it.json});
+        if(it.doc!==undefined)await _txMergeDoc(it.doc,it.base!==undefined?JSON.parse(it.base):undefined,JSON.parse(it.json)); // 트랜잭션 병합(오프라인 큐도 통째 덮어쓰기 방지)
         else if(it.op==='del')await _fdb.collection(it.coll).doc(it.id).delete();
         else await _txMergeSet(it.coll,it.id,JSON.parse(it.json)); // 트랜잭션 병합(오프라인 변경분 재접속 시 서버 최신본과 합침)
         _removeSyncItem(it);ok++;
@@ -1687,13 +1691,24 @@ function _mergeRecord(local,server){
     ['comments',c=>(c&&c.id!=null)?('id:'+c.id):JSON.stringify(c)],
     ['timetable',e=>JSON.stringify(e)],
     ['wpLog',e=>JSON.stringify(e)],
-    ['npsLog',e=>JSON.stringify(e)]
+    ['npsLog',e=>JSON.stringify(e)],
+    ['photos',p=>(p&&p.url)?('url:'+p.url):JSON.stringify(p)]
   ];
   fields.forEach(([f,keyFn])=>{
     if(!Array.isArray(local[f])&&!Array.isArray(server[f]))return; // 양쪽 다 없으면 손대지 않음
     out[f]=_unionBy(server[f],local[f],keyFn);
   });
   if(Array.isArray(out.reports))out.reports.sort((a,b)=>String((a&&a.repTime)||'').localeCompare(String((b&&b.repTime)||'')));
+  // 추가 사고자(victims2): 병합된 보고 중 가장 최신 보고의 값을 신뢰
+  // (한쪽 기기가 오프라인 중 작성한 stale 본으로 다른 기기가 추가한 사고자가 덮여 사라지는 것을 방지)
+  if(Array.isArray(out.reports)&&out.reports.length){
+    const latest=out.reports[out.reports.length-1];
+    if(latest&&latest.victims2)out.victims2=latest.victims2;
+  }
+  // 종료 처리(status:'done')는 한쪽이라도 완료면 유지 — 동시편집으로 완료 처리가 되돌려지지 않게 함
+  if(server.status==='done'||local.status==='done')out.status='done';
+  // 환자 인계 기록은 더 최신 시각 쪽을 유지
+  if(server.handover&&(!local.handover||String(server.handover.time||'')>String(local.handover.time||'')))out.handover=server.handover;
   return out;
 }
 // 건별 문서 1건을 트랜잭션으로 병합 저장(서버 최신본과 누적데이터 합침). 실패 시 reject → 호출부가 큐 보존.
@@ -1702,6 +1717,44 @@ function _txMergeSet(coll,id,localObj){
   return _fdb.runTransaction(t=>t.get(ref).then(snap=>{
     const merged=_mergeRecord(localObj,snap.exists?snap.data():null);
     t.set(ref,merged);
+    return merged;
+  }));
+}
+// 단일문서(JSON 배열) 항목 식별 키 — id 있으면 id, 없으면(문자열 등) 값 자체
+function _sdItemKey(x){return(x&&typeof x==='object'&&x.id!=null)?('id:'+x.id):JSON.stringify(x);}
+// 3-way 병합(base/local/server): base에는 있었지만 local에 없는 항목은 "의도적 삭제"로
+// 보고 복원하지 않는다. base에 없던 항목이 local에 새로 생겼으면 추가, server에만 있는
+// (다른 기기가 추가한) 항목은 그대로 보존 — 단순 합집합(union)과 달리 삭제가 안전하게 반영됨.
+function _mergeSharedArray(base,local,server){
+  const baseIds=new Set((base||[]).map(_sdItemKey));
+  const localIds=new Set((local||[]).map(_sdItemKey));
+  const removedIds=new Set([...baseIds].filter(id=>!localIds.has(id)));
+  const localMap=new Map((local||[]).map(x=>[_sdItemKey(x),x]));
+  const out=[];const seen=new Set();
+  (server||[]).forEach(x=>{
+    const id=_sdItemKey(x);
+    if(removedIds.has(id))return; // 로컬에서 의도적으로 삭제한 항목 — 복원하지 않음
+    out.push(localMap.has(id)?localMap.get(id):x); // 같은 id면 로컬 버전(수정분) 우선
+    seen.add(id);
+  });
+  (local||[]).forEach(x=>{
+    const id=_sdItemKey(x);
+    if(!seen.has(id)){out.push(x);seen.add(id);} // 로컬에서 새로 추가된 항목
+  });
+  return out;
+}
+// appData/{key} 단일문서를 트랜잭션으로 병합 저장.
+// base(직전 동기화 시점 스냅샷)가 있을 때만 3-way 병합 시도 — 여러 기기가 동시에
+// 점검이력·가입신청 등을 추가해도 한쪽 기기의 덮어쓰기로 다른 기기의 항목이
+// 통째로 사라지지 않는다. base가 없거나 배열이 아니면(딕셔너리/스칼라) 기존처럼 로컬 우선.
+function _txMergeDoc(key,base,localVal){
+  const ref=_fdb.collection('appData').doc(key);
+  return _fdb.runTransaction(t=>t.get(ref).then(snap=>{
+    let serverVal=null;
+    if(snap.exists){try{serverVal=JSON.parse(snap.data().d);}catch(e){serverVal=null;}}
+    const merged=(Array.isArray(localVal)&&Array.isArray(serverVal)&&Array.isArray(base))
+      ?_mergeSharedArray(base,localVal,serverVal):localVal;
+    t.set(ref,{d:JSON.stringify(merged)});
     return merged;
   }));
 }
@@ -1732,10 +1785,11 @@ const DB={
       });
       _fsSync[k]=newJson;
     }else if(_SHARED_DOC.includes(k)){
-      _fs[k]=v;
+      const base=_fsDocBase[k]; // DB.s/원격 리스너에서만 갱신되는 기준 스냅샷(제자리수정 영향 없음)
+      _fs[k]=v;_fsDocBase[k]=v;
       const json=JSON.stringify(v);
-      if(_fdb)_fdb.collection('appData').doc(k).set({d:json}).catch(()=>_syncWriteFailed({key:'doc/'+k,doc:k,json}));
-      else _syncWriteFailed({key:'doc/'+k,doc:k,json});
+      if(_fdb)_txMergeDoc(k,base,v).catch(()=>_syncWriteFailed({key:'doc/'+k,doc:k,json,base:JSON.stringify(base===undefined?null:base)}));
+      else _syncWriteFailed({key:'doc/'+k,doc:k,json,base:JSON.stringify(base===undefined?null:base)});
     }else{
       try{localStorage.setItem('v7_'+k,JSON.stringify(v));}catch{}
     }
@@ -1822,6 +1876,7 @@ function initFirebase(onReady){
     _SHARED_DOC.forEach(k=>{
       _fdb.collection('appData').doc(k).onSnapshot(snap=>{
         _fs[k]=snap.exists?(()=>{try{return JSON.parse(snap.data().d);}catch{return null;}})():null;
+        _fsDocBase[k]=_fs[k]; // 서버 확정 상태 = 다음 쓰기의 병합 기준
         if(!loaded.has(k)){loaded.add(k);_checkReady();}
         else{
           // 원격 업데이트: 표지판/시설 캐시 무효화 후 리렌더 (catFacMeta가 표지판 표시에 영향)
@@ -7872,10 +7927,13 @@ function forceSyncFirestore(){
   let cnt=0;
   keys.forEach(k=>{
     const v=_fs[k];
-    if(v!==undefined&&v!==null){
-      _fdb.collection('appData').doc(k).set({d:JSON.stringify(v)}).catch(()=>{});
-      cnt++;
+    if(v===undefined||v===null)return;
+    if(_SHARED_COLL.includes(k)){
+      v.forEach(r=>{if(r&&r.id!=null)_txMergeSet(k,String(r.id),r).catch(()=>{});}); // 건별 콜렉션은 _txMergeDoc(단일문서) 대상이 아님 — per-record 병합으로 분리
+    }else{
+      _txMergeDoc(k,_fsDocBase[k],v).catch(()=>{});
     }
+    cnt++;
   });
   toast('🔄 Firebase에 '+cnt+'개 항목 동기화 중...');
   setTimeout(()=>toast('✅ 동기화 완료'),1500);
