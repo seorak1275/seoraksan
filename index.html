@@ -1532,7 +1532,7 @@ window.addEventListener('error',e=>{_logErr((e.message||'오류')+' @'+(e.filena
 window.addEventListener('unhandledrejection',e=>{_logErr('Promise: '+((e.reason&&e.reason.message)||e.reason||'거부'));});
 
 // ── 앱 버전 (배포 시 갱신) ──
-const APP_VER='v9.78 (2026.06.18)';
+const APP_VER='v9.79 (2026.06.18)';
 try{document.getElementById('appVerLabel').textContent='설악산 현장관리 '+APP_VER;}catch(e){}
 // ══════════════════════════════════════════
 // DB
@@ -3712,8 +3712,8 @@ function _renderPendingList(){
   var list=(DB.g('pendingUsers')||[]).slice().reverse().slice(0,20);
   if(!list.length)return'<div style="font-size:11px;color:#4a7090;padding:8px 0;">새 가입자 없음</div>';
   return list.map(function(u){return'<div style="background:#060d1a;border:1px solid rgba(79,168,208,.15);border-radius:8px;padding:10px;margin-bottom:7px;'+(u.seen?'opacity:.55':'')+'">'+(!u.seen?'<div style="font-size:9px;color:#4fa8d0;font-weight:700;margin-bottom:4px;">NEW</div>':'')+
-    '<div style="font-size:12px;color:#e0edf8;font-weight:700;">'+(u.realName||u.name)+' <span style="font-weight:400;color:#7a9cb8;">· '+(u.dept||'')+' · '+(u.rank||'')+'</span></div>'+
-    '<div style="font-size:10px;color:#4a7090;margin-top:2px;">닉네임: '+u.name+' · '+(u.submittedAt?new Date(u.submittedAt).toLocaleDateString('ko-KR'):'')+' 가입</div>'+
+    '<div style="font-size:12px;color:#e0edf8;font-weight:700;">'+_esc(u.realName||u.name)+' <span style="font-weight:400;color:#7a9cb8;">· '+_esc(u.dept||'')+' · '+_esc(u.rank||'')+'</span></div>'+
+    '<div style="font-size:10px;color:#4a7090;margin-top:2px;">닉네임: '+_esc(u.name)+' · '+(u.submittedAt?new Date(u.submittedAt).toLocaleDateString('ko-KR'):'')+' 가입</div>'+
     '<button onclick="_markSeen(\''+u.id+'\')" style="margin-top:6px;background:rgba(79,168,208,.1);color:#4fa8d0;border:1px solid rgba(79,168,208,.2);padding:5px 10px;border-radius:6px;font-size:10px;cursor:pointer;">확인 완료</button>'+
   '</div>';}).join('');
 }
@@ -7630,7 +7630,7 @@ function renderAdmCat(){
     return `<div style="border-bottom:1px solid rgba(255,255,255,.05);padding:6px 0;">
       <div class="adm-row" style="margin-bottom:0;">
         <div class="adm-info" style="flex:1;min-width:0;">
-          <div class="adm-name" style="font-size:12px;">${c}</div>
+          <div class="adm-name" style="font-size:12px;">${_esc(c)}</div>
           <div style="margin-top:3px;">${badges||'<span style="font-size:9px;color:#3a6a8a;">일반</span>'}</div>
         </div>
         <button class="abtn" style="font-size:10px;" onclick="toggleCatEdit(${i})">수정</button>
@@ -8677,9 +8677,9 @@ function renderFullStats(){
   });
   const topN=(obj,n=5)=>Object.entries(obj).sort((a,b)=>b[1]-a[1]).slice(0,n);
   const safe_max=obj=>Math.max(...Object.values(obj),1);
-  const barRow=(k,v,max,col)=>`<div style="margin-bottom:4px;"><div style="display:flex;justify-content:space-between;font-size:10px;margin-bottom:1px;"><span style="color:#c0d8ec;">${k}</span><span style="color:${col};font-weight:700;">${v}</span></div><div style="height:3px;background:rgba(255,255,255,.06);border-radius:2px;overflow:hidden;"><div style="height:100%;width:${Math.round(v/max*100)}%;background:${col};border-radius:2px;"></div></div></div>`;
-  const mini=(label,val,col='#e0edf8')=>`<div style="background:#060d1a;border-radius:7px;padding:5px 4px;text-align:center;"><div style="font-size:14px;font-weight:800;color:${col};line-height:1.2;">${val}</div><div style="font-size:8px;color:#3a6a8a;margin-top:1px;">${label}</div></div>`;
-  const pill_tab=p=>`<div onclick="window._statPeriod='${p}';renderFullStats();" style="flex:1;padding:5px 2px;text-align:center;font-size:11px;font-weight:600;border-radius:7px;cursor:pointer;${p===period?'background:#1a4a6e;color:#e0edf8;':'color:rgba(255,255,255,.35);'}">${p}</div>`;
+  const barRow=(k,v,max,col)=>`<div style="margin-bottom:4px;"><div style="display:flex;justify-content:space-between;font-size:10px;margin-bottom:1px;"><span style="color:#c0d8ec;">${_esc(k)}</span><span style="color:${col};font-weight:700;">${v}</span></div><div style="height:3px;background:rgba(255,255,255,.06);border-radius:2px;overflow:hidden;"><div style="height:100%;width:${Math.round(v/max*100)}%;background:${col};border-radius:2px;"></div></div></div>`;
+  const mini=(label,val,col='#e0edf8')=>`<div style="background:#060d1a;border-radius:7px;padding:5px 4px;text-align:center;"><div style="font-size:14px;font-weight:800;color:${col};line-height:1.2;">${val}</div><div style="font-size:8px;color:#7a9cb8;margin-top:1px;">${label}</div></div>`;
+  const pill_tab=p=>`<div onclick="window._statPeriod='${p}';renderFullStats();" style="flex:1;padding:5px 2px;text-align:center;font-size:11px;font-weight:600;border-radius:7px;cursor:pointer;${p===period?'background:#1a4a6e;color:#e0edf8;':'color:rgba(255,255,255,.6);'}">${p}</div>`;
   const row2=(a,b)=>`<div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;">${a}${b}</div>`;
   const w=document.getElementById('statsWrap');
   w.innerHTML=`
