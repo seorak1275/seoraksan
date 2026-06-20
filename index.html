@@ -1552,7 +1552,7 @@ const _FB_CFG={
 // facilities: 시설물 다수(표지판 169+)·점검사진 누적으로 단일문서 1MB 한계·동시편집 덮어쓰기 위험 → 건별 문서로 전환
 const _SHARED_COLL=['rescues','hazards','facilities'];
 // _SHARED_DOC: 단일 문서에 JSON 배열 저장 (관리자 전용, 동시 쓰기 없음)
-const _SHARED_DOC=['history','wikis','staff','catFac','catFacMeta','wikiCats','pendingUsers','approvedUsers','deletedKakaoIds','adminOwnerKakaoId'];
+const _SHARED_DOC=['history','wikis','staff','catFac','catFacMeta','wikiCats','pendingUsers','approvedUsers','deletedKakaoIds','adminOwnerKakaoId','adminApprovalCode','extAgencies','extAgencyCode','extAgencyDisplayName','geminiApiKey'];
 // 시설물 레거시(단일문서) 폴백/시드 동기화 상태
 let _legacyFacBackup=null; // appData/facilities(구버전)의 백업 — 컬렉션 비었을 때 화면 폴백
 let _facSeedReady=false;   // 시설물 첫 스냅샷·레거시 백업 확인 완료(시드 레이스 방지)
