@@ -4593,7 +4593,7 @@ function renderResList(){
       </div>`;
     }).join('');
   }
-  document.getElementById('resListWrap').innerHTML=html||'<div class="empty"><div class="empty-ico">📋</div><div class="empty-txt">해당 항목 없음</div></div>';
+  document.getElementById('resListWrap').innerHTML=html||'<div class="empty"><div class="empty-ico">📋</div><div class="empty-txt">해당 항목 없음</div><button onclick="resetResFilter()" style="margin-top:10px;padding:7px 16px;background:rgba(79,168,208,.12);border:1px solid rgba(79,168,208,.35);color:#4fa8d0;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;">🔄 필터 초기화</button></div>';
 }
 
 // ══════════════════════════════════════════
@@ -6482,7 +6482,7 @@ function render1BoForm(prefill=null){
       <button onclick="history.back()" style="background:rgba(255,255,255,.07);color:#c0d8ec;border:none;padding:5px 10px;border-radius:6px;font-size:11px;cursor:pointer;">✕</button>
     </div>`:''}
 
-    ${_offHrs?_mobilizeHtml:''}
+    ${_mobilizeHtml}
 
     <!-- AI 출동지령서 스캔 버튼 -->
     <div style="padding:9px 12px;background:#06101e;border-bottom:1px solid rgba(255,255,255,.06);flex-shrink:0;">
@@ -6497,8 +6497,6 @@ function render1BoForm(prefill=null){
       </label>
       <div id="aiScanStatus" style="display:none;font-size:10px;color:#7a9cb8;margin-top:6px;padding:0 4px;line-height:1.6;"></div>
     </div>
-
-    ${!_offHrs?_mobilizeHtml:''}
 
     <div style="display:flex;background:#040a16;border-bottom:1px solid rgba(255,255,255,.06);overflow-x:auto;scrollbar-width:none;flex-shrink:0;">
       ${tabs.map((t,i)=>`<div class="rep-tab${i===0?' rep-tab-on':''}" onclick="switchRepTab('${t.id}',this)"
@@ -7266,7 +7264,7 @@ function renderFacList(){
         <div class="lmeta">${_esc(f.type.split(' ').slice(1).join(' ')||f.type)} · ${_esc(f.loc||'-')} · ${f.lat?'📍':''}</div>
       </div>
       <span class="lbadge" style="background:${SC(f.status)}22;color:${SC(f.status)};">${SL(f.status)}</span>
-    </div>`).join(''):'<div class="empty"><div class="empty-ico">🛠️</div><div class="empty-txt">해당 조건 없음</div></div>';
+    </div>`).join(''):'<div class="empty"><div class="empty-ico">🛠️</div><div class="empty-txt">해당 조건 없음</div><button onclick="resetFacListFilter()" style="margin-top:10px;padding:7px 16px;background:rgba(79,168,208,.12);border:1px solid rgba(79,168,208,.35);color:#4fa8d0;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;">🔄 필터 초기화</button></div>';
 }
 
 function renderInspectStats(){
@@ -7363,7 +7361,7 @@ function openHistModal(){
       <div style="font-size:10px;color:rgba(255,255,255,.5);">${h.date} · ${_esc(h.author||'-')}</div>
       <div style="font-size:12px;font-weight:600;color:${SC(h.status)};margin-top:2px;">${SL(h.status)}</div>
       ${h.note?`<div style="font-size:11px;color:rgba(255,255,255,.55);margin-top:3px;line-height:1.5;">${_esc(h.note)}</div>`:''}
-    </div>`).join(''):'<div class="empty"><div class="empty-txt">점검 이력 없음</div></div>';
+    </div>`).join(''):'<div class="empty"><div class="empty-txt">점검 이력 없음</div><button onclick="closeM(&#39;modalHist&#39;);openInspModal();" style="margin-top:10px;padding:7px 16px;background:rgba(79,168,208,.12);border:1px solid rgba(79,168,208,.35);color:#4fa8d0;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;">📝 점검 등록</button></div>';
   document.getElementById('modalHist').classList.add('on');closeDB();
 }
 var _editFacId=null;
@@ -7458,7 +7456,7 @@ function renderWikiList(filter=''){
         <div class="lmeta">${(w.cats||[]).map(c=>`<span style="background:rgba(79,168,208,.08);color:#4fa8d0;padding:1px 6px;border-radius:20px;font-size:9px;margin-right:2px;">${_esc(c)}</span>`).join('')}</div>
         <div class="lmeta">v${(w.versions||[]).length+1} · ${_esc(w.author||'-')}</div>
       </div>
-    </div>`).join(''):'<div class="empty"><div class="empty-ico">📚</div><div class="empty-txt">검색 결과 없음</div></div>';
+    </div>`).join(''):`<div class="empty"><div class="empty-ico">📚</div><div class="empty-txt">${filter?'검색 결과 없음':'등록된 문서 없음'}</div>${filter?`<button onclick="document.getElementById('wikiSearch').value='';onWikiSearch('');" style="margin-top:10px;padding:7px 16px;background:rgba(79,168,208,.12);border:1px solid rgba(79,168,208,.35);color:#4fa8d0;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;">🔄 검색 초기화</button>`:`<button onclick="openWikiEdit(null)" style="margin-top:10px;padding:7px 16px;background:rgba(79,168,208,.12);border:1px solid rgba(79,168,208,.35);color:#4fa8d0;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;">✏️ 새 문서 작성</button>`}</div>`;
 }
 function openWikiPage(id){
   const wikis=DB.g('wikis')||[];const w=wikis.find(x=>x.id===id);if(!w)return;
