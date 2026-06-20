@@ -3586,9 +3586,9 @@ function _renderStaffQuickPick(){
   chips.innerHTML=users.map(u=>{
     const name=u.realName||u.name||'';
     const rank=u.rank||'';
-    return `<div onclick="_fillFromStaff('${name.replace(/'/g,"\\'")}','${rank.replace(/'/g,"\\'")}','${(u.dept||'').replace(/'/g,"\\'")}') "
+    return `<div onclick="_fillFromStaff('${_escq(name)}','${_escq(rank)}','${_escq(u.dept||'')}') "
       style="cursor:pointer;background:rgba(79,168,208,.1);color:#4fa8d0;border:1px solid rgba(79,168,208,.3);border-radius:20px;font-size:10px;font-weight:700;padding:5px 11px;">
-      ${name}${rank?` <span style="font-size:9px;opacity:.7;">${rank}</span>`:''}
+      ${_esc(name)}${rank?` <span style="font-size:9px;opacity:.7;">${_esc(rank)}</span>`:''}
     </div>`;
   }).join('');
 }
@@ -3715,7 +3715,7 @@ function _renderPendingList(){
   return list.map(function(u){return'<div style="background:#060d1a;border:1px solid rgba(79,168,208,.15);border-radius:8px;padding:10px;margin-bottom:7px;'+(u.seen?'opacity:.55':'')+'">'+(!u.seen?'<div style="font-size:9px;color:#4fa8d0;font-weight:700;margin-bottom:4px;">NEW</div>':'')+
     '<div style="font-size:12px;color:#e0edf8;font-weight:700;">'+_esc(u.realName||u.name)+' <span style="font-weight:400;color:#7a9cb8;">· '+_esc(u.dept||'')+' · '+_esc(u.rank||'')+'</span></div>'+
     '<div style="font-size:10px;color:#4a7090;margin-top:2px;">닉네임: '+_esc(u.name)+' · '+(u.submittedAt?new Date(u.submittedAt).toLocaleDateString('ko-KR'):'')+' 가입</div>'+
-    '<button onclick="_markSeen(\''+u.id+'\')" style="margin-top:6px;background:rgba(79,168,208,.1);color:#4fa8d0;border:1px solid rgba(79,168,208,.2);padding:5px 10px;border-radius:6px;font-size:10px;cursor:pointer;">확인 완료</button>'+
+    '<button onclick="_markSeen(\''+_escq(u.id)+'\')" style="margin-top:6px;background:rgba(79,168,208,.1);color:#4fa8d0;border:1px solid rgba(79,168,208,.2);padding:5px 10px;border-radius:6px;font-size:10px;cursor:pointer;">확인 완료</button>'+
   '</div>';}).join('');
 }
 function _markSeen(id){
@@ -3826,7 +3826,7 @@ function updateUserUI(){
   // 아바타: 카카오 프로필 사진 or 이니셜
   if(av){
     if(u.kakaoImg){
-      av.innerHTML=`<img src="${u.kakaoImg}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;" onerror="this.parentElement.textContent='👤'">`;
+      av.innerHTML=`<img src="${_esc(u.kakaoImg)}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;" onerror="this.parentElement.textContent='👤'">`;
     } else {
       const initial=u.name?u.name.charAt(0):'👤';
       av.textContent=initial;
@@ -7552,16 +7552,16 @@ function renderAdmMembers(){
     html+=fp.slice().reverse().map(u=>`
       <div style="padding:8px 0;border-bottom:1px solid rgba(255,255,255,.05);">
         <div style="display:flex;align-items:center;gap:8px;">`
-        +(u.kakaoImg?`<img src="${u.kakaoImg}" style="width:32px;height:32px;border-radius:50%;object-fit:cover;flex-shrink:0;" onerror="this.style.display='none'">`
+        +(u.kakaoImg?`<img src="${_esc(u.kakaoImg)}" style="width:32px;height:32px;border-radius:50%;object-fit:cover;flex-shrink:0;" onerror="this.style.display='none'">`
           :`<div style="width:32px;height:32px;border-radius:50%;background:#1a3a5a;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0;">👤</div>`)
         +`<div style="flex:1;min-width:0;">
             <div style="font-size:12px;font-weight:700;color:#e0edf8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${_esc(u.realName||u.name||'이름없음')}</div>
             <div style="font-size:10px;color:#4a7090;margin-top:1px;">${_esc(u.dept||'')}${u.rank?' · '+_esc(u.rank):''} · ${u.approvalStatus==='approved'?'<span style="color:#7ec8a0;">✅승인</span>':'<span style="color:#e67e22;">⏳대기</span>'}</div>
           </div>
           <div style="display:flex;gap:4px;flex-shrink:0;">
-            <button onclick="_toggleAdmMemberEdit('${u.id}')" style="background:rgba(79,168,208,.12);color:#4fa8d0;border:1px solid rgba(79,168,208,.25);border-radius:6px;padding:4px 8px;font-size:10px;cursor:pointer;">수정</button>`
-            +(u.approvalStatus!=='approved'?`<button onclick="approveUser('${u.id}')" style="background:rgba(39,174,96,.15);color:#7ec8a0;border:1px solid rgba(39,174,96,.3);border-radius:6px;padding:4px 8px;font-size:10px;cursor:pointer;">승인</button>`:'')
-            +`<button onclick="deleteUser('${u.id}')" style="background:rgba(192,57,43,.15);color:#ff8a80;border:1px solid rgba(192,57,43,.25);border-radius:6px;padding:4px 8px;font-size:10px;cursor:pointer;">삭제</button>
+            <button onclick="_toggleAdmMemberEdit('${_escq(u.id)}')" style="background:rgba(79,168,208,.12);color:#4fa8d0;border:1px solid rgba(79,168,208,.25);border-radius:6px;padding:4px 8px;font-size:10px;cursor:pointer;">수정</button>`
+            +(u.approvalStatus!=='approved'?`<button onclick="approveUser('${_escq(u.id)}')" style="background:rgba(39,174,96,.15);color:#7ec8a0;border:1px solid rgba(39,174,96,.3);border-radius:6px;padding:4px 8px;font-size:10px;cursor:pointer;">승인</button>`:'')
+            +`<button onclick="deleteUser('${_escq(u.id)}')" style="background:rgba(192,57,43,.15);color:#ff8a80;border:1px solid rgba(192,57,43,.25);border-radius:6px;padding:4px 8px;font-size:10px;cursor:pointer;">삭제</button>
           </div>
         </div>
         <div id="admMemberEdit_${u.id}" style="display:none;margin-top:8px;background:rgba(0,0,0,.25);border-radius:9px;padding:10px;">
@@ -7571,11 +7571,11 @@ function renderAdmMembers(){
             ${deptOpts.map(d=>`<option value="${d}"${u.dept===d?' selected':''}>${d}</option>`).join('')}
           </select>
           <div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:8px;" id="admME_ranks_${u.id}">
-            ${rankOpts.map(r=>`<div onclick="_toggleAdmRank('${u.id}','${r}')" id="admMER_${u.id}_${r}" style="cursor:pointer;border-radius:20px;font-size:10px;font-weight:700;padding:4px 10px;border:1px solid;${u.rank===r?'background:rgba(79,168,208,.2);color:#4fa8d0;border-color:rgba(79,168,208,.5);':'background:rgba(255,255,255,.04);color:rgba(255,255,255,.4);border-color:rgba(255,255,255,.12);'}">${r}</div>`).join('')}
+            ${rankOpts.map(r=>`<div onclick="_toggleAdmRank('${_escq(u.id)}','${r}')" id="admMER_${u.id}_${r}" style="cursor:pointer;border-radius:20px;font-size:10px;font-weight:700;padding:4px 10px;border:1px solid;${u.rank===r?'background:rgba(79,168,208,.2);color:#4fa8d0;border-color:rgba(79,168,208,.5);':'background:rgba(255,255,255,.04);color:rgba(255,255,255,.4);border-color:rgba(255,255,255,.12);'}">${r}</div>`).join('')}
           </div>
           <div style="display:flex;gap:6px;">
-            <button onclick="_saveAdmMember('${u.id}')" style="flex:1;background:#1a4a6e;color:#fff;border:none;padding:7px;border-radius:7px;font-size:11px;font-weight:700;cursor:pointer;">저장</button>
-            <button onclick="_toggleAdmMemberEdit('${u.id}')" style="background:none;border:1px solid rgba(255,255,255,.12);color:rgba(255,255,255,.4);padding:7px 10px;border-radius:7px;font-size:11px;cursor:pointer;">취소</button>
+            <button onclick="_saveAdmMember('${_escq(u.id)}')" style="flex:1;background:#1a4a6e;color:#fff;border:none;padding:7px;border-radius:7px;font-size:11px;font-weight:700;cursor:pointer;">저장</button>
+            <button onclick="_toggleAdmMemberEdit('${_escq(u.id)}')" style="background:none;border:1px solid rgba(255,255,255,.12);color:rgba(255,255,255,.4);padding:7px 10px;border-radius:7px;font-size:11px;cursor:pointer;">취소</button>
           </div>
         </div>
       </div>`
@@ -7923,7 +7923,7 @@ function renderSettings(){
     document.getElementById('settingsInfoWrap').innerHTML=`
       <div class="scard" style="margin-bottom:8px;">
         <div class="stitle">👤 내 계정</div>
-        <div style="font-size:12px;color:#b8d4e8;line-height:2.0;">이름: <b>${u.realName||u.name||'미설정'}</b><br>소속: <b>${u.dept||'미설정'}</b><br>직위: <b>${u.rank||'미설정'}</b>${u.kakaoId?`<br><span style="color:#4a7090;font-size:10px;">카카오ID: ${u.kakaoId}</span>`:''}</div>
+        <div style="font-size:12px;color:#b8d4e8;line-height:2.0;">이름: <b>${_esc(u.realName||u.name||'미설정')}</b><br>소속: <b>${_esc(u.dept||'미설정')}</b><br>직위: <b>${_esc(u.rank||'미설정')}</b>${u.kakaoId?`<br><span style="color:#4a7090;font-size:10px;">카카오ID: ${_esc(u.kakaoId)}</span>`:''}</div>
         <div style="display:flex;align-items:center;gap:6px;margin-top:6px;margin-bottom:8px;">
           <div style="font-size:11px;color:${u.approvalStatus==='approved'?'#7ec8a0':'#e67e22'};">● ${u.approvalStatus==='approved'?'승인됨':'승인 대기'}</div>
         </div>
@@ -7931,7 +7931,7 @@ function renderSettings(){
       </div>
       <div class="scard" style="margin-bottom:8px;">
         <div class="stitle">💬 카카오 로그인</div>
-        ${(()=>{if(u.kakaoImg||u.kakaoId){return`<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;"><img src="${u.kakaoImg||''}" style="width:36px;height:36px;border-radius:50%;object-fit:cover;background:#1a3a5a;" onerror="this.style.display='none'"><div style="font-size:12px;color:#b8d4e8;"><b style="color:#e0edf8;">${u.name||''}</b> 님으로 연결됨</div></div><button onclick="kakaoLogout()" style="width:100%;background:rgba(255,80,80,.12);color:#ff8a80;border:1px solid rgba(255,80,80,.25);padding:9px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;margin-bottom:6px;">🚪 카카오 로그아웃</button><button onclick="withdrawAccount()" style="width:100%;background:rgba(180,20,20,.12);color:#cc4444;border:1px solid rgba(180,20,20,.25);padding:8px;border-radius:8px;font-size:11px;font-weight:600;cursor:pointer;">🗑️ 회원탈퇴</button>`;}return`<div style="font-size:11px;color:#7a9cb8;margin-bottom:8px;">카카오 계정으로 로그인하면 작성자 정보가 자동 설정됩니다.</div><button onclick="kakaoLogin()" style="width:100%;background:rgba(254,229,0,.18);color:#f0d900;border:1px solid rgba(254,229,0,.3);padding:9px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;">💬 카카오로 로그인</button>`;})()}
+        ${(()=>{if(u.kakaoImg||u.kakaoId){return`<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;"><img src="${_esc(u.kakaoImg||'')}" style="width:36px;height:36px;border-radius:50%;object-fit:cover;background:#1a3a5a;" onerror="this.style.display='none'"><div style="font-size:12px;color:#b8d4e8;"><b style="color:#e0edf8;">${_esc(u.name||'')}</b> 님으로 연결됨</div></div><button onclick="kakaoLogout()" style="width:100%;background:rgba(255,80,80,.12);color:#ff8a80;border:1px solid rgba(255,80,80,.25);padding:9px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;margin-bottom:6px;">🚪 카카오 로그아웃</button><button onclick="withdrawAccount()" style="width:100%;background:rgba(180,20,20,.12);color:#cc4444;border:1px solid rgba(180,20,20,.25);padding:8px;border-radius:8px;font-size:11px;font-weight:600;cursor:pointer;">🗑️ 회원탈퇴</button>`;}return`<div style="font-size:11px;color:#7a9cb8;margin-bottom:8px;">카카오 계정으로 로그인하면 작성자 정보가 자동 설정됩니다.</div><button onclick="kakaoLogin()" style="width:100%;background:rgba(254,229,0,.18);color:#f0d900;border:1px solid rgba(254,229,0,.3);padding:9px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;">💬 카카오로 로그인</button>`;})()}
       </div>
       <a href="https://github.com/109yoon/seoraksan/releases/latest" target="_blank" style="display:flex;align-items:center;gap:10px;background:#0b1c30;border:1px solid rgba(79,168,208,.18);border-radius:10px;padding:11px 13px;text-decoration:none;flex-shrink:0;">
         <span style="font-size:18px;">📱</span>
