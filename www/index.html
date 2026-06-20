@@ -1270,8 +1270,9 @@ body.hi-contrast .stat-lbl{color:rgba(255,255,255,.65)!important;}
     <div id="hazFireMobilizeWrap" style="display:none;background:rgba(231,76,60,.08);border:1px solid rgba(231,76,60,.25);border-radius:8px;padding:10px 11px;margin-bottom:12px;">
       <div class="rsec-t" style="font-size:11px;color:#e74c3c;font-weight:700;margin-bottom:6px;">🚨 산불 응소 요청</div>
       <div class="pills" id="hazMobilizePills">
-        <div class="pill" onclick="tPill(this)">🚨 재난과 응소</div>
-        <div class="pill" onclick="tPill(this)">👥 전직원 응소</div>
+        <div class="pill" onclick="tPill(this)">특구대</div>
+        <div class="pill" onclick="tPill(this)">재난과</div>
+        <div class="pill" onclick="tPill(this)">전직원응소</div>
       </div>
     </div>
     <!-- 산불 전용: 타임라인 -->
@@ -1692,7 +1693,8 @@ function _mergeRecord(local,server){
     ['timetable',e=>JSON.stringify(e)],
     ['wpLog',e=>JSON.stringify(e)],
     ['npsLog',e=>JSON.stringify(e)],
-    ['photos',p=>(p&&p.url)?('url:'+p.url):JSON.stringify(p)]
+    ['photos',p=>(p&&p.url)?('url:'+p.url):JSON.stringify(p)],
+    ['mobilizeResp',m=>(m&&m.name)?('name:'+m.name):JSON.stringify(m)] // 응소 응답(이름별 1건, 본인 응답은 항상 최신 로컬값 우선)
   ];
   fields.forEach(([f,keyFn])=>{
     if(!Array.isArray(local[f])&&!Array.isArray(server[f]))return; // 양쪽 다 없으면 손대지 않음
@@ -4953,7 +4955,27 @@ function openResPopup(id,type='rescue'){
 
 function openHazDetail(id){
   const h=(DB.g('hazards')||[]).find(x=>x.id===id);if(!h)return;
-  toast('⚠️ '+h.hazType+' — '+h.hazStatus);
+  let ov=document.getElementById('hazDetailOv');
+  if(!ov){ov=document.createElement('div');ov.id='hazDetailOv';document.body.appendChild(ov);}
+  ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:9999;display:flex;align-items:flex-end;';
+  ov.innerHTML=`<div style="background:#040a16;border-radius:14px 14px 0 0;width:100%;max-height:80vh;max-height:80dvh;overflow:hidden;display:flex;flex-direction:column;border-top:.5px solid rgba(230,126,34,.3);">
+    <div style="padding:14px 16px 10px;display:flex;align-items:center;justify-content:space-between;border-bottom:.5px solid rgba(255,255,255,.07);flex-shrink:0;">
+      <span style="font-size:13px;font-weight:700;color:#e0edf8;">${_esc(h.hazType||'위험상황')}</span>
+      <button onclick="document.getElementById('hazDetailOv').style.display='none'" style="background:none;border:none;color:rgba(255,255,255,.5);font-size:20px;cursor:pointer;padding:0 4px;line-height:1;">×</button>
+    </div>
+    <div style="overflow-y:auto;flex:1;padding:12px 14px;">
+      <div style="font-size:12px;color:#b8d4e8;line-height:1.8;">
+        위치: <b>${_esc(h.loc||'-')}</b><br>
+        시각: ${_esc(h.dt||'-')}<br>
+        위험도: ${_esc(h.danger||'-')}<br>
+        상태: ${_esc(h.hazStatus||'-')}<br>
+        작성: ${_esc(h.author||'-')}
+        ${h.desc?`<br><br>${_esc(h.desc)}`:''}
+      </div>
+      ${_mobilizeBlockHtml('hazards',h)}
+    </div>
+  </div>`;
+  ov.onclick=e=>{if(e.target===ov)ov.style.display='none';};
 }
 
 // ══════════════════════════════════════════
@@ -6013,7 +6035,8 @@ function renderTimeline(r,viewMode,outId){
           if(ag.agenciesNote)parts.push(`(${_esc(ag.agenciesNote)})`);
           return parts.length?`<div style="font-size:11px;color:#b8d4e8;margin-top:2px;"><span style="color:#4a7090;">유관기관:</span> ${parts.join(' · ')}</div>`:'';
         })():''}
-      </div>`;
+      </div>
+      ${_mobilizeBlockHtml('rescues',r)}`;
   }
   // sticky footer
   const _ftEl=document.getElementById(_isBoard?'boardDetailFooter':'rep1BoFooter');
@@ -8884,6 +8907,68 @@ function getTeamMembers(){
   return sortStaff(users.filter(u=>u.name||u.realName).map(u=>({
     name:u.realName||u.name,dept:u.dept||'',rank:u.rank||''
   })));
+}
+
+// ══════════════════════════════════════════
+// 응소 응답(예상 도착시간 / 응소불가 / 미응답)
+// ══════════════════════════════════════════
+const MOBILIZE_DEPT_MAP={'특구대':'특수산악구조대','재난과':'재난안전과'}; // 전직원응소는 전체 대상
+function _mobilizeRoster(mobilize){
+  if(!mobilize||!mobilize.length)return [];
+  const all=getTeamMembers();
+  if(mobilize.includes('전직원응소'))return all;
+  const depts=mobilize.map(m=>MOBILIZE_DEPT_MAP[m]).filter(Boolean);
+  if(!depts.length)return [];
+  return all.filter(s=>depts.includes(s.dept));
+}
+function _mobilizeBlockHtml(coll,r){
+  if(!r.mobilize||!r.mobilize.length)return '';
+  const roster=_mobilizeRoster(r.mobilize);
+  const respMap={};(r.mobilizeResp||[]).forEach(x=>{respMap[x.name]=x;});
+  const me=DB.g('currentUser')||{};
+  const myName=me.realName||me.name||'';
+  const iAmTarget=!!myName&&roster.some(s=>s.name===myName);
+  const myResp=myName?respMap[myName]:null;
+  const rows=roster.map(s=>{
+    const rr=respMap[s.name];
+    let stat;
+    if(rr&&rr.status==='eta')stat=`<span style="color:#3ad17a;">🟢 도착예정 ${_esc(rr.eta)}</span>`;
+    else if(rr&&rr.status==='unable')stat=`<span style="color:#e74c3c;">🔴 응소불가</span>`;
+    else stat=`<span style="color:rgba(255,255,255,.35);">⚪ 미응답</span>`;
+    return `<div style="display:flex;justify-content:space-between;align-items:center;padding:3px 0;font-size:11px;">
+      <span style="color:#b8d4e8;">${_esc(s.name)}${s.rank?` <span style="color:#4a7090;font-size:9px;">${_esc(s.rank)}</span>`:''}</span>${stat}
+    </div>`;
+  }).join('');
+  return `<div id="mobBlk_${coll}_${r.id}" style="background:#0b1c30;border-radius:10px;padding:11px 12px;border:.5px solid rgba(231,76,60,.25);margin-top:8px;">
+    <div style="font-size:11px;color:#e74c3c;font-weight:700;margin-bottom:7px;">🚨 응소 현황 (${_esc(r.mobilize.join('·'))})</div>
+    ${rows||'<div style="font-size:11px;color:rgba(255,255,255,.3);">대상 인원 없음</div>'}
+    ${iAmTarget?`<div style="display:flex;gap:6px;margin-top:8px;">
+      <button onclick="submitMobilizeResp('${coll}',${r.id},'eta')" style="flex:1;background:rgba(39,174,96,.15);color:#3ad17a;border:1px solid rgba(39,174,96,.35);border-radius:8px;padding:7px;font-size:11px;font-weight:700;cursor:pointer;">🟢 ${myResp&&myResp.status==='eta'?'도착시간 수정':'응소 가능·도착시간 입력'}</button>
+      <button onclick="submitMobilizeResp('${coll}',${r.id},'unable')" style="flex:1;background:rgba(231,76,60,.12);color:#e74c3c;border:1px solid rgba(231,76,60,.3);border-radius:8px;padding:7px;font-size:11px;font-weight:700;cursor:pointer;">🔴 응소 불가</button>
+    </div>`:''}
+  </div>`;
+}
+function submitMobilizeResp(coll,id,status){
+  const arr=DB.g(coll)||[];
+  const idx=arr.findIndex(x=>x.id===id);
+  if(idx===-1)return;
+  const me=DB.g('currentUser')||{};
+  const myName=me.realName||me.name||'';
+  if(!myName){toast('⚠️ 설정에서 이름을 먼저 입력하세요');return;}
+  let eta='';
+  if(status==='eta'){
+    const prevEta=((arr[idx].mobilizeResp||[]).find(x=>x.name===myName)||{}).eta||'';
+    eta=prompt('예상 도착 시간을 입력하세요 (예: 14:30)',prevEta);
+    if(eta===null)return; // 취소
+    if(!eta.trim()){toast('⚠️ 시간 입력 필요');return;}
+  }
+  const resp=(arr[idx].mobilizeResp||[]).filter(x=>x.name!==myName);
+  resp.push({name:myName,dept:me.dept||'',rank:me.rank||'',status,eta:eta.trim(),time:now()});
+  arr[idx]={...arr[idx],mobilizeResp:resp};
+  DB.s(coll,arr);
+  toast(status==='eta'?'🟢 응소 가능 등록됨':'🔴 응소 불가 등록됨');
+  const blk=document.getElementById('mobBlk_'+coll+'_'+id);
+  if(blk)blk.outerHTML=_mobilizeBlockHtml(coll,arr[idx]);
 }
 
 function chkHazOnSite(el){
