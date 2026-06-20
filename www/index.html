@@ -142,6 +142,7 @@ button{-webkit-tap-highlight-color:transparent;touch-action:manipulation;}
 .w-alert-경보{background:rgba(192,57,43,.18);border:1px solid rgba(192,57,43,.4);color:#ff8a80;}
 .w-alert-주의보{background:rgba(230,126,34,.15);border:1px solid rgba(230,126,34,.35);color:#ffa040;}
 .w-alert-예비특보{background:rgba(241,196,15,.12);border:1px solid rgba(241,196,15,.3);color:#f0d040;}
+.w-alert-추정{background:rgba(241,196,15,.08);border:1px dashed rgba(241,196,15,.45);color:#e8c84a;}
 .weather-strip{cursor:pointer;touch-action:manipulation;}
 .weather-strip:active{opacity:.75;}
 #modalWeather .mbox{max-height:85vh;overflow-y:auto;}
@@ -1532,7 +1533,7 @@ window.addEventListener('error',e=>{_logErr((e.message||'오류')+' @'+(e.filena
 window.addEventListener('unhandledrejection',e=>{_logErr('Promise: '+((e.reason&&e.reason.message)||e.reason||'거부'));});
 
 // ── 앱 버전 (배포 시 갱신) ──
-const APP_VER='v9.79 (2026.06.18)';
+const APP_VER='v9.80 (2026.06.18)';
 try{document.getElementById('appVerLabel').textContent='설악산 현장관리 '+APP_VER;}catch(e){}
 // ══════════════════════════════════════════
 // DB
@@ -8285,10 +8286,10 @@ function _fetchWeatherFallback(){
         if(s12s>=20){level='경보';reasons.push('대설경보');}else if(s12s>=5&&level!=='경보'){level='주의보';reasons.push('대설주의보');}
         if(reasons.length)alertMap[rNames[i]]={level:level,reasons:reasons};
       });
-      _renderWeatherAlerts(alertMap);
+      _renderWeatherAlerts(alertMap,true);
     }).catch(function(e){console.warn('날씨 폴백 실패:',e);_weatherFetched=false;});
 }
-function _renderWeatherAlerts(alertMap){
+function _renderWeatherAlerts(alertMap,estimated){
   var wrap=document.getElementById('weatherAlertWrap');if(!wrap)return;
   var entries=Object.entries(alertMap);
   if(!entries.length){wrap.innerHTML='';wrap.style.display='none';return;}
@@ -8305,6 +8306,10 @@ function _renderWeatherAlerts(alertMap){
     var ico=g.reasons.some(function(r){return r.includes('호우');})?'🌧️':g.reasons.some(function(r){return r.includes('강풍');})?'💨':g.reasons.some(function(r){return r.includes('대설');})?'❄️':'⚠️';
     var regionStr=g.regions.join('·');
     var reasonStr=g.reasons.map(function(r){return r.replace('경보','').replace('주의보','');}).join(', ');
+    // estimated=true: 기상청 미연결로 open-meteo 관측값에서 추정한 특보 → 공식 특보와 명확히 구분
+    if(estimated){
+      return'<div class="w-alert w-alert-추정">'+ico+' <b>추정 '+g.level+'</b> '+regionStr+' — '+reasonStr+' <span style="font-weight:400;opacity:.85;">· 기상청 미연결</span></div>';
+    }
     return'<div class="w-alert w-alert-'+g.level+'">'+ico+' <b>'+g.level+'</b> '+regionStr+' — '+reasonStr+'</div>';
   }).join('');
   wrap.style.display='flex';
