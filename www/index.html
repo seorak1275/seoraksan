@@ -6473,7 +6473,7 @@ function render1BoForm(prefill=null){
           <div style="font-size:10px;color:#7a6a9a;margin-top:1px;">사진 촬영 또는 선택 → 자동 입력</div>
         </div>
         <div id="aiScanSpinner" style="display:none;width:18px;height:18px;border:2px solid rgba(139,92,246,.3);border-top-color:#c4b5fd;border-radius:50%;animation:spin .8s linear infinite;flex-shrink:0;"></div>
-        <input type="file" accept="image/*" capture="environment" style="display:none;" onchange="aiScanDispatch(this)">
+        <input type="file" accept="image/*" style="display:none;" onchange="aiScanDispatch(this)">
       </label>
       <div id="aiScanStatus" style="display:none;font-size:10px;color:#7a9cb8;margin-top:6px;padding:0 4px;line-height:1.6;"></div>
     </div>
