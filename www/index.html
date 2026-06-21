@@ -8345,8 +8345,9 @@ function _kmaItems(json){
 // ① 직빵(direct) 먼저 시도 — 되면 가장 빠름 ② 막히면 CORS 프록시 경유로 '진짜 기상청' 데이터 확보
 // (authKey는 이미 클라이언트에 노출된 공개 키라 프록시 경유로 인한 추가 노출 없음)
 var _KMA_PROXIES=[
-  function(u){return 'https://corsproxy.io/?url='+encodeURIComponent(u);},
-  function(u){return 'https://api.allorigins.win/raw?url='+encodeURIComponent(u);}
+  function(u){return 'https://api.codetabs.com/v1/proxy/?quest='+encodeURIComponent(u);},
+  function(u){return 'https://api.allorigins.win/raw?url='+encodeURIComponent(u);},
+  function(u){return 'https://corsproxy.io/?url='+encodeURIComponent(u);}
 ];
 function _fetchKma(url,asText){
   var read=function(r){if(!r||!r.ok)throw new Error('http '+(r&&r.status));return asText?r.text():r.json();};
@@ -8402,7 +8403,7 @@ function fetchWeather(){
   var wrnUrl='https://apihub.kma.go.kr/api/typ01/url/wrn_now_data_new.php?authKey='+KMA_KEY+'&disp=1';
   Promise.all([
     _fetchKma(ncstUrl,false),
-    _fetchKma(vsrtUrl,false),
+    _fetchKma(vsrtUrl,false).catch(function(){return null;}),
     _fetchKma(wrnUrl,true).catch(function(){return '';})
   ]).then(function(results){
     var ncst=results[0],vsrt=results[1],wrnTxt=results[2];
@@ -8531,7 +8532,7 @@ function _fetchWeatherDetail(){
   var dt=_kmaNCSTTime(),ft=_kmaFcstTime();
   var ncstCalls=_WEATHER_REGIONS.map(function(r){
     var url=KMA_BASE+'/getUltraSrtNcst?authKey='+KMA_KEY+'&dataType=JSON&numOfRows=10&pageNo=1&baseDate='+dt.date+'&baseTime='+dt.time+'&nx='+r.nx+'&ny='+r.ny;
-    return _fetchKma(url,false);
+    return _fetchKma(url,false).catch(function(){return null;}); // 일부 권역 프록시 실패 허용
   });
   var fcst7Url=KMA_BASE+'/getVilageFcst?authKey='+KMA_KEY+'&dataType=JSON&numOfRows=900&pageNo=1&baseDate='+ft.date+'&baseTime='+ft.time+'&nx=80&ny=140';
   // 기상특보: 캐시 있으면 재사용, 없으면 새로 조회
@@ -8544,8 +8545,9 @@ function _fetchWeatherDetail(){
     wrnPromise
   ]).then(function(all){
     _wDetailFetching=false;
-    var firstOk=all[0][0]&&all[0][0].response&&all[0][0].response.header&&all[0][0].response.header.resultCode==='00';
-    if(!firstOk){_fetchWeatherDetailFallback();return;}
+    // 권역 중 하나라도 성공하면 기상청 데이터로 처리(나머지 권역 프록시 실패는 허용)
+    var anyOk=all[0].some(function(x){return x&&x.response&&x.response.header&&x.response.header.resultCode==='00';});
+    if(!anyOk){_fetchWeatherDetailFallback();return;}
     var wrnMap=_parseKmaWarnings(all[2]||'');
     _wDetailCache={regions:_WEATHER_REGIONS.map(function(r,i){return{region:r.name,ncst:all[0][i]};}),fcst7:all[1],wrnMap:wrnMap};
     _renderWeatherDetail(_wDetailCache);
@@ -8580,7 +8582,7 @@ function _renderWeatherDetail(cache){
   var results=cache.regions||[];
   var fcst7=cache.fcst7||null;
   var wrnMap=cache.wrnMap||{};
-  var src=results.length&&results[0].ncst&&results[0].ncst.response?'기상청':'Open-Meteo';
+  var src=results.some(function(x){return x&&x.ncst&&x.ncst.response;})?'기상청':'Open-Meteo';
   var html='<div style="font-size:10px;color:#3a6a8a;margin-bottom:8px;text-align:right;">'+new Date().toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'})+' 기준 ('+src+')</div>';
   // ── 기상특보 (기상청 실제 발효 특보) ──────────────
   var wrnEntries=Object.entries(wrnMap);
