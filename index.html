@@ -8341,6 +8341,21 @@ function _kmaItems(json){
   var b=json.response.body;if(!b||!b.items)return[];
   var it=b.items.item;return Array.isArray(it)?it:(it?[it]:[]);
 }
+// 기상청 apihub는 브라우저 CORS 허용 헤더를 주지 않아 GitHub Pages에서 직접 호출이 차단된다.
+// ① 직빵(direct) 먼저 시도 — 되면 가장 빠름 ② 막히면 CORS 프록시 경유로 '진짜 기상청' 데이터 확보
+// (authKey는 이미 클라이언트에 노출된 공개 키라 프록시 경유로 인한 추가 노출 없음)
+var _KMA_PROXIES=[
+  function(u){return 'https://corsproxy.io/?url='+encodeURIComponent(u);},
+  function(u){return 'https://api.allorigins.win/raw?url='+encodeURIComponent(u);}
+];
+function _fetchKma(url,asText){
+  var read=function(r){if(!r||!r.ok)throw new Error('http '+(r&&r.status));return asText?r.text():r.json();};
+  var viaProxy=function(i){
+    if(i>=_KMA_PROXIES.length)return Promise.reject(new Error('kma all sources failed'));
+    return fetch(_KMA_PROXIES[i](url)).then(read).catch(function(){return viaProxy(i+1);});
+  };
+  return fetch(url).then(read).catch(function(){return viaProxy(0);});
+}
 function _parsePCP(v){if(!v||v==='강수없음')return 0;if(v.includes('미만'))return 0.5;var n=parseFloat(v);return isNaN(n)?0:n;}
 function _ptyInfo(pty){var p=parseInt(pty||0);return{ico:p===0?'☀️':p===1||p===4?'🌧️':p===2?'🌨️':p===3?'❄️':'🌤️',desc:['맑음','비','비/눈','눈','소나기'][p]||'맑음'};}
 function _skyIco(sky,pty){var p=parseInt(pty||0);if(p===1||p===4)return'🌧️';if(p===2)return'🌨️';if(p===3)return'❄️';var s=parseInt(sky||1);return s===1?'☀️':s===3?'⛅':s===4?'☁️':'🌤️';}
@@ -8386,9 +8401,9 @@ function fetchWeather(){
   // 기상특보현황 (실시간 발효 특보)
   var wrnUrl='https://apihub.kma.go.kr/api/typ01/url/wrn_now_data_new.php?authKey='+KMA_KEY+'&disp=1';
   Promise.all([
-    fetch(ncstUrl).then(function(r){return r.json();}),
-    fetch(vsrtUrl).then(function(r){return r.json();}),
-    fetch(wrnUrl).then(function(r){return r.text();})
+    _fetchKma(ncstUrl,false),
+    _fetchKma(vsrtUrl,false),
+    _fetchKma(wrnUrl,true).catch(function(){return '';})
   ]).then(function(results){
     var ncst=results[0],vsrt=results[1],wrnTxt=results[2];
     var ncstOk=ncst&&ncst.response&&ncst.response.header&&ncst.response.header.resultCode==='00';
@@ -8516,16 +8531,16 @@ function _fetchWeatherDetail(){
   var dt=_kmaNCSTTime(),ft=_kmaFcstTime();
   var ncstCalls=_WEATHER_REGIONS.map(function(r){
     var url=KMA_BASE+'/getUltraSrtNcst?authKey='+KMA_KEY+'&dataType=JSON&numOfRows=10&pageNo=1&baseDate='+dt.date+'&baseTime='+dt.time+'&nx='+r.nx+'&ny='+r.ny;
-    return fetch(url).then(function(res){return res.json();});
+    return _fetchKma(url,false);
   });
   var fcst7Url=KMA_BASE+'/getVilageFcst?authKey='+KMA_KEY+'&dataType=JSON&numOfRows=900&pageNo=1&baseDate='+ft.date+'&baseTime='+ft.time+'&nx=80&ny=140';
   // 기상특보: 캐시 있으면 재사용, 없으면 새로 조회
   var wrnPromise=_kmaWrnCache!==null
     ?Promise.resolve(_kmaWrnCache)
-    :fetch('https://apihub.kma.go.kr/api/typ01/url/wrn_now_data_new.php?authKey='+KMA_KEY+'&disp=1').then(function(r){return r.text();}).catch(function(){return '';});
+    :_fetchKma('https://apihub.kma.go.kr/api/typ01/url/wrn_now_data_new.php?authKey='+KMA_KEY+'&disp=1',true).catch(function(){return '';});
   Promise.all([
     Promise.all(ncstCalls),
-    fetch(fcst7Url).then(function(res){return res.json();}).catch(function(){return null;}),
+    _fetchKma(fcst7Url,false).catch(function(){return null;}),
     wrnPromise
   ]).then(function(all){
     _wDetailFetching=false;
