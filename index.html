@@ -1882,6 +1882,7 @@ function initFirebase(onReady){
     try{_fmsg=firebase.messaging();}catch(e){}
     setTimeout(_flushSyncQueue,3000); // 부팅 직후 대기 큐 재전송
     setTimeout(_processPhotoQueue,5000); // 이전 세션 오프라인 사진 이어서 업로드
+    setTimeout(_cleanOldSharedNotis,8000); // 세션당 1회: 24h 지난 브로드캐스트 알림 정리(확률 의존 X)
     const totalKeys=_SHARED.length;
     const loaded=new Set();
     function _checkReady(){if(loaded.size===totalKeys){onReady&&onReady();onReady=null;}}
@@ -2368,13 +2369,13 @@ function pushNoti(msg,ico,type='info',link=null,pushCat=null){
       id,msg,ico,type:type||'info',link:link||null,
       at:id,timeStr:now(),deviceId:_MY_DEVICE_ID
     }).catch(()=>{});
-    if(Math.random()<0.02)_cleanOldSharedNotis(); // ~2% 확률로 24h 이상 알림 정리
   }
 }
 function _cleanOldSharedNotis(){
   if(!_fdb)return;
   const cutoff=Date.now()-24*60*60*1000;
-  _fdb.collection('sharedNotis').where('at','<',cutoff).get()
+  // 한 번에 최대 100건만 삭제(여러 기기가 동시에 돌려도 부담 적게) — 200명 동시접속 시 폭주 방지
+  _fdb.collection('sharedNotis').where('at','<',cutoff).limit(100).get()
     .then(snap=>snap.docs.forEach(d=>d.ref.delete())).catch(()=>{});
 }
 function _showSystemNoti(body,ico){
