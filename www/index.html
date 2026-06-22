@@ -9080,7 +9080,11 @@ function _mobilizeBlockHtml(coll,r){
   const okCnt=roster.filter(s=>(respMap[s.name]||{}).status==='eta').length;
   const noCnt=roster.filter(s=>(respMap[s.name]||{}).status==='unable').length;
   const pendCnt=roster.length-okCnt-noCnt;
-  const rows=roster.map(s=>{
+  // 과/분소별로 묶어서 표시 — 부서가 둘 이상 섞여 있을 때만 그룹 헤더 노출
+  const deptGroups={};roster.forEach(s=>{const k=s.dept||'기타';if(!deptGroups[k])deptGroups[k]=[];deptGroups[k].push(s);});
+  const deptKeys=Object.keys(deptGroups).sort((a,b)=>DEPTS.indexOf(a)-DEPTS.indexOf(b));
+  const multiDept=deptKeys.length>1;
+  const personRow=s=>{
     const rr=respMap[s.name];
     let stat;
     if(rr&&rr.status==='eta')stat=`<span style="color:#3ad17a;">🟢 도착예정 ${_esc(rr.eta)}</span>`;
@@ -9089,6 +9093,13 @@ function _mobilizeBlockHtml(coll,r){
     return `<div style="display:flex;justify-content:space-between;align-items:center;padding:3px 0;font-size:11px;">
       <span style="color:#b8d4e8;">${_esc(s.name)}${s.rank?` <span style="color:#4a7090;font-size:9px;">${_esc(s.rank)}</span>`:''}</span>${stat}
     </div>`;
+  };
+  const rows=deptKeys.map(dk=>{
+    const members=deptGroups[dk];
+    const dOk=members.filter(s=>(respMap[s.name]||{}).status==='eta').length;
+    const dNo=members.filter(s=>(respMap[s.name]||{}).status==='unable').length;
+    return (multiDept?`<div style="font-size:10px;font-weight:700;color:#7ec8a0;margin:6px 0 2px;padding-top:6px;border-top:.5px solid rgba(255,255,255,.05);display:flex;justify-content:space-between;"><span>${_esc(dk)}</span><span style="color:#4a7090;">🟢${dOk} 🔴${dNo} / ${members.length}명</span></div>`:'')
+      +members.map(personRow).join('');
   }).join('');
   return `<div id="mobBlk_${coll}_${r.id}" style="background:#0b1c30;border-radius:10px;padding:11px 12px;border:.5px solid rgba(231,76,60,.25);margin-top:8px;">
     <div style="font-size:11px;color:#e74c3c;font-weight:700;margin-bottom:7px;">🚨 응소 현황 (${_esc(r.mobilize.join('·'))})</div>
