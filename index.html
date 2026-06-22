@@ -9077,6 +9077,9 @@ function _mobilizeBlockHtml(coll,r){
   const myName=me.realName||me.name||'';
   const iAmTarget=!!myName&&roster.some(s=>s.name===myName);
   const myResp=myName?respMap[myName]:null;
+  const okCnt=roster.filter(s=>(respMap[s.name]||{}).status==='eta').length;
+  const noCnt=roster.filter(s=>(respMap[s.name]||{}).status==='unable').length;
+  const pendCnt=roster.length-okCnt-noCnt;
   const rows=roster.map(s=>{
     const rr=respMap[s.name];
     let stat;
@@ -9089,6 +9092,9 @@ function _mobilizeBlockHtml(coll,r){
   }).join('');
   return `<div id="mobBlk_${coll}_${r.id}" style="background:#0b1c30;border-radius:10px;padding:11px 12px;border:.5px solid rgba(231,76,60,.25);margin-top:8px;">
     <div style="font-size:11px;color:#e74c3c;font-weight:700;margin-bottom:7px;">🚨 응소 현황 (${_esc(r.mobilize.join('·'))})</div>
+    ${roster.length>1?`<div style="display:flex;gap:10px;font-size:10.5px;font-weight:700;margin-bottom:7px;padding-bottom:7px;border-bottom:.5px solid rgba(255,255,255,.07);">
+      <span style="color:#3ad17a;">🟢 ${okCnt}명</span><span style="color:#e74c3c;">🔴 ${noCnt}명</span><span style="color:rgba(255,255,255,.4);">⚪ ${pendCnt}명</span><span style="color:#4a7090;margin-left:auto;">총 ${roster.length}명</span>
+    </div>`:''}
     ${rows||'<div style="font-size:11px;color:rgba(255,255,255,.3);">대상 인원 없음</div>'}
     ${iAmTarget?`<div style="display:flex;gap:6px;margin-top:8px;">
       <button onclick="submitMobilizeResp('${coll}',${r.id},'eta')" style="flex:1;background:rgba(39,174,96,.15);color:#3ad17a;border:1px solid rgba(39,174,96,.35);border-radius:8px;padding:7px;font-size:11px;font-weight:700;cursor:pointer;">🟢 ${myResp&&myResp.status==='eta'?'도착시간 수정':'응소 가능·도착시간 입력'}</button>
