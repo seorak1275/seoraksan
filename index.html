@@ -802,7 +802,7 @@ body.hi-contrast .stat-lbl{color:rgba(255,255,255,.65)!important;}
   </div>
   <!-- 버전 + 동기화 상태 -->
   <div style="flex-shrink:0;text-align:center;padding:4px 0 2px;font-size:9px;color:rgba(255,255,255,.22);user-select:none;">
-    <span id="appVerLabel"></span><span id="syncBadge" style="display:none;margin-left:8px;color:#f0a500;cursor:pointer;">⏳ 동기화 대기 <span id="syncBadgeN">0</span>건 <span onclick="_flushSyncQueue()" style="font-size:10px;opacity:.7;" title="지금 재시도">↻</span><span onclick="_showSyncQueueInfo()" style="font-size:10px;opacity:.7;margin-left:3px;" title="대기 항목 상세·원인 보기">ℹ️</span><span onclick="_clearSyncQueue()" style="font-size:10px;opacity:.55;margin-left:3px;" title="대기 항목 강제 삭제">✕</span></span>
+    <span id="appVerLabel"></span><span id="offlineBadge" style="display:none;margin-left:8px;color:#e74c3c;font-weight:700;">📡 오프라인</span><span id="syncBadge" style="display:none;margin-left:8px;color:#f0a500;cursor:pointer;">⏳ 동기화 대기 <span id="syncBadgeN">0</span>건 <span onclick="_flushSyncQueue()" style="font-size:10px;opacity:.7;" title="지금 재시도">↻</span><span onclick="_showSyncQueueInfo()" style="font-size:10px;opacity:.7;margin-left:3px;" title="대기 항목 상세·원인 보기">ℹ️</span><span onclick="_clearSyncQueue()" style="font-size:10px;opacity:.55;margin-left:3px;" title="대기 항목 강제 삭제">✕</span></span>
   </div>
 </div>
 </div>
@@ -991,6 +991,7 @@ body.hi-contrast .stat-lbl{color:rgba(255,255,255,.65)!important;}
       <button onclick="resetFacListFilter()" style="background:none;border:none;color:rgba(255,255,255,.3);font-size:10px;cursor:pointer;padding:2px 6px;">↺ 초기화</button>
     </div>
     <div style="overflow-y:auto;padding:0 12px 70px;" id="facLFPSections">
+      <div id="facLFP_sort"></div>
       <div id="facLFP_status"></div>
       <div id="facLFP_type"></div>
       <div id="facLFP_loc"></div>
@@ -1705,6 +1706,11 @@ function _clearSyncQueue(){
 window.addEventListener('online',()=>setTimeout(_flushSyncQueue,1500));
 setInterval(_flushSyncQueue,45000);
 _updateSyncBadge(); // 이전 세션에서 남은 대기 건 표시
+// 네트워크 끊김을 동기화 실패 전에 즉시 알림 (대기 큐 배지는 쓰기가 실패해야만 뜸)
+function _updateOfflineBadge(){const b=document.getElementById('offlineBadge');if(b)b.style.display=navigator.onLine?'none':'inline';}
+window.addEventListener('online',_updateOfflineBadge);
+window.addEventListener('offline',_updateOfflineBadge);
+_updateOfflineBadge();
 
 // 사용자 입력에서 태그 주입 차단: 공유 데이터 저장 시 <,>를 전각 문자로 치환
 function _stripTags(v){
@@ -4643,7 +4649,7 @@ function renderResList(){
       const hasCoord=!!(r.lat&&r.lng);
       return `<div class="lcard" onclick="openResListDetail(${r.id})" style="position:relative;border-left:3px solid ${isOg?'#e74c3c':'#27ae60'};">
         <div class="lico" style="background:${isOg?ti.color:'#1a3a1a'};border:none;color:#fff;">${ti.ico}</div>
-        <div class="linfo"><div class="lname">🚨 ${_esc(r.title)}${r.extAgency?` <span style="font-size:9px;background:rgba(255,120,30,.18);color:#f08050;border:1px solid rgba(255,120,30,.35);border-radius:9px;padding:1px 6px;font-weight:700;vertical-align:middle;">🚒 ${_esc(r.extAgency)}</span>`:''}${(r.mobilize&&r.mobilize.length)?` <span style="font-size:9px;background:rgba(231,76,60,.18);color:#e74c3c;border:1px solid rgba(231,76,60,.4);border-radius:9px;padding:1px 6px;font-weight:700;vertical-align:middle;">🚨 ${_esc(r.mobilize.join('·'))}</span>`:''}</div>
+        <div class="linfo"><div class="lname">🚨 ${_esc(r.title)}${r.extAgency?` <span style="font-size:9px;background:rgba(255,120,30,.18);color:#f08050;border:1px solid rgba(255,120,30,.35);border-radius:9px;padding:1px 6px;font-weight:700;vertical-align:middle;">🚒 ${_esc(r.extAgency)}</span>`:''}${(r.mobilize&&r.mobilize.length)?` <span style="font-size:9px;background:rgba(231,76,60,.18);color:#e74c3c;border:1px solid rgba(231,76,60,.4);border-radius:9px;padding:1px 6px;font-weight:700;vertical-align:middle;">🚨 ${_esc(r.mobilize.join('·'))}</span>${_mobilizeCompactBadge(r)}`:''}</div>
           <div class="lmeta">${_esc(r.type)} · ${r.date}</div>
           <div class="lmeta">작성: ${_esc(r.author||'-')} · ${totalPh}보 기록 · 사고자: ${_esc(r.vName||'미상')}${(r.victims2&&r.victims2.length)?` <span style="color:#e9897e;font-weight:700;">외 ${r.victims2.length}명</span>`:''}</div>
           ${hasCoord?`<button onclick="event.stopPropagation();viewOnMap(${r.lat},${r.lng})" style="margin-top:5px;padding:4px 10px;background:rgba(79,168,208,.12);border:1px solid rgba(79,168,208,.35);color:#4fa8d0;border-radius:7px;font-size:11px;font-weight:600;cursor:pointer;">🗺️ 지도보기</button>`:''}
@@ -4663,7 +4669,7 @@ function renderResList(){
         <div style="display:flex;align-items:center;gap:10px;">
           <div style="font-size:22px;">${h.hazType?.split(' ')[0]||'⚠️'}</div>
           <div style="flex:1;min-width:0;">
-            <div style="font-size:13px;color:#e0edf8;font-weight:600;">${_esc(h.hazType||'위험상황')} · ${_esc(h.loc||'-')}${(h.mobilize&&h.mobilize.length)?` <span style="font-size:9px;background:rgba(231,76,60,.18);color:#e74c3c;border:1px solid rgba(231,76,60,.4);border-radius:9px;padding:1px 6px;font-weight:700;vertical-align:middle;">🚨 ${_esc(h.mobilize.join('·'))}</span>`:''}</div>
+            <div style="font-size:13px;color:#e0edf8;font-weight:600;">${_esc(h.hazType||'위험상황')} · ${_esc(h.loc||'-')}${(h.mobilize&&h.mobilize.length)?` <span style="font-size:9px;background:rgba(231,76,60,.18);color:#e74c3c;border:1px solid rgba(231,76,60,.4);border-radius:9px;padding:1px 6px;font-weight:700;vertical-align:middle;">🚨 ${_esc(h.mobilize.join('·'))}</span>${_mobilizeCompactBadge(h)}`:''}</div>
             <div style="font-size:10.5px;color:#8ab4cc;margin-top:3px;">${h.dt||'-'} · ${_esc(h.danger||'-')} · ${_esc(h.author||'-')}</div>
             <div style="font-size:11px;color:#7a9cb8;margin-top:2px;">${_esc((h.desc||'').slice(0,40))}${(h.desc||'').length>40?'...':''}</div>
             ${hasCoord?`<button onclick="event.stopPropagation();viewOnMap(${h.lat},${h.lng})" style="margin-top:5px;padding:4px 10px;background:rgba(230,126,34,.12);border:1px solid rgba(230,126,34,.35);color:#e67e22;border-radius:7px;font-size:11px;font-weight:600;cursor:pointer;">🗺️ 지도보기</button>`:''}
@@ -7134,6 +7140,12 @@ function submitHazard(){
 // ══════════════════════════════════════════
 let selFacId=null;
 let facMapStatusF=new Set(),facMapTypeF=new Set(),facMapLocF=new Set();
+let facListSort='default'; // 'default' | 'overdue'(점검 오래된순)
+function setFacListSort(v){
+  facListSort=facListSort===v?'default':v;
+  if(facListSort==='overdue')_loadArchive('history').then(()=>{_updateFacListFilterPanel();renderFacList();}); // 1년 이전 점검이력도 반영
+  _updateFacListFilterPanel();renderFacList();
+}
 function renderInspectMap(){
   if(!mapI){return;}
   iOvs.forEach(o=>{try{o.setMap(null);}catch(e){}});iOvs=[];iEls=[];
@@ -7256,7 +7268,7 @@ function _closeFacListFilter(){
   setTimeout(()=>{p.style.display='none';p.style.transform='translateY(0)';},220);
 }
 function resetFacListFilter(){
-  facMapStatusF=new Set();facMapTypeF=new Set();facMapLocF=new Set();
+  facMapStatusF=new Set();facMapTypeF=new Set();facMapLocF=new Set();facListSort='default';
   renderInspectMap();renderFacList();
 }
 function _updateFacListFilterPanel(types,locs){
@@ -7268,6 +7280,8 @@ function _updateFacListFilterPanel(types,locs){
     locs=locs||[...new Set(_sf2.map(f=>(f.name.match(/\d+/)||[''])[0]).filter(Boolean))].sort();
   }
   const sChips=[{l:'양호',v:'ok',c:'#27ae60'},{l:'요주의',v:'warn',c:'#e67e22'},{l:'위험',v:'bad',c:'#c0392b'}];
+  const sortSet=facListSort==='overdue'?new Set(['overdue']):new Set();
+  _filterSec('facLFP_sort','정렬',_filterChip('⏰ 점검 오래된순',sortSet,'overdue',`setFacListSort('overdue')`,'#f0a500'),sortSet);
   _filterSec('facLFP_status','상태',sChips.map(({l,v,c})=>_filterChip(l,facMapStatusF,v,`_smfs('s','${v}');renderFacList();`,c)).join(''),facMapStatusF);
   _filterSec('facLFP_type','종류',(types||[]).map(v=>_filterChip(v,facMapTypeF,v,`_smfs('t','${v.replace(/'/g,"\\'")}');renderFacList();`,'#4fa8d0')).join(''),facMapTypeF);
   _filterSec('facLFP_loc','위치',(locs||[]).map(v=>_filterChip(v,facMapLocF,v,`_smfs('l','${v.replace(/'/g,"\\'")}');renderFacList();`,'#9b59b6')).join(''),facMapLocF);
@@ -7397,14 +7411,23 @@ function renderFacList(){
     const lOk=facMapLocF.size===0||[...facMapLocF].some(v=>(f.loc||'').includes(v));
     return sOk&&tOk&&lOk;
   });
-  document.getElementById('facListWrap').innerHTML=filtered.length?filtered.map(f=>`
-    <div class="lcard" style="padding:7px 10px;border-left:3px solid ${SC(f.status)};" onclick="openFacDetail(${f.id})">
+  // 시설별 마지막 점검일(가장 최근 history 항목) — 점검 오래된순 정렬·표시에 사용
+  const lastInspMap={};
+  (DB.g('history')||[]).forEach(h=>{if(!lastInspMap[h.facId]||h.id>lastInspMap[h.facId])lastInspMap[h.facId]=h.id;});
+  if(facListSort==='overdue')filtered.sort((a,b)=>(lastInspMap[a.id]||0)-(lastInspMap[b.id]||0));
+  document.getElementById('facListWrap').innerHTML=filtered.length?filtered.map(f=>{
+    const li=lastInspMap[f.id];
+    const dDays=li?Math.floor((Date.now()-li)/86400000):null;
+    const overdueBadge=facListSort==='overdue'?`<span style="font-size:9px;font-weight:700;color:${dDays===null||dDays>=90?'#e74c3c':dDays>=30?'#f0a500':'#4a7090'};margin-top:2px;display:block;">⏰ ${dDays===null?'미점검':dDays+'일 전 점검'}</span>`:'';
+    return `<div class="lcard" style="padding:7px 10px;border-left:3px solid ${SC(f.status)};" onclick="openFacDetail(${f.id})">
       <div class="lico" style="width:30px;height:30px;font-size:14px;border-color:${SC(f.status)};color:${SC(f.status)};">${_esc(f.type.split(' ')[0])}</div>
       <div class="linfo"><div class="lname" style="font-size:12px;">${_esc(f.name)}</div>
         <div class="lmeta">${_esc(f.type.split(' ').slice(1).join(' ')||f.type)} · ${_esc(f.loc||'-')} · ${f.lat?'📍':''}</div>
+        ${overdueBadge}
       </div>
       <span class="lbadge" style="background:${SC(f.status)}22;color:${SC(f.status)};">${SL(f.status)}</span>
-    </div>`).join(''):'<div class="empty"><div class="empty-ico">🛠️</div><div class="empty-txt">해당 조건 없음</div><button onclick="resetFacListFilter()" style="margin-top:10px;padding:7px 16px;background:rgba(79,168,208,.12);border:1px solid rgba(79,168,208,.35);color:#4fa8d0;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;">🔄 필터 초기화</button></div>';
+    </div>`;
+  }).join(''):'<div class="empty"><div class="empty-ico">🛠️</div><div class="empty-txt">해당 조건 없음</div><button onclick="resetFacListFilter()" style="margin-top:10px;padding:7px 16px;background:rgba(79,168,208,.12);border:1px solid rgba(79,168,208,.35);color:#4fa8d0;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;">🔄 필터 초기화</button></div>';
 }
 
 function renderInspectStats(){
@@ -9127,6 +9150,15 @@ function getTeamMembers(){
 // 응소 응답(예상 도착시간 / 응소불가 / 미응답)
 // ══════════════════════════════════════════
 const MOBILIZE_DEPT_MAP={'특구대':'특수산악구조대','재난과':'재난안전과'}; // 전직원응소는 전체 대상
+// 목록 카드에서 한눈에 보이는 응소 응답 요약 배지 — 상세를 열지 않아도 진행 상황 파악 가능
+function _mobilizeCompactBadge(r){
+  if(!r.mobilize||!r.mobilize.length)return '';
+  const roster=_mobilizeRoster(r.mobilize);if(!roster.length)return '';
+  const respMap={};(r.mobilizeResp||[]).forEach(x=>{respMap[x.name]=x;});
+  const okCnt=roster.filter(s=>(respMap[s.name]||{}).status==='eta').length;
+  const noCnt=roster.filter(s=>(respMap[s.name]||{}).status==='unable').length;
+  return ` <span style="font-size:9px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.15);border-radius:9px;padding:1px 6px;font-weight:700;vertical-align:middle;color:#9bbdd4;">🟢${okCnt} 🔴${noCnt} ⚪${roster.length-okCnt-noCnt}</span>`;
+}
 function _mobilizeRoster(mobilize){
   if(!mobilize||!mobilize.length)return [];
   const all=getTeamMembers();
