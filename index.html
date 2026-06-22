@@ -1559,17 +1559,18 @@ const _FB_CFG={
 // 기기 간 공유할 키 목록
 // _SHARED_COLL: 항목마다 개별 Firestore 문서 (Race Condition 방지)
 // facilities: 시설물 다수(표지판 169+)·점검사진 누적으로 단일문서 1MB 한계·동시편집 덮어쓰기 위험 → 건별 문서로 전환
-const _SHARED_COLL=['rescues','hazards','facilities'];
+// history: 점검이력은 무제한으로 계속 쌓이는 로그성 데이터라 단일문서 그대로 두면 매 점검마다 전체가 전원에게 재전송됨 → 건별 문서로 전환
+const _SHARED_COLL=['rescues','hazards','facilities','history'];
 // _SHARED_DOC: 단일 문서에 JSON 배열 저장 (관리자 전용, 동시 쓰기 없음)
-const _SHARED_DOC=['history','wikis','staff','catFac','catFacMeta','wikiCats','pendingUsers','approvedUsers','deletedKakaoIds','adminOwnerKakaoId','adminApprovalCode','extAgencies','extAgencyCode','extAgencyDisplayName','geminiApiKey','kmaProxyUrl'];
+const _SHARED_DOC=['wikis','staff','catFac','catFacMeta','wikiCats','pendingUsers','approvedUsers','deletedKakaoIds','adminOwnerKakaoId','adminApprovalCode','extAgencies','extAgencyCode','extAgencyDisplayName','geminiApiKey','kmaProxyUrl'];
 // 시설물 레거시(단일문서) 폴백/시드 동기화 상태
 let _legacyFacBackup=null; // appData/facilities(구버전)의 백업 — 컬렉션 비었을 때 화면 폴백
 let _facSeedReady=false;   // 시설물 첫 스냅샷·레거시 백업 확인 완료(시드 레이스 방지)
 let _facMigTried=false;    // 레거시→건별 이관 1회 시도 플래그
 const _SHARED=[..._SHARED_COLL,..._SHARED_DOC]; // 하위 호환용
-// 1년 이상 지난 구조/위험상황 기록은 실시간 동기화 대상에서 빼고, 조회 시에만 1회 불러온다.
+// 1년 이상 지난 구조/위험상황/점검이력 기록은 실시간 동기화 대상에서 빼고, 조회 시에만 1회 불러온다.
 // (수백 명이 동시 접속해도 매번 전체 역대기록을 받지 않도록 — id가 Date.now() 기반이라 시간 필터에 그대로 쓸 수 있음)
-const _ARCHIVE_COLLS=['rescues','hazards'];
+const _ARCHIVE_COLLS=['rescues','hazards','history'];
 const _ARCHIVE_CUTOFF_DAYS=365;
 let _fsRecent={},_fsArchive={}; // k별: 실시간 구간 / 1회 조회한 과거 구간
 let _archiveLoaded={}; // k별: 과거 구간 로드 완료(또는 시도중) 여부
@@ -7301,7 +7302,7 @@ function _maybeLoadArchiveForDateFilter(){
   if(!resDateFrom)return;
   const cutoff=new Date(Date.now()-_ARCHIVE_CUTOFF_DAYS*86400000).toISOString().slice(0,10);
   if(resDateFrom>=cutoff)return;
-  Promise.all(_ARCHIVE_COLLS.map(_loadArchive)).then(()=>{renderRescueMap();renderResList();});
+  Promise.all(['rescues','hazards'].map(_loadArchive)).then(()=>{renderRescueMap();renderResList();});
 }
 function setResTypeF(v){if(resTypeF.has(v))resTypeF.delete(v);else resTypeF.add(v);_updateResFilterPanels();renderRescueMap();renderResList();}
 function setResStatusF(v){if(resStatusF.has(v))resStatusF.delete(v);else resStatusF.add(v);_updateResFilterPanels();renderRescueMap();renderResList();}
@@ -7492,7 +7493,13 @@ function submitInsp(){
 }
 function openHistModal(){
   const f=(DB.g('facilities')||[]).find(x=>x.id===selFacId);if(!f)return;
-  const hist=(DB.g('history')||[]).filter(h=>h.facId===selFacId).reverse();
+  _renderHistModal(f);
+  document.getElementById('modalHist').classList.add('on');closeDB();
+  // 1년 이전 점검이력은 조회 시에만 1회 불러옴 — 로드되면 다시 그려서 전체 이력 반영
+  if(!_archiveLoaded['history'])_loadArchive('history').then(()=>{if(document.getElementById('modalHist').classList.contains('on'))_renderHistModal(f);});
+}
+function _renderHistModal(f){
+  const hist=(DB.g('history')||[]).filter(h=>h.facId===f.id).reverse();
   document.getElementById('histTitleEl').textContent=f.name+' · '+hist.length+'건';
   document.getElementById('histContent').innerHTML=hist.length?hist.map(h=>`
     <div style="background:#060d1a;border-radius:8px;padding:10px 11px;margin-bottom:5px;">
@@ -7500,7 +7507,6 @@ function openHistModal(){
       <div style="font-size:12px;font-weight:600;color:${SC(h.status)};margin-top:2px;">${SL(h.status)}</div>
       ${h.note?`<div style="font-size:11px;color:rgba(255,255,255,.55);margin-top:3px;line-height:1.5;">${_esc(h.note)}</div>`:''}
     </div>`).join(''):'<div class="empty"><div class="empty-txt">점검 이력 없음</div><button onclick="closeM(&#39;modalHist&#39;);openInspModal();" style="margin-top:10px;padding:7px 16px;background:rgba(79,168,208,.12);border:1px solid rgba(79,168,208,.35);color:#4fa8d0;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;">📝 점검 등록</button></div>';
-  document.getElementById('modalHist').classList.add('on');closeDB();
 }
 var _editFacId=null;
 function openAddFac(){
@@ -7691,7 +7697,7 @@ function submitWiki(){
   const author=document.getElementById('wikiAuthorIn').value.trim()||getAuthor()||'익명';
   const cats=[..._selCats];const editId=document.getElementById('wikiEditId').value;
   const wikis=DB.g('wikis')||[];
-  if(editId){const idx=wikis.findIndex(x=>String(x.id)===String(editId));if(idx!==-1){if(!wikis[idx].versions)wikis[idx].versions=[];wikis[idx].versions.push({body:wikis[idx].body,savedAt:now(),author:wikis[idx].author});wikis[idx]={...wikis[idx],title,cats,body,author};}}
+  if(editId){const idx=wikis.findIndex(x=>String(x.id)===String(editId));if(idx!==-1){if(!wikis[idx].versions)wikis[idx].versions=[];wikis[idx].versions.push({body:wikis[idx].body,savedAt:now(),author:wikis[idx].author});if(wikis[idx].versions.length>10)wikis[idx].versions.splice(0,wikis[idx].versions.length-10);wikis[idx]={...wikis[idx],title,cats,body,author};}}
   else{wikis.push({id:Date.now(),title,cats,body,photo:_photoUrl('prevWiki'),author,versions:[]});}
   DB.s('wikis',wikis);closeM('modalWikiEdit');renderWikiList('');toast('✅ 위키 저장');updateSummary();
 }
@@ -7756,7 +7762,14 @@ function renderAdmCtrl(){
     ${facs.map(f=>`<div class="adm-row"><div class="adm-info"><div class="adm-name">${f.type.split(' ')[0]} ${f.name}</div><div class="adm-meta"><span style="color:${SC(f.status)};">${SL(f.status)}</span> · ${f.author||'-'}</div></div><button class="abtn del" onclick="admDelFac(${f.id})">삭제</button></div>`).join('')}`;
 }
 function admChangeFacSt(id){if(!isAdminUser()){toast('⚠️ 관리자만 가능');return;}const facs=DB.g('facilities')||[];const idx=facs.findIndex(x=>x.id===id);if(idx===-1)return;const ns=prompt(`상태 (ok/warn/bad)\n현재: ${facs[idx].status}`);if(!['ok','warn','bad'].includes(ns)){toast('⚠️ ok, warn, bad 중 입력');return;}facs[idx].status=ns;DB.s('facilities',facs);renderAdmCtrl();try{renderInspectMap();}catch(e){}toast('✅ 변경');updateSummary();}
-function admDelFac(id){if(!isAdminUser()){toast('⚠️ 관리자만 가능');return;}if(!confirm('삭제?'))return;DB.s('facilities',(DB.g('facilities')||[]).filter(f=>f.id!==id));DB.s('history',(DB.g('history')||[]).filter(h=>h.facId!==id));renderAdmCtrl();try{renderInspectMap();}catch(e){}toast('🗑️ 삭제');updateSummary();}
+function admDelFac(id){
+  if(!isAdminUser()){toast('⚠️ 관리자만 가능');return;}
+  if(!confirm('삭제?'))return;
+  DB.s('facilities',(DB.g('facilities')||[]).filter(f=>f.id!==id));
+  // 1년 이전 점검이력도 함께 정리되도록 먼저 로드 후 삭제(미로드 시 최근 구간만 지워져 과거 이력이 고아로 남음)
+  _loadArchive('history').then(()=>{DB.s('history',(DB.g('history')||[]).filter(h=>h.facId!==id));});
+  renderAdmCtrl();try{renderInspectMap();}catch(e){}toast('🗑️ 삭제');updateSummary();
+}
 function admEndRes(id){if(!isAdminUser()){toast('⚠️ 관리자만 가능');return;}const res=DB.g('rescues')||[];const i=res.findIndex(x=>x.id===id);if(i===-1)return;if(!confirm("'"+(res[i].title||'')+"' 상황을 종료 처리하겠습니까?"))return;res[i].status='done';DB.s('rescues',res);renderAdmCtrl();try{renderRescueMap();}catch(e){}toast('✅ 상황 종료');}
 function admDelRes(id){
   if(!isAdminUser()){toast('⚠️ 관리자만 가능');return;}
