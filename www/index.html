@@ -1567,6 +1567,35 @@ let _legacyFacBackup=null; // appData/facilities(구버전)의 백업 — 컬렉
 let _facSeedReady=false;   // 시설물 첫 스냅샷·레거시 백업 확인 완료(시드 레이스 방지)
 let _facMigTried=false;    // 레거시→건별 이관 1회 시도 플래그
 const _SHARED=[..._SHARED_COLL,..._SHARED_DOC]; // 하위 호환용
+// 1년 이상 지난 구조/위험상황 기록은 실시간 동기화 대상에서 빼고, 조회 시에만 1회 불러온다.
+// (수백 명이 동시 접속해도 매번 전체 역대기록을 받지 않도록 — id가 Date.now() 기반이라 시간 필터에 그대로 쓸 수 있음)
+const _ARCHIVE_COLLS=['rescues','hazards'];
+const _ARCHIVE_CUTOFF_DAYS=365;
+let _fsRecent={},_fsArchive={}; // k별: 실시간 구간 / 1회 조회한 과거 구간
+let _archiveLoaded={}; // k별: 과거 구간 로드 완료(또는 시도중) 여부
+// 실시간 구간(_fsRecent)+과거 구간(_fsArchive)을 합쳐 _fs[k]/_fsSync[k] 재구성
+// (id 중복 시 실시간 구간 우선 — 경계 시점에 양쪽에 다 걸려도 최신 데이터로 통일)
+function _rebuildFsColl(k){
+  const map=new Map();
+  (_fsArchive[k]||[]).forEach(r=>map.set(String(r.id),r));
+  (_fsRecent[k]||[]).forEach(r=>map.set(String(r.id),r));
+  const list=Array.from(map.values());
+  try{list.sort((a,b)=>(Number(b.id)||0)-(Number(a.id)||0));}catch{}
+  _fs[k]=list;
+  const syncMap=new Map();
+  list.forEach(r=>{syncMap.set(String(r.id),JSON.stringify(r));});
+  _fsSync[k]=syncMap;
+}
+// 1년 이전 과거 기록을 1회 조회해 _fsArchive에 채운다(세션당 1회, 조회 시에만 호출)
+function _loadArchive(k){
+  if(!_ARCHIVE_COLLS.includes(k)||_archiveLoaded[k]||!_fdb)return Promise.resolve();
+  _archiveLoaded[k]=true;
+  const cutoff=Date.now()-_ARCHIVE_CUTOFF_DAYS*86400000;
+  return _fdb.collection(k).where('id','<',cutoff).get().then(snap=>{
+    _fsArchive[k]=snap.docs.map(d=>d.data());
+    _rebuildFsColl(k);
+  }).catch(()=>{_archiveLoaded[k]=false;});
+}
 var _remoteUpdateTimer=null; // module scope: shared across all Firebase listeners
 const _fs={};   // Firestore 인메모리 캐시
 let _fdb=null;
@@ -1866,14 +1895,25 @@ function initFirebase(onReady){
       },400);
     }
     // ── 컬렉션 리스너: 항목마다 개별 문서 (rescues, hazards) ──
+    // rescues/hazards는 최근 1년(_ARCHIVE_CUTOFF_DAYS)만 실시간 구독 — 수백 명 접속해도
+    // 매번 전체 역대기록을 받지 않도록(id가 Date.now() 기반이라 그대로 범위 필터 가능).
+    // 1년 이전 기록은 조회 시 _loadArchive()로 1회만 불러온다.
     _SHARED_COLL.forEach(k=>{
-      _fdb.collection(k).onSnapshot(snap=>{
-        _fs[k]=snap.docs.map(d=>d.data());
-        try{_fs[k].sort((a,b)=>(Number(b.id)||0)-(Number(a.id)||0));}catch{}
-        // 동기화 기준 스냅샷 갱신 (서버 상태 = 마지막 동기화 상태)
-        const syncMap=new Map();
-        _fs[k].forEach(r=>{syncMap.set(String(r.id),JSON.stringify(r));});
-        _fsSync[k]=syncMap;
+      const isArchived=_ARCHIVE_COLLS.includes(k);
+      const ref=isArchived?_fdb.collection(k).where('id','>=',Date.now()-_ARCHIVE_CUTOFF_DAYS*86400000):_fdb.collection(k);
+      ref.onSnapshot(snap=>{
+        const docs=snap.docs.map(d=>d.data());
+        if(isArchived){
+          _fsRecent[k]=docs;
+          _rebuildFsColl(k);
+        }else{
+          _fs[k]=docs;
+          try{_fs[k].sort((a,b)=>(Number(b.id)||0)-(Number(a.id)||0));}catch{}
+          // 동기화 기준 스냅샷 갱신 (서버 상태 = 마지막 동기화 상태)
+          const syncMap=new Map();
+          _fs[k].forEach(r=>{syncMap.set(String(r.id),JSON.stringify(r));});
+          _fsSync[k]=syncMap;
+        }
         // 시설물: 컬렉션이 비어있으면 레거시 단일문서 백업으로 폴백 표시 + 1회 이관 시도
         if(k==='facilities'){
           if(_fs[k].length===0&&_legacyFacBackup&&_legacyFacBackup.length){
@@ -7253,7 +7293,15 @@ function _updateResFilterPanels(){
 }
 function setResDate(which,v){
   if(which==='from')resDateFrom=v;else resDateTo=v;
+  _maybeLoadArchiveForDateFilter();
   _updateResFilterPanels();renderRescueMap();renderResList();
+}
+// 조회 시작일이 보관 기준(1년)보다 앞이면 과거 기록을 1회 불러온 뒤 다시 그린다
+function _maybeLoadArchiveForDateFilter(){
+  if(!resDateFrom)return;
+  const cutoff=new Date(Date.now()-_ARCHIVE_CUTOFF_DAYS*86400000).toISOString().slice(0,10);
+  if(resDateFrom>=cutoff)return;
+  Promise.all(_ARCHIVE_COLLS.map(_loadArchive)).then(()=>{renderRescueMap();renderResList();});
 }
 function setResTypeF(v){if(resTypeF.has(v))resTypeF.delete(v);else resTypeF.add(v);_updateResFilterPanels();renderRescueMap();renderResList();}
 function setResStatusF(v){if(resStatusF.has(v))resStatusF.delete(v);else resStatusF.add(v);_updateResFilterPanels();renderRescueMap();renderResList();}
@@ -8877,6 +8925,10 @@ function openFacFromHome(id){
 // 전체 통계 (일반직원도 열람 가능)
 // ══════════════════════════════════════════
 function renderFullStats(){
+  // 전년대비·전체 통계는 1년 이전 기록도 필요 → 최초 1회만 로드 후 재호출(이후엔 이미 로드됨)
+  if(_ARCHIVE_COLLS.some(k=>!_archiveLoaded[k])){
+    Promise.all(_ARCHIVE_COLLS.map(_loadArchive)).then(()=>{if(window.curApp==='stats')renderFullStats();});
+  }
   const res=DB.g('rescues')||[];const facs=DB.g('facilities')||[];
   const haz=DB.g('hazards')||[];const hist=DB.g('history')||[];
   const now_=new Date();const todayStr=today();
