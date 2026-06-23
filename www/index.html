@@ -2440,14 +2440,23 @@ async function _initNativePush(){
   }catch(e){}
 }
 // 네이티브(APK)에서 알림 권한처럼 위치 권한도 최초 실행 시 자동으로 요청.
-// (AndroidManifest에 위치 권한이 선언돼 있어야 시스템 다이얼로그가 뜬다)
-function _initNativeLocationPerm(){
+// @capacitor/geolocation 플러그인의 requestPermissions()로 OS 권한창을 확실히 띄운다.
+// (권한이 허용되면 앱 곳곳의 navigator.geolocation 호출도 그대로 동작)
+async function _initNativeLocationPerm(){
   const Cap=window.Capacitor;
   if(!Cap||!Cap.isNativePlatform||!Cap.isNativePlatform())return; // 웹은 화면 하단 배너로 요청
-  if(!navigator.geolocation)return;
   if(localStorage.getItem('_locPermAsked'))return;
   localStorage.setItem('_locPermAsked','1');
-  navigator.geolocation.getCurrentPosition(()=>{},()=>{},{enableHighAccuracy:true,timeout:15000});
+  const Geo=Cap.Plugins&&Cap.Plugins.Geolocation;
+  if(Geo&&Geo.requestPermissions){
+    try{
+      let p=await Geo.checkPermissions();
+      if(p&&p.location!=='granted'&&p.coarseLocation!=='granted')await Geo.requestPermissions();
+      return;
+    }catch(e){}
+  }
+  // 플러그인이 없을 때의 폴백: WebView geolocation 호출로 권한창 유도
+  if(navigator.geolocation)navigator.geolocation.getCurrentPosition(()=>{},()=>{},{enableHighAccuracy:true,timeout:15000});
 }
 let _fcmTokenCache=null;
 function _saveFcmToken(token,platform){
@@ -10075,7 +10084,20 @@ window.onload=function(){
   })();
   // 웹/PWA 뒤로가기 처리
   var _backExitReady=false,_backExitTimer=null;
+  function _exitApp(){
+    var isNative=window.Capacitor&&Capacitor.isNativePlatform&&Capacitor.isNativePlatform();
+    if(isNative&&window.Capacitor.Plugins&&window.Capacitor.Plugins.App){Capacitor.Plugins.App.exitApp();return true;}
+    var isPWA=window.matchMedia('(display-mode: standalone)').matches||!!window.navigator.standalone;
+    if(isPWA){window.close();return true;}
+    toast('브라우저 탭을 닫아 종료하세요');return false;
+  }
   window.addEventListener('popstate', function(e){
+    // 로그인 화면(미로그인 상태)에서 뒤로가기: 돌아갈 곳이 없으므로 바로 종료
+    var loginScr=document.getElementById('loginScreen');
+    if(loginScr&&loginScr.style.display!=='none'&&loginScr.style.display!==''){
+      history.pushState({view:'home'},'','');
+      _exitApp();return;
+    }
     // 관리자 로그인 오버레이가 떠 있으면 그것부터 닫기 (전체 화면을 덮고 있어 안 닫으면 먹통처럼 보임)
     var adminOv=document.getElementById('adminLoginOverlay');
     if(adminOv&&adminOv.style.display==='flex'){adminOv.style.display='none';history.pushState({view:'home'},'','');return;}
@@ -10120,9 +10142,7 @@ window.onload=function(){
       var isPWA=window.matchMedia('(display-mode: standalone)').matches||!!window.navigator.standalone;
       if(_backExitReady){
         clearTimeout(_backExitTimer);_backExitReady=false;
-        if(isNative&&window.Capacitor.Plugins&&window.Capacitor.Plugins.App){Capacitor.Plugins.App.exitApp();}
-        else if(isPWA){window.close();}
-        else{toast('브라우저 탭을 닫아 종료하세요');}
+        _exitApp();
       } else {
         _backExitReady=true;
         toast((isNative||isPWA)?'한 번 더 누르면 종료됩니다':'종료하려면 탭을 닫으세요');
