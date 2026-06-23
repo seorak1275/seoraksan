@@ -9210,10 +9210,15 @@ function _mobilizeBlockHtml(coll,r){
         <button onclick="_toggleMobEtaInput('${coll}',${r.id})" style="flex:1;background:rgba(39,174,96,.15);color:#3ad17a;border:1px solid rgba(39,174,96,.35);border-radius:8px;padding:7px;font-size:11px;font-weight:700;cursor:pointer;">🟢 ${myResp&&myResp.status==='eta'?'도착시간 수정':'응소 가능·도착시간 입력'}</button>
         <button onclick="submitMobilizeResp('${coll}',${r.id},'unable')" style="flex:1;background:rgba(231,76,60,.12);color:#e74c3c;border:1px solid rgba(231,76,60,.3);border-radius:8px;padding:7px;font-size:11px;font-weight:700;cursor:pointer;">🔴 응소 불가</button>
       </div>
-      <div id="mobEtaInputRow_${coll}_${r.id}" style="display:none;gap:6px;margin-top:8px;">
-        <input type="text" id="mobEtaInp_${coll}_${r.id}" class="fi" placeholder="도착예정 시간 (예: 14:30)" value="${_esc((myResp&&myResp.eta)||'')}" onkeydown="if(event.key==='Enter')_confirmMobEta('${coll}',${r.id})" style="flex:1;">
-        <button onclick="_confirmMobEta('${coll}',${r.id})" style="background:rgba(39,174,96,.18);color:#3ad17a;border:1px solid rgba(39,174,96,.4);border-radius:8px;padding:0 12px;font-size:11px;font-weight:700;cursor:pointer;">확인</button>
-        <button onclick="_cancelMobEtaInput('${coll}',${r.id})" style="background:rgba(255,255,255,.06);color:#b8d4e8;border:1px solid rgba(255,255,255,.14);border-radius:8px;padding:0 12px;font-size:11px;font-weight:700;cursor:pointer;">취소</button>
+      <div id="mobEtaInputRow_${coll}_${r.id}" style="display:none;margin-top:8px;">
+        <div style="display:flex;gap:5px;margin-bottom:6px;">
+          ${[10,20,30,60].map(m=>`<button onclick="submitMobilizeResp('${coll}',${r.id},'eta',_etaFromMinutes(${m}))" style="flex:1;background:rgba(39,174,96,.18);color:#3ad17a;border:1px solid rgba(39,174,96,.4);border-radius:8px;padding:6px 2px;font-size:10.5px;font-weight:700;cursor:pointer;">+${m}분</button>`).join('')}
+        </div>
+        <div style="display:flex;gap:6px;">
+          <input type="text" id="mobEtaInp_${coll}_${r.id}" class="fi" placeholder="직접 입력 (예: 14:30)" value="${_esc((myResp&&myResp.eta)||'')}" onkeydown="if(event.key==='Enter')_confirmMobEta('${coll}',${r.id})" style="flex:1;">
+          <button onclick="_confirmMobEta('${coll}',${r.id})" style="background:rgba(39,174,96,.18);color:#3ad17a;border:1px solid rgba(39,174,96,.4);border-radius:8px;padding:0 12px;font-size:11px;font-weight:700;cursor:pointer;">확인</button>
+          <button onclick="_cancelMobEtaInput('${coll}',${r.id})" style="background:rgba(255,255,255,.06);color:#b8d4e8;border:1px solid rgba(255,255,255,.14);border-radius:8px;padding:0 12px;font-size:11px;font-weight:700;cursor:pointer;">취소</button>
+        </div>
       </div>
     </div>`:''}
     ${(pendCnt>0&&isAdminUser())?`<button onclick="_remindMobilizeNonResponders('${coll}',${r.id})" style="width:100%;margin-top:7px;background:rgba(240,165,0,.12);color:#f0a500;border:1px solid rgba(240,165,0,.35);border-radius:8px;padding:6px;font-size:10.5px;font-weight:700;cursor:pointer;">🔔 미응답자 ${pendCnt}명 재알림</button>`:''}
@@ -9251,12 +9256,16 @@ async function _remindMobilizeNonResponders(coll,id){
     toast('🔔 미응답자에게 전체 알림으로 발송됨');
   }
 }
+function _etaFromMinutes(min){
+  const d=new Date(Date.now()+min*60000);
+  return String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');
+}
 function _toggleMobEtaInput(coll,id){
   const btnRow=document.getElementById('mobBtnRow_'+coll+'_'+id);
   const inpRow=document.getElementById('mobEtaInputRow_'+coll+'_'+id);
   if(!btnRow||!inpRow)return;
   btnRow.style.display='none';
-  inpRow.style.display='flex';
+  inpRow.style.display='block';
   const inp=document.getElementById('mobEtaInp_'+coll+'_'+id);
   if(inp){inp.focus();inp.select();}
 }
@@ -9310,13 +9319,20 @@ function renderMobilizeBanner(){
   if(!pend.length){el.innerHTML='';return;}
   const first=pend[0];
   const onclick=first.coll==='rescues'?`openRescueFromHome(${first.id})`:`openHazFromHome(${first.id})`;
-  el.innerHTML=`<div onclick="${onclick}" style="display:flex;align-items:center;gap:12px;background:linear-gradient(135deg,#3a1410,#240a08);border:1px solid rgba(231,76,60,.5);border-radius:16px;padding:14px 16px;margin-bottom:10px;cursor:pointer;">
-    <div style="width:40px;height:40px;border-radius:50%;background:rgba(231,76,60,.22);display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;"><span class="blink">🚨</span></div>
-    <div style="min-width:0;flex:1;">
-      <div style="font-size:14px;font-weight:800;color:#ffdcd6;">응소 요청 — 응답이 필요합니다</div>
-      <div style="font-size:11.5px;color:#f0a89e;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${_esc(first.title)} · ${_esc(first.mobilize.join('·'))}${pend.length>1?` 외 ${pend.length-1}건`:''}</div>
+  const qBtn=(label,min)=>`<button onclick="event.stopPropagation();submitMobilizeResp('${first.coll}',${first.id},'eta',_etaFromMinutes(${min}))" style="flex:1;background:rgba(39,174,96,.18);color:#3ad17a;border:1px solid rgba(39,174,96,.4);border-radius:8px;padding:6px 2px;font-size:10.5px;font-weight:700;cursor:pointer;">${label}</button>`;
+  el.innerHTML=`<div style="background:linear-gradient(135deg,#3a1410,#240a08);border:1px solid rgba(231,76,60,.5);border-radius:16px;padding:14px 16px;margin-bottom:10px;">
+    <div onclick="${onclick}" style="display:flex;align-items:center;gap:12px;cursor:pointer;">
+      <div style="width:40px;height:40px;border-radius:50%;background:rgba(231,76,60,.22);display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;"><span class="blink">🚨</span></div>
+      <div style="min-width:0;flex:1;">
+        <div style="font-size:14px;font-weight:800;color:#ffdcd6;">응소 요청 — 응답이 필요합니다</div>
+        <div style="font-size:11.5px;color:#f0a89e;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${_esc(first.title)} · ${_esc(first.mobilize.join('·'))}${pend.length>1?` 외 ${pend.length-1}건`:''}</div>
+      </div>
+      <div style="font-size:11px;font-weight:700;color:#ff6b5e;flex-shrink:0;">상세 ›</div>
     </div>
-    <div style="font-size:11px;font-weight:700;color:#ff6b5e;flex-shrink:0;">응답하기 ›</div>
+    <div style="display:flex;gap:5px;margin-top:10px;">
+      ${qBtn('🟢 +10분',10)}${qBtn('🟢 +30분',30)}${qBtn('🟢 +1시간',60)}
+      <button onclick="event.stopPropagation();submitMobilizeResp('${first.coll}',${first.id},'unable')" style="flex:1;background:rgba(231,76,60,.15);color:#e74c3c;border:1px solid rgba(231,76,60,.35);border-radius:8px;padding:6px 2px;font-size:10.5px;font-weight:700;cursor:pointer;">🔴 불가</button>
+    </div>
   </div>`;
 }
 
