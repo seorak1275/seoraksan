@@ -3896,7 +3896,7 @@ function _getUnseenCount(){
   return(DB.g('pendingUsers')||[]).filter(function(p){return!p.seen;}).length;
 }
 function setAdminCode(){
-  const code=(document.getElementById('adminCodeInp')||{}).value.trim();
+  const _ac=document.getElementById('adminCodeInp');const code=(_ac?_ac.value:'').trim();
   if(!code){toast('⚠️ 코드를 입력하세요');return;}
   DB.s('adminApprovalCode',code);
   toast('✅ 승인 코드 저장: '+code);
@@ -3925,8 +3925,8 @@ function saveExtAgencies(){
   const rows=[...document.querySelectorAll('#extAgencyListWrap .extAgRow')];
   const list=[];const seen={};
   for(const r of rows){
-    const name=(r.querySelector('.extAgName')||{}).value.trim();
-    const code=((r.querySelector('.extAgCode')||{}).value||'').trim().toUpperCase();
+    const _n=r.querySelector('.extAgName');const name=(_n?_n.value:'').trim();
+    const _c=r.querySelector('.extAgCode');const code=(_c?_c.value:'').trim().toUpperCase();
     if(!name&&!code)continue; // 빈 행 무시
     if(!name||!code){toast('⚠️ 기관명과 코드를 모두 입력하세요');return;}
     if(seen[code]){toast('⚠️ 코드 중복: '+code);return;}
@@ -3940,13 +3940,13 @@ function saveExtAgencies(){
   toast('✅ 외부기관 '+list.length+'곳 저장됨');
 }
 function saveGeminiKey(){
-  const key=(document.getElementById('geminiKeyInp')||{}).value.trim();
+  const _gk=document.getElementById('geminiKeyInp');const key=(_gk?_gk.value:'').trim();
   if(!key){toast('⚠️ API 키를 입력하세요');return;}
   DB.s('geminiApiKey',key);
   toast('✅ Gemini API 키 저장됨');
 }
 function saveKmaProxy(){
-  let url=(document.getElementById('kmaProxyInp')||{}).value.trim();
+  const _kp=document.getElementById('kmaProxyInp');let url=(_kp?_kp.value:'').trim();
   if(url&&!/^https?:\/\//.test(url)){toast('⚠️ https:// 로 시작하는 주소를 입력하세요');return;}
   url=url.replace(/\/+$/,''); // 끝 슬래시 제거
   DB.s('kmaProxyUrl',url);
@@ -3955,8 +3955,8 @@ function saveKmaProxy(){
   toast(url?'✅ 기상청 프록시 저장됨 — 날씨 새로고침':'✅ 프록시 해제됨');
 }
 function saveFcmCfg(){
-  const url=(document.getElementById('fcmUrlInp')||{}).value.trim();
-  const sec=(document.getElementById('fcmSecInp')||{}).value.trim();
+  const _fu=document.getElementById('fcmUrlInp');const url=(_fu?_fu.value:'').trim();
+  const _fs=document.getElementById('fcmSecInp');const sec=(_fs?_fs.value:'').trim();
   DB.s('fcmPushUrl',url);DB.s('fcmPushSecret',sec);
   toast('✅ 푸시 설정 저장됨');_refreshFcmStatus();
 }
@@ -5713,8 +5713,13 @@ function toggleGpsAuto(){
 document.addEventListener('visibilitychange',function(){
   if(document.hidden){
     if(_gpsAutoOn&&_gpsWatchId!=null){try{navigator.geolocation.clearWatch(_gpsWatchId);}catch(e){}_gpsWatchId=null;}
-  }else if(_gpsAutoOn&&_gpsWatchId==null&&navigator.geolocation){
-    _gpsWatchId=navigator.geolocation.watchPosition(_onGpsAutoFix,()=>{},{enableHighAccuracy:true,maximumAge:5000,timeout:20000});
+  }else{
+    if(_gpsAutoOn&&_gpsWatchId==null&&navigator.geolocation){
+      _gpsWatchId=navigator.geolocation.watchPosition(_onGpsAutoFix,()=>{},{enableHighAccuracy:true,maximumAge:5000,timeout:20000});
+    }
+    // 앱 재진입 시 날씨가 끝내 안 떠 있으면(첫 로드 실패) 다시 시도
+    var _ws=document.getElementById('weatherStrip');
+    if(_ws&&_ws.style.display==='none'){try{fetchWeather();}catch(e){}}
   }
 });
 // 팀의 실제 현재 위치를 GPS로 받아 미니맵에 표시하고, 가장 가까운 경로 지점으로
@@ -8499,9 +8504,12 @@ function _ptyInfo(pty){var p=parseInt(pty||0);return{ico:p===0?'☀️':p===1||p
 function _skyIco(sky,pty){var p=parseInt(pty||0);if(p===1||p===4)return'🌧️';if(p===2)return'🌨️';if(p===3)return'❄️';var s=parseInt(sky||1);return s===1?'☀️':s===3?'⛅':s===4?'☁️':'🌤️';}
 // 기상특보 텍스트 파싱 (wrn_now_data_new.php disp=1 응답)
 var _kmaWrnCache=null;
+var _kmaWrnCacheAt=0; // 기상특보 캐시 시각 — 구조 상황에선 발효/해제가 빨라 오래된 특보를 재사용하면 위험
+var _KMA_WRN_TTL=900000; // 15분
 function _parseKmaWarnings(txt){
   var alertMap={};
   _kmaWrnCache=txt;
+  _kmaWrnCacheAt=Date.now();
   if(!txt||typeof txt!=='string')return alertMap;
   var gangwon=['속초','고성','양양','인제','영동','강원','산지'];
   var wrnTypes=['호우','강풍','대설','태풍','폭풍해일','한파','폭염','풍랑','건조'];
@@ -8581,6 +8589,7 @@ function fetchWeather(){
     _renderWeatherAlerts(alertMap);
   }).catch(function(e){
     console.warn('KMA 오류, 폴백:',e);
+    _weatherFetched=false; // 폴백도 실패할 수 있으니 재시도 가능하도록 해제
     _fetchWeatherFallback();
   });
 }
@@ -8665,6 +8674,7 @@ function openWeatherDetail(){
 }
 function refreshWeatherDetail(){
   _wDetailCache=null;
+  _kmaWrnCache=null;_kmaWrnCacheAt=0; // 수동 새로고침 시 특보도 다시 받아옴
   document.getElementById('weatherDetailBody').innerHTML='<div class="wdetail-loading">날씨 새로고침 중...</div>';
   _fetchWeatherDetail();
 }
@@ -8677,8 +8687,9 @@ function _fetchWeatherDetail(){
     return _fetchKma(url,false).catch(function(){return null;}); // 일부 권역 프록시 실패 허용
   });
   var fcst7Url=KMA_BASE+'/getVilageFcst?authKey='+KMA_KEY+'&dataType=JSON&numOfRows=900&pageNo=1&baseDate='+ft.date+'&baseTime='+ft.time+'&nx=80&ny=140';
-  // 기상특보: 캐시 있으면 재사용, 없으면 새로 조회
-  var wrnPromise=_kmaWrnCache!==null
+  // 기상특보: 캐시가 신선(15분 이내)하면 재사용, 아니면 새로 조회
+  var wrnFresh=_kmaWrnCache!==null&&(Date.now()-_kmaWrnCacheAt)<_KMA_WRN_TTL;
+  var wrnPromise=wrnFresh
     ?Promise.resolve(_kmaWrnCache)
     :_fetchKma('https://apihub.kma.go.kr/api/typ01/url/wrn_now_data_new.php?authKey='+KMA_KEY+'&disp=1',true).catch(function(){return '';});
   Promise.all([
@@ -10034,6 +10045,7 @@ window.onload=function(){
         if(_hlTimer){clearTimeout(_hlTimer);_hlTimer=null;}
         var ls=document.getElementById('loginScreen');
         if(!ls)return;
+        window._loginVisible=true; // 뒤로가기 판정용 (style.display 의존 제거)
         ls.style.opacity='0';
         ls.style.display='flex';
         ls.style.pointerEvents='none';
@@ -10043,6 +10055,7 @@ window.onload=function(){
       }
       window.hideLoginScreen=function hideLoginScreen(){
         var ls=document.getElementById('loginScreen');
+        window._loginVisible=false; // 로그인 완료 → 즉시 미표시로 간주 (페이드아웃 중 오판 방지)
         if(!ls||ls.style.display==='none')return;
         ls.style.pointerEvents='none';
         ls.style.transition='opacity .3s';ls.style.opacity='0';
@@ -10093,8 +10106,7 @@ window.onload=function(){
   }
   window.addEventListener('popstate', function(e){
     // 로그인 화면(미로그인 상태)에서 뒤로가기: 돌아갈 곳이 없으므로 바로 종료
-    var loginScr=document.getElementById('loginScreen');
-    if(loginScr&&loginScr.style.display!=='none'&&loginScr.style.display!==''){
+    if(window._loginVisible){
       history.pushState({view:'home'},'','');
       _exitApp();return;
     }
@@ -10104,6 +10116,12 @@ window.onload=function(){
     // 사진 전체보기 닫기
     var lb=document.getElementById('photoLightbox');
     if(lb&&lb.style.display==='flex'){lb.style.display='none';history.pushState({view:'home'},'','');return;}
+    // 변경사항(체인지로그) 모달 닫기
+    var clog=document.getElementById('changelogModal');
+    if(clog&&clog.style.display!=='none'&&clog.style.display!==''){closeChangelog();history.pushState({view:'home'},'','');return;}
+    // 알림(벨) 패널 닫기
+    var nPanel=document.getElementById('notiPanel');
+    if(nPanel&&nPanel.classList.contains('on')){closeNoti();history.pushState({view:'home'},'','');return;}
     // 열린 모달이 있으면 닫기
     var openModal=document.querySelector('.modal.on,.modal-bottom.on');
     if(openModal){openModal.classList.remove('on');history.pushState({view:'home'},'','');return;}
@@ -10215,13 +10233,11 @@ window.onload=function(){
   if('serviceWorker' in navigator){
     navigator.serviceWorker.register('sw.js').then(function(reg){
       _swReg=reg;
-      if(Notification.permission==='granted') _initFCM();
+      if('Notification' in window&&Notification.permission==='granted') _initFCM();
     }).catch(function(){});
   }
-  // 네이티브 푸시(APK): 권한 요청 + 토큰 등록
-  _initNativePush();
-  // 네이티브 위치 권한: 알림처럼 최초 실행 시 자동 요청
-  _initNativeLocationPerm();
+  // 네이티브(APK): 알림 권한 먼저 요청 → 끝난 뒤 위치 권한 요청 (시스템 다이얼로그가 겹치지 않도록 순차 실행)
+  Promise.resolve(_initNativePush()).catch(function(){}).then(function(){return _initNativeLocationPerm();}).catch(function(){});
 
   initFirebase(function(){
     initDB();
@@ -10231,7 +10247,7 @@ window.onload=function(){
     document.getElementById('homeDate').textContent=d.getFullYear()+'년 '+(d.getMonth()+1)+'월 '+d.getDate()+'일 ('+days[d.getDay()]+')';
     if(window._kakaoAuthCode){var _kc=window._kakaoAuthCode;window._kakaoAuthCode=null;_handleKakaoCode(_kc);return;}
     // Firebase 준비 후 FCM 토큰 갱신 (권한·SW·VAPID 모두 준비된 경우만)
-    if(Notification.permission==='granted') _initFCM();
+    if('Notification' in window&&Notification.permission==='granted') _initFCM();
     _flushFcmToken(); // 네이티브 토큰이 Firebase 준비 전 등록됐으면 지금 저장
     // 모니터 거치용: 주소에 ?board=1 붙이면 켜자마자 상황판
     if(/[?&]board=1/.test(location.search))setTimeout(openBoard,300);
