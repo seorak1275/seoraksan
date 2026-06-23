@@ -8520,7 +8520,7 @@ function fetchWeather(){
   ]).then(function(results){
     var ncst=results[0],vsrt=results[1],wrnTxt=results[2];
     var ncstOk=ncst&&ncst.response&&ncst.response.header&&ncst.response.header.resultCode==='00';
-    if(!ncstOk){_fetchWeatherFallback();return;}
+    if(!ncstOk){_fetchWeatherFallback(wrnTxt);return;}
     // 실황 파싱
     var obs={};
     _kmaItems(ncst).forEach(function(it){obs[it.category]=it.obsrValue;});
@@ -8559,8 +8559,8 @@ function fetchWeather(){
     _fetchWeatherFallback();
   });
 }
-function _fetchWeatherFallback(){
-  // KMA CORS 차단 시 open-meteo로 폴백
+function _fetchWeatherFallback(realWrnTxt){
+  // KMA CORS 차단 시 open-meteo로 폴백 (기온만; 특보는 typ01 실데이터가 있으면 그걸 우선)
   var base='https://api.open-meteo.com/v1/forecast';
   var cur=base+'?latitude=38.21&longitude=128.59&current=temperature_2m,wind_speed_10m,weather_code&wind_speed_unit=ms&timezone=Asia%2FSeoul';
   var reg=_WEATHER_REGIONS.map(function(r){
@@ -8598,7 +8598,12 @@ function _fetchWeatherFallback(){
         if(s12s>=20){level='경보';reasons.push('대설경보');}else if(s12s>=5&&level!=='경보'){level='주의보';reasons.push('대설주의보');}
         if(reasons.length)alertMap[rNames[i]]={level:level,reasons:reasons};
       });
-      _renderWeatherAlerts(alertMap,true);
+      // 기상청 특보(typ01)가 실제로 수신됐으면 추정값 대신 진짜 발효 특보 표시
+      if(typeof realWrnTxt==='string'&&realWrnTxt.length){
+        _renderWeatherAlerts(_parseKmaWarnings(realWrnTxt),false);
+      }else{
+        _renderWeatherAlerts(alertMap,true);
+      }
     }).catch(function(e){console.warn('날씨 폴백 실패:',e);_weatherFetched=false;});
 }
 function _renderWeatherAlerts(alertMap,estimated){
@@ -8658,9 +8663,11 @@ function _fetchWeatherDetail(){
   ]).then(function(all){
     _wDetailFetching=false;
     // 권역 중 하나라도 성공하면 기상청 데이터로 처리(나머지 권역 프록시 실패는 허용)
-    var anyOk=all[0].some(function(x){return x&&x.response&&x.response.header&&x.response.header.resultCode==='00';});
-    if(!anyOk){_fetchWeatherDetailFallback();return;}
+    var wrnTxtOk=(typeof all[2]==='string'&&all[2].length>0);
     var wrnMap=_parseKmaWarnings(all[2]||'');
+    var anyOk=all[0].some(function(x){return x&&x.response&&x.response.header&&x.response.header.resultCode==='00';});
+    // 기온(typ02) 실패해도 특보(typ01)가 살아 있으면 진짜 기상청 특보를 폴백 렌더러로 넘김
+    if(!anyOk){_fetchWeatherDetailFallback(wrnTxtOk?wrnMap:null);return;}
     _wDetailCache={regions:_WEATHER_REGIONS.map(function(r,i){return{region:r.name,ncst:all[0][i]};}),fcst7:all[1],wrnMap:wrnMap};
     _renderWeatherDetail(_wDetailCache);
   }).catch(function(){
@@ -8668,7 +8675,7 @@ function _fetchWeatherDetail(){
     _fetchWeatherDetailFallback();
   });
 }
-function _fetchWeatherDetailFallback(){
+function _fetchWeatherDetailFallback(realWrnMap){
   _wDetailFetching=true;
   var base='https://api.open-meteo.com/v1/forecast';
   var coords={속초:{lat:38.21,lng:128.59},인제:{lat:38.06,lng:128.17},양양:{lat:38.08,lng:128.62},고성:{lat:38.38,lng:128.47},설악:{lat:38.13,lng:128.41}};
@@ -8682,7 +8689,7 @@ function _fetchWeatherDetailFallback(){
     fetch(daily).then(function(res){return res.json();}).catch(function(){return null;})
   ]).then(function(all){
     _wDetailFetching=false;
-    _wDetailCache={omFallback:true,regions:all[0],daily:all[1]};
+    _wDetailCache={omFallback:true,regions:all[0],daily:all[1],realWrnMap:realWrnMap||null};
     _renderWeatherDetail(_wDetailCache);
   }).catch(function(){
     _wDetailFetching=false;
@@ -8781,7 +8788,11 @@ function _renderWeatherDetailOM(cache){
   var daily=cache.daily||null;
   function wico(c){return c===0?'☀️':c<=2?'🌤️':c===3?'☁️':c<=48?'🌫️':c<=55?'🌦️':c<=65?'🌧️':c<=77?'🌨️':c<=82?'🌧️':c<=86?'🌨️':'⛈️';}
   function wdesc(c){return c===0?'맑음':c<=2?'구름조금':c===3?'흐림':c<=48?'안개':c<=55?'이슬비':c<=65?'비':c<=77?'눈':c<=82?'소나기':'뇌우';}
-  var html='<div style="font-size:10px;color:#3a6a8a;margin-bottom:8px;text-align:right;">'+new Date().toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'})+' 기준 (Open-Meteo)</div>';
+  // 기상특보가 typ01(기상청)에서 실제로 수신된 경우 — 기온만 Open-Meteo, 특보는 진짜 기상청 발효분 사용
+  var realWrn=cache.realWrnMap||null;
+  var hasRealWrn=(realWrn!==null&&realWrn!==undefined);
+  var srcLabel=hasRealWrn?'특보: 기상청 · 기온: Open-Meteo':'Open-Meteo';
+  var html='<div style="font-size:10px;color:#3a6a8a;margin-bottom:8px;text-align:right;">'+new Date().toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'})+' 기준 ('+srcLabel+')</div>';
   html+='<div class="wfc-sec"><div class="wfc-title">🌡️ 권역별 현재 날씨</div><div class="wdetail-now-grid">';
   var anyAlert=false,alertsAll=[];
   results.forEach(function(item,idx){
@@ -8797,17 +8808,32 @@ function _renderWeatherDetailOM(cache){
     if(mxG>=26)alerts.push({lv:'경보',msg:r+' 강풍경보'});else if(mxG>=20)alerts.push({lv:'주의보',msg:r+' 강풍주의보'});
     if(s12s>=20)alerts.push({lv:'경보',msg:r+' 대설경보'});else if(s12s>=5)alerts.push({lv:'주의보',msg:r+' 대설주의보'});
     if(alerts.length){anyAlert=true;alertsAll=alertsAll.concat(alerts);}
+    // 실제 기상청 특보가 있으면 권역 ⚠ 표식도 추정값이 아닌 실데이터 기준
+    var rWarn=hasRealWrn?Object.keys(realWrn).some(function(k){return k.includes(r)||r.includes(k);}):(alerts.length>0);
     var tmp=cw.temperature_2m!==undefined?Math.round(cw.temperature_2m):cw.temperature!==undefined?Math.round(cw.temperature):'-';
     var wsp=cw.wind_speed_10m!==undefined?Math.round(cw.wind_speed_10m):cw.windspeed!==undefined?Math.round(cw.windspeed):'-';
     var wide=(idx===4)?'wdr-wide':'';
     html+='<div class="wdetail-region '+wide+'">'
-      +'<div class="wdetail-rname">'+r+(alerts.length?' <span style="color:#ff8a80;">⚠</span>':'')+'</div>'
+      +'<div class="wdetail-rname">'+r+(rWarn?' <span style="color:#ff8a80;">⚠</span>':'')+'</div>'
       +'<div class="wdetail-row"><div class="wdetail-ico">'+wico(code)+'</div>'
       +'<div class="wdetail-main"><div class="wdetail-tmp">'+tmp+'°</div><div class="wdetail-desc">'+wdesc(code)+'</div></div></div>'
       +'<div class="wdetail-meta"><span>💨'+wsp+'</span>'+(mxG>0?'<span>돌풍'+mxG.toFixed(0)+'</span>':'')+(s12p>0?'<span>🌧️'+s12p.toFixed(0)+'mm</span>':'')+(s12s>0?'<span>❄️'+s12s.toFixed(0)+'cm</span>':'')+'</div></div>';
   });
   html+='</div></div>';
-  if(anyAlert){html+='<div style="margin-bottom:10px;">'+alertsAll.map(function(a){return'<div class="wdetail-alert w-alert-'+a.lv+'" style="display:flex;align-items:center;gap:5px;">⚠️ <b>'+a.lv+'</b> '+a.msg+'</div>';}).join('')+'</div>';}
+  if(hasRealWrn){
+    // 진짜 기상청 발효 특보 (typ01) — 추정값 대신 실데이터 표시
+    var realEntries=Object.entries(realWrn);
+    if(realEntries.length){
+      html+='<div style="margin-bottom:10px;">'+realEntries.map(function(e){
+        var info=e[1];
+        var ic=info.reasons.some(function(x){return x.includes('호우');})?'🌧️':info.reasons.some(function(x){return x.includes('대설');})?'❄️':info.reasons.some(function(x){return x.includes('강풍');})?'💨':info.reasons.some(function(x){return x.includes('태풍');})?'🌀':info.reasons.some(function(x){return x.includes('한파');})?'🥶':info.reasons.some(function(x){return x.includes('폭염');})?'🌡️':'⚠️';
+        return'<div class="wdetail-alert w-alert-'+info.level+'" style="display:flex;align-items:center;gap:5px;">'+ic+' <b>기상청 '+info.level+'</b> — '+e[0]+' '+info.reasons.join(', ')+'</div>';
+      }).join('')+'</div>';
+    }else{
+      html+='<div style="text-align:center;padding:6px 0 10px;font-size:11px;color:#27ae60;">✅ 현재 발효 중인 특보 없음 (기상청)</div>';
+    }
+  }
+  else if(anyAlert){html+='<div style="margin-bottom:10px;">'+alertsAll.map(function(a){return'<div class="wdetail-alert w-alert-'+a.lv+'" style="display:flex;align-items:center;gap:5px;">⚠️ <b>'+a.lv+'</b> '+a.msg+'</div>';}).join('')+'</div>';}
   else{html+='<div style="text-align:center;padding:6px 0 10px;font-size:11px;color:#27ae60;">✅ 현재 발효 중인 특보 없음</div>';}
   if(daily&&daily.daily){
     var dd=daily.daily;var days=['일','월','화','수','목','금','토'];
