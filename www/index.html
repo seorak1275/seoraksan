@@ -1545,9 +1545,51 @@ function _logErr(msg){
 window.addEventListener('error',e=>{_logErr((e.message||'오류')+' @'+(e.filename||'').split('/').pop()+':'+(e.lineno||''));});
 window.addEventListener('unhandledrejection',e=>{_logErr('Promise: '+((e.reason&&e.reason.message)||e.reason||'거부'));});
 
-// ── 앱 버전 (배포 시 갱신) ──
-const APP_VER='v9.81 (2026.06.18)';
+// ── 앱 버전 (CI 빌드 시 릴리스 태그로 자동 스탬프됨) ──
+const APP_VER='v0';
 try{document.getElementById('appVerLabel').textContent='설악산 현장관리 '+APP_VER;}catch(e){}
+
+// ── 새 버전 알림: 네이티브 앱에서만, GitHub 최신 릴리스 태그와 비교 ──
+function _checkAppUpdate(){
+  try{
+    const Cap=window.Capacitor;
+    if(!Cap||!Cap.isNativePlatform||!Cap.isNativePlatform())return;
+    if(!/^v\d{8}-\d{4}$/.test(APP_VER))return; // CI 스탬프 안 된 개발 빌드는 스킵
+    const last=parseInt(localStorage.getItem('_updCheckAt')||'0',10);
+    if(Date.now()-last<6*3600*1000)return; // 6시간에 한 번만 확인
+    localStorage.setItem('_updCheckAt',String(Date.now()));
+    fetch('https://api.github.com/repos/109yoon/seoraksan/releases/latest')
+      .then(r=>r.ok?r.json():null)
+      .then(rel=>{
+        if(!rel||!rel.tag_name)return;
+        if(rel.tag_name>APP_VER)_showUpdateBanner(rel);
+      }).catch(()=>{});
+  }catch(e){}
+}
+function _showUpdateBanner(rel){
+  if(document.getElementById('updateBanner'))return;
+  const asset=(rel.assets||[]).find(a=>/\.apk$/i.test(a.name));
+  const url=(asset&&asset.browser_download_url)||rel.html_url;
+  const div=document.createElement('div');
+  div.id='updateBanner';
+  div.style.cssText='position:fixed;left:10px;right:10px;bottom:14px;z-index:99999;background:#1d6fa5;color:#fff;padding:12px 14px;border-radius:12px;font-size:13px;display:flex;align-items:center;justify-content:space-between;gap:10px;box-shadow:0 4px 14px rgba(0,0,0,.3);';
+  div.innerHTML='<span>🆕 새 버전('+rel.tag_name+')이 있습니다</span>';
+  const btnWrap=document.createElement('div');
+  btnWrap.style.cssText='display:flex;gap:8px;flex-shrink:0;';
+  const dlBtn=document.createElement('a');
+  dlBtn.textContent='업데이트';
+  dlBtn.href=url;
+  dlBtn.style.cssText='background:#fff;color:#1d6fa5;padding:6px 12px;border-radius:6px;font-weight:700;text-decoration:none;white-space:nowrap;';
+  const closeBtn=document.createElement('button');
+  closeBtn.type='button';
+  closeBtn.textContent='닫기';
+  closeBtn.style.cssText='background:transparent;color:#fff;border:1px solid rgba(255,255,255,.5);padding:6px 10px;border-radius:6px;white-space:nowrap;';
+  closeBtn.onclick=function(){div.remove();};
+  btnWrap.appendChild(dlBtn);btnWrap.appendChild(closeBtn);
+  div.appendChild(btnWrap);
+  document.body.appendChild(div);
+}
+setTimeout(_checkAppUpdate,4000);
 // ══════════════════════════════════════════
 // DB
 // ══════════════════════════════════════════

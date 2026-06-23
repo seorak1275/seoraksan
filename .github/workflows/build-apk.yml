@@ -20,6 +20,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Get version
+        id: version
+        run: echo "version=$(date +%Y%m%d-%H%M)" >> $GITHUB_OUTPUT
+
       - name: Setup Java 21
         uses: actions/setup-java@v4
         with:
@@ -33,6 +37,9 @@ jobs:
 
       - name: Install dependencies
         run: npm install
+
+      - name: Stamp app version
+        run: sed -i "s/const APP_VER='v0';/const APP_VER='v${{ steps.version.outputs.version }}';/" index.html
 
       - name: Copy web assets to www
         run: |
@@ -109,10 +116,6 @@ jobs:
             --out $SIGNED \
             $UNSIGNED
           echo "signed_apk=$SIGNED" >> $GITHUB_ENV
-
-      - name: Get version
-        id: version
-        run: echo "version=$(date +%Y%m%d-%H%M)" >> $GITHUB_OUTPUT
 
       - name: Create Release
         if: steps.sign.outputs.available == 'true'

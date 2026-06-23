@@ -1,5 +1,6 @@
 package kr.go.nps.seoraksan;
 
+import android.content.Intent;
 import android.net.Uri;
 import android.webkit.WebResourceRequest;
 import android.webkit.WebView;
@@ -26,6 +27,18 @@ public class MainActivity extends BridgeActivity {
                         pendingKakaoCode = code.replace("\\", "\\\\").replace("'", "\\'");
                         view.post(() -> view.loadUrl("http://localhost"));
                         return true;
+                    }
+                }
+                // 업데이트 알림의 다운로드/릴리스 링크: 인앱 웹뷰는 파일 다운로드를 처리하지 못하므로
+                // 시스템 브라우저로 열어 다운로드 매니저가 받도록 함.
+                if (uri != null) {
+                    String host = uri.getHost();
+                    if (host != null && (host.endsWith("github.com") || host.endsWith("githubusercontent.com"))) {
+                        try {
+                            view.getContext().startActivity(new Intent(Intent.ACTION_VIEW, uri));
+                            return true;
+                        } catch (Exception ignored) {
+                        }
                     }
                 }
                 return super.shouldOverrideUrlLoading(view, request);
