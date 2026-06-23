@@ -8474,8 +8474,19 @@ function withdrawAccount(){
   updateUserUI();
   toast('탈퇴 처리되었습니다');
 }
+// 최상위 authType 키 확인 + 구버전/유실 시 currentUser로부터 추론·복원.
+// (예전 버전에서 로그인했거나 어떤 이유로 authType 키만 비어 있어도, currentUser에
+//  로그인 흔적이 남아 있으면 로그인 화면을 다시 띄우지 않도록 함)
+function _resolveAuthType(){
+  var at=DB.g('authType');
+  if(at)return at;
+  var u=DB.g('currentUser')||{};
+  if(u.authType){DB.s('authType',u.authType);return u.authType;}
+  if(u.kakaoId){DB.s('authType','kakao');return 'kakao';}
+  return '';
+}
 function _checkAndRequireProfile(){
-  var authType=DB.g('authType');
+  var authType=_resolveAuthType();
   if(!authType)return;
   if(authType==='external')return; // 외부기관: 프로필 입력 불필요
   var u=DB.g('currentUser')||{};
@@ -10119,7 +10130,7 @@ window.onload=function(){
       }
       function checkAuth(){
         updateUserUI();
-        var authType=typeof DB!=='undefined'?DB.g('authType'):'';
+        var authType=(typeof DB!=='undefined'&&typeof _resolveAuthType==='function')?_resolveAuthType():'';
         if(!authType){showLoginScreen();}
         else{_checkAndRequireProfile();}
       }
