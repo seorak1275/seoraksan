@@ -2439,6 +2439,16 @@ async function _initNativePush(){
     await PN.register();
   }catch(e){}
 }
+// 네이티브(APK)에서 알림 권한처럼 위치 권한도 최초 실행 시 자동으로 요청.
+// (AndroidManifest에 위치 권한이 선언돼 있어야 시스템 다이얼로그가 뜬다)
+function _initNativeLocationPerm(){
+  const Cap=window.Capacitor;
+  if(!Cap||!Cap.isNativePlatform||!Cap.isNativePlatform())return; // 웹은 화면 하단 배너로 요청
+  if(!navigator.geolocation)return;
+  if(localStorage.getItem('_locPermAsked'))return;
+  localStorage.setItem('_locPermAsked','1');
+  navigator.geolocation.getCurrentPosition(()=>{},()=>{},{enableHighAccuracy:true,timeout:15000});
+}
 let _fcmTokenCache=null;
 function _saveFcmToken(token,platform){
   if(!token)return;
@@ -8284,18 +8294,24 @@ function _handleKakaoCode(code,redirectUri){
     if(deletedIds.includes(kakaoId)){
       DB.s('deletedKakaoIds',deletedIds.filter(function(id){return id!==kakaoId;}));
     }
-    DB.s('currentUser',Object.assign({},u,{
+    var merged=Object.assign({},u,{
       kakaoId:kakaoId,
       kakaoImg:prof.profile_image_url||prof.thumbnail_image_url||'',
       name:u.name||prof.nickname||''
-    }));
+    });
+    DB.s('currentUser',merged);
     DB.s('authType','kakao');
     if(window._hideLoading)window._hideLoading();
     if(window.hideLoginScreen)window.hideLoginScreen();
     updateUserUI();
     toast('✅ 카카오 로그인 완료');
-    window._requireProfile=true;
-    setTimeout(function(){openChangeUser();},300);
+    // 소속·직위·이름이 이미 저장돼 있으면(재로그인) 다시 입력받지 않음
+    if(!merged.dept||!merged.rank||!(merged.realName||merged.name)){
+      window._requireProfile=true;
+      setTimeout(function(){openChangeUser();},300);
+    } else {
+      window._needsCode=false;
+    }
   })
   .catch(function(e){
     if(window._hideLoading)window._hideLoading();
@@ -10044,26 +10060,19 @@ window.onload=function(){
         }
       },120);
     };
-    // 3초 폴백: initFirebase가 느릴 경우 강제 전환
-    setTimeout(function(){if(window._hideLoading)window._hideLoading();},3000);
+    // 최종 폴백은 위쪽 스크립트의 6초 절대 타임아웃(_safeLoadingTimer)에 위임.
+    // 여기서 별도로 더 일찍 강제 전환하지 않아야 Firestore 데이터가
+    // 도착하기 전에 빈 화면이 먼저 보이는 문제(로딩 중 데이터 미리 받기)를 막을 수 있다.
   })();
 
-  // 안드로이드 하드웨어 뒤로가기 처리
-  document.addEventListener('backbutton', function(e){
-    e.preventDefault();
-    const homeActive=document.getElementById('v-home').classList.contains('on');
-    if(homeActive){
-      if(confirm('앱을 종료하시겠습니까?')){
-        if(window.Capacitor&&Capacitor.Plugins&&Capacitor.Plugins.App){
-          Capacitor.Plugins.App.exitApp();
-        } else if(navigator.app&&navigator.app.exitApp){
-          navigator.app.exitApp();
-        }
-      }
-    } else {
-      goHome();
-    }
-  }, false);
+  // 안드로이드 하드웨어 뒤로가기: Capacitor App 플러그인 콜백 → history.back() 위임.
+  // (이 리스너를 등록하면 Capacitor 기본 동작인 "즉시 앱 종료"가 꺼지고, 아래
+  //  popstate 핸들러가 모달 닫기·서브뷰 복귀·홈에서 2회 눌러야 종료를 그대로 처리한다)
+  (function(){
+    var App=window.Capacitor&&window.Capacitor.Plugins&&window.Capacitor.Plugins.App;
+    if(!App)return;
+    App.addListener('backButton', function(){ window.history.back(); });
+  })();
   // 웹/PWA 뒤로가기 처리
   var _backExitReady=false,_backExitTimer=null;
   window.addEventListener('popstate', function(e){
@@ -10107,14 +10116,16 @@ window.onload=function(){
     } else {
       // 홈 화면: 항상 home 상태를 다시 push해서 앱 밖으로 절대 못 나가게
       history.pushState({view:'home'},'','');
+      var isNative=window.Capacitor&&Capacitor.isNativePlatform&&Capacitor.isNativePlatform();
       var isPWA=window.matchMedia('(display-mode: standalone)').matches||!!window.navigator.standalone;
       if(_backExitReady){
         clearTimeout(_backExitTimer);_backExitReady=false;
-        if(isPWA){window.close();}
+        if(isNative&&window.Capacitor.Plugins&&window.Capacitor.Plugins.App){Capacitor.Plugins.App.exitApp();}
+        else if(isPWA){window.close();}
         else{toast('브라우저 탭을 닫아 종료하세요');}
       } else {
         _backExitReady=true;
-        toast(isPWA?'한 번 더 누르면 종료됩니다':'종료하려면 탭을 닫으세요');
+        toast((isNative||isPWA)?'한 번 더 누르면 종료됩니다':'종료하려면 탭을 닫으세요');
         _backExitTimer=setTimeout(function(){_backExitReady=false;},2000);
       }
     }
@@ -10189,6 +10200,8 @@ window.onload=function(){
   }
   // 네이티브 푸시(APK): 권한 요청 + 토큰 등록
   _initNativePush();
+  // 네이티브 위치 권한: 알림처럼 최초 실행 시 자동 요청
+  _initNativeLocationPerm();
 
   initFirebase(function(){
     initDB();
