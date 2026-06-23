@@ -27,7 +27,28 @@
 <script>
 var KAKAO_KEY='4ba2cd810d516a4f336d4dee5fa5eba5';
 if(window.Kakao&&!Kakao.isInitialized()) Kakao.init(KAKAO_KEY);
-(function(){var s=document.createElement('script');s.src='//dapi.kakao.com/v2/maps/sdk.js?appkey='+KAKAO_KEY+'&libraries=services&autoload=false';s.onload=function(){kakao.maps.load(function(){window._KR=true;if(window._KCB)window._KCB();});};document.head.appendChild(s);})();
+(function(){
+  var s=document.createElement('script');
+  s.src='//dapi.kakao.com/v2/maps/sdk.js?appkey='+KAKAO_KEY+'&libraries=services&autoload=false';
+  s.onload=function(){
+    try{
+      kakao.maps.load(function(){window._KR=true;if(window._KCB)window._KCB();});
+    }catch(e){window._KMapsErr='로드콜백 오류: '+e.message;}
+  };
+  // 스크립트 자체가 차단/실패(네트워크 차단 등)된 경우
+  s.onerror=function(){window._KMapsErr='SDK 스크립트 로드 실패(네트워크 차단 가능)';};
+  document.head.appendChild(s);
+  // 10초 안에 준비 안 되면(도메인 미등록·네트워크 차단 등) 진단 로그 남김 —
+  // 카카오맵 JS키는 현재 페이지 출처(origin)가 카카오 디벨로퍼스에 등록돼 있어야
+  // 동작한다. 웹(109yoon.github.io)과 앱(Capacitor 기본 출처 https://localhost)은
+  // 서로 다른 출처이므로 둘 다 등록돼 있어야 함.
+  setTimeout(function(){
+    if(window._KR)return;
+    var msg='카카오맵 미로딩(10s) origin='+location.origin+(window._KMapsErr?(' / '+window._KMapsErr):'');
+    if(typeof _logErr==='function')_logErr(msg);
+    if(typeof toast==='function')toast('⚠️ 지도를 불러올 수 없습니다');
+  },10000);
+})();
 // 카카오 redirect 콜백: ?code= 파라미터 조기 감지
 (function(){var p=new URLSearchParams(location.search);var c=p.get('code');if(c){history.replaceState(null,'',location.pathname);window._kakaoAuthCode=c;}})();
 // Capacitor 네이티브: 카카오톡 인증 후 앱으로 돌아올 때 appUrlOpen 이벤트 처리
@@ -2770,7 +2791,24 @@ function initMaps(){
     kakao.maps.event.addListener(mapI,'zoom_changed',()=>{_scaleOvs(iEls,mapI.getLevel(),1);try{_reclusterInspect();}catch(e){}});
     if(window._hideLoading)setTimeout(window._hideLoading,600);
   }
-  if(window._KR)doInit();else window._KCB=doInit;
+  if(window._KR){doInit();return;}
+  window._KCB=doInit;
+  // 12초 지나도 SDK가 준비 안 되면(도메인 미등록·네트워크 차단 등) 빈 화면 대신
+  // 안내 문구 + 새로고침 버튼 표시 (기존엔 아무 표시 없이 그냥 빈 화면이었음)
+  if(!window._mapFallbackTimer){
+    window._mapFallbackTimer=setTimeout(function(){
+      if(mapR&&mapI)return;
+      var html='<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;color:#7a9cb8;font-size:13px;text-align:center;padding:20px;gap:8px;">'+
+        '<div>⚠️ 지도를 불러올 수 없습니다</div>'+
+        '<div style="font-size:11px;color:#4a7090;">네트워크 연결을 확인해주세요</div>'+
+        '<button onclick="location.reload()" style="margin-top:4px;background:#1d6fa5;color:#fff;border:none;padding:8px 16px;border-radius:8px;font-size:12px;cursor:pointer;">새로고침</button>'+
+        '</div>';
+      ['mapInspect','mapRescue'].forEach(function(id){
+        var el=document.getElementById(id);
+        if(el)el.innerHTML=html;
+      });
+    },12000);
+  }
 }
 function rMaps(){
   // 지도 컨테이너 크기를 부모에 맞게 강제 설정
