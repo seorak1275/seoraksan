@@ -9205,9 +9205,16 @@ function _mobilizeBlockHtml(coll,r){
       <span style="color:#3ad17a;">🟢 ${okCnt}명</span><span style="color:#e74c3c;">🔴 ${noCnt}명</span><span style="color:rgba(255,255,255,.4);">⚪ ${pendCnt}명</span><span style="color:#4a7090;margin-left:auto;">총 ${roster.length}명</span>
     </div>`:''}
     ${rows||'<div style="font-size:11px;color:rgba(255,255,255,.3);">대상 인원 없음</div>'}
-    ${iAmTarget?`<div style="display:flex;gap:6px;margin-top:8px;">
-      <button onclick="submitMobilizeResp('${coll}',${r.id},'eta')" style="flex:1;background:rgba(39,174,96,.15);color:#3ad17a;border:1px solid rgba(39,174,96,.35);border-radius:8px;padding:7px;font-size:11px;font-weight:700;cursor:pointer;">🟢 ${myResp&&myResp.status==='eta'?'도착시간 수정':'응소 가능·도착시간 입력'}</button>
-      <button onclick="submitMobilizeResp('${coll}',${r.id},'unable')" style="flex:1;background:rgba(231,76,60,.12);color:#e74c3c;border:1px solid rgba(231,76,60,.3);border-radius:8px;padding:7px;font-size:11px;font-weight:700;cursor:pointer;">🔴 응소 불가</button>
+    ${iAmTarget?`<div>
+      <div id="mobBtnRow_${coll}_${r.id}" style="display:flex;gap:6px;margin-top:8px;">
+        <button onclick="_toggleMobEtaInput('${coll}',${r.id})" style="flex:1;background:rgba(39,174,96,.15);color:#3ad17a;border:1px solid rgba(39,174,96,.35);border-radius:8px;padding:7px;font-size:11px;font-weight:700;cursor:pointer;">🟢 ${myResp&&myResp.status==='eta'?'도착시간 수정':'응소 가능·도착시간 입력'}</button>
+        <button onclick="submitMobilizeResp('${coll}',${r.id},'unable')" style="flex:1;background:rgba(231,76,60,.12);color:#e74c3c;border:1px solid rgba(231,76,60,.3);border-radius:8px;padding:7px;font-size:11px;font-weight:700;cursor:pointer;">🔴 응소 불가</button>
+      </div>
+      <div id="mobEtaInputRow_${coll}_${r.id}" style="display:none;gap:6px;margin-top:8px;">
+        <input type="text" id="mobEtaInp_${coll}_${r.id}" class="fi" placeholder="도착예정 시간 (예: 14:30)" value="${_esc((myResp&&myResp.eta)||'')}" onkeydown="if(event.key==='Enter')_confirmMobEta('${coll}',${r.id})" style="flex:1;">
+        <button onclick="_confirmMobEta('${coll}',${r.id})" style="background:rgba(39,174,96,.18);color:#3ad17a;border:1px solid rgba(39,174,96,.4);border-radius:8px;padding:0 12px;font-size:11px;font-weight:700;cursor:pointer;">확인</button>
+        <button onclick="_cancelMobEtaInput('${coll}',${r.id})" style="background:rgba(255,255,255,.06);color:#b8d4e8;border:1px solid rgba(255,255,255,.14);border-radius:8px;padding:0 12px;font-size:11px;font-weight:700;cursor:pointer;">취소</button>
+      </div>
     </div>`:''}
     ${(pendCnt>0&&isAdminUser())?`<button onclick="_remindMobilizeNonResponders('${coll}',${r.id})" style="width:100%;margin-top:7px;background:rgba(240,165,0,.12);color:#f0a500;border:1px solid rgba(240,165,0,.35);border-radius:8px;padding:6px;font-size:10.5px;font-weight:700;cursor:pointer;">🔔 미응답자 ${pendCnt}명 재알림</button>`:''}
   </div>`;
@@ -9244,22 +9251,37 @@ async function _remindMobilizeNonResponders(coll,id){
     toast('🔔 미응답자에게 전체 알림으로 발송됨');
   }
 }
-function submitMobilizeResp(coll,id,status){
+function _toggleMobEtaInput(coll,id){
+  const btnRow=document.getElementById('mobBtnRow_'+coll+'_'+id);
+  const inpRow=document.getElementById('mobEtaInputRow_'+coll+'_'+id);
+  if(!btnRow||!inpRow)return;
+  btnRow.style.display='none';
+  inpRow.style.display='flex';
+  const inp=document.getElementById('mobEtaInp_'+coll+'_'+id);
+  if(inp){inp.focus();inp.select();}
+}
+function _cancelMobEtaInput(coll,id){
+  const btnRow=document.getElementById('mobBtnRow_'+coll+'_'+id);
+  const inpRow=document.getElementById('mobEtaInputRow_'+coll+'_'+id);
+  if(btnRow)btnRow.style.display='flex';
+  if(inpRow)inpRow.style.display='none';
+}
+function _confirmMobEta(coll,id){
+  const inp=document.getElementById('mobEtaInp_'+coll+'_'+id);
+  const eta=inp?inp.value.trim():'';
+  if(!eta){toast('⚠️ 시간 입력 필요');if(inp)inp.focus();return;}
+  submitMobilizeResp(coll,id,'eta',eta);
+}
+function submitMobilizeResp(coll,id,status,eta=''){
   const arr=DB.g(coll)||[];
   const idx=arr.findIndex(x=>x.id===id);
   if(idx===-1)return;
   const me=DB.g('currentUser')||{};
   const myName=me.realName||me.name||'';
   if(!myName){toast('⚠️ 설정에서 이름을 먼저 입력하세요');return;}
-  let eta='';
-  if(status==='eta'){
-    const prevEta=((arr[idx].mobilizeResp||[]).find(x=>x.name===myName)||{}).eta||'';
-    eta=prompt('예상 도착 시간을 입력하세요 (예: 14:30)',prevEta);
-    if(eta===null)return; // 취소
-    if(!eta.trim()){toast('⚠️ 시간 입력 필요');return;}
-  }
+  if(status==='eta'&&!String(eta).trim()){toast('⚠️ 시간 입력 필요');return;}
   const resp=(arr[idx].mobilizeResp||[]).filter(x=>x.name!==myName);
-  resp.push({name:myName,dept:me.dept||'',rank:me.rank||'',status,eta:eta.trim(),time:now()});
+  resp.push({name:myName,dept:me.dept||'',rank:me.rank||'',status,eta:String(eta).trim(),time:now()});
   arr[idx]={...arr[idx],mobilizeResp:resp};
   DB.s(coll,arr);
   toast(status==='eta'?'🟢 응소 가능 등록됨':'🔴 응소 불가 등록됨');
