@@ -33,11 +33,20 @@
                 android:name="android.support.FILE_PROVIDER_PATHS"
                 android:resource="@xml/file_paths"></meta-data>
         </provider>
+
+        <!-- FCM 기본 알림 채널: 앱이 꺼진 상태로 도착한 푸시(notification 페이로드)를
+             런타임에 생성한 고중요도 채널(seoraksan_alerts)로 라우팅 → 소리·헤드업 표시 -->
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_channel_id"
+            android:value="seoraksan_alerts" />
     </application>
 
     <!-- Permissions -->
 
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- 안드로이드 13+ : 이 선언이 있어야 OS 알림창(트레이)에 푸시가 표시됨.
+         (없으면 WebView 알림 동의를 해도 시스템 트레이 알림은 차단됨) -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
 </manifest>
