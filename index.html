@@ -742,8 +742,11 @@ body.hi-contrast .stat-lbl{color:rgba(255,255,255,.65)!important;}
 <div class="home-inner" style="display:flex;flex-direction:column;flex:1;min-height:0;padding:10px 12px calc(8px + env(safe-area-inset-bottom));gap:8px;">
   <!-- 상단: 로고 가운데 + 날짜 + 벨 -->
   <div style="position:relative;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;padding:2px 0;">
-    <!-- 날짜 왼쪽 -->
-    <div style="font-size:10px;color:#6a9cc0;font-weight:600;min-width:80px;" id="homeDate"></div>
+    <!-- 날짜 왼쪽 + 네트워크/동기화 상태 칩 -->
+    <div style="min-width:80px;display:flex;flex-direction:column;gap:2px;">
+      <div style="font-size:10px;color:#6a9cc0;font-weight:600;" id="homeDate"></div>
+      <span id="homeNetStatus" onclick="_flushSyncQueue()" style="display:none;font-size:9px;font-weight:700;white-space:nowrap;cursor:pointer;"></span>
+    </div>
     <!-- 로고 진짜 가운데 (absolute) -->
     <div style="position:absolute;left:50%;transform:translateX(-50%);display:flex;flex-direction:column;align-items:center;gap:2px;">
       <img src="data:image/png;base64,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" style="width:34px;height:34px;object-fit:contain;mix-blend-mode:screen;filter:brightness(1.3);" alt="설악산">
@@ -1633,6 +1636,21 @@ function _updateSyncBadge(){
   const b=document.getElementById('syncBadge'),c=document.getElementById('syncBadgeN');
   if(b)b.style.display=n?'inline':'none';
   if(c)c.textContent=n;
+  _updateHomeNetStatus();
+}
+// 홈 화면 상단의 항상 보이는 네트워크/동기화 상태 칩 (현장 신호 약한 환경 대비)
+function _updateHomeNetStatus(){
+  const el=document.getElementById('homeNetStatus');if(!el)return;
+  const n=(typeof _loadSyncQ==='function')?_loadSyncQ().length:0;
+  if(!navigator.onLine){
+    el.textContent='📡 오프라인'+(n?' · 저장 '+n+'건 대기':'');
+    el.style.color='#e74c3c';el.style.display='inline';
+  }else if(n){
+    el.textContent='⏳ 동기화 '+n+'건 ↻';
+    el.style.color='#f0a500';el.style.display='inline';
+  }else{
+    el.style.display='none';
+  }
 }
 let _syncQWarnedAt=0;
 function _syncWriteFailed(item){ // item: {key, op:'set'|'del', coll?, id?, doc?, json?}
@@ -1707,9 +1725,10 @@ window.addEventListener('online',()=>setTimeout(_flushSyncQueue,1500));
 setInterval(_flushSyncQueue,45000);
 _updateSyncBadge(); // 이전 세션에서 남은 대기 건 표시
 // 네트워크 끊김을 동기화 실패 전에 즉시 알림 (대기 큐 배지는 쓰기가 실패해야만 뜸)
-function _updateOfflineBadge(){const b=document.getElementById('offlineBadge');if(b)b.style.display=navigator.onLine?'none':'inline';}
+function _updateOfflineBadge(){const b=document.getElementById('offlineBadge');if(b)b.style.display=navigator.onLine?'none':'inline';_updateHomeNetStatus();}
 window.addEventListener('online',_updateOfflineBadge);
 window.addEventListener('offline',_updateOfflineBadge);
+_updateOfflineBadge(); // 시작 시 1회 — 오프라인 상태로 켜도 배지가 바로 뜨도록
 _updateOfflineBadge();
 
 // 사용자 입력에서 태그 주입 차단: 공유 데이터 저장 시 <,>를 전각 문자로 치환
