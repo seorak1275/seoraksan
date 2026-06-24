@@ -8979,6 +8979,21 @@ function fetchWeather(){
     _fetchWeatherFallback();
   });
 }
+// ── 기상특보 주기적 재조회 (운영 중 실시간 자동 발령) ──
+var _kmaWarnPollTimer=null;
+function _pollKmaWarnings(){
+  if(document.visibilityState&&document.visibilityState!=='visible')return; // 백그라운드면 생략
+  var url='https://apihub.kma.go.kr/api/typ01/url/wrn_now_data_new.php?authKey='+KMA_KEY+'&disp=1';
+  _fetchKma(url,true).then(function(txt){
+    if(typeof txt==='string')_renderWeatherAlerts(_parseKmaWarnings(txt),false); // 공식 특보 → _syncAutoAlerts 자동 발령
+  }).catch(function(){});
+}
+function _startKmaWarnPoll(){
+  if(_kmaWarnPollTimer)return;
+  _kmaWarnPollTimer=setInterval(_pollKmaWarnings,600000); // 10분마다
+  // 앱이 다시 포그라운드로 오면 즉시 1회 재조회 (백그라운드 중 발효된 특보 즉시 반영)
+  document.addEventListener('visibilitychange',function(){if(document.visibilityState==='visible')_pollKmaWarnings();});
+}
 function _fetchWeatherFallback(realWrnTxt){
   // KMA CORS 차단 시 open-meteo로 폴백 (기온만; 특보는 typ01 실데이터가 있으면 그걸 우선)
   var base='https://api.open-meteo.com/v1/forecast';
@@ -10447,6 +10462,7 @@ window.onload=function(){
     if(window._KR){ initMaps(); } else { window._KCB=function(){initMaps();}; }
     updateSummary();updateUserUI();fetchWeather();
     try{if((DB.g('alertOps')||[]).some(o=>!o.closedAt))_startAlertReminder();}catch(e){}
+    try{_startKmaWarnPoll();}catch(e){}
     const d=new Date();const days=['일','월','화','수','목','금','토'];
     document.getElementById('homeDate').textContent=d.getFullYear()+'년 '+(d.getMonth()+1)+'월 '+d.getDate()+'일 ('+days[d.getDay()]+')';
     if(window._kakaoAuthCode){var _kc=window._kakaoAuthCode;window._kakaoAuthCode=null;_handleKakaoCode(_kc);return;}
