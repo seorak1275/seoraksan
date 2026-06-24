@@ -7738,6 +7738,8 @@ function _alertTimeMs(s){if(!s)return 0;const m=String(s).match(/(\d{4})-(\d{2})
 function _reqOf(level,reqType){const req=ALERT_REQS[level]||{};return reqType==='사무소'?(req.사무소||[]):(req.분소||[]);}
 // 특정 관측소의 최신 관측 보고
 function _latestReport(op,loc){const rs=(op.reports||[]).filter(r=>r.loc===loc);if(!rs.length)return null;return rs.reduce((a,b)=>((b.at||0)>(a.at||0)?b:a));}
+// 특보 종류에 따른 측정 항목: 대설→snow, 호우·태풍→rain, 혼합→both
+function _alertMeasureType(op){const types=(op.alerts||[]).map(a=>a.type||'');const hasRain=types.some(t=>t.includes('호우')||t.includes('태풍'));const hasSnow=types.some(t=>t.includes('대설'));if(hasRain&&hasSnow)return'both';if(hasSnow)return'snow';return'rain';}
 // ── 특보 발령 단계 모델 (수동·자동 공통, 발령 목록 op.alerts[]) ──
 const ALERT_STAGE_ORDER=['예비특보','Ⅰ단계(주의보)','Ⅱ단계(경보)','Ⅲ단계'];
 function _stageRank(s){const i=ALERT_STAGE_ORDER.indexOf(s);return i<0?0:i;}
@@ -7793,22 +7795,27 @@ function renderAlertView(){
     const lvColor=ALERT_LEVEL_COLORS[opLevel]||'#4fa8d0';
     const itv=active.reportInterval||60;
     // 한 관측소(station) 카드: 응소자 + 최신 기상관측 + 버튼
+    const mt=_alertMeasureType(active);
+    const _repLine=(last)=>{
+      if(!last)return`<div class="ao-rep-line" style="color:#3a6a8a;">관측 보고 없음</div>`;
+      const ts=`<span style="color:#5a8aa0;">(${_esc(last.time?last.time.slice(11):'')} ${_esc(last.observer||'')})</span>`;
+      if(mt==='snow')return`<div class="ao-rep-line">❄️ 적설 <b>${_esc(String(last.snow??'-'))}</b>cm ${ts}</div>`;
+      if(mt==='rain')return`<div class="ao-rep-line">🌧️ 강우 <b>${_esc(String(last.rain??'-'))}</b>mm ${ts}</div>`;
+      return`<div class="ao-rep-line">❄️ 적설 <b>${_esc(String(last.snow??'-'))}</b>cm · 🌧️ 강우 <b>${_esc(String(last.rain??'-'))}</b>mm ${ts}</div>`;
+    };
     const stationCard=(st,sub)=>{
       const myResps=active.responders.filter(r=>(r.loc||'사무소')===st.loc);
       const last=_latestReport(active,st.loc);
-      const reportLine=last
-        ? `<div class="ao-rep-line">🌧️ 적설 <b>${_esc(String(last.snow??'-'))}</b>cm · 강우 <b>${_esc(String(last.rain??'-'))}</b>mm <span style="color:#5a8aa0;">(${_esc(last.time?last.time.slice(11):'')} ${_esc(last.observer||'')})</span></div>`
-        : `<div class="ao-rep-line" style="color:#3a6a8a;">관측 보고 없음</div>`;
       return `<div class="ao-loc-card${sub?' sub':''}">
         <div class="ao-loc-hd">
           <b style="color:#e0edf8;font-size:12px;">${sub?'⛺ ':''}${_esc(st.label)}</b>
           <span class="ao-loc-cnt ${myResps.length?'ok':''}">${myResps.length}명</span>
         </div>
         <div style="margin:5px 0;">${myResps.length?myResps.map(r=>_alertRespChip(r,active.id)).join(''):'<span style="font-size:10px;color:#3a6a8a;">응소자 없음</span>'}</div>
-        ${reportLine}
+        ${_repLine(last)}
         <div style="display:flex;gap:5px;margin-top:7px;">
-          <button onclick="openAddResponder(${active.id},'${st.loc}')" class="ao-loc-btn">👤 응소</button>
-          <button onclick="openAlertReport(${active.id},'${st.loc}')" class="ao-loc-btn rep">🌧️ 기상보고</button>
+          ${myResps.length===0?`<button onclick="openAddResponder(${active.id},'${st.loc}')" class="ao-loc-btn">👤 응소</button>`:''}
+          <button onclick="openAlertReport(${active.id},'${st.loc}')" class="ao-loc-btn rep">${mt==='snow'?'❄️ 적설보고':mt==='rain'?'🌧️ 강우보고':'🌧️ 기상보고'}</button>
         </div>
       </div>`;
     };
@@ -7824,17 +7831,14 @@ function renderAlertView(){
         const st=g.stations[0];
         const myResps=gResps;
         const last=_latestReport(active,st.loc);
-        const reportLine=last
-          ? `<div class="ao-rep-line">🌧️ 적설 <b>${_esc(String(last.snow??'-'))}</b>cm · 강우 <b>${_esc(String(last.rain??'-'))}</b>mm <span style="color:#5a8aa0;">(${_esc(last.time?last.time.slice(11):'')} ${_esc(last.observer||'')})</span></div>`
-          : `<div class="ao-rep-line" style="color:#3a6a8a;">관측 보고 없음</div>`;
         return `<div class="ao-loc-card">
           <div class="ao-loc-hd"><span>${g.ico} <b style="color:#e0edf8;font-size:12px;">${_esc(g.label)}</b></span><span class="ao-loc-cnt ${ok?'ok':''}">${myResps.length}${total?'/'+total:''}명</span></div>
           <div class="ao-loc-need">필요: ${need}</div>
           <div style="margin:5px 0;">${myResps.length?myResps.map(r=>_alertRespChip(r,active.id)).join(''):'<span style="font-size:10px;color:#3a6a8a;">응소자 없음</span>'}</div>
-          ${reportLine}
+          ${_repLine(last)}
           <div style="display:flex;gap:5px;margin-top:7px;">
-            <button onclick="openAddResponder(${active.id},'${st.loc}')" class="ao-loc-btn">👤 응소</button>
-            <button onclick="openAlertReport(${active.id},'${st.loc}')" class="ao-loc-btn rep">🌧️ 기상보고</button>
+            ${myResps.length===0?`<button onclick="openAddResponder(${active.id},'${st.loc}')" class="ao-loc-btn">👤 응소</button>`:''}
+            <button onclick="openAlertReport(${active.id},'${st.loc}')" class="ao-loc-btn rep">${mt==='snow'?'❄️ 적설보고':mt==='rain'?'🌧️ 강우보고':'🌧️ 기상보고'}</button>
           </div>
         </div>`;
       }
@@ -7861,6 +7865,7 @@ function renderAlertView(){
       <div style="font-size:11px;font-weight:700;color:#e0edf8;margin-bottom:6px;">📋 분소별 응소 현황</div>
       ${locCards}
       <div style="font-size:11px;font-weight:700;color:#e0edf8;margin:12px 0 6px;">📊 시간별 기상관측 기록</div>
+      ${_renderCumulativeSummary(active)}
       ${_renderReportsTable(active)}
     </div>`;
   } else {
@@ -8032,7 +8037,13 @@ function openAddResponder(id,presetLoc){
   document.getElementById('respTargetId').value=id;
   document.getElementById('respNameIn').value='';
   document.getElementById('respArrivedAt').value='';
-  _renderStationPills('respLocPills',_respLoc,'selRespLoc');
+  // 분소 카드에서 호출 시 소속 고정, 그렇지 않으면 선택 가능
+  const locWrap=document.getElementById('respLocPills');
+  if(presetLoc){
+    locWrap.innerHTML=`<span style="font-size:12px;font-weight:700;color:#e0edf8;background:rgba(79,168,208,.15);border:1px solid rgba(79,168,208,.3);border-radius:20px;padding:4px 12px;">${_esc(_stationLabel(presetLoc))}</span>`;
+  }else{
+    _renderStationPills('respLocPills',_respLoc,'selRespLoc');
+  }
   document.querySelectorAll('#respRolePills .pill').forEach(p=>p.classList.remove('on'));
   // 등록된 직원 빠른선택
   const users=(DB.g('pendingUsers')||[]).filter(u=>u.approvalStatus==='approved');
@@ -8074,11 +8085,46 @@ function removeAlertResponder(id,name,loc){
 
 // ── 시간별 기상관측(적설량·강우량) 보고 ──
 function _renderReportsTable(op){
+  const mt=_alertMeasureType(op);
   const reps=(op.reports||[]).slice().sort((a,b)=>(b.at||0)-(a.at||0)).slice(0,40);
-  if(!reps.length)return`<div style="font-size:11px;color:#3a6a8a;text-align:center;padding:10px 0;">관측 보고 없음 — 분소별 🌧️ 기상보고 버튼으로 입력</div>`;
-  return`<table class="ao-req-table"><tr><th>시각</th><th>관측소</th><th>관측자</th><th>적설<br>(cm)</th><th>강우<br>(mm)</th>${isAdminUser()?'<th></th>':''}</tr>
-    ${reps.map(r=>`<tr><td>${_esc((r.time||'').slice(5,16))}</td><td>${_esc(_stationLabel(r.loc))}</td><td>${_esc(r.observer||'-')}</td><td style="text-align:center;color:#7ec8d8;">${_esc(String(r.snow??'-'))}</td><td style="text-align:center;color:#7db8f0;">${_esc(String(r.rain??'-'))}</td>${isAdminUser()?`<td style="text-align:center;"><span onclick="removeAlertReport(${op.id},${r.id})" style="cursor:pointer;color:#c0392b;">×</span></td>`:''}</tr>${r.note?`<tr><td colspan="${isAdminUser()?6:5}" style="color:#5a8aa0;font-size:9px;padding:1px 6px 4px;">↳ ${_esc(r.note)}</td></tr>`:''}`).join('')}
+  if(!reps.length)return`<div style="font-size:11px;color:#3a6a8a;text-align:center;padding:10px 0;">관측 보고 없음 — 분소별 기상보고 버튼으로 입력</div>`;
+  const snowHd=mt!=='rain'?'<th>❄️ 적설<br>(cm)</th>':'';
+  const rainHd=mt!=='snow'?'<th>🌧️ 강우<br>(mm)</th>':'';
+  const cols=3+(mt==='both'?2:1)+(isAdminUser()?1:0);
+  return`<table class="ao-req-table"><tr><th>시각</th><th>관측소</th><th>관측자</th>${snowHd}${rainHd}${isAdminUser()?'<th></th>':''}</tr>
+    ${reps.map(r=>{
+      const snowTd=mt!=='rain'?`<td style="text-align:center;color:#7ec8d8;">${_esc(String(r.snow??'-'))}</td>`:'';
+      const rainTd=mt!=='snow'?`<td style="text-align:center;color:#7db8f0;">${_esc(String(r.rain??'-'))}</td>`:'';
+      const delTd=isAdminUser()?`<td style="text-align:center;"><span onclick="removeAlertReport(${op.id},${r.id})" style="cursor:pointer;color:#c0392b;">×</span></td>`:'';
+      return`<tr><td>${_esc((r.time||'').slice(5,16))}</td><td>${_esc(_stationLabel(r.loc))}</td><td>${_esc(r.observer||'-')}</td>${snowTd}${rainTd}${delTd}</tr>${r.note?`<tr><td colspan="${cols}" style="color:#5a8aa0;font-size:9px;padding:1px 6px 4px;">↳ ${_esc(r.note)}</td></tr>`:''}`;
+    }).join('')}
   </table>`;
+}
+function _renderCumulativeSummary(op){
+  const reps=op.reports||[];
+  if(!reps.length)return'';
+  const mt=_alertMeasureType(op);
+  const byLoc={};
+  reps.forEach(r=>{
+    const key=r.loc||'사무소';
+    if(!byLoc[key])byLoc[key]={label:_stationLabel(key),snow:0,rain:0,snowCount:0,rainCount:0,lastTime:''};
+    if(r.snow!=null&&r.snow!==''){byLoc[key].snow+=(parseFloat(r.snow)||0);byLoc[key].snowCount++;}
+    if(r.rain!=null&&r.rain!==''){byLoc[key].rain+=(parseFloat(r.rain)||0);byLoc[key].rainCount++;}
+    if((r.time||'')>(byLoc[key].lastTime))byLoc[key].lastTime=r.time||'';
+  });
+  const entries=Object.entries(byLoc).filter(([,v])=>v.snowCount>0||v.rainCount>0);
+  if(!entries.length)return'';
+  const snowHd=mt!=='rain'?'<th>❄️ 누적 적설(cm)</th>':'';
+  const rainHd=mt!=='snow'?'<th>🌧️ 누적 강우(mm)</th>':'';
+  const rows=entries.map(([,v])=>{
+    const snowTd=mt!=='rain'?`<td style="text-align:center;color:#7ec8d8;font-weight:700;">${v.snowCount?v.snow.toFixed(1):'-'}</td>`:'';
+    const rainTd=mt!=='snow'?`<td style="text-align:center;color:#7db8f0;font-weight:700;">${v.rainCount?v.rain.toFixed(1):'-'}</td>`:'';
+    return`<tr><td>${_esc(v.label)}</td>${snowTd}${rainTd}<td style="font-size:9px;color:#5a8aa0;">${_esc((v.lastTime||'').slice(11,16))}</td></tr>`;
+  }).join('');
+  return`<div style="margin-top:10px;">
+    <div style="font-size:10px;color:#4a7090;font-weight:700;margin-bottom:5px;">📊 누적 관측 요약 (관측소별)</div>
+    <table class="ao-req-table"><tr><th>관측소</th>${snowHd}${rainHd}<th>최근 보고</th></tr>${rows}</table>
+  </div>`;
 }
 function openAlertReport(opId,presetLoc){
   _reportOpId=opId;_reportLoc=presetLoc||'';
@@ -8092,6 +8138,14 @@ function openAlertReport(opId,presetLoc){
   const op=(DB.g('alertOps')||[]).find(o=>o.id===opId);
   const resps=op?(op.responders||[]).filter(r=>!_reportLoc||(r.loc||'사무소')===_reportLoc):[];
   document.getElementById('reportObsQuick').innerHTML=resps.map(r=>`<div onclick="document.getElementById('reportObserver').value='${_escq(r.name)}'" style="cursor:pointer;background:rgba(79,168,208,.08);border:1px solid rgba(79,168,208,.2);color:#7db8d8;border-radius:20px;padding:3px 9px;font-size:10px;font-weight:600;">${_esc(r.name)}</div>`).join('');
+  // 특보 종류에 따라 입력 필드 표시·숨김 및 모달 제목 변경
+  const mt=_alertMeasureType(op||{});
+  const snowEl=document.getElementById('reportSnow');
+  const rainEl=document.getElementById('reportRain');
+  if(snowEl)snowEl.parentElement.style.display=mt==='rain'?'none':'';
+  if(rainEl)rainEl.parentElement.style.display=mt==='snow'?'none':'';
+  const modalTitleEl=document.querySelector('#modalAlertReport .mtitle');
+  if(modalTitleEl)modalTitleEl.textContent=mt==='snow'?'❄️ 적설량 보고':mt==='rain'?'🌧️ 강우량 보고':'🌧️ 적설량·강우량 보고';
   document.getElementById('modalAlertReport').classList.add('on');
 }
 function selReportLoc(el,v){document.querySelectorAll('#reportLocPills .pill').forEach(p=>p.classList.remove('on'));el.classList.add('on');_reportLoc=v;}
@@ -8100,7 +8154,8 @@ function addAlertReport(){
   const observer=document.getElementById('reportObserver').value.trim();
   const snowRaw=document.getElementById('reportSnow').value.trim();
   const rainRaw=document.getElementById('reportRain').value.trim();
-  if(snowRaw===''&&rainRaw===''){toast('적설량 또는 강우량을 입력하세요');return;}
+  const _mt=_alertMeasureType((DB.g('alertOps')||[]).find(o=>o.id===_reportOpId)||{});
+  if(snowRaw===''&&rainRaw===''){toast(_mt==='snow'?'적설량을 입력하세요':_mt==='rain'?'강우량을 입력하세요':'적설량 또는 강우량을 입력하세요');return;}
   const snow=snowRaw===''?null:parseFloat(snowRaw);
   const rain=rainRaw===''?null:parseFloat(rainRaw);
   const tIn=document.getElementById('reportTime').value.trim();
