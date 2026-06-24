@@ -429,6 +429,21 @@ button{-webkit-tap-highlight-color:transparent;touch-action:manipulation;}
 .ao-req-table td{padding:5px 8px;border:1px solid rgba(255,255,255,.05);color:#b8d4e8;}
 .ao-resp-chip{display:inline-flex;align-items:center;gap:4px;background:rgba(79,168,208,.12);color:#7db8d8;border:1px solid rgba(79,168,208,.25);border-radius:20px;padding:3px 8px;font-size:10px;font-weight:600;margin:2px;}
 .ao-resp-chip.arrived{background:rgba(39,174,96,.15);color:#7ec8a0;border-color:rgba(39,174,96,.3);}
+.ao-loc-card{background:#08111f;border:1px solid rgba(255,255,255,.06);border-radius:10px;padding:9px 11px;margin-bottom:7px;}
+.ao-loc-card.sub{background:#0a1322;border-left:2px solid rgba(79,168,208,.3);margin:5px 0 5px 8px;padding:8px 10px;}
+.ao-loc-hd{display:flex;justify-content:space-between;align-items:center;}
+.ao-loc-cnt{font-size:10px;font-weight:700;color:#7a9cb8;background:rgba(255,255,255,.05);border-radius:20px;padding:2px 9px;}
+.ao-loc-cnt.ok{color:#7ec8a0;background:rgba(39,174,96,.13);}
+.ao-loc-need{font-size:9px;color:#4a7090;margin-top:2px;}
+.ao-rep-line{font-size:10px;color:#9abece;margin-top:3px;}
+.ao-loc-btn{flex:1;background:rgba(79,168,208,.1);border:1px solid rgba(79,168,208,.25);color:#7db8d8;border-radius:8px;padding:6px;font-size:11px;font-weight:600;cursor:pointer;}
+.ao-loc-btn.rep{background:rgba(79,140,208,.1);border-color:rgba(110,150,230,.3);color:#9ab8f0;}
+.ao-grp{background:#060f1c;border:1px solid rgba(79,168,208,.12);border-radius:11px;padding:9px;margin-bottom:8px;}
+.ao-grp-hd{display:flex;justify-content:space-between;align-items:center;font-size:12px;color:#cfe2f2;padding:0 2px;}
+.ao-alert-chip{display:inline-flex;align-items:center;gap:3px;border-radius:20px;padding:3px 9px;font-size:11px;font-weight:600;margin:2px;}
+.ao-alert-chip.auto{background:rgba(79,140,208,.14);color:#9ab8f0;border:1px solid rgba(110,150,230,.35);}
+.ao-alert-chip.manual{background:rgba(230,126,34,.14);color:#ffb070;border:1px solid rgba(230,126,34,.35);}
+.ao-add-alert{background:rgba(192,57,43,.14);border:1px dashed rgba(192,57,43,.4);color:#ff9a86;border-radius:20px;padding:3px 10px;font-size:11px;font-weight:600;cursor:pointer;margin-left:2px;}
 
 /* ─── 관리자 ─── */
 .adm-tabs{display:flex;background:#040a16;border-bottom:1px solid rgba(255,255,255,.06);flex-shrink:0;overflow-x:auto;}
@@ -1415,7 +1430,7 @@ body.hi-contrast .stat-lbl{color:rgba(255,255,255,.65)!important;}
 <!-- ══ 모달: 특보운영 시작 ══ -->
 <div id="modalAlertStart" class="modal">
   <div class="mbox">
-    <div class="mhdr"><span class="mtitle">🌀 특보운영 시작</span><button class="mclose" onclick="closeM('modalAlertStart')">×</button></div>
+    <div class="mhdr"><span class="mtitle" id="alertStartTitle">🌀 특보운영 시작</span><button class="mclose" onclick="closeM('modalAlertStart')">×</button></div>
     <div class="fg"><span class="fl">특보 단계</span>
       <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:4px;" id="alertLevelPills">
         <div class="pill" onclick="selAlertLevel(this,'예비특보')">예비특보</div>
@@ -1436,9 +1451,17 @@ body.hi-contrast .stat-lbl{color:rgba(255,255,255,.65)!important;}
         <div class="pill" onclick="selAlertType(this,'기타')">기타</div>
       </div>
     </div>
+    <div class="fg" id="alertItvRow"><span class="fl">관측 보고 주기</span>
+      <div style="display:flex;flex-wrap:wrap;gap:5px;margin-top:4px;" id="alertItvPills">
+        <div class="pill" onclick="selReportItv(this,30)">30분</div>
+        <div class="pill on" onclick="selReportItv(this,60)">1시간</div>
+        <div class="pill" onclick="selReportItv(this,120)">2시간</div>
+        <div class="pill" onclick="selReportItv(this,180)">3시간</div>
+      </div>
+    </div>
     <div class="fg"><span class="fl">비고</span><input type="text" id="alertStartNote" class="fi" placeholder="특이사항 입력"></div>
     <div id="alertReqTable" style="margin:8px 0;"></div>
-    <button class="btn btn-red" onclick="startAlertOps()">🌀 특보운영 시작</button>
+    <button class="btn btn-red" id="alertStartBtn" onclick="startAlertOps()">🌀 특보운영 시작</button>
   </div>
 </div>
 
@@ -1446,15 +1469,8 @@ body.hi-contrast .stat-lbl{color:rgba(255,255,255,.65)!important;}
 <div id="modalAlertResp" class="modal">
   <div class="mbox">
     <div class="mhdr"><span class="mtitle">👤 응소자 추가</span><button class="mclose" onclick="closeM('modalAlertResp')">×</button></div>
-    <div class="fg"><span class="fl">소속</span>
-      <div style="display:flex;flex-wrap:wrap;gap:5px;margin-top:4px;" id="respLocPills">
-        <div class="pill" onclick="selRespLoc(this,'사무소')">사무소(본소)</div>
-        <div class="pill" onclick="selRespLoc(this,'대청분소')">대청분소</div>
-        <div class="pill" onclick="selRespLoc(this,'백담분소')">백담분소</div>
-        <div class="pill" onclick="selRespLoc(this,'오색분소')">오색분소</div>
-        <div class="pill" onclick="selRespLoc(this,'한계산성분소')">한계산성분소</div>
-        <div class="pill" onclick="selRespLoc(this,'점봉산분소')">점봉산분소</div>
-      </div>
+    <div class="fg"><span class="fl">소속 (분소·대피소)</span>
+      <div style="display:flex;flex-wrap:wrap;gap:5px;margin-top:4px;" id="respLocPills"></div>
     </div>
     <div class="fg"><span class="fl">역할</span>
       <div style="display:flex;flex-wrap:wrap;gap:5px;margin-top:4px;" id="respRolePills">
@@ -1472,6 +1488,27 @@ body.hi-contrast .stat-lbl{color:rgba(255,255,255,.65)!important;}
     <div class="fg"><span class="fl">도착시각 (비워두면 현재)</span><input type="text" id="respArrivedAt" class="fi" placeholder="예: 21:30"></div>
     <input type="hidden" id="respTargetId">
     <button class="btn btn-red" onclick="addAlertResponder()">✅ 추가</button>
+  </div>
+</div>
+
+<!-- ══ 모달: 적설량·강우량 관측 보고 ══ -->
+<div id="modalAlertReport" class="modal">
+  <div class="mbox">
+    <div class="mhdr"><span class="mtitle">🌧️ 적설량·강우량 보고</span><button class="mclose" onclick="closeM('modalAlertReport')">×</button></div>
+    <div class="fg"><span class="fl">관측소 (분소·대피소)</span>
+      <div style="display:flex;flex-wrap:wrap;gap:5px;margin-top:4px;" id="reportLocPills"></div>
+    </div>
+    <div style="display:flex;gap:8px;">
+      <div class="fg" style="flex:1;"><span class="fl">적설량 (cm)</span><input type="number" inputmode="decimal" step="0.1" id="reportSnow" class="fi" placeholder="예: 12.5"></div>
+      <div class="fg" style="flex:1;"><span class="fl">강우량 (mm)</span><input type="number" inputmode="decimal" step="0.1" id="reportRain" class="fi" placeholder="예: 30"></div>
+    </div>
+    <div class="fg"><span class="fl">관측자</span>
+      <div id="reportObsQuick" style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:6px;"></div>
+      <input type="text" id="reportObserver" class="fi" placeholder="관측자 이름">
+    </div>
+    <div class="fg"><span class="fl">관측시각 (비워두면 현재)</span><input type="text" id="reportTime" class="fi" placeholder="예: 21:00"></div>
+    <div class="fg"><span class="fl">비고</span><input type="text" id="reportNote" class="fi" placeholder="적설 누계·결빙·시정 등"></div>
+    <button class="btn btn-red" onclick="addAlertReport()">🌧️ 관측 보고</button>
   </div>
 </div>
 
@@ -7680,50 +7717,154 @@ const ALERT_REQS={
   'Ⅲ단계':{사무소:[{role:'당직',min:1},{role:'과장',min:1},{role:'비상근무',min:1}],분소:[{role:'사무소 전직원',min:1}]}
 };
 const ALERT_LEVEL_COLORS={'예비특보':'#f0d040','Ⅰ단계(주의보)':'#ffa040','Ⅱ단계(경보)':'#ff8a80','Ⅲ단계':'#d7aefb'};
-let _alertLevel='',_alertType='',_respLoc='',_respRole='';
+// 응소·관측 단위: 사무소(본소) + 분소. 대청분소는 대피소 단위로 세분화 운영.
+const ALERT_GROUPS=[
+  {name:'사무소',label:'사무소(본소)',ico:'🏢',reqType:'사무소',stations:[{loc:'사무소',label:'사무소(본소)'}]},
+  {name:'대청분소',label:'대청분소 (대피소)',ico:'⛺',reqType:'분소',stations:[
+    {loc:'희운각',label:'희운각대피소'},{loc:'양폭',label:'양폭대피소'},{loc:'수렴동',label:'수렴동대피소'},{loc:'소청',label:'소청대피소'},{loc:'중청',label:'중청대피소'}]},
+  {name:'백담분소',label:'백담분소',ico:'🏔️',reqType:'분소',stations:[{loc:'백담분소',label:'백담분소'}]},
+  {name:'오색분소',label:'오색분소',ico:'🏔️',reqType:'분소',stations:[{loc:'오색분소',label:'오색분소'}]},
+  {name:'한계산성분소',label:'한계산성분소',ico:'🏔️',reqType:'분소',stations:[{loc:'한계산성분소',label:'한계산성분소'}]},
+  {name:'점봉산분소',label:'점봉산분소',ico:'🏔️',reqType:'분소',stations:[{loc:'점봉산분소',label:'점봉산분소'}]}
+];
+// 전체 관측소(응소·관측 단위) 평탄 목록
+const ALERT_STATIONS=[];ALERT_GROUPS.forEach(g=>g.stations.forEach(s=>ALERT_STATIONS.push({loc:s.loc,label:s.label,group:g.name,reqType:g.reqType})));
+const _stationLabel=loc=>{const s=ALERT_STATIONS.find(x=>x.loc===loc);return s?s.label:(loc||'사무소');};
+let _alertLevel='',_alertType='',_respLoc='',_respRole='',_reportInterval=60;
+let _reportLoc='',_reportOpId=null,_alertReminderTimer=null;
+// '2026-06-24 21:30' → ms (관측 보고 알림 주기 계산용)
+function _alertTimeMs(s){if(!s)return 0;const m=String(s).match(/(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})/);if(!m)return 0;return new Date(+m[1],+m[2]-1,+m[3],+m[4],+m[5]).getTime();}
+// 단계별 필요 인원 (사무소/분소 기준)
+function _reqOf(level,reqType){const req=ALERT_REQS[level]||{};return reqType==='사무소'?(req.사무소||[]):(req.분소||[]);}
+// 특정 관측소의 최신 관측 보고
+function _latestReport(op,loc){const rs=(op.reports||[]).filter(r=>r.loc===loc);if(!rs.length)return null;return rs.reduce((a,b)=>((b.at||0)>(a.at||0)?b:a));}
+// ── 특보 발령 단계 모델 (수동·자동 공통, 발령 목록 op.alerts[]) ──
+const ALERT_STAGE_ORDER=['예비특보','Ⅰ단계(주의보)','Ⅱ단계(경보)','Ⅲ단계'];
+function _stageRank(s){const i=ALERT_STAGE_ORDER.indexOf(s);return i<0?0:i;}
+function _stageShort(s){return s==='Ⅰ단계(주의보)'?'주의보':s==='Ⅱ단계(경보)'?'경보':s;}
+// 기상청 특보 등급('경보'/'주의보'/'예비특보') → 내부 운영 단계
+function _kmaStage(lvl){return lvl==='경보'?'Ⅱ단계(경보)':((lvl||'').indexOf('예비')>=0?'예비특보':'Ⅰ단계(주의보)');}
+// 발령 목록(구버전 op.level/type 자동 보정)
+function _opAlerts(op){
+  if(op.alerts&&op.alerts.length)return op.alerts;
+  if(op.level)return[{type:op.type||'기타',stage:op.level,source:(op.createdBy&&String(op.createdBy).indexOf('자동')>=0)?'auto':'manual'}];
+  return[];
+}
+// 운영 인력 단계 = 발령된 특보 중 최고 단계
+function _opLevel(op){const al=_opAlerts(op);if(!al.length)return'예비특보';return al.reduce((hi,a)=>_stageRank(a.stage)>_stageRank(hi)?a.stage:hi,al[0].stage);}
+// 기상청 발효 특보(alertMap)를 {type,stage} 목록으로 정규화 (타입별 최고등급)
+function _kmaLiveList(alertMap){
+  const seen={},out=[];
+  Object.keys(alertMap||{}).forEach(k=>{(alertMap[k].reasons||[]).forEach(r=>{
+    const lvl=r.indexOf('경보')>=0?'경보':(r.indexOf('주의보')>=0?'주의보':'');
+    const type=r.replace('경보','').replace('주의보','');
+    if(!type||!lvl)return;
+    const stage=_kmaStage(lvl);
+    if(!seen[type]){seen[type]={type,stage};out.push(seen[type]);}
+    else if(_stageRank(stage)>_stageRank(seen[type].stage))seen[type].stage=stage;
+  });});
+  return out;
+}
+// 마지막으로 화면에 표시된 공식 기상청 특보 (추정값 제외)
+window._kmaLiveAlerts=window._kmaLiveAlerts||[];
 
 function renderAlertView(){
   const ops=DB.g('alertOps')||[];
   const active=ops.find(o=>!o.closedAt);
 
-  // 기상청 현황
-  const alerts=_weatherAlerts||[];
+  // 기상청 실시간 발효 특보 (자동 발령 근거)
+  const kmaLive=window._kmaLiveAlerts||[];
   let wxHtml='';
-  if(alerts.length){
+  if(kmaLive.length){
     wxHtml=`<div style="background:#0a1626;border-radius:10px;padding:12px 14px;margin-bottom:10px;border:1px solid rgba(79,168,208,.15);">
-      <div style="font-size:10px;color:#4a7090;font-weight:700;margin-bottom:6px;">📡 기상청 현재 특보</div>
-      ${alerts.map(a=>`<div style="font-size:12px;font-weight:700;margin-bottom:3px;"><span class="ao-level-badge ao-level-${a.level==='경보'?'Ⅱ단계':'Ⅰ단계'}">${a.level}</span> <span style="color:#b8d4e8;margin-left:6px;">${_esc(a.type||'')}${a.reason?' '+_esc(a.reason):''}</span></div>`).join('')}
+      <div style="font-size:10px;color:#4a7090;font-weight:700;margin-bottom:6px;">📡 기상청 실시간 발효 특보</div>
+      ${kmaLive.map(a=>`<div style="font-size:12px;font-weight:700;margin-bottom:3px;"><span class="ao-level-badge ao-level-${a.stage.indexOf('Ⅱ')>=0?'Ⅱ단계':'Ⅰ단계'}">${_stageShort(a.stage)}</span> <span style="color:#b8d4e8;margin-left:6px;">${_esc(a.type||'')}</span></div>`).join('')}
     </div>`;
   } else {
     wxHtml=`<div style="background:#060d1a;border-radius:10px;padding:10px 14px;margin-bottom:10px;text-align:center;font-size:11px;color:#3a6a8a;">현재 기상청 발효 특보 없음</div>`;
   }
 
-  // 활성 특보운영
+  // 활성 특보운영 — 분소별 응소 현황 + 시간별 기상관측
   let activeHtml='';
   if(active){
-    const lvColor=ALERT_LEVEL_COLORS[active.level]||'#4fa8d0';
-    const resps=active.responders||[];
-    const req=ALERT_REQS[active.level]||{사무소:[],분소:[]};
-    const soResps=resps.filter(r=>r.loc==='사무소'||!r.loc);
-    const bsResps=resps.filter(r=>r.loc&&r.loc!=='사무소');
+    active.responders=active.responders||[];active.reports=active.reports||[];active.alerts=active.alerts||_opAlerts(active);
+    _startAlertReminder();
+    const opLevel=_opLevel(active);
+    const lvColor=ALERT_LEVEL_COLORS[opLevel]||'#4fa8d0';
+    const itv=active.reportInterval||60;
+    // 한 관측소(station) 카드: 응소자 + 최신 기상관측 + 버튼
+    const stationCard=(st,sub)=>{
+      const myResps=active.responders.filter(r=>(r.loc||'사무소')===st.loc);
+      const last=_latestReport(active,st.loc);
+      const reportLine=last
+        ? `<div class="ao-rep-line">🌧️ 적설 <b>${_esc(String(last.snow??'-'))}</b>cm · 강우 <b>${_esc(String(last.rain??'-'))}</b>mm <span style="color:#5a8aa0;">(${_esc(last.time?last.time.slice(11):'')} ${_esc(last.observer||'')})</span></div>`
+        : `<div class="ao-rep-line" style="color:#3a6a8a;">관측 보고 없음</div>`;
+      return `<div class="ao-loc-card${sub?' sub':''}">
+        <div class="ao-loc-hd">
+          <b style="color:#e0edf8;font-size:12px;">${sub?'⛺ ':''}${_esc(st.label)}</b>
+          <span class="ao-loc-cnt ${myResps.length?'ok':''}">${myResps.length}명</span>
+        </div>
+        <div style="margin:5px 0;">${myResps.length?myResps.map(r=>_alertRespChip(r,active.id)).join(''):'<span style="font-size:10px;color:#3a6a8a;">응소자 없음</span>'}</div>
+        ${reportLine}
+        <div style="display:flex;gap:5px;margin-top:7px;">
+          <button onclick="openAddResponder(${active.id},'${st.loc}')" class="ao-loc-btn">👤 응소</button>
+          <button onclick="openAlertReport(${active.id},'${st.loc}')" class="ao-loc-btn rep">🌧️ 기상보고</button>
+        </div>
+      </div>`;
+    };
+    // 그룹(사무소/분소)별 렌더 — 대청분소는 대피소 단위로 세분
+    const locCards=ALERT_GROUPS.map(g=>{
+      const reqs=_reqOf(opLevel,g.reqType);
+      const need=reqs.length?reqs.map(r=>r.role+' '+r.min+'명').join(', '):'지정 없음';
+      const total=reqs.reduce((s,r)=>s+r.min,0);
+      const gResps=active.responders.filter(r=>g.stations.some(s=>s.loc===(r.loc||'사무소')));
+      const ok=total>0&&gResps.length>=total;
+      if(g.stations.length===1){
+        // 단일 관측소: 그룹 헤더에 필요인원 표기
+        const st=g.stations[0];
+        const myResps=gResps;
+        const last=_latestReport(active,st.loc);
+        const reportLine=last
+          ? `<div class="ao-rep-line">🌧️ 적설 <b>${_esc(String(last.snow??'-'))}</b>cm · 강우 <b>${_esc(String(last.rain??'-'))}</b>mm <span style="color:#5a8aa0;">(${_esc(last.time?last.time.slice(11):'')} ${_esc(last.observer||'')})</span></div>`
+          : `<div class="ao-rep-line" style="color:#3a6a8a;">관측 보고 없음</div>`;
+        return `<div class="ao-loc-card">
+          <div class="ao-loc-hd"><span>${g.ico} <b style="color:#e0edf8;font-size:12px;">${_esc(g.label)}</b></span><span class="ao-loc-cnt ${ok?'ok':''}">${myResps.length}${total?'/'+total:''}명</span></div>
+          <div class="ao-loc-need">필요: ${need}</div>
+          <div style="margin:5px 0;">${myResps.length?myResps.map(r=>_alertRespChip(r,active.id)).join(''):'<span style="font-size:10px;color:#3a6a8a;">응소자 없음</span>'}</div>
+          ${reportLine}
+          <div style="display:flex;gap:5px;margin-top:7px;">
+            <button onclick="openAddResponder(${active.id},'${st.loc}')" class="ao-loc-btn">👤 응소</button>
+            <button onclick="openAlertReport(${active.id},'${st.loc}')" class="ao-loc-btn rep">🌧️ 기상보고</button>
+          </div>
+        </div>`;
+      }
+      // 대청분소: 그룹 헤더 + 대피소 세부 카드
+      return `<div class="ao-grp">
+        <div class="ao-grp-hd"><span>${g.ico} <b>${_esc(g.label)}</b></span><span class="ao-loc-cnt ${ok?'ok':''}">${gResps.length}${total?'/'+total:''}명</span></div>
+        <div class="ao-loc-need" style="padding:0 2px 4px;">필요: ${need} (분소 합계 기준)</div>
+        ${g.stations.map(st=>stationCard(st,true)).join('')}
+      </div>`;
+    }).join('');
+    const alertChips=active.alerts.map((a,ai)=>`<span class="ao-alert-chip ${a.source==='auto'?'auto':'manual'}">${a.source==='auto'?'📡자동':'✋수동'} <b>${_esc(a.type)}${_stageShort(a.stage)}</b>${isAdminUser()?`<span onclick="removeAlertItem(${active.id},${ai})" style="cursor:pointer;color:#c0392b;margin-left:3px;">×</span>`:''}</span>`).join('');
     activeHtml=`<div class="ao-card" style="border:1.5px solid ${lvColor}40;">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
         <div>
-          <span class="ao-level-badge" style="background:${lvColor}22;color:${lvColor};border:1px solid ${lvColor}50;">${_esc(active.level)}</span>
-          <span style="font-size:11px;color:#7a9cb8;margin-left:8px;">${_esc(active.type||'')} · ${_esc(active.startedAt||'')}</span>
+          <span class="ao-level-badge" style="background:${lvColor}22;color:${lvColor};border:1px solid ${lvColor}50;">${_esc(opLevel)}</span>
+          <span style="font-size:11px;color:#7a9cb8;margin-left:8px;">운영 ${_esc(active.startedAt||'')}~</span>
         </div>
         ${isAdminUser()?`<button onclick="endAlertOps(${active.id})" style="background:rgba(192,57,43,.15);color:#ff8a80;border:1px solid rgba(192,57,43,.3);border-radius:8px;padding:5px 10px;font-size:11px;cursor:pointer;">종료</button>`:''}
       </div>
-      ${active.note?`<div style="font-size:11px;color:#7a9cb8;margin-bottom:8px;">📝 ${_esc(active.note)}</div>`:''}
-      <div style="font-size:11px;font-weight:700;color:#e0edf8;margin-bottom:6px;">📋 응소 현황</div>
-      <div style="font-size:10px;color:#4a7090;margin-bottom:4px;">🏢 사무소(본소) — ${req.사무소.length?req.사무소.map(r=>r.role+' '+r.min+'명').join(', '):'없음'}</div>
-      <div style="min-height:28px;margin-bottom:8px;">${soResps.length?soResps.map(r=>_alertRespChip(r,active.id)).join(''):`<span style="font-size:10px;color:#3a6a8a;">응소자 없음</span>`}</div>
-      <div style="font-size:10px;color:#4a7090;margin-bottom:4px;">🏔️ 분소 — ${req.분소.length?req.분소.map(r=>r.role+' '+r.min+'명').join(', '):'없음'}</div>
-      <div style="min-height:28px;margin-bottom:10px;">${bsResps.length?bsResps.map(r=>_alertRespChip(r,active.id)).join(''):`<span style="font-size:10px;color:#3a6a8a;">응소자 없음</span>`}</div>
-      <button onclick="openAddResponder(${active.id})" style="width:100%;background:rgba(79,168,208,.12);border:1px solid rgba(79,168,208,.3);color:#4fa8d0;border-radius:9px;padding:9px;font-size:12px;font-weight:600;cursor:pointer;">👤 응소자 추가</button>
-      ${isAdminUser()?_renderAlertReqTable(active.level):''}
+      <div style="font-size:10px;color:#4a7090;font-weight:700;margin-bottom:4px;">🚨 발령 특보</div>
+      <div style="margin-bottom:8px;">${alertChips||'<span style="font-size:10px;color:#3a6a8a;">발령된 특보 없음</span>'} ${isAdminUser()?`<button onclick="openAlertStart()" class="ao-add-alert">+ 특보 발령</button>`:''}</div>
+      ${active.note?`<div style="font-size:11px;color:#7a9cb8;margin-bottom:6px;">📝 ${_esc(active.note)}</div>`:''}
+      <div style="font-size:10px;color:#4a7090;margin-bottom:8px;">⏱️ 관측 보고 주기: ${itv>=60?(itv/60)+'시간':itv+'분'}마다</div>
+      <div style="font-size:11px;font-weight:700;color:#e0edf8;margin-bottom:6px;">📋 분소별 응소 현황</div>
+      ${locCards}
+      <div style="font-size:11px;font-weight:700;color:#e0edf8;margin:12px 0 6px;">📊 시간별 기상관측 기록</div>
+      ${_renderReportsTable(active)}
     </div>`;
   } else {
+    _stopAlertReminder();
     activeHtml=`<div style="text-align:center;padding:24px 0 16px;">
       <div style="font-size:32px;margin-bottom:8px;">🌀</div>
       <div style="font-size:13px;color:#4a7090;margin-bottom:16px;">현재 특보운영 없음</div>
@@ -7737,8 +7878,8 @@ function renderAlertView(){
   if(closed.length){
     histHtml=`<div style="margin-top:14px;"><div style="font-size:10px;color:#3a6a8a;font-weight:700;margin-bottom:6px;">📜 최근 이력</div>
     ${closed.map(o=>`<div style="background:#06101a;border-radius:8px;padding:8px 12px;margin-bottom:5px;border:.5px solid rgba(255,255,255,.07);">
-      <div style="font-size:11px;font-weight:700;color:#7a9cb8;">${_esc(o.level)} · ${_esc(o.type||'')} · ${_esc(o.startedAt||'')} → ${_esc(o.closedAt||'')}</div>
-      <div style="font-size:10px;color:#3a6a8a;margin-top:2px;">응소 ${(o.responders||[]).length}명</div>
+      <div style="font-size:11px;font-weight:700;color:#7a9cb8;">${_esc(_opLevel(o))} · ${_esc(_opAlerts(o).map(a=>a.type+_stageShort(a.stage)).join(', ')||'-')}</div>
+      <div style="font-size:10px;color:#3a6a8a;margin-top:2px;">${_esc(o.startedAt||'')} → ${_esc(o.closedAt||'')} · 응소 ${(o.responders||[]).length}명 · 관측 ${(o.reports||[]).length}건</div>
     </div>`).join('')}
     </div>`;
   }
@@ -7748,8 +7889,8 @@ function renderAlertView(){
 }
 
 function _alertRespChip(r,opId){
-  const del=isAdminUser()?`<span onclick="removeAlertResponder(${opId},'${_escq(r.name)}')" style="cursor:pointer;color:#c0392b;font-size:11px;margin-left:2px;">×</span>`:'';
-  return `<span class="ao-resp-chip">${_esc(r.loc&&r.loc!=='사무소'?r.loc+' ':'')}<b style="color:#e0edf8;">${_esc(r.name)}</b> ${_esc(r.role||'')}${r.arrivedAt?' <span style="color:#7ec8a0;">'+_esc(r.arrivedAt)+'</span>':''}${del}</span>`;
+  const del=isAdminUser()?`<span onclick="removeAlertResponder(${opId},'${_escq(r.name)}','${_escq(r.loc||'사무소')}')" style="cursor:pointer;color:#c0392b;font-size:11px;margin-left:2px;">×</span>`:'';
+  return `<span class="ao-resp-chip"><b style="color:#e0edf8;">${_esc(r.name)}</b> ${_esc(r.role||'')}${r.arrivedAt?' <span style="color:#7ec8a0;">'+_esc(r.arrivedAt)+'</span>':''}${del}</span>`;
 }
 
 function _renderAlertReqTable(level){
@@ -7768,6 +7909,22 @@ function openAlertStart(){
   document.querySelectorAll('#alertLevelPills .pill,#alertTypePills .pill').forEach(p=>p.classList.remove('on'));
   document.getElementById('alertStartNote').value='';
   document.getElementById('alertReqTable').innerHTML='';
+  // 이미 운영 중이면 '특보 추가 발령' 모드 — 보고주기 행 숨김(이미 설정됨)
+  const active=(DB.g('alertOps')||[]).find(o=>!o.closedAt);
+  const itvRow=document.getElementById('alertItvRow');
+  const startBtn=document.getElementById('alertStartBtn');
+  const title=document.getElementById('alertStartTitle');
+  if(active){
+    if(itvRow)itvRow.style.display='none';
+    if(startBtn)startBtn.textContent='🚨 특보 추가 발령';
+    if(title)title.textContent='🚨 특보 추가 발령';
+  }else{
+    if(itvRow)itvRow.style.display='';
+    _reportInterval=60;
+    document.querySelectorAll('#alertItvPills .pill').forEach(p=>p.classList.toggle('on',p.textContent==='1시간'));
+    if(startBtn)startBtn.textContent='🌀 특보운영 시작';
+    if(title)title.textContent='🌀 특보운영 시작';
+  }
   document.getElementById('modalAlertStart').classList.add('on');
 }
 function selAlertLevel(el,v){
@@ -7779,18 +7936,78 @@ function selAlertType(el,v){
   document.querySelectorAll('#alertTypePills .pill').forEach(p=>p.classList.remove('on'));
   el.classList.add('on');_alertType=v;
 }
+function selReportItv(el,v){document.querySelectorAll('#alertItvPills .pill').forEach(p=>p.classList.remove('on'));el.classList.add('on');_reportInterval=v;}
 function startAlertOps(){
   if(!_alertLevel){toast('단계를 선택하세요');return;}
   if(!_alertType){toast('특보 종류를 선택하세요');return;}
   const ops=DB.g('alertOps')||[];
-  if(ops.find(o=>!o.closedAt)){toast('⚠️ 이미 운영 중인 특보가 있습니다');return;}
+  let active=ops.find(o=>!o.closedAt);
   const note=document.getElementById('alertStartNote').value.trim();
-  ops.push({id:Date.now(),level:_alertLevel,type:_alertType,note,startedAt:now(),closedAt:null,responders:[],createdBy:getAuthor()});
+  if(active){
+    active.alerts=active.alerts||_opAlerts(active);
+    // 같은 종류 중복 발령 차단 (자동·수동 무관)
+    const dup=active.alerts.find(a=>a.type===_alertType);
+    if(dup){toast('⚠️ 이미 발령된 특보입니다: '+_alertType+_stageShort(dup.stage));return;}
+    active.alerts.push({type:_alertType,stage:_alertLevel,source:'manual',issuedAt:now(),issuedAtMs:Date.now(),by:getAuthor()});
+    if(note)active.note=note;
+    DB.s('alertOps',ops);
+    closeM('modalAlertStart');
+    pushNoti('🚨 특보 추가 발령: '+_alertType+_stageShort(_alertLevel),'🚨','재난',{app:'alert'},'안전사고');
+    toast('🚨 특보 발령: '+_alertType+_stageShort(_alertLevel));
+    renderAlertView();updateSummary();
+    return;
+  }
+  // 신규 특보운영 세션 생성
+  ops.push({id:Date.now(),alerts:[{type:_alertType,stage:_alertLevel,source:'manual',issuedAt:now(),issuedAtMs:Date.now(),by:getAuthor()}],note,startedAt:now(),startedAtMs:Date.now(),reportInterval:_reportInterval||60,closedAt:null,responders:[],reports:[],createdBy:getAuthor()});
   DB.s('alertOps',ops);
   closeM('modalAlertStart');
-  pushNoti('🌀 특보운영 시작: '+_alertLevel+' ('+_alertType+')','🌀','재난',{app:'alert'},'안전사고');
+  pushNoti('🌀 특보운영 시작: '+_alertType+_stageShort(_alertLevel),'🌀','재난',{app:'alert'},'안전사고');
   toast('🌀 특보운영 시작');
-  renderAlertView();
+  _startAlertReminder();
+  renderAlertView();updateSummary();
+}
+// 발령된 개별 특보 해제 (마지막 특보 해제 시에도 세션은 유지 — 종료는 '종료' 버튼)
+function removeAlertItem(opId,idx){
+  if(!isAdminUser()){toast('⚠️ 관리자만 가능');return;}
+  const ops=DB.g('alertOps')||[];
+  const op=ops.find(o=>o.id===opId);
+  if(!op)return;
+  op.alerts=op.alerts||_opAlerts(op);
+  const rm=op.alerts[idx];
+  if(!rm)return;
+  if(!confirm((rm.type+_stageShort(rm.stage))+' 특보를 해제하겠습니까?'))return;
+  op.alerts.splice(idx,1);
+  DB.s('alertOps',ops);
+  toast('해제: '+rm.type+_stageShort(rm.stage));
+  renderAlertView();updateSummary();
+}
+// 기상청 발효 특보 자동 발령 (중복 차단: 이미 발령된 종류는 추가하지 않음)
+function _syncAutoAlerts(liveList){
+  if(!liveList||!liveList.length)return;        // 발효 특보 없음 → 자동 발령/종료 안 함
+  const ops=DB.g('alertOps')||[];
+  let active=ops.find(o=>!o.closedAt);
+  let created=false,added=[];
+  if(!active){
+    active={id:Date.now(),alerts:[],note:'',startedAt:now(),startedAtMs:Date.now(),reportInterval:60,closedAt:null,responders:[],reports:[],createdBy:'자동(기상청)'};
+    ops.push(active);created=true;
+  }
+  active.alerts=active.alerts||_opAlerts(active);
+  liveList.forEach(a=>{
+    if(active.alerts.some(x=>x.type===a.type))return;   // ★ 중복 차단 (수동·자동 무관)
+    active.alerts.push({type:a.type,stage:a.stage,source:'auto',issuedAt:now(),issuedAtMs:Date.now()});
+    added.push(a.type+_stageShort(a.stage));
+  });
+  if(!created&&!added.length)return;                     // 변경 없음
+  DB.s('alertOps',ops);
+  _startAlertReminder();
+  // 기기별 1회만 알림 (중복 푸시 방지)
+  const sig=active.id+'|'+added.join(',');
+  if(added.length&&localStorage.getItem('_aoAuto_'+sig)!=='1'){
+    localStorage.setItem('_aoAuto_'+sig,'1');
+    pushNoti((created?'🌀 기상특보 자동 발령: ':'🚨 기상특보 자동 추가: ')+added.join(', '),'📡','재난',{app:'alert'},'안전사고');
+  }
+  if(window.curApp==='alert')renderAlertView();
+  updateSummary();
 }
 function endAlertOps(id){
   if(!isAdminUser()){toast('⚠️ 관리자만 가능');return;}
@@ -7800,16 +8017,23 @@ function endAlertOps(id){
   if(idx===-1)return;
   ops[idx].closedAt=now();
   DB.s('alertOps',ops);
+  _stopAlertReminder();
   pushNoti('✅ 특보운영 종료','✅','재난',{app:'alert'},'안전사고');
   toast('✅ 특보운영 종료');
   renderAlertView();
 }
-function openAddResponder(id){
-  _respLoc='';_respRole='';
+// 관측소(분소/대피소) 선택 pill을 동적으로 생성
+function _renderStationPills(wrapId,sel,fnName){
+  const w=document.getElementById(wrapId);if(!w)return;
+  w.innerHTML=ALERT_STATIONS.map(s=>`<div class="pill${s.loc===sel?' on':''}" onclick="${fnName}(this,'${s.loc}')">${_esc(s.label)}</div>`).join('');
+}
+function openAddResponder(id,presetLoc){
+  _respLoc=presetLoc||'';_respRole='';
   document.getElementById('respTargetId').value=id;
   document.getElementById('respNameIn').value='';
   document.getElementById('respArrivedAt').value='';
-  document.querySelectorAll('#respLocPills .pill,#respRolePills .pill').forEach(p=>p.classList.remove('on'));
+  _renderStationPills('respLocPills',_respLoc,'selRespLoc');
+  document.querySelectorAll('#respRolePills .pill').forEach(p=>p.classList.remove('on'));
   // 등록된 직원 빠른선택
   const users=(DB.g('pendingUsers')||[]).filter(u=>u.approvalStatus==='approved');
   document.getElementById('respNameQuickWrap').innerHTML=users.map(u=>`<div onclick="document.getElementById('respNameIn').value='${_escq(u.realName||u.name||'')}'" style="cursor:pointer;background:rgba(79,168,208,.08);border:1px solid rgba(79,168,208,.2);color:#7db8d8;border-radius:20px;padding:3px 9px;font-size:10px;font-weight:600;">${_esc(u.realName||u.name||'')}</div>`).join('');
@@ -7834,14 +8058,100 @@ function addAlertResponder(){
   toast('✅ 응소자 추가: '+name);
   renderAlertView();
 }
-function removeAlertResponder(id,name){
+function removeAlertResponder(id,name,loc){
   if(!isAdminUser()){toast('⚠️ 관리자만 가능');return;}
   const ops=DB.g('alertOps')||[];
   const idx=ops.findIndex(o=>o.id===id);
   if(idx===-1)return;
-  ops[idx].responders=(ops[idx].responders||[]).filter(r=>r.name!==name);
+  let removed=false;
+  ops[idx].responders=(ops[idx].responders||[]).filter(r=>{
+    if(!removed&&r.name===name&&(r.loc||'사무소')===(loc||'사무소')){removed=true;return false;}
+    return true;
+  });
   DB.s('alertOps',ops);
   renderAlertView();
+}
+
+// ── 시간별 기상관측(적설량·강우량) 보고 ──
+function _renderReportsTable(op){
+  const reps=(op.reports||[]).slice().sort((a,b)=>(b.at||0)-(a.at||0)).slice(0,40);
+  if(!reps.length)return`<div style="font-size:11px;color:#3a6a8a;text-align:center;padding:10px 0;">관측 보고 없음 — 분소별 🌧️ 기상보고 버튼으로 입력</div>`;
+  return`<table class="ao-req-table"><tr><th>시각</th><th>관측소</th><th>관측자</th><th>적설<br>(cm)</th><th>강우<br>(mm)</th>${isAdminUser()?'<th></th>':''}</tr>
+    ${reps.map(r=>`<tr><td>${_esc((r.time||'').slice(5,16))}</td><td>${_esc(_stationLabel(r.loc))}</td><td>${_esc(r.observer||'-')}</td><td style="text-align:center;color:#7ec8d8;">${_esc(String(r.snow??'-'))}</td><td style="text-align:center;color:#7db8f0;">${_esc(String(r.rain??'-'))}</td>${isAdminUser()?`<td style="text-align:center;"><span onclick="removeAlertReport(${op.id},${r.id})" style="cursor:pointer;color:#c0392b;">×</span></td>`:''}</tr>${r.note?`<tr><td colspan="${isAdminUser()?6:5}" style="color:#5a8aa0;font-size:9px;padding:1px 6px 4px;">↳ ${_esc(r.note)}</td></tr>`:''}`).join('')}
+  </table>`;
+}
+function openAlertReport(opId,presetLoc){
+  _reportOpId=opId;_reportLoc=presetLoc||'';
+  _renderStationPills('reportLocPills',_reportLoc,'selReportLoc');
+  document.getElementById('reportObserver').value=getAuthor()==='미지정'?'':getAuthor();
+  document.getElementById('reportSnow').value='';
+  document.getElementById('reportRain').value='';
+  document.getElementById('reportTime').value=now().slice(11);
+  document.getElementById('reportNote').value='';
+  // 해당 관측소 응소자 빠른선택
+  const op=(DB.g('alertOps')||[]).find(o=>o.id===opId);
+  const resps=op?(op.responders||[]).filter(r=>!_reportLoc||(r.loc||'사무소')===_reportLoc):[];
+  document.getElementById('reportObsQuick').innerHTML=resps.map(r=>`<div onclick="document.getElementById('reportObserver').value='${_escq(r.name)}'" style="cursor:pointer;background:rgba(79,168,208,.08);border:1px solid rgba(79,168,208,.2);color:#7db8d8;border-radius:20px;padding:3px 9px;font-size:10px;font-weight:600;">${_esc(r.name)}</div>`).join('');
+  document.getElementById('modalAlertReport').classList.add('on');
+}
+function selReportLoc(el,v){document.querySelectorAll('#reportLocPills .pill').forEach(p=>p.classList.remove('on'));el.classList.add('on');_reportLoc=v;}
+function addAlertReport(){
+  if(!_reportLoc){toast('관측소를 선택하세요');return;}
+  const observer=document.getElementById('reportObserver').value.trim();
+  const snowRaw=document.getElementById('reportSnow').value.trim();
+  const rainRaw=document.getElementById('reportRain').value.trim();
+  if(snowRaw===''&&rainRaw===''){toast('적설량 또는 강우량을 입력하세요');return;}
+  const snow=snowRaw===''?null:parseFloat(snowRaw);
+  const rain=rainRaw===''?null:parseFloat(rainRaw);
+  const tIn=document.getElementById('reportTime').value.trim();
+  const time=tIn?now().slice(0,11)+tIn:now();
+  const note=document.getElementById('reportNote').value.trim();
+  const ops=DB.g('alertOps')||[];
+  const idx=ops.findIndex(o=>o.id===_reportOpId);
+  if(idx===-1){toast('운영 기록을 찾을 수 없습니다');return;}
+  if(!ops[idx].reports)ops[idx].reports=[];
+  ops[idx].reports.push({id:Date.now(),loc:_reportLoc,observer:observer||'-',snow,rain,time,at:Date.now(),by:getAuthor()});
+  DB.s('alertOps',ops);
+  closeM('modalAlertReport');
+  toast('🌧️ '+_stationLabel(_reportLoc)+' 관측 보고 완료');
+  renderAlertView();
+}
+function removeAlertReport(opId,repId){
+  if(!isAdminUser()){toast('⚠️ 관리자만 가능');return;}
+  const ops=DB.g('alertOps')||[];
+  const idx=ops.findIndex(o=>o.id===opId);
+  if(idx===-1)return;
+  ops[idx].reports=(ops[idx].reports||[]).filter(r=>r.id!==repId);
+  DB.s('alertOps',ops);
+  renderAlertView();
+}
+
+// ── 관측 보고 알림: 운영 중 보고주기마다 적설/강우 보고 리마인드 (기기 로컬, 서버 부담 0) ──
+function _startAlertReminder(){
+  if(_alertReminderTimer)return;
+  _alertReminderTimer=setInterval(_checkAlertReminder,60000);
+  _checkAlertReminder();
+}
+function _stopAlertReminder(){if(_alertReminderTimer){clearInterval(_alertReminderTimer);_alertReminderTimer=null;}}
+function _checkAlertReminder(){
+  const active=(DB.g('alertOps')||[]).find(o=>!o.closedAt);
+  if(!active){_stopAlertReminder();return;}
+  try{if(isExternal())return;}catch(e){}
+  const itvMs=(active.reportInterval||60)*60000;
+  const start=active.startedAtMs||_alertTimeMs(active.startedAt);
+  if(!start)return;
+  const slot=Math.floor((Date.now()-start)/itvMs);
+  if(slot<1)return; // 첫 주기 경과 전
+  const key='_aoRemind_'+active.id+'_'+slot;
+  if(localStorage.getItem(key))return;
+  // 이번 주기에 이미 보고가 있으면 알림 생략
+  const slotStart=start+slot*itvMs;
+  const reported=(active.reports||[]).some(r=>(r.at||_alertTimeMs(r.time))>=slotStart);
+  localStorage.setItem(key,'1');
+  if(reported)return;
+  const msg='🌧️ 적설량·강우량 관측 보고 시간입니다 ('+_opLevel(active)+')';
+  toast(msg);
+  _showSystemNoti('적설량·강우량 관측 보고 시간입니다','🌧️');
 }
 
 // ══════════════════════════════════════════
@@ -8717,6 +9027,14 @@ function _fetchWeatherFallback(realWrnTxt){
     }).catch(function(e){console.warn('날씨 폴백 실패:',e);_weatherFetched=false;});
 }
 function _renderWeatherAlerts(alertMap,estimated){
+  // 특보운영 연동: 공식 발효 특보만 자동 발령 근거로 사용(추정값 제외)
+  try{
+    window._kmaLiveAlerts=estimated?[]:_kmaLiveList(alertMap);
+    if(!estimated){
+      _syncAutoAlerts(window._kmaLiveAlerts);
+      if(window.curApp==='alert'&&typeof renderAlertView==='function')renderAlertView();
+    }
+  }catch(e){}
   var wrap=document.getElementById('weatherAlertWrap');if(!wrap)return;
   var entries=Object.entries(alertMap);
   if(!entries.length){wrap.innerHTML='';wrap.style.display='none';return;}
@@ -9017,7 +9335,7 @@ function updateSummary(){
   function sd(id,v,col){const e=document.getElementById(id);if(!e)return;e.textContent=v;e.style.color=col||'';}
   sd('hdR',og.length?`⚠️ ${og.length}건 진행중`:'구조보고·위험상황',og.length?'#ffaaaa':'');
   sd('hdI',bad.length?`⚠️ 위험 ${bad.length}개`:'시설 관리·이력',bad.length?'#ffaaaa':'');
-  {const _ao=(DB.g('alertOps')||[]).find(o=>!o.closedAt);sd('hdA',_ao?`🌀 ${_ao.level} 운영중`:'기상특보 비상근무',_ao?'#ffaaaa':'');}
+  {const _ao=(DB.g('alertOps')||[]).find(o=>!o.closedAt);sd('hdA',_ao?`🌀 ${_opLevel(_ao)} 운영중`:'기상특보 비상근무',_ao?'#ffaaaa':'');}
   updateBell();
   try{renderHomeActive();}catch(e){}
   try{renderMobilizeBanner();}catch(e){}
@@ -10128,6 +10446,7 @@ window.onload=function(){
     initDB();
     if(window._KR){ initMaps(); } else { window._KCB=function(){initMaps();}; }
     updateSummary();updateUserUI();fetchWeather();
+    try{if((DB.g('alertOps')||[]).some(o=>!o.closedAt))_startAlertReminder();}catch(e){}
     const d=new Date();const days=['일','월','화','수','목','금','토'];
     document.getElementById('homeDate').textContent=d.getFullYear()+'년 '+(d.getMonth()+1)+'월 '+d.getDate()+'일 ('+days[d.getDay()]+')';
     if(window._kakaoAuthCode){var _kc=window._kakaoAuthCode;window._kakaoAuthCode=null;_handleKakaoCode(_kc);return;}
