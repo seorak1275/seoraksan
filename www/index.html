@@ -4127,10 +4127,11 @@ function saveFcmCfg(){
 }
 async function _refreshFcmStatus(){
   const el=document.getElementById('fcmStatus');if(!el)return;
-  const url=(DB.g('fcmPushUrl')||'').trim();
+  const customUrl=(DB.g('fcmPushUrl')||'').trim();
+  const url=_FCM_PUSH_URL||customUrl; // 내장값 우선
   const Cap=window.Capacitor,native=!!(Cap&&Cap.isNativePlatform&&Cap.isNativePlatform());
   let line=native?'📱 이 기기: 네이티브(APK) — 푸시 수신 가능':'🌐 이 기기: 웹 브라우저 — 앱이 열려 있을 때만 알림';
-  line+=`<br>발송기 URL: ${url?'✅ 설정됨':'❌ 미설정'}`;
+  line+=`<br>발송기: ${url?(customUrl?'✅ 설정됨 (직접 지정)':'✅ 자동 (내장)'):'❌ 미설정'}`;
   if(_fdb){
     try{
       const snap=await _fdb.collection('fcmTokens').get();
@@ -8811,16 +8812,22 @@ function renderAdmSys(){
     </div>
     <div class="scard" style="margin-bottom:8px;">
       <div class="stitle">📲 푸시 알림 (꺼진 폰까지)</div>
-      <div style="font-size:11px;color:#7a9cb8;margin-bottom:8px;">구조 1보·위험상황 발생 시 OS 푸시 발송. Apps Script 발송기 URL과 비밀번호를 입력하세요. (설정법: 저장소 <b>PUSH_SETUP.md</b>)</div>
-      <div class="fg"><span class="fl">Apps Script 발송 URL</span>
-        <input id="fcmUrlInp" class="fi" type="text" placeholder="https://script.google.com/macros/s/.../exec" value="${DB.g('fcmPushUrl')||''}" style="font-family:monospace;font-size:11px;">
-      </div>
-      <div class="fg"><span class="fl">공유 비밀번호</span>
-        <input id="fcmSecInp" class="fi" type="text" placeholder="Code.gs의 SHARED_SECRET과 동일" value="${DB.g('fcmPushSecret')||''}" style="font-family:monospace;font-size:12px;">
-      </div>
+      <div style="font-size:11px;color:#7a9cb8;margin-bottom:8px;">구조 1보·위험상황 발생 시 OS 푸시가 자동 발송됩니다. 발송기는 <b style="color:#5dbf8a;">앱에 내장</b>돼 별도 설정이 필요 없습니다.</div>
       <div style="display:flex;gap:6px;margin-top:4px;">
-        <button onclick="saveFcmCfg()" style="flex:1;background:#1a4a6e;color:#fff;border:none;padding:9px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;">💾 저장</button>
         <button onclick="testFcmPush()" style="flex:1;background:rgba(79,168,208,.15);color:#4fa8d0;border:1px solid rgba(79,168,208,.35);padding:9px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;">🔔 테스트 발송</button>
+        <button onclick="renderAdmSys()" style="background:rgba(255,255,255,.05);color:#7a9cb8;border:1px solid rgba(255,255,255,.1);padding:9px 12px;border-radius:8px;font-size:12px;cursor:pointer;">↻ 새로고침</button>
+      </div>
+      <div id="fcmAdvWrap" style="margin-top:8px;">
+        <div onclick="var e=document.getElementById('fcmAdv');e.style.display=e.style.display==='none'?'block':'none';" style="font-size:10px;color:#3a6a8a;cursor:pointer;">⚙️ 고급: 발송기 직접 지정 (선택)</div>
+        <div id="fcmAdv" style="display:none;margin-top:6px;">
+          <div class="fg"><span class="fl">Apps Script 발송 URL (비우면 내장값 사용)</span>
+            <input id="fcmUrlInp" class="fi" type="text" placeholder="내장값 사용 중" value="${DB.g('fcmPushUrl')||''}" style="font-family:monospace;font-size:11px;">
+          </div>
+          <div class="fg"><span class="fl">공유 비밀번호</span>
+            <input id="fcmSecInp" class="fi" type="text" placeholder="내장값 사용 중" value="${DB.g('fcmPushSecret')||''}" style="font-family:monospace;font-size:12px;">
+          </div>
+          <button onclick="saveFcmCfg()" style="width:100%;background:#1a4a6e;color:#fff;border:none;padding:8px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;">💾 저장</button>
+        </div>
       </div>
       <div id="fcmStatus" style="font-size:10px;color:#3a6a8a;margin-top:8px;line-height:1.7;">등록된 기기 확인 중…</div>
     </div>
