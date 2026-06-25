@@ -425,6 +425,13 @@ button{-webkit-tap-highlight-color:transparent;touch-action:manipulation;}
 .ao-level-Ⅱ단계{background:rgba(192,57,43,.2);color:#ff8a80;border:1px solid rgba(192,57,43,.4);}
 .ao-level-Ⅲ단계{background:rgba(142,68,173,.2);color:#d7aefb;border:1px solid rgba(142,68,173,.4);}
 /* 운영중 히어로 배너 */
+.crisis-banner{display:none;position:sticky;top:0;z-index:50;padding:9px 16px;font-size:13px;font-weight:900;text-align:center;letter-spacing:.5px;animation:crisisBlink 2s infinite;}
+.crisis-banner.on{display:block;}
+.crisis-관심{background:rgba(52,152,219,.9);color:#fff;}
+.crisis-주의{background:rgba(241,196,15,.95);color:#1a1a00;}
+.crisis-경계{background:rgba(230,126,34,.95);color:#fff;}
+.crisis-심각{background:rgba(192,57,43,.97);color:#fff;box-shadow:0 2px 18px rgba(192,57,43,.5);}
+@keyframes crisisBlink{0%,100%{opacity:1;}50%{opacity:.82;}}
 .ao-hero{position:relative;border-radius:16px;padding:16px 16px 14px;margin-bottom:12px;overflow:hidden;}
 .ao-hero-top{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;}
 .ao-hero-live{display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:800;letter-spacing:.5px;}
@@ -1054,6 +1061,7 @@ body.hi-contrast .stat-lbl{color:rgba(255,255,255,.65)!important;}
 
 <!-- ══ 특보운영 ══ -->
 <div id="v-alert" class="view" style="flex-direction:column;overflow:hidden;">
+  <div id="crisisBanner" class="crisis-banner"></div>
   <div class="bpad" id="alertViewWrap" style="flex:1;min-height:0;overflow-y:auto;padding-bottom:18px;"></div>
   <div id="alertBnav" style="display:flex;flex-shrink:0;background:#040a16;border-top:.5px solid rgba(255,255,255,.07);padding-bottom:env(safe-area-inset-bottom);">
     <div class="navi on" id="anv1" onclick="alertTab(1)"><div class="navi-ico">📋</div><span class="navi-lbl">목록</span></div>
@@ -1075,6 +1083,7 @@ body.hi-contrast .stat-lbl{color:rgba(255,255,255,.65)!important;}
   <div id="boardMain" style="flex:1;display:flex;min-height:0;">
     <div id="boardMap" style="flex:1;min-width:0;position:relative;background:#06101e;"></div>
     <div id="boardSide" style="width:430px;flex-shrink:0;border-left:1px solid rgba(79,168,208,.18);overflow-y:auto;background:#040a14;">
+      <div id="boardCrisisBanner" class="crisis-banner" style="margin:0;"></div>
       <div id="boardBody" style="padding:14px 16px 30px;"></div>
       <div id="boardDetail" style="display:none;flex-direction:column;height:100%;">
         <div style="display:flex;align-items:center;gap:8px;padding:10px 14px;border-bottom:1px solid rgba(255,255,255,.08);flex-shrink:0;background:#040a14;position:sticky;top:0;z-index:3;">
@@ -1705,7 +1714,7 @@ const _FB_CFG={
 // history: 점검이력은 무제한으로 계속 쌓이는 로그성 데이터라 단일문서 그대로 두면 매 점검마다 전체가 전원에게 재전송됨 → 건별 문서로 전환
 const _SHARED_COLL=['rescues','hazards','facilities','history'];
 // _SHARED_DOC: 단일 문서에 JSON 배열 저장 (관리자 전용, 동시 쓰기 없음)
-const _SHARED_DOC=['alertOps','staff','catFac','catFacMeta','pendingUsers','approvedUsers','deletedKakaoIds','adminOwnerKakaoId','adminApprovalCode','extAgencies','extAgencyCode','extAgencyDisplayName','geminiApiKey','kmaProxyUrl','_acl','loginLog','trailStatus'];
+const _SHARED_DOC=['alertOps','staff','catFac','catFacMeta','pendingUsers','approvedUsers','deletedKakaoIds','adminOwnerKakaoId','adminApprovalCode','extAgencies','extAgencyCode','extAgencyDisplayName','geminiApiKey','kmaProxyUrl','_acl','loginLog','trailStatus','crisisLevel'];
 // 시설물 레거시(단일문서) 폴백/시드 동기화 상태
 let _legacyFacBackup=null; // appData/facilities(구버전)의 백업 — 컬렉션 비었을 때 화면 폴백
 let _facSeedReady=false;   // 시설물 첫 스냅샷·레거시 백업 확인 완료(시드 레이스 방지)
@@ -2091,6 +2100,7 @@ function initFirebase(onReady){
     function _onRemoteUpdate(){
       _checkDeletedUser();updateSummary();
       try{_checkNewJoinerAlert();}catch(e){}
+      try{_updateCrisisBanner();}catch(e){}
       clearTimeout(_remoteUpdateTimer);
       _remoteUpdateTimer=setTimeout(function(){
         if(window.curApp==='rescue'){renderResList();try{renderRescueMap();}catch(e){}}
@@ -8256,8 +8266,19 @@ const ALERT_GROUPS=[
   {name:'한계산성분소',label:'한계산성분소',ico:'🏔️',reqType:'분소',stations:[{loc:'한계산성분소',label:'한계산성분소'}]},
   {name:'점봉산분소',label:'점봉산분소',ico:'🏔️',reqType:'분소',stations:[{loc:'점봉산분소',label:'점봉산분소'}]}
 ];
+// 기상청 자동 우량계 관측 지점 (강수·적설 보고 전용 — 응소인원 없음)
+const RAIN_STATIONS=[
+  {loc:'미시령',   label:'미시령(기상대)', obs:true},
+  {loc:'오색리',   label:'오색(기상대)',   obs:true},
+  {loc:'설악댐',   label:'설악댐(관측소)',  obs:true},
+  {loc:'마등령',   label:'마등령(기상대)', obs:true},
+  {loc:'청봉관측', label:'청봉(관측소)',   obs:true},
+  {loc:'백담계곡', label:'백담계곡(관측소)',obs:true},
+  {loc:'한계성',   label:'한계산성(관측소)',obs:true},
+];
 // 전체 관측소(응소·관측 단위) 평탄 목록
 const ALERT_STATIONS=[];ALERT_GROUPS.forEach(g=>g.stations.forEach(s=>ALERT_STATIONS.push({loc:s.loc,label:s.label,group:g.name,reqType:g.reqType})));
+RAIN_STATIONS.forEach(s=>ALERT_STATIONS.push({loc:s.loc,label:s.label,group:'우량계',reqType:'obs',obs:true}));
 const _stationLabel=loc=>{const s=ALERT_STATIONS.find(x=>x.loc===loc);return s?s.label:(loc||'사무소');};
 let _alertLevel='',_alertType='',_respLoc='',_respRole='',_reportInterval=60;
 let _reportLoc='',_reportOpId=null,_alertReminderTimer=null;
@@ -8305,6 +8326,7 @@ function _updateAlertNav(){
   [1,2,3].forEach(i=>{const el=document.getElementById('anv'+i);if(el)el.classList.toggle('on',_alertTab===i);});
 }
 function renderAlertView(){
+  try{_updateCrisisBanner();}catch(e){}
   const ops=DB.g('alertOps')||[];
   const active=ops.find(o=>!o.closedAt);
   // 관측 리마인더는 탭과 무관하게 운영 중이면 항상 동작
@@ -8513,8 +8535,14 @@ function _renderAlertInput(active){
       </div>
     </div>`;
   }
-  // 탐방로 통제 빠른 버튼 (관리자)
+  // 위기경보·탐방로 통제 빠른 버튼 (관리자)
   if(admin){
+    const cl=DB.g('crisisLevel')||{};const clv=cl.level||'';
+    const clColor=clv==='관심'?'#3498db':clv==='주의'?'#e6b800':clv==='경계'?'#e67e22':clv==='심각'?'#c0392b':'rgba(79,168,208,.5)';
+    html+=`<div class="ao-card" style="margin-bottom:12px;">
+      <div class="ao-sec-hd" style="margin-top:0;"><span class="bar" style="background:${clColor};"></span>🚨 재난위기경보${clv?` <span style="background:${clColor}26;color:${clColor};font-size:10px;font-weight:800;border-radius:6px;padding:1px 7px;margin-left:6px;">${CRISIS_LABEL[clv]||clv}${cl.type?' — '+cl.type:''}</span>`:'<span style="font-size:10px;color:#4a7090;margin-left:6px;">미설정</span>'}</div>
+      <button onclick="openCrisisLevelModal()" class="ao-loc-btn" style="width:100%;border-color:${clColor}55;color:${clColor};">🚨 위기경보 단계 설정</button>
+    </div>`;
     const ts=DB.g('trailStatus')||{};const ctrlCnt=Object.values(ts).filter(v=>v.status==='통제').length;
     html+=`<div class="ao-card" style="margin-bottom:12px;">
       <div class="ao-sec-hd" style="margin-top:0;"><span class="bar" style="background:#e67e22;"></span>🚧 탐방로 통제 현황${ctrlCnt?` <span style="background:rgba(231,76,60,.2);color:#ff9e80;font-size:10px;font-weight:800;border-radius:6px;padding:1px 7px;margin-left:6px;">통제 ${ctrlCnt}구간</span>`:''}</div>
@@ -8691,6 +8719,58 @@ function _syncAutoAlerts(liveList){
   updateSummary();
 }
 // ── 체류인원 ──
+// ── 위기경보 단계 배너 ──
+// 국가재난위기경보 4단계: 관심(파랑) → 주의(노랑) → 경계(주황) → 심각(빨강)
+const CRISIS_LEVELS=['관심','주의','경계','심각'];
+const CRISIS_LABEL={'관심':'🔵 관심','주의':'🟡 주의','경계':'🟠 경계','심각':'🔴 심각'};
+const CRISIS_TYPE_OPTS=['호우','강풍','대설','산사태','복합'];
+function _updateCrisisBanner(){
+  const cl=DB.g('crisisLevel')||{};
+  const lvl=cl.level||'';
+  const type=cl.type||'';
+  const text=lvl?`${CRISIS_LABEL[lvl]||lvl} | 재난위기경보${type?' — '+type:''}  (${(cl.updatedAt||'').slice(5,16)})`:'';
+  ['crisisBanner','boardCrisisBanner'].forEach(id=>{
+    const el=document.getElementById(id);if(!el)return;
+    el.className='crisis-banner'+(lvl?' on crisis-'+lvl:'');
+    el.innerHTML=lvl?text+'(클릭: 해제 또는 변경)':'';
+    if(lvl&&isAdminUser())el.onclick=()=>openCrisisLevelModal();
+    else el.onclick=null;
+  });
+}
+function openCrisisLevelModal(){
+  const cl=DB.g('crisisLevel')||{};
+  const html=`<div style="padding:6px 0;">
+    <div style="font-size:12px;color:#7a9cb8;margin-bottom:14px;">산사태·기상재해 국가위기경보 단계를 설정하세요. 전 기기 즉시 표시됩니다.</div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px;">
+      ${CRISIS_LEVELS.map(l=>`<button onclick="setCrisisLevel('${l}')" style="flex:1;min-width:60px;padding:10px 4px;border-radius:10px;border:2px solid ${l==='관심'?'#3498db':l==='주의'?'#f1c40f':l==='경계'?'#e67e22':'#c0392b'};background:${l===(cl.level||'')?'rgba(255,255,255,.1)':'transparent'};color:${l==='주의'?'#f1c40f':l==='관심'?'#3498db':l==='경계'?'#e67e22':'#c0392b'};font-size:14px;font-weight:900;cursor:pointer;">${CRISIS_LABEL[l]||l}</button>`).join('')}
+    </div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px;">
+      ${CRISIS_TYPE_OPTS.map(t=>`<div class="pill${(cl.type||'')===''+t?' on':''}" onclick="this.parentNode.querySelectorAll('.pill').forEach(p=>p.classList.remove('on'));this.classList.add('on');window._crisisTypeTemp='${t}';">${t}</div>`).join('')}
+    </div>
+    <button onclick="clearCrisisLevel()" style="width:100%;padding:9px;border-radius:9px;border:1px solid rgba(255,255,255,.15);background:transparent;color:rgba(255,255,255,.4);font-size:12px;cursor:pointer;">✕ 위기경보 해제</button>
+  </div>`;
+  window._crisisTypeTemp=cl.type||'';
+  const modal=document.createElement('div');
+  modal.id='crisisModal';modal.className='modal on';
+  modal.innerHTML=`<div class="mbox"><div class="mhdr"><span class="mtitle">🚨 재난위기경보 설정</span><button class="mclose" onclick="document.getElementById('crisisModal').remove()">×</button></div>${html}</div>`;
+  document.body.appendChild(modal);
+}
+function setCrisisLevel(level){
+  if(!isAdminUser()){toast('⚠️ 관리자만 가능');return;}
+  const type=window._crisisTypeTemp||'';
+  DB.s('crisisLevel',{level,type,updatedAt:now(),by:getAuthor()});
+  const el=document.getElementById('crisisModal');if(el)el.remove();
+  _updateCrisisBanner();
+  pushNoti(`🚨 재난위기경보 ${CRISIS_LABEL[level]||level} 발령${type?' — '+type:''}`, '🚨','재난',{app:'alert'},'안전사고');
+  toast(`🚨 위기경보 ${level} 설정`);
+}
+function clearCrisisLevel(){
+  if(!isAdminUser()){toast('⚠️ 관리자만 가능');return;}
+  DB.s('crisisLevel',null);
+  const el=document.getElementById('crisisModal');if(el)el.remove();
+  _updateCrisisBanner();
+  toast('✅ 위기경보 해제');
+}
 function _latestOccupancy(op,loc){
   const list=(op.occupancy||[]).filter(o=>o.loc===loc);
   if(!list.length)return null;
@@ -8872,7 +8952,11 @@ function _renderAlertOpDetail(op){
 // 관측소(분소/대피소) 선택 pill을 동적으로 생성
 function _renderStationPills(wrapId,sel,fnName){
   const w=document.getElementById(wrapId);if(!w)return;
-  w.innerHTML=ALERT_STATIONS.map(s=>`<div class="pill${s.loc===sel?' on':''}" onclick="${fnName}(this,'${s.loc}')">${_esc(s.label)}</div>`).join('');
+  // 운영 분소/대피소 먼저, 기상청 우량계 관측소는 구분선 뒤
+  const main=ALERT_STATIONS.filter(s=>!s.obs);
+  const obs=ALERT_STATIONS.filter(s=>s.obs);
+  w.innerHTML=main.map(s=>`<div class="pill${s.loc===sel?' on':''}" onclick="${fnName}(this,'${s.loc}')">${_esc(s.label)}</div>`).join('')+
+    (obs.length?`<div style="width:100%;font-size:9px;color:#4a6a84;font-weight:700;margin:5px 0 2px;">📡 기상청 관측소</div>`+obs.map(s=>`<div class="pill${s.loc===sel?' on':''}" onclick="${fnName}(this,'${s.loc}')" style="border-style:dashed;">${_esc(s.label)}</div>`).join(''):'');
 }
 function openAddResponder(id,presetLoc){
   _respLoc=presetLoc||'';_respRole='';
