@@ -3061,7 +3061,10 @@ function renderBoard(){
   const recentList=res.filter(r=>(r.date||'').slice(0,10)!==_td).sort((a,b)=>(b.date||'').localeCompare(a.date||'')).slice(0,15);
   const stageLbl=['출발','이동중','환자조우','하산'];
   const stageCol=['rgba(255,255,255,.45)','#4fa8d0','#f0a500','#27ae60'];
-  const rescueActive=_boardView==='rescue', hazActive=_boardView==='hazard';
+  const aops=DB.g('alertOps')||[];
+  const activeOp=aops.find(o=>!o.closedAt);
+  const opRespCnt=activeOp?(activeOp.responders||[]).length:0;
+  const rescueActive=_boardView==='rescue', hazActive=_boardView==='hazard', alertActive=_boardView==='alert';
   let html='';
   // 요약 스트립 (클릭 시 하단 카드 영역 전환)
   html+=`<div style="display:flex;gap:10px;margin-bottom:16px;">
@@ -3073,8 +3076,47 @@ function renderBoard(){
       <div style="font-size:30px;font-weight:900;color:#e67e22;">${haz.length}</div>
       <div style="font-size:12px;color:${hazActive?'#e0edf8':'rgba(255,255,255,.5)'};font-weight:${hazActive?'700':'400'};">⚠️ 미조치 위험상황${hazActive?' ▾':''}</div>
     </div>
+    <div onclick="setBoardView('alert')" style="flex:1;background:${activeOp?'rgba(79,168,208,.12)':'rgba(39,174,96,.08)'};border:1px solid ${alertActive?(activeOp?'rgba(79,168,208,.9)':'rgba(39,174,96,.75)'):(activeOp?'rgba(79,168,208,.45)':'rgba(39,174,96,.25)')};border-radius:12px;padding:12px 16px;text-align:center;cursor:pointer;transition:all .15s;${alertActive?'box-shadow:inset 0 0 0 2px rgba(79,168,208,.3);':''}">
+      <div style="font-size:30px;font-weight:900;color:${activeOp?'#4fa8d0':'#27ae60'};">${activeOp?opRespCnt:0}</div>
+      <div style="font-size:12px;color:${alertActive?'#e0edf8':'rgba(255,255,255,.5)'};font-weight:${alertActive?'700':'400'};">🌀 ${activeOp?'특보 응소':'특보운영'}${alertActive?' ▾':''}</div>
+    </div>
   </div>`;
-  if(hazActive){
+  if(alertActive){
+    if(!activeOp){
+      html+=`<div style="text-align:center;padding:50px 0 30px;font-size:17px;color:rgba(255,255,255,.3);">✅ 진행중인 특보운영 없음</div>`;
+    } else {
+      const al=_opAlerts(activeOp);
+      const chips=al.map(a=>`<span style="display:inline-block;font-size:13px;font-weight:800;color:#7dd3fa;background:rgba(79,168,208,.14);border:1px solid rgba(79,168,208,.3);border-radius:7px;padding:4px 10px;margin:0 5px 5px 0;">${_esc(a.type)} ${_stageShort(a.stage)}</span>`).join('');
+      const elp=_elapsedStr(activeOp.startedAt);
+      const resps=activeOp.responders||[];
+      const groupRows=ALERT_GROUPS.map(g=>{
+        const locs=g.stations.map(s=>s.loc);
+        const list=resps.filter(r=>locs.includes(r.loc||'사무소'));
+        return {name:g.name,ico:g.ico,cnt:list.length,names:list.map(r=>_esc(r.name)).join(', ')};
+      });
+      const reps=(activeOp.reports||[]).slice().sort((a,b)=>(b.at||0)-(a.at||0)).slice(0,6);
+      html+=`<div style="background:#0a1626;border:1.5px solid rgba(79,168,208,.4);border-radius:14px;padding:16px 18px;margin-bottom:12px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:11px;">
+          <span style="font-size:18px;font-weight:900;color:#7dd3fa;"><span class="ao-pulse" style="display:inline-block;vertical-align:middle;margin-right:5px;"></span>특보운영 중</span>
+          ${elp?`<span class="js-elapsed" data-d="${_esc(activeOp.startedAt)}" style="font-size:15px;font-weight:800;color:#f0a500;font-family:monospace;">⏱ ${elp}</span>`:''}
+        </div>
+        <div style="margin-bottom:13px;">${chips||'<span style="font-size:12px;color:#456a85;">발령된 특보 없음</span>'}</div>
+        <div style="font-size:13px;color:#9bbdd4;font-weight:700;margin-bottom:4px;">👤 분소별 응소 (총 ${resps.length}명)</div>
+        ${groupRows.map(gr=>`<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-top:1px solid rgba(255,255,255,.05);">
+          <span style="font-size:13px;font-weight:700;color:#cfe2f2;min-width:118px;flex-shrink:0;">${gr.ico} ${_esc(gr.name)}</span>
+          <span style="font-size:14px;font-weight:800;color:${gr.cnt?'#5dbf8a':'rgba(255,255,255,.22)'};min-width:42px;flex-shrink:0;">${gr.cnt}명</span>
+          <span style="font-size:12px;color:#7a9cb8;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${gr.names||'-'}</span>
+        </div>`).join('')}
+        ${reps.length?`<div style="font-size:13px;color:#9bbdd4;font-weight:700;margin:13px 0 4px;">📊 최근 관측</div>
+          ${reps.map(r=>`<div style="display:flex;gap:10px;font-size:12px;padding:4px 0;border-top:1px solid rgba(255,255,255,.04);">
+            <span style="color:#5a7e98;min-width:96px;flex-shrink:0;">${_esc(_stationLabel(r.loc))}</span>
+            <span style="color:#7a9cb8;min-width:46px;flex-shrink:0;">${_esc(r.time||'')}</span>
+            <span style="color:#cfe2f2;font-weight:700;">${r.snow!=null&&r.snow!==''?'❄️ '+_esc(r.snow)+'cm  ':''}${r.rain!=null&&r.rain!==''?'🌧️ '+_esc(r.rain)+'mm':''}</span>
+          </div>`).join('')}`:''}
+        <button onclick="closeBoard();openApp('alert');" style="width:100%;margin-top:13px;padding:9px;border-radius:9px;border:1px solid rgba(79,168,208,.35);background:rgba(79,168,208,.1);color:#4fa8d0;font-size:13px;font-weight:700;cursor:pointer;">🌀 특보운영 상세 열기</button>
+      </div>`;
+    }
+  } else if(hazActive){
     if(!haz.length){
       html+=`<div style="text-align:center;padding:50px 0 30px;font-size:17px;color:rgba(255,255,255,.3);">✅ 미조치 위험상황 없음</div>`;
     }
