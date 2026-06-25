@@ -3249,13 +3249,13 @@ function renderBoard(){
           <span style="font-size:12px;color:#7a9cb8;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${gr.names||'-'}</span>
         </div>`).join('')}
         ${(()=>{
-          // 체류인원 요약 (관측소별 최신값)
-          const occMap={};(activeOp.occupancy||[]).forEach(o=>{const k=o.loc||'사무소';if(!occMap[k]||(o.at||0)>(occMap[k].at||0))occMap[k]=o;});
+          // 체류인원 요약 — 대피소(shelter) 위치만 집계
+          const shelterLocs=new Set(ALERT_STATIONS.filter(s=>s.shelter).map(s=>s.loc));
+          const occMap={};(activeOp.occupancy||[]).filter(o=>shelterLocs.has(o.loc||'')).forEach(o=>{const k=o.loc;if(!occMap[k]||(o.at||0)>(occMap[k].at||0))occMap[k]=o;});
           const occEntries=Object.entries(occMap);
           if(!occEntries.length)return'';
           const totalV=occEntries.reduce((s,[,o])=>s+(o.visitors||0),0);
-          const totalS=occEntries.reduce((s,[,o])=>s+(o.staff||0),0);
-          return`<div style="font-size:13px;color:#9bbdd4;font-weight:700;margin:13px 0 4px;">👥 체류인원 (탐방객 총 ${totalV}명)</div>
+          return`<div style="font-size:13px;color:#9bbdd4;font-weight:700;margin:13px 0 4px;">⛺ 대피소 체류인원 (탐방객 총 ${totalV}명)</div>
           ${occEntries.map(([loc,o])=>`<div style="display:flex;gap:8px;font-size:12px;padding:4px 0;border-top:1px solid rgba(255,255,255,.04);">
             <span style="color:#5a7e98;min-width:100px;flex-shrink:0;">${_esc(_stationLabel(loc))}</span>
             <span style="color:#7ec8a0;font-weight:700;">직원 ${o.staff??'-'}명</span>
@@ -8265,7 +8265,7 @@ const ALERT_LEVEL_COLORS={'예비특보':'#f0d040','Ⅰ단계(주의보)':'#ffa0
 const ALERT_GROUPS=[
   {name:'사무소',label:'사무소(본소)',ico:'🏢',reqType:'사무소',stations:[{loc:'사무소',label:'사무소(본소)'}]},
   {name:'대청분소',label:'대청분소 (대피소)',ico:'⛺',reqType:'분소',stations:[
-    {loc:'희운각',label:'희운각대피소'},{loc:'양폭',label:'양폭대피소'},{loc:'수렴동',label:'수렴동대피소'},{loc:'소청',label:'소청대피소'},{loc:'중청',label:'중청대피소'}]},
+    {loc:'희운각',label:'희운각대피소',shelter:true},{loc:'양폭',label:'양폭대피소',shelter:true},{loc:'수렴동',label:'수렴동대피소',shelter:true},{loc:'소청',label:'소청대피소',shelter:true},{loc:'중청',label:'중청대피소',shelter:true}]},
   {name:'백담분소',label:'백담분소',ico:'🏔️',reqType:'분소',stations:[{loc:'백담분소',label:'백담분소'}]},
   {name:'오색분소',label:'오색분소',ico:'🏔️',reqType:'분소',stations:[{loc:'오색분소',label:'오색분소'}]},
   {name:'한계산성분소',label:'한계산성분소',ico:'🏔️',reqType:'분소',stations:[{loc:'한계산성분소',label:'한계산성분소'}]},
@@ -8282,7 +8282,7 @@ const RAIN_STATIONS=[
   {loc:'한계성',   label:'한계산성(관측소)',obs:true},
 ];
 // 전체 관측소(응소·관측 단위) 평탄 목록
-const ALERT_STATIONS=[];ALERT_GROUPS.forEach(g=>g.stations.forEach(s=>ALERT_STATIONS.push({loc:s.loc,label:s.label,group:g.name,reqType:g.reqType})));
+const ALERT_STATIONS=[];ALERT_GROUPS.forEach(g=>g.stations.forEach(s=>ALERT_STATIONS.push({loc:s.loc,label:s.label,group:g.name,reqType:g.reqType,shelter:!!s.shelter})));
 RAIN_STATIONS.forEach(s=>ALERT_STATIONS.push({loc:s.loc,label:s.label,group:'우량계',reqType:'obs',obs:true}));
 const _stationLabel=loc=>{const s=ALERT_STATIONS.find(x=>x.loc===loc);return s?s.label:(loc||'사무소');};
 let _alertLevel='',_alertType='',_respLoc='',_respRole='',_reportInterval=60;
@@ -8567,16 +8567,18 @@ function _renderAlertInput(active){
   html+=`<div class="ao-sec-hd"><span class="bar"></span>📍 분소별 빠른 입력</div>`;
   ALERT_GROUPS.forEach(g=>{
     g.stations.forEach(st=>{
+      const isShelter=!!st.shelter;
       const cnt=(active.responders||[]).filter(r=>(r.loc||'사무소')===st.loc).length;
-      const occ=_latestOccupancy(active,st.loc);
-      const occLine=occ?`<div style="font-size:11px;color:#7ec8a0;margin:2px 0 4px;">👥 직원 ${occ.staff??'-'}명 · 탐방객 ${occ.visitors??'-'}명 <span style="color:#4a7090;">${(occ.time||'').slice(11,16)}</span>${occ.note?' · '+_esc(occ.note):''}</div>`:'';
+      const occ=isShelter?_latestOccupancy(active,st.loc):null;
+      // 대피소: 직원+탐방객 체류인원 표시 / 분소: 당직자(응소인원)만 표시
+      const occLine=occ?`<div style="font-size:11px;color:#7ec8a0;margin:2px 0 4px;">⛺ 직원 ${occ.staff??'-'}명 · 탐방객 ${occ.visitors??'-'}명 <span style="color:#4a7090;">${(occ.time||'').slice(11,16)}</span>${occ.note?' · '+_esc(occ.note):''}</div>`:'';
       html+=`<div class="ao-loc-card" style="margin-bottom:8px;">
-        <div class="ao-loc-hd"><b style="color:#e8f2fb;font-size:13px;">${g.stations.length>1?'⛺ ':g.ico+' '}${_esc(st.label)}</b><span class="ao-loc-cnt ${cnt?'ok':''}">👤 응소 ${cnt}명</span></div>
+        <div class="ao-loc-hd"><b style="color:#e8f2fb;font-size:13px;">${isShelter?'⛺ ':g.ico+' '}${_esc(st.label)}</b><span class="ao-loc-cnt ${cnt?'ok':''}">👤 응소 ${cnt}명</span></div>
         ${occLine}
         <div style="display:flex;gap:6px;margin-top:6px;flex-wrap:wrap;">
           <button onclick="openAddResponder(${active.id},'${st.loc}')" class="ao-loc-btn">👤 응소 등록</button>
           <button onclick="openAlertReport(${active.id},'${st.loc}')" class="ao-loc-btn rep">${repBtnLbl}</button>
-          <button onclick="openAlertOcc(${active.id},'${st.loc}')" class="ao-loc-btn" style="background:rgba(46,204,113,.08);border-color:rgba(46,204,113,.3);color:#7ec8a0;">👥 체류인원</button>
+          ${isShelter?`<button onclick="openAlertOcc(${active.id},'${st.loc}')" class="ao-loc-btn" style="background:rgba(46,204,113,.08);border-color:rgba(46,204,113,.3);color:#7ec8a0;">⛺ 체류인원</button>`:''}
         </div>
       </div>`;
     });
