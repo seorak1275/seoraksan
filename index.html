@@ -1121,6 +1121,10 @@ body.hi-contrast .stat-lbl{color:rgba(255,255,255,.65)!important;}
   <div class="navi ext-hide" id="nv3" onclick="switchTab(3,this)"><div class="navi-ico">📊</div><span class="navi-lbl">통계</span></div>
 </div>
 <div class="toast" id="toast"></div>
+<div id="undoBar" style="display:none;position:absolute;bottom:80px;left:50%;transform:translateX(-50%);background:#0b1c30;color:#e0edf8;padding:9px 9px 9px 18px;border-radius:24px;font-size:13px;font-weight:600;border:1px solid rgba(231,76,60,.4);box-shadow:0 4px 16px rgba(0,0,0,.6);z-index:101;max-width:92%;align-items:center;gap:12px;">
+  <span id="undoBarMsg" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;"></span>
+  <button id="undoBarBtn" style="flex-shrink:0;background:rgba(231,76,60,.18);border:1px solid rgba(231,76,60,.5);color:#ff8070;border-radius:18px;padding:6px 14px;font-size:12px;font-weight:800;cursor:pointer;">↩ 되돌리기</button>
+</div>
 <!-- ══ 관리자 로그인 오버레이 ══ -->
 <div id="adminLoginOverlay" style="display:none;position:fixed;inset:0;background:#060d1a;z-index:10002;flex-direction:column;align-items:center;justify-content:center;padding:28px;">
   <div style="font-size:44px;margin-bottom:16px;">🔐</div>
@@ -1868,6 +1872,9 @@ function _mergeRecord(local,server){
   }
   // 종료 처리(status:'done')는 한쪽이라도 완료면 유지 — 동시편집으로 완료 처리가 되돌려지지 않게 함
   if(server.status==='done'||local.status==='done')out.status='done';
+  // 시설 점검 상태: 두 기기가 같은 시설을 동시 점검하면 더 최근 점검(statusAt 큰 쪽)을 신뢰
+  // — 트랜잭션 커밋 순서가 아니라 실제 점검 시각으로 승자를 정해 결과가 뒤바뀌지 않게 함
+  if(server.statusAt!=null&&local.statusAt!=null&&server.statusAt>local.statusAt&&server.status){out.status=server.status;out.statusAt=server.statusAt;}
   // 환자 인계 기록은 더 최신 시각 쪽을 유지
   if(server.handover&&(!local.handover||String(server.handover.time||'')>String(local.handover.time||'')))out.handover=server.handover;
   return out;
@@ -2253,7 +2260,27 @@ function nowDT(){
   return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate())+'T'+pad(d.getHours())+':'+pad(d.getMinutes());
 }
 var _toastTimer=null;
-function toast(m,dur=2200){const t=document.getElementById('toast');t.textContent=m;t.classList.add('on');clearTimeout(_toastTimer);_toastTimer=setTimeout(()=>t.classList.remove('on'),dur);}
+function toast(m,dur){const t=document.getElementById('toast');t.textContent=m;t.classList.add('on');clearTimeout(_toastTimer);
+  // 중요 메시지(실패·경고·오류)는 자동으로 4초간 표시 — 놓치지 않도록
+  if(dur===undefined){dur=(/실패|오류|⚠️|에러|불가|없습니다|권한/.test(String(m)))?4000:2200;}
+  _toastTimer=setTimeout(()=>t.classList.remove('on'),dur);}
+// 되돌리기 스낵바: 삭제 등 위험 작업 후 일정 시간 안에 취소 가능. onUndo=취소 시, onCommit=시간 경과 후 실제 확정.
+let _undoTimer=null,_undoCommit=null;
+function _undoToast(msg,onUndo,onCommit,dur=5000){
+  const bar=document.getElementById('undoBar');if(!bar){onCommit&&onCommit();return;}
+  // 직전 대기중인 확정이 있으면 먼저 실행(중첩 방지)
+  if(_undoCommit){try{_undoCommit();}catch(e){}_undoCommit=null;}
+  clearTimeout(_undoTimer);
+  document.getElementById('undoBarMsg').textContent=msg;
+  bar.style.display='flex';
+  _undoCommit=onCommit||null;
+  const close=()=>{bar.style.display='none';};
+  document.getElementById('undoBarBtn').onclick=()=>{
+    clearTimeout(_undoTimer);_undoCommit=null;close();
+    try{onUndo&&onUndo();}catch(e){}
+  };
+  _undoTimer=setTimeout(()=>{close();_undoCommit=null;try{onCommit&&onCommit();}catch(e){}},dur);
+}
 function closeDB(){document.querySelectorAll('.dbcard').forEach(c=>c.classList.remove('on'));}
 function closeM(id){document.getElementById(id).classList.remove('on');}
 // 모달 배경(backdrop) 클릭 시 닫기
@@ -2750,7 +2777,10 @@ var _iClusterOvs=[],_iItems=[];
 function _reclusterInspect(){
   if(!mapI)return;
   _iClusterOvs.forEach(o=>{try{o.setMap(null);}catch(e){}});_iClusterOvs=[];
-  _iClusterOvs=_clusterByPixels(mapI,_iItems,48,(la,ln)=>_clusterZoom(mapI,la,ln),'fac');
+  // 줌 아웃일수록 셀을 키워 더 적극적으로 묶음 → 멀리서 볼 때 핀 수 급감, 지도 부드러움
+  let lv=9;try{lv=mapI.getLevel();}catch(e){}
+  const cell=lv>=10?80:lv>=8?64:lv>=6?52:44;
+  _iClusterOvs=_clusterByPixels(mapI,_iItems,cell,(la,ln)=>_clusterZoom(mapI,la,ln),'fac');
 }
 const DC={lat:38.1328,lng:128.4107};
 // HTML/attribute escaping for user-generated content
@@ -2944,9 +2974,9 @@ function _initBoardMap(){
   }else{
     _boardMap.relayout();
   }
-  _renderBoardPins();
+  _renderBoardPins(true); // 최초 1회만 전체 범위에 맞춤
 }
-function _renderBoardPins(){
+function _renderBoardPins(fit){
   if(!_boardMap)return;
   _boardOvs.forEach(o=>{try{o.setMap(null);}catch(e){}});_boardOvs=[];
   const bounds=new kakao.maps.LatLngBounds();let n=0;
@@ -2988,8 +3018,11 @@ function _renderBoardPins(){
     const ov=new kakao.maps.CustomOverlay({position:pos,content:el,yAnchor:1,zIndex:2});
     ov.setMap(_boardMap);_boardOvs.push(ov);
   });
-  if(n>1){try{_boardMap.setBounds(bounds,60,60,60,60);}catch(e){}}
-  else if(n===1){try{_boardMap.setCenter(bounds.getSouthWest());_boardMap.setLevel(6);}catch(e){}}
+  // fit=true(최초 열 때)만 지도 범위 자동맞춤. 자동갱신 시엔 사용자가 보고있는 위치·줌 유지(깜빡임·이동 방지)
+  if(fit){
+    if(n>1){try{_boardMap.setBounds(bounds,60,60,60,60);}catch(e){}}
+    else if(n===1){try{_boardMap.setCenter(bounds.getSouthWest());_boardMap.setLevel(6);}catch(e){}}
+  }
 }
 // 상황판 카드/핀 클릭 → 해당 구조로 지도 이동
 function _boardFocus(id){
@@ -3056,6 +3089,7 @@ function renderBoard(){
   const res=DB.g('rescues')||[];
   const ongoing=res.filter(r=>r.status==='ongoing');
   const haz=(DB.g('hazards')||[]).filter(h=>!h.hazStatus||h.hazStatus==='미조치'||h.hazStatus==='조치중');
+  const hazUnhandled=haz.filter(h=>!h.hazStatus||h.hazStatus==='미조치').length; // 손도 안 댄 미조치 — 강조 대상
   const _td=today();
   const todayList=res.filter(r=>(r.date||'').slice(0,10)===_td).sort((a,b)=>(b.date||'').localeCompare(a.date||''));
   const recentList=res.filter(r=>(r.date||'').slice(0,10)!==_td).sort((a,b)=>(b.date||'').localeCompare(a.date||'')).slice(0,15);
@@ -3072,8 +3106,9 @@ function renderBoard(){
       <div style="font-size:30px;font-weight:900;color:${ongoing.length?'#e05050':'#27ae60'};">${ongoing.length}</div>
       <div style="font-size:12px;color:${rescueActive?'#e0edf8':'rgba(255,255,255,.5)'};font-weight:${rescueActive?'700':'400'};">🚨 진행중 구조${rescueActive?' ▾':''}</div>
     </div>
-    <div onclick="setBoardView('hazard')" style="flex:1;background:rgba(230,126,34,.08);border:1px solid ${hazActive?'rgba(230,126,34,.9)':'rgba(230,126,34,.25)'};border-radius:12px;padding:12px 16px;text-align:center;cursor:pointer;transition:all .15s;${hazActive?'box-shadow:inset 0 0 0 2px rgba(230,126,34,.3);':''}">
-      <div style="font-size:30px;font-weight:900;color:#e67e22;">${haz.length}</div>
+    <div onclick="setBoardView('hazard')" style="position:relative;flex:1;background:${hazUnhandled?'rgba(231,76,60,.12)':'rgba(230,126,34,.08)'};border:1px solid ${hazActive?(hazUnhandled?'rgba(231,76,60,.9)':'rgba(230,126,34,.9)'):(hazUnhandled?'rgba(231,76,60,.5)':'rgba(230,126,34,.25)')};border-radius:12px;padding:12px 16px;text-align:center;cursor:pointer;transition:all .15s;${hazActive?'box-shadow:inset 0 0 0 2px rgba(230,126,34,.3);':''}">
+      ${hazUnhandled?`<span style="position:absolute;top:6px;right:6px;background:#e74c3c;color:#fff;font-size:10px;font-weight:800;border-radius:10px;padding:1px 7px;box-shadow:0 0 0 2px rgba(231,76,60,.25);animation:blink 1.2s infinite;">미조치 ${hazUnhandled}</span>`:''}
+      <div style="font-size:30px;font-weight:900;color:${hazUnhandled?'#e05050':'#e67e22'};">${haz.length}</div>
       <div style="font-size:12px;color:${hazActive?'#e0edf8':'rgba(255,255,255,.5)'};font-weight:${hazActive?'700':'400'};">⚠️ 미조치 위험상황${hazActive?' ▾':''}</div>
     </div>
     <div onclick="setBoardView('alert')" style="flex:1;background:${activeOp?'rgba(79,168,208,.12)':'rgba(39,174,96,.08)'};border:1px solid ${alertActive?(activeOp?'rgba(79,168,208,.9)':'rgba(39,174,96,.75)'):(activeOp?'rgba(79,168,208,.45)':'rgba(39,174,96,.25)')};border-radius:12px;padding:12px 16px;text-align:center;cursor:pointer;transition:all .15s;${alertActive?'box-shadow:inset 0 0 0 2px rgba(79,168,208,.3);':''}">
@@ -3271,6 +3306,8 @@ function viewOnMap(lat,lng){
 }
 function openApp(mode){
   if(isExternal()&&['inspect','stats','admin','settings','alert'].includes(mode)){toast('⚠️ 외부기관 계정은 해당 메뉴에 접근할 수 없습니다');return;}
+  // 작성 폼에서 다른 메뉴로 이동: 미저장 입력은 임시저장만 남기고 작성모드 해제
+  if(window._reportMode==='form'){try{_saveDraftNow();}catch(e){}window._reportMode='';clearInterval(_draftAutoTimer);}
   curApp=mode;
   document.querySelectorAll('.view').forEach(v=>v.classList.remove('on'));
   document.getElementById('appHdr').style.display='block';
@@ -4286,6 +4323,30 @@ function updateUserUI(){
 let selResId=null,curResId=null,resFilter='전체';
 let resTypeF=new Set(),resStatusF=new Set();
 let _resListTab='all'; // 'all'|'rescue'|'haz'
+// ── 필터 상태 유지: 화면 전환·앱 재시작 후에도 마지막 필터 복원 ──
+function _persistFilters(){
+  try{
+    localStorage.setItem('_filt_v1',JSON.stringify({
+      resType:[...resTypeF],resStatus:[...resStatusF],resTab:_resListTab,
+      facStatus:(typeof facMapStatusF!=='undefined'?[...facMapStatusF]:[]),
+      facType:(typeof facMapTypeF!=='undefined'?[...facMapTypeF]:[]),
+      facLoc:(typeof facMapLocF!=='undefined'?[...facMapLocF]:[]),
+      facSort:(typeof facListSort!=='undefined'?facListSort:'default')
+    }));
+  }catch(e){}
+}
+function _restoreFilters(){
+  try{
+    const j=JSON.parse(localStorage.getItem('_filt_v1')||'{}');
+    if(j.resType)resTypeF=new Set(j.resType);
+    if(j.resStatus)resStatusF=new Set(j.resStatus);
+    if(j.resTab)_resListTab=j.resTab;
+    if(typeof facMapStatusF!=='undefined'&&j.facStatus)facMapStatusF=new Set(j.facStatus);
+    if(typeof facMapTypeF!=='undefined'&&j.facType)facMapTypeF=new Set(j.facType);
+    if(typeof facMapLocF!=='undefined'&&j.facLoc)facMapLocF=new Set(j.facLoc);
+    if(typeof facListSort!=='undefined'&&j.facSort)facListSort=j.facSort;
+  }catch(e){}
+}
 function _resDefaultDates(){const t=today();const f=new Date();f.setMonth(f.getMonth()-1);return{from:f.toISOString().slice(0,10),to:t};}
 const _rd=_resDefaultDates();
 let resDateFrom=_rd.from,resDateTo=_rd.to;
@@ -4885,7 +4946,7 @@ function _focusReturnTeam(resId,teamIdx){
 // 재난 목록 + 필터
 // ══════════════════════════════════════════
 function setResListTab(tab){
-  _resListTab=tab;
+  _resListTab=tab;_persistFilters();
   ['all','rescue','haz'].forEach(t=>{
     const btn=document.getElementById('resListTab_'+t);
     if(!btn)return;
@@ -4918,6 +4979,8 @@ function _resMatchSearch(r){
     .filter(Boolean).join(' ').toLowerCase();
   return hay.includes(_resSearchQ);
 }
+let _resListLimit=50,_resListSig='';
+function _moreResList(){_resListLimit+=50;renderResList();}
 function renderResList(){
   const res=DB.g('rescues')||[];const haz=DB.g('hazards')||[];
   _updateResFilterPanels();
@@ -4926,9 +4989,12 @@ function renderResList(){
   const _stOkRes=s=>resStatusF.size===0||(resStatusF.has('진행중')&&s==='ongoing')||(resStatusF.has('종료')&&s==='done');
   const _stOkHaz=s=>{const active=!s||s==='미조치'||s==='조치중';return resStatusF.size===0||(resStatusF.has('진행중')&&active)||(resStatusF.has('종료')&&!active);};
   const _dateOkL=d=>_resDateOk(d);
-  let html='';
+  // 필터·검색·탭이 바뀌면 페이지 한도를 처음(50)으로 리셋. '더 보기' 재호출 땐 유지.
+  const _sig=_resListTab+'|'+[...resTypeF].join()+'|'+[...resStatusF].join()+'|'+resDateFrom+'|'+resDateTo+'|'+(_resSearchQ||'');
+  if(_sig!==_resListSig){_resListSig=_sig;_resListLimit=50;}
+  let cards=[];
   if(_showRes){
-    html+=(res.filter(r=>_stOkRes(r.status)&&_dateOkL(r.date)&&_resMatchSearch(r))).slice().reverse().map(r=>{
+    cards=cards.concat((res.filter(r=>_stOkRes(r.status)&&_dateOkL(r.date)&&_resMatchSearch(r))).slice().reverse().map(r=>{
       const isOg=r.status==='ongoing';const ti=RES_TYPES[r.type]||RES_TYPES['기타'];
       const totalPh=(r.reports||[]).length+1;
       const hasCoord=!!(r.lat&&r.lng);
@@ -4944,10 +5010,10 @@ function renderResList(){
           ${isOg&&_elapsedStr(r.date)?`<span class="js-elapsed" data-d="${_esc(r.date)}" style="font-size:10px;font-weight:700;color:#f0a500;white-space:nowrap;">⏱ ${_elapsedStr(r.date)}</span>`:''}
         </div>
       </div>`;
-    }).join('');
+    }));
   }
   if(_showHaz){
-    html+=(haz.filter(h=>_stOkHaz(h.hazStatus)&&_dateOkL(h.date)&&_resMatchSearch(h))).slice().reverse().map(h=>{
+    cards=cards.concat((haz.filter(h=>_stOkHaz(h.hazStatus)&&_dateOkL(h.date)&&_resMatchSearch(h))).slice().reverse().map(h=>{
       const done=h.hazStatus&&h.hazStatus!=='미조치'&&h.hazStatus!=='조치중';
       const hasCoord=!!(h.lat&&h.lng);
       return `<div class="haz-card ${done?'haz-removed':''}" onclick="openHazDetail(${h.id})" style="border-left:3px solid ${done?'#27ae60':'#e67e22'};">
@@ -4962,7 +5028,12 @@ function renderResList(){
           <span class="lbadge ${done?'haz-badge-done':'haz-badge-active'}" style="align-self:flex-start;flex-shrink:0;">${_esc(h.hazStatus||'미조치')}</span>
         </div>
       </div>`;
-    }).join('');
+    }));
+  }
+  const _tot=cards.length;
+  let html=cards.slice(0,_resListLimit).join('');
+  if(_tot>_resListLimit){
+    html+=`<button onclick="_moreResList()" style="width:100%;margin-top:8px;padding:11px;border-radius:10px;border:1px solid rgba(79,168,208,.3);background:rgba(79,168,208,.08);color:#4fa8d0;font-size:13px;font-weight:700;cursor:pointer;">▾ 더 보기 (${_tot-_resListLimit}건 더)</button>`;
   }
   document.getElementById('resListWrap').innerHTML=html||'<div class="empty"><div class="empty-ico">📋</div><div class="empty-txt">해당 항목 없음</div><button onclick="resetResFilter()" style="margin-top:10px;padding:7px 16px;background:rgba(79,168,208,.12);border:1px solid rgba(79,168,208,.35);color:#4fa8d0;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;">🔄 필터 초기화</button></div>';
 }
@@ -5355,15 +5426,45 @@ function openHazDetail(id){
         위치: <b>${_esc(h.loc||'-')}</b><br>
         시각: ${_esc(h.dt||'-')}<br>
         위험도: ${_esc(h.danger||'-')}<br>
-        상태: ${_esc(h.hazStatus||'-')}<br>
+        상태: <b style="color:${h.hazStatus==='미조치'?'#e05050':(h.hazStatus==='조치중'?'#e67e22':'#27ae60')};">${_esc(h.hazStatus||'-')}</b><br>
         작성: ${_esc(h.author||'-')}
         ${h.desc?`<br><br>${_esc(h.desc)}`:''}
       </div>
+      <div style="margin-top:12px;">
+        <div style="font-size:11px;color:#7a9cb8;font-weight:700;margin-bottom:6px;">상태 변경</div>
+        <div style="display:flex;gap:6px;">
+          ${['미조치','조치중','제거 완료','통제중'].map(st=>{
+            const on=(h.hazStatus||'미조치')===st;
+            const col=st==='미조치'?'#e05050':(st==='조치중'?'#e67e22':'#27ae60');
+            return `<button onclick="_setHazStatus(${h.id},'${st}')" style="flex:1;padding:7px 2px;border-radius:8px;font-size:11px;font-weight:700;cursor:pointer;border:1.5px solid ${on?col:'rgba(255,255,255,.12)'};background:${on?col+'22':'transparent'};color:${on?col:'rgba(255,255,255,.45)'};">${st}</button>`;
+          }).join('')}
+        </div>
+      </div>
+      ${(h.statusLog&&h.statusLog.length)?`<div style="margin-top:12px;">
+        <div style="font-size:11px;color:#7a9cb8;font-weight:700;margin-bottom:6px;">📋 상태 이력</div>
+        ${h.statusLog.slice().reverse().map(s=>`<div style="display:flex;gap:8px;font-size:11px;padding:4px 0;border-top:1px solid rgba(255,255,255,.05);">
+          <span style="color:#6a93b5;font-family:monospace;flex-shrink:0;">${_esc((s.at||'').slice(5,16))}</span>
+          <span style="color:${s.status==='미조치'?'#e05050':(s.status==='조치중'?'#e67e22':'#27ae60')};font-weight:700;flex:1;">${_esc(s.status)}</span>
+          <span style="color:#5a7e98;flex-shrink:0;">${_esc(s.by||'-')}</span>
+        </div>`).join('')}
+      </div>`:''}
       ${_mobilizeBlockHtml('hazards',h)}
       ${_hazFireTLHtml(h)}
     </div>
   </div>`;
   ov.onclick=e=>{if(e.target===ov)ov.style.display='none';};
+}
+function _setHazStatus(id,st){
+  const haz=DB.g('hazards')||[];const idx=haz.findIndex(x=>x.id===id);if(idx===-1)return;
+  if((haz[idx].hazStatus||'미조치')===st){toast('이미 '+st+' 상태입니다');return;}
+  if(!haz[idx].statusLog)haz[idx].statusLog=[{status:haz[idx].hazStatus||'미조치',at:haz[idx].dt||now(),by:haz[idx].author||'-'}];
+  haz[idx].hazStatus=st;
+  haz[idx].statusLog.push({status:st,at:now(),by:(typeof getAuthor==='function'?getAuthor():'')||haz[idx].author||'-'});
+  DB.s('hazards',haz);
+  toast('✅ 상태 변경: '+st);
+  openHazDetail(id); // 상세 갱신
+  try{renderRescueMap();}catch(e){}try{renderResList();}catch(e){}try{updateSummary();}catch(e){}
+  if(document.getElementById('v-board')&&document.getElementById('v-board').classList.contains('on')){try{renderBoard();}catch(e){}}
 }
 
 // ══════════════════════════════════════════
@@ -5399,6 +5500,7 @@ function openNewRescue(){
   document.getElementById('bnav').style.display='none';
   showV('v-report');renderPhaseBar(0,1);render1BoForm(gpsPre);
   if(gpsPre&&gpsPre.lat)_autoFillLoc(gpsPre.lat,gpsPre.lng);
+  setTimeout(_maybeOfferDraftRestore,300); // 임시저장 복구 제안
 }
 function addPhase(){
   const res=DB.g('rescues')||[];const r=res.find(x=>x.id===selResId);if(!r)return;
@@ -6283,7 +6385,8 @@ function _buildLogHtml(r){
 }
 function renderTimeline(r,viewMode,outId){
   const _isBoard=outId&&outId!=='repContent';
-  if(!_isBoard)_hideRepFooter();
+  if(!_isBoard){_hideRepFooter();window._reportMode='timeline';clearInterval(_draftAutoTimer);} // 타임라인 보기 — 작성모드 해제
+
   _curViewResId=r.id;
   const mode=(viewMode==='full'||viewMode==='write')?'write':'advanced';
   _tlMode=mode;_tlViewMode=mode;
@@ -6832,6 +6935,62 @@ function submitNBo(){
 // ══════════════════════════════════════════
 // 1보 폼
 // ══════════════════════════════════════════
+// ── 구조 1보 폼: 자동 임시저장 + 작성중 이탈 경고 ──
+window._reportMode='';        // 'form'(작성) | 'timeline'(타임라인 보기)
+let _formDirty=false,_draftAutoTimer=null,_draftListenerBound=false;
+const _DRAFT_KEY='_rescueDraft1bo';
+function _snapshotRescueForm(){
+  const w=document.getElementById('repContent');if(!w)return null;
+  const fields={};
+  w.querySelectorAll('input,textarea,select').forEach(el=>{
+    if(!el.id||el.type==='file')return;
+    if(el.type==='checkbox'||el.type==='radio')fields[el.id]={c:el.checked};
+    else if(el.value!=='')fields[el.id]={v:el.value};
+  });
+  const pills=[];
+  w.querySelectorAll('.pills').forEach(pc=>{
+    if(!pc.id)return;
+    pc.querySelectorAll('.pill.on').forEach(p=>pills.push(pc.id+'::'+p.textContent.trim()));
+  });
+  return {fields,pills,at:Date.now()};
+}
+function _restoreRescueForm(snap){
+  if(!snap)return;
+  const w=document.getElementById('repContent');if(!w)return;
+  try{
+    Object.entries(snap.fields||{}).forEach(([id,o])=>{
+      const el=document.getElementById(id);if(!el)return;
+      if(o.c!==undefined)el.checked=o.c;else if(o.v!==undefined){el.value=o.v;try{el.dispatchEvent(new Event('change',{bubbles:true}));}catch(e){}}
+    });
+    (snap.pills||[]).forEach(key=>{
+      const i=key.indexOf('::');if(i<0)return;
+      const pid=key.slice(0,i),txt=key.slice(i+2);
+      const pc=document.getElementById(pid);if(!pc)return;
+      pc.querySelectorAll('.pill').forEach(p=>{if(p.textContent.trim()===txt)p.classList.add('on');});
+    });
+  }catch(e){}
+}
+function _saveDraftNow(){
+  if(window._reportMode!=='form'||!_formDirty||window._reportIsNbo)return;
+  try{const s=_snapshotRescueForm();if(s)localStorage.setItem(_DRAFT_KEY,JSON.stringify(s));}catch(e){}
+}
+function _clearRescueDraft(){try{localStorage.removeItem(_DRAFT_KEY);}catch(e){}_formDirty=false;}
+function _startDraftAutosave(){
+  clearInterval(_draftAutoTimer);
+  _draftAutoTimer=setInterval(()=>{
+    if(window._reportMode!=='form'){clearInterval(_draftAutoTimer);return;}
+    _saveDraftNow();
+  },30000); // 30초마다 임시저장
+}
+function _maybeOfferDraftRestore(){
+  let snap=null;try{snap=JSON.parse(localStorage.getItem(_DRAFT_KEY)||'null');}catch(e){}
+  if(!snap||!snap.at)return;
+  if(Date.now()-snap.at>24*3600000){_clearRescueDraft();return;} // 24시간 지난 초안은 폐기
+  const mins=Math.max(1,Math.round((Date.now()-snap.at)/60000));
+  if(confirm('작성하다 중단한 임시저장 내용이 있습니다 ('+mins+'분 전).\n불러올까요?')){
+    _restoreRescueForm(snap);toast('📄 임시저장 내용 불러옴');
+  }else{_clearRescueDraft();}
+}
 function render1BoForm(prefill=null){
   const ms=getTeamMembers();
   const hdTeam=getHwandonghaTeam();
@@ -7139,6 +7298,17 @@ function render1BoForm(prefill=null){
   initFormMiniMap(p.lat,p.lng);
   // GPS 자동 실행 (lat/lng 없을 때)
   if(!p.lat&&!p.lng)setTimeout(()=>gpsToFormMap(),800);
+  // 작성 모드 진입 — 자동저장·이탈경고 활성화
+  window._reportMode='form';
+  window._reportIsNbo=isNbo; // N보는 1보 임시저장 키를 공유하지 않음
+  _formDirty=false;
+  if(!_draftListenerBound){
+    const wc=document.getElementById('repContent');
+    if(wc){wc.addEventListener('input',()=>{if(window._reportMode==='form')_formDirty=true;});
+           wc.addEventListener('change',()=>{if(window._reportMode==='form')_formDirty=true;});
+           _draftListenerBound=true;}
+  }
+  if(!isNbo)_startDraftAutosave(); // 신규 1보만 임시저장
 }
 
 function _renderFormTl(){
@@ -7279,6 +7449,7 @@ function submit1Bo(){
   if(r.mobilize&&r.mobilize.length)pushNoti('🚨 야간 응소 요청: '+r.mobilize.join(', ')+' — '+title,'🚨',r.type,{app:'rescue',tab:2,id:r.id},'안전사고');
   syncToSheets('rescue',{id:r.id,title,type:r.type,date:r.date,author:r.author});
   toast('🚨 1보 등록 완료'+(r.mobilize&&r.mobilize.length?' · 응소: '+r.mobilize.join(', '):''));
+  _clearRescueDraft(); // 정상 등록됐으므로 임시저장 폐기
   // 저장 즉시 고도화 타임라인으로 이동
   selResId=r.id;curResId=r.id;
   document.getElementById('bnav').style.display='none';
@@ -7412,6 +7583,7 @@ function submitHazard(){
     danger:getSelPills('hazDangerPills')[0]||'',
     desc:document.getElementById('hz_desc').value,
     hazStatus:getSelPills('hazStatusPills')[0]||'미조치',
+    statusLog:[{status:getSelPills('hazStatusPills')[0]||'미조치',at:now(),by:document.getElementById('hz_author').value||'-'}],
     onSite:getSelPills('hazOnSitePills')[0]||'',response:getSelPills('hazResponsePills')[0]||'',
     author:document.getElementById('hz_author').value,
     photo:_photoUrl('prevHaz'),
@@ -7434,6 +7606,7 @@ let facMapStatusF=new Set(),facMapTypeF=new Set(),facMapLocF=new Set();
 let facListSort='default'; // 'default' | 'overdue'(점검 오래된순)
 function setFacListSort(v){
   facListSort=facListSort===v?'default':v;
+  _persistFilters();
   if(facListSort==='overdue')_loadArchive('history').then(()=>{_updateFacListFilterPanel();renderFacList();}); // 1년 이전 점검이력도 반영
   _updateFacListFilterPanel();renderFacList();
 }
@@ -7469,7 +7642,8 @@ function renderInspectMap(){
     el.addEventListener('click',e=>{e.stopPropagation();openFacFromMap(f.id);});
     const ov=new kakao.maps.CustomOverlay({position:new kakao.maps.LatLng(f.lat,f.lng),content:el,clickable:true});
     ov._lat=f.lat;ov._lng=f.lng;
-    ov.setMap(mapI);iOvs.push(ov);iEls.push(el);
+    // 지도 부착은 _reclusterInspect가 결정(밀집 핀은 버블로 묶음) — 초기 수백개 일괄 부착/제거 비용 제거
+    iOvs.push(ov);iEls.push(el);
   });
   if(mapI)_scaleOvs(iEls,mapI.getLevel(),1);
   // 시설물 클러스터링 (밀집 시 개수 버블로 묶음)
@@ -7479,7 +7653,7 @@ function renderInspectMap(){
 function setMapFacF(t,v){
   const set=t==='s'?facMapStatusF:t==='t'?facMapTypeF:facMapLocF;
   if(set.has(v))set.delete(v);else set.add(v);
-  renderInspectMap();renderFacList();
+  _persistFilters();renderInspectMap();renderFacList();
 }
 function _smfs(t,v){setMapFacF(t,v);}
 // 필터 패널 공용 헬퍼 (시설물지도/시설물목록/구조필터 3곳에서 동일 템플릿 사용)
@@ -7560,7 +7734,7 @@ function _closeFacListFilter(){
 }
 function resetFacListFilter(){
   facMapStatusF=new Set();facMapTypeF=new Set();facMapLocF=new Set();facListSort='default';
-  renderInspectMap();renderFacList();
+  _persistFilters();renderInspectMap();renderFacList();
 }
 function _updateFacListFilterPanel(types,locs){
   if(!types||!locs){
@@ -7610,9 +7784,9 @@ function _maybeLoadArchiveForDateFilter(){
   if(resDateFrom>=cutoff)return;
   Promise.all(['rescues','hazards'].map(_loadArchive)).then(()=>{renderRescueMap();renderResList();});
 }
-function setResTypeF(v){if(resTypeF.has(v))resTypeF.delete(v);else resTypeF.add(v);_updateResFilterPanels();renderRescueMap();renderResList();}
-function setResStatusF(v){if(resStatusF.has(v))resStatusF.delete(v);else resStatusF.add(v);_updateResFilterPanels();renderRescueMap();renderResList();}
-function resetResFilter(){resTypeF=new Set();resStatusF=new Set();const _d=_resDefaultDates();resDateFrom=_d.from;resDateTo=_d.to;_updateResFilterPanels();renderRescueMap();renderResList();}
+function setResTypeF(v){if(resTypeF.has(v))resTypeF.delete(v);else resTypeF.add(v);_persistFilters();_updateResFilterPanels();renderRescueMap();renderResList();}
+function setResStatusF(v){if(resStatusF.has(v))resStatusF.delete(v);else resStatusF.add(v);_persistFilters();_updateResFilterPanels();renderRescueMap();renderResList();}
+function resetResFilter(){resTypeF=new Set();resStatusF=new Set();const _d=_resDefaultDates();resDateFrom=_d.from;resDateTo=_d.to;_persistFilters();_updateResFilterPanels();renderRescueMap();renderResList();}
 // 시설물 카테고리 필터
 function _updateResCatFilterPanel(){
   const _rm=DB.g('catFacMeta')||{};
@@ -7689,6 +7863,8 @@ function openFacFromMap(id){
   document.getElementById('resPopup').classList.remove('on');
   document.getElementById('facPopup').classList.add('on');
 }
+let _facListLimit=50,_facListSig='';
+function _moreFacList(){_facListLimit+=50;renderFacList();}
 function renderFacList(){
   const _admin=isAdminUser();const _meta=DB.g('catFacMeta')||{};
   const facs=(DB.g('facilities')||[]).filter(f=>_admin||!(_meta[f.type]||{}).adminOnly);
@@ -7706,7 +7882,11 @@ function renderFacList(){
   const lastInspMap={};
   (DB.g('history')||[]).forEach(h=>{if(!lastInspMap[h.facId]||h.id>lastInspMap[h.facId])lastInspMap[h.facId]=h.id;});
   if(facListSort==='overdue')filtered.sort((a,b)=>(lastInspMap[a.id]||0)-(lastInspMap[b.id]||0));
-  document.getElementById('facListWrap').innerHTML=filtered.length?filtered.map(f=>{
+  // 필터·정렬이 바뀌면 페이지 한도 리셋
+  const _sig=[...facMapStatusF].join()+'|'+[...facMapTypeF].join()+'|'+[...facMapLocF].join()+'|'+facListSort;
+  if(_sig!==_facListSig){_facListSig=_sig;_facListLimit=50;}
+  const _tot=filtered.length;
+  let html=filtered.slice(0,_facListLimit).map(f=>{
     const li=lastInspMap[f.id];
     const dDays=li?Math.floor((Date.now()-li)/86400000):null;
     const overdueBadge=facListSort==='overdue'?`<span style="font-size:9px;font-weight:700;color:${dDays===null||dDays>=90?'#e74c3c':dDays>=30?'#f0a500':'#4a7090'};margin-top:2px;display:block;">⏰ ${dDays===null?'미점검':dDays+'일 전 점검'}</span>`:'';
@@ -7718,7 +7898,11 @@ function renderFacList(){
       </div>
       <span class="lbadge" style="background:${SC(f.status)}22;color:${SC(f.status)};">${SL(f.status)}</span>
     </div>`;
-  }).join(''):'<div class="empty"><div class="empty-ico">🛠️</div><div class="empty-txt">해당 조건 없음</div><button onclick="resetFacListFilter()" style="margin-top:10px;padding:7px 16px;background:rgba(79,168,208,.12);border:1px solid rgba(79,168,208,.35);color:#4fa8d0;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;">🔄 필터 초기화</button></div>';
+  }).join('');
+  if(_tot>_facListLimit){
+    html+=`<button onclick="_moreFacList()" style="width:100%;margin-top:8px;padding:11px;border-radius:10px;border:1px solid rgba(79,168,208,.3);background:rgba(79,168,208,.08);color:#4fa8d0;font-size:13px;font-weight:700;cursor:pointer;">▾ 더 보기 (${_tot-_facListLimit}건 더)</button>`;
+  }
+  document.getElementById('facListWrap').innerHTML=html||'<div class="empty"><div class="empty-ico">🛠️</div><div class="empty-txt">해당 조건 없음</div><button onclick="resetFacListFilter()" style="margin-top:10px;padding:7px 16px;background:rgba(79,168,208,.12);border:1px solid rgba(79,168,208,.35);color:#4fa8d0;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;">🔄 필터 초기화</button></div>';
 }
 
 function renderInspectStats(){
@@ -7797,6 +7981,7 @@ function submitInsp(){
   const note=document.getElementById('inspNote').value;
   const author=document.getElementById('inspAuthor').value;
   facs[idx].status=ns;
+  facs[idx].statusAt=Date.now(); // 동시 점검 충돌 시 "최신 점검 우선" 판정용 타임스탬프
   const hist=DB.g('history')||[];
   const inspDT=document.getElementById('inspDateTime')?.value||now();
   const h={id:Date.now(),facId:selFacId,facName:facs[idx].name,date:inspDT,status:ns,note,author,photo:_photoUrl('prevInsp')};
@@ -8332,6 +8517,9 @@ function addAlertResponder(){
   const idx=ops.findIndex(o=>o.id===id);
   if(idx===-1){toast('운영 기록을 찾을 수 없습니다');return;}
   if(!ops[idx].responders)ops[idx].responders=[];
+  // 같은 이름+소속 중복 응소 방지 — 이미 등록된 대원이면 막기
+  const dup=ops[idx].responders.some(r=>(r.name||'').trim()===name&&(r.loc||'')===_respLoc);
+  if(dup){toast('⚠️ 이미 등록된 응소자입니다: '+name+' ('+_respLoc+')');return;}
   ops[idx].responders.push({name,loc:_respLoc,role:_respRole,arrivedAt});
   DB.s('alertOps',ops);
   closeM('modalAlertResp');
@@ -8520,7 +8708,7 @@ function renderAdmCtrl(){
     <div class="sec-label">📋 전체 시설물</div>
     ${facs.map(f=>`<div class="adm-row"><div class="adm-info"><div class="adm-name">${f.type.split(' ')[0]} ${f.name}</div><div class="adm-meta"><span style="color:${SC(f.status)};">${SL(f.status)}</span> · ${f.author||'-'}</div></div><button class="abtn del" onclick="admDelFac(${f.id})">삭제</button></div>`).join('')}`;
 }
-function admChangeFacSt(id){if(!isAdminUser()){toast('⚠️ 관리자만 가능');return;}const facs=DB.g('facilities')||[];const idx=facs.findIndex(x=>x.id===id);if(idx===-1)return;const ns=prompt(`상태 (ok/warn/bad)\n현재: ${facs[idx].status}`);if(!['ok','warn','bad'].includes(ns)){toast('⚠️ ok, warn, bad 중 입력');return;}facs[idx].status=ns;DB.s('facilities',facs);renderAdmCtrl();try{renderInspectMap();}catch(e){}toast('✅ 변경');updateSummary();}
+function admChangeFacSt(id){if(!isAdminUser()){toast('⚠️ 관리자만 가능');return;}const facs=DB.g('facilities')||[];const idx=facs.findIndex(x=>x.id===id);if(idx===-1)return;const ns=prompt(`상태 (ok/warn/bad)\n현재: ${facs[idx].status}`);if(!['ok','warn','bad'].includes(ns)){toast('⚠️ ok, warn, bad 중 입력');return;}facs[idx].status=ns;facs[idx].statusAt=Date.now();DB.s('facilities',facs);renderAdmCtrl();try{renderInspectMap();}catch(e){}toast('✅ 변경');updateSummary();}
 function admDelFac(id){
   if(!isAdminUser()){toast('⚠️ 관리자만 가능');return;}
   if(!confirm('삭제?'))return;
@@ -8532,17 +8720,26 @@ function admDelFac(id){
 function admEndRes(id){if(!isAdminUser()){toast('⚠️ 관리자만 가능');return;}const res=DB.g('rescues')||[];const i=res.findIndex(x=>x.id===id);if(i===-1)return;if(!confirm("'"+(res[i].title||'')+"' 상황을 종료 처리하겠습니까?"))return;res[i].status='done';DB.s('rescues',res);renderAdmCtrl();try{renderRescueMap();}catch(e){}toast('✅ 상황 종료');}
 function admDelRes(id){
   if(!isAdminUser()){toast('⚠️ 관리자만 가능');return;}
-  if(!confirm('삭제?'))return;
-  const res=DB.g('rescues')||[];const r=res.find(x=>x.id===id);
-  // Storage 사진 동반 삭제 (고아 파일 방지)
-  if(r&&_fst){
-    [r.injuryPhoto,r.transPhoto,...(r.reports||[]).map(p=>p.photo),...(r.photos||[]).map(p=>p.url)]
-      .filter(u=>u&&String(u).startsWith('http'))
-      .forEach(u=>{try{_fst.refFromURL(u).delete().catch(()=>{});}catch(e){}});
-  }
-  try{localStorage.removeItem('v7_comments_'+id);}catch(e){}
-  DB.s('rescues',res.filter(x=>x.id!==id));
-  renderAdmCtrl();try{renderRescueMap();}catch(e){}toast('🗑️ 삭제');updateSummary();
+  const res=DB.g('rescues')||[];const r=res.find(x=>x.id===id);if(!r)return;
+  if(!confirm("'"+(r.title||'구조 기록')+"' 을(를) 삭제하시겠습니까?\n삭제 후 5초 안에 되돌릴 수 있습니다."))return;
+  // 목록에서 즉시 제거(되돌리기 대비 사본 보관). 사진 등 비가역 삭제는 5초 후 확정 시에만.
+  const backup=JSON.parse(JSON.stringify(r));
+  DB.s('rescues',(DB.g('rescues')||[]).filter(x=>x.id!==id));
+  renderAdmCtrl();try{renderRescueMap();}catch(e){}updateSummary();
+  _undoToast("🗑️ '"+(r.title||'구조 기록')+"' 삭제됨",
+    function(){ // 되돌리기
+      const cur=DB.g('rescues')||[];
+      if(!cur.some(x=>x.id===backup.id)){cur.push(backup);DB.s('rescues',cur);}
+      renderAdmCtrl();try{renderRescueMap();}catch(e){}updateSummary();toast('↩ 삭제 취소됨');
+    },
+    function(){ // 5초 후 실제 확정: 사진·댓글 영구 삭제
+      if(backup&&_fst){
+        [backup.injuryPhoto,backup.transPhoto,...((backup.reports||[]).map(p=>p.photo)),...((backup.photos||[]).map(p=>p.url))]
+          .filter(u=>u&&String(u).startsWith('http'))
+          .forEach(u=>{try{_fst.refFromURL(u).delete().catch(()=>{});}catch(e){}});
+      }
+      try{localStorage.removeItem('v7_comments_'+id);}catch(e){}
+    });
 }
 function renderAdmMembers(){
   const pending=DB.g('pendingUsers')||[];
@@ -10866,6 +11063,7 @@ document.addEventListener('input',e=>{
 
 
 window.onload=function(){
+  try{_restoreFilters();}catch(e){} // 마지막 사용 필터 복원
   // ── 로딩 화면 ── (애니메이션은 loadingScreen 직후 인라인 스크립트에서 이미 시작됨)
   (function(){
     window._hideLoading=function(){
@@ -10966,6 +11164,14 @@ window.onload=function(){
     }
     // v-report(구조 타임라인) → 목록으로 복귀
     if(document.getElementById('v-report').classList.contains('on')){
+      // 작성 중(미저장 입력 있음)이면 이탈 경고 — 취소 시 폼에 머무름
+      if(window._reportMode==='form'&&_formDirty){
+        if(!confirm('작성 중인 내용이 저장되지 않았습니다.\n나가시겠습니까? (임시저장본은 보관됩니다)')){
+          history.pushState({view:'rescue-report'},'','');return; // 머무르기
+        }
+        try{_saveDraftNow();}catch(e){}
+      }
+      window._reportMode='';clearInterval(_draftAutoTimer);
       _hideRepFooter();
       showV('v-rescue-list');renderResList();
       document.getElementById('appHdr').style.display='block';
