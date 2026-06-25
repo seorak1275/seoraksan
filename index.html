@@ -8959,6 +8959,31 @@ function updateSignCoords(){
   try{if(typeof renderFacList==='function')renderFacList();}catch(e){}
   toast('✅ '+changes.length+'개 표지판 좌표 최신화 완료');
 }
+// 부팅 시 1회 자동: 라이브 표지판 좌표를 권위 좌표(엑셀)로 최신화.
+// 시설물이 Firestore에서 로드된 뒤 실행. 기기당 1회(버전 플래그), 변경분만 기록.
+function _autoApplyCoordFix(){
+  if(localStorage.getItem('_coordFixVer')==='2')return;
+  let tries=0;
+  (function poll(){
+    const facs=DB.g('facilities')||[];
+    const signs=facs.filter(f=>f.type&&f.type.includes('다목적위치표지판'));
+    if(signs.length<10){ if(tries++<20){setTimeout(poll,1500);} return; } // 아직 로드 안 됨
+    let changed=0;
+    const f2=facs.map(f=>{
+      if(!f.type||!f.type.includes('다목적위치표지판'))return f;
+      const code=_signLocCode(f);if(!code||!_SIGN_COORD_FIX[code])return f;
+      const [lat,lng]=_SIGN_COORD_FIX[code];
+      if(Math.abs((+f.lat||0)-lat)>0.00001||Math.abs((+f.lng||0)-lng)>0.00001){changed++;return Object.assign({},f,{lat,lng});}
+      return f;
+    });
+    if(changed>0){
+      DB.s('facilities',f2);
+      try{_invalidateSignCache&&_invalidateSignCache();}catch(e){}
+      setTimeout(function(){try{toast('🪧 표지판 좌표 '+changed+'개 자동 최신화됨');}catch(e){}},900);
+    }
+    localStorage.setItem('_coordFixVer','2');
+  })();
+}
 function fixMisclassifiedTemples(){
   const facs=DB.g('facilities');if(!facs){toast('⚠️ 시설물 데이터 없음');return;}
   // 실제 사찰/암자 이름 목록 (오색암 등 정확한 사찰만 포함)
@@ -10907,6 +10932,7 @@ window.onload=function(){
     initDB();
     if(window._KR){ initMaps(); } else { window._KCB=function(){initMaps();}; }
     updateSummary();updateUserUI();fetchWeather();
+    try{setTimeout(_autoApplyCoordFix,3500);}catch(e){} // 표지판 좌표 자동 최신화(1회)
     try{if((DB.g('alertOps')||[]).some(o=>!o.closedAt))_startAlertReminder();}catch(e){}
     try{_startKmaWarnPoll();}catch(e){}
     const d=new Date();const days=['일','월','화','수','목','금','토'];
