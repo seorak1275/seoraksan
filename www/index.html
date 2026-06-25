@@ -1552,9 +1552,10 @@ body.hi-contrast .stat-lbl{color:rgba(255,255,255,.65)!important;}
       <div style="display:flex;flex-wrap:wrap;gap:5px;margin-top:4px;" id="reportLocPills"></div>
     </div>
     <div style="display:flex;gap:8px;">
-      <div class="fg" style="flex:1;"><span class="fl">적설량 (cm)</span><input type="number" inputmode="decimal" step="0.1" id="reportSnow" class="fi" placeholder="예: 12.5"></div>
-      <div class="fg" style="flex:1;"><span class="fl">강우량 (mm)</span><input type="number" inputmode="decimal" step="0.1" id="reportRain" class="fi" placeholder="예: 30"></div>
+      <div class="fg" style="flex:1;"><span class="fl">누적 적설 (cm)</span><input type="number" inputmode="decimal" step="0.1" id="reportSnow" class="fi" placeholder="현재 적설 깊이"></div>
+      <div class="fg" style="flex:1;"><span class="fl">누적 강우 (mm)</span><input type="number" inputmode="decimal" step="0.1" id="reportRain" class="fi" placeholder="예: 124 (누적)"></div>
     </div>
+    <div style="font-size:10px;color:#5a8aa0;margin:-4px 2px 8px;">※ 매 시각 <b>관측 시점까지의 누적값</b>을 입력하세요 (그 시간만의 강우량 아님). 시간당 증가량은 자동 계산됩니다.</div>
     <div class="fg"><span class="fl">관측자</span>
       <div id="reportObsQuick" style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:6px;"></div>
       <input type="text" id="reportObserver" class="fi" placeholder="관측자 이름">
@@ -8277,10 +8278,6 @@ function renderAlertView(){
         </div>
         <div style="margin:6px 0 2px;">${myResps.length?myResps.map(r=>_alertRespChip(r,active.id)).join(''):'<span style="font-size:11px;color:#456a85;">아직 응소자 없음</span>'}</div>
         ${_repLine(last)}
-        <div style="display:flex;gap:6px;margin-top:8px;">
-          ${myResps.length===0?`<button onclick="openAddResponder(${active.id},'${st.loc}')" class="ao-loc-btn">👤 응소 등록</button>`:''}
-          <button onclick="openAlertReport(${active.id},'${st.loc}')" class="ao-loc-btn rep">${repBtnLbl}</button>
-        </div>
       </div>`;
     };
     // 그룹(사무소/분소)별 렌더 — 대청분소는 대피소 단위로 세분
@@ -8294,21 +8291,18 @@ function renderAlertView(){
         const st=g.stations[0];
         const myResps=gResps;
         const last=_latestReport(active,st.loc);
-        return `<div class="ao-loc-card">
+        const shortG=total>0&&myResps.length<total?(total-myResps.length):0;
+        return `<div class="ao-loc-card"${shortG?' style="border-color:rgba(231,76,60,.4);"':''}>
           <div class="ao-loc-hd"><span style="font-size:13px;">${g.ico} <b style="color:#e8f2fb;">${_esc(g.label)}</b></span><span class="ao-loc-cnt ${ok?'ok':''}">👤 ${myResps.length}${total?'/'+total:''}명</span></div>
-          ${total?`<div class="ao-loc-need">필요: ${need}</div>${_progBar(myResps.length,total)}`:''}
+          ${total?`<div class="ao-loc-need">필요: ${need}</div>${_progBar(myResps.length,total)}${shortG?`<div style="font-size:10px;color:#ff9e80;font-weight:700;margin-top:3px;">⚠️ 응소 ${shortG}명 부족</div>`:''}`:''}
           <div style="margin:6px 0 2px;">${myResps.length?myResps.map(r=>_alertRespChip(r,active.id)).join(''):'<span style="font-size:11px;color:#456a85;">아직 응소자 없음</span>'}</div>
           ${_repLine(last)}
-          <div style="display:flex;gap:6px;margin-top:8px;">
-            ${myResps.length===0?`<button onclick="openAddResponder(${active.id},'${st.loc}')" class="ao-loc-btn">👤 응소 등록</button>`:''}
-            <button onclick="openAlertReport(${active.id},'${st.loc}')" class="ao-loc-btn rep">${repBtnLbl}</button>
-          </div>
         </div>`;
       }
       // 대청분소: 그룹 헤더 + 대피소 세부 카드
       return `<div class="ao-grp">
         <div class="ao-grp-hd"><span>${g.ico} ${_esc(g.label)}</span><span class="ao-loc-cnt ${ok?'ok':''}">👤 ${gResps.length}${total?'/'+total:''}명</span></div>
-        ${total?`<div class="ao-loc-need" style="padding:2px 2px 0;">필요: ${need} (분소 합계 기준)</div>${_progBar(gResps.length,total)}`:''}
+        ${total?`<div class="ao-loc-need" style="padding:2px 2px 0;">필요: ${need} (분소 합계 기준)</div>${_progBar(gResps.length,total)}${total>gResps.length?`<div style="font-size:10px;color:#ff9e80;font-weight:700;margin-top:3px;padding-left:2px;">⚠️ 응소 ${total-gResps.length}명 부족</div>`:''}`:''}
         <div style="margin-top:6px;">${g.stations.map(st=>stationCard(st,true)).join('')}</div>
       </div>`;
     }).join('');
@@ -8339,7 +8333,7 @@ function renderAlertView(){
         ${active.note?`<div style="font-size:12px;color:#9fc0da;margin-top:8px;background:rgba(255,255,255,.03);border-radius:8px;padding:7px 10px;">📝 ${_esc(active.note)}</div>`:''}
       </div>
 
-      <div class="ao-sec-hd"><span class="bar"></span>📋 분소별 응소 현황</div>
+      <div class="ao-sec-hd"><span class="bar"></span>📋 분소별 응소 현황 <span style="font-size:9px;color:#46708f;font-weight:600;margin-left:auto;">응소·관측 입력은 🚨 입력 탭에서</span></div>
       ${locCards}
 
       <div class="ao-sec-hd"><span class="bar" style="background:#4fc0a0;"></span>📊 누적 관측 요약</div>
@@ -8557,30 +8551,46 @@ function removeAlertItem(opId,idx){
   toast('해제: '+rm.type+_stageShort(rm.stage));
   renderAlertView();updateSummary();
 }
-// 기상청 발효 특보 자동 발령 (중복 차단: 이미 발령된 종류는 추가하지 않음)
+// 기상청 발효 특보 자동 동기화 (공식 발효 특보 수신 시에만 호출됨 — 빈 목록=공식 '특보 없음')
+//  · 신규 종류 → 자동 발령   · 자동발령분 단계 변경(경보↔주의보 자동 하향·상향)   · 기상청에서 사라진 자동분 → 자동 해제
+//  · 수동(✋) 발령분은 절대 건드리지 않음. 전체 운영 종료는 관리자 수동(자동 종료 안 함).
 function _syncAutoAlerts(liveList){
-  if(!liveList||!liveList.length)return;        // 발효 특보 없음 → 자동 발령/종료 안 함
+  liveList=liveList||[];
   const ops=DB.g('alertOps')||[];
   let active=ops.find(o=>!o.closedAt);
-  let created=false,added=[];
+  if(!active&&!liveList.length)return;            // 운영도 없고 특보도 없음 → 무동작
+  let created=false;
   if(!active){
+    if(!liveList.length)return;
     active={id:Date.now(),alerts:[],note:'',startedAt:now(),startedAtMs:Date.now(),reportInterval:60,closedAt:null,responders:[],reports:[],createdBy:'자동(기상청)'};
     ops.push(active);created=true;
   }
   active.alerts=active.alerts||_opAlerts(active);
+  const liveByType={};liveList.forEach(a=>{liveByType[a.type]=a;});
+  const added=[],changed=[],removed=[];
+  // 1) 추가 + 자동분 단계 동기화
   liveList.forEach(a=>{
-    if(active.alerts.some(x=>x.type===a.type))return;   // ★ 중복 차단 (수동·자동 무관)
-    active.alerts.push({type:a.type,stage:a.stage,source:'auto',issuedAt:now(),issuedAtMs:Date.now()});
-    added.push(a.type+_stageShort(a.stage));
+    const ex=active.alerts.find(x=>x.type===a.type);
+    if(!ex){active.alerts.push({type:a.type,stage:a.stage,source:'auto',issuedAt:now(),issuedAtMs:Date.now()});added.push(a.type+_stageShort(a.stage));}
+    else if(ex.source==='auto'&&ex.stage!==a.stage){const prev=ex.stage;ex.stage=a.stage;ex.issuedAt=now();ex.issuedAtMs=Date.now();changed.push(a.type+' '+_stageShort(prev)+'→'+_stageShort(a.stage));}
   });
-  if(!created&&!added.length)return;                     // 변경 없음
+  // 2) 자동분 중 기상청에서 해제된 종류 → 자동 해제 (수동분 보존)
+  active.alerts=active.alerts.filter(x=>{
+    if(x.source==='auto'&&!liveByType[x.type]){removed.push(x.type+_stageShort(x.stage));return false;}
+    return true;
+  });
+  if(!created&&!added.length&&!changed.length&&!removed.length)return; // 변경 없음
   DB.s('alertOps',ops);
-  _startAlertReminder();
+  if(active.alerts.length)_startAlertReminder();
   // 기기별 1회만 알림 (중복 푸시 방지)
-  const sig=active.id+'|'+added.join(',');
-  if(added.length&&localStorage.getItem('_aoAuto_'+sig)!=='1'){
+  const sig=active.id+'|'+added.join(',')+'|'+changed.join(',')+'|'+removed.join(',');
+  if((added.length||changed.length||removed.length)&&localStorage.getItem('_aoAuto_'+sig)!=='1'){
     localStorage.setItem('_aoAuto_'+sig,'1');
-    pushNoti((created?'🌀 기상특보 자동 발령: ':'🚨 기상특보 자동 추가: ')+added.join(', '),'📡','재난',{app:'alert'},'안전사고');
+    let msg=[];
+    if(added.length)msg.push('🌀 자동발령 '+added.join(', '));
+    if(changed.length)msg.push('🔻 단계변경 '+changed.join(', '));
+    if(removed.length)msg.push('✅ 자동해제 '+removed.join(', '));
+    pushNoti('📡 기상특보 '+msg.join(' / '),'📡','재난',{app:'alert'},'안전사고');
   }
   if(window.curApp==='alert')renderAlertView();
   updateSummary();
@@ -8731,55 +8741,62 @@ function _renderReportsTable(op){
   const mt=_alertMeasureType(op);
   const allReps=(op.reports||[]).slice();
   if(!allReps.length)return`<div style="font-size:12px;color:#456a85;text-align:center;padding:16px 0;background:#0a1424;border-radius:10px;">관측 보고 없음 — 분소별 기상보고 버튼으로 입력</div>`;
-  // 관측소별 시간순 누적 계산 → 각 기록 시점의 누적값을 기록
+  // 입력값은 '관측 시점까지의 누적값' → 합산하지 않고 그대로 표시. 시간당 증가량(Δ)은 직전 보고 대비로 계산.
   const chrono=allReps.slice().sort((a,b)=>(a.at||0)-(b.at||0));
-  const run={};const cumAt={};
+  const last={};const dlt={};
   chrono.forEach(r=>{
-    const loc=r.loc||'사무소';
-    if(!run[loc])run[loc]={snow:0,rain:0};
-    if(r.snow!=null&&r.snow!=='')run[loc].snow+=(parseFloat(r.snow)||0);
-    if(r.rain!=null&&r.rain!=='')run[loc].rain+=(parseFloat(r.rain)||0);
-    cumAt[r.id]={snow:run[loc].snow,rain:run[loc].rain};
+    const loc=r.loc||'사무소';last[loc]=last[loc]||{};dlt[r.id]={};
+    if(r.snow!=null&&r.snow!==''){const v=parseFloat(r.snow)||0;dlt[r.id].snow=(last[loc].snow!=null)?+(v-last[loc].snow).toFixed(1):null;last[loc].snow=v;}
+    if(r.rain!=null&&r.rain!==''){const v=parseFloat(r.rain)||0;dlt[r.id].rain=(last[loc].rain!=null)?+(v-last[loc].rain).toFixed(1):null;last[loc].rain=v;}
   });
   // 표시는 최신순(과거 기록도 모두 보존)
   const reps=allReps.sort((a,b)=>(b.at||0)-(a.at||0)).slice(0,80);
-  const snowHd=mt!=='rain'?'<th>❄️ 적설<br>(cm)</th><th>누적<br>(cm)</th>':'';
-  const rainHd=mt!=='snow'?'<th>🌧️ 강우<br>(mm)</th><th>누적<br>(mm)</th>':'';
+  const _dStr=d=>d==null?'':(d>0?'<span style="color:#ff9e80;">▲'+d+'</span>':(d<0?'<span style="color:#7ec8a0;">▼'+Math.abs(d)+'</span>':'<span style="color:#5a8aa0;">0</span>'));
+  const snowHd=mt!=='rain'?'<th>❄️ 누적<br>(cm)</th><th>Δ</th>':'';
+  const rainHd=mt!=='snow'?'<th>🌧️ 누적<br>(mm)</th><th>Δ</th>':'';
   const cols=3+(mt==='both'?4:2)+(isAdminUser()?1:0);
   return`<table class="ao-req-table"><tr><th>시각</th><th>관측소</th><th>관측자</th>${snowHd}${rainHd}${isAdminUser()?'<th></th>':''}</tr>
     ${reps.map(r=>{
-      const c=cumAt[r.id]||{snow:0,rain:0};
-      const snowTd=mt!=='rain'?`<td style="text-align:center;color:#7ec8d8;">${_esc(String(r.snow??'-'))}</td><td style="text-align:center;color:#9ce0f0;font-weight:800;background:rgba(120,220,240,.06);">${(r.snow!=null&&r.snow!=='')||c.snow?c.snow.toFixed(1):'-'}</td>`:'';
-      const rainTd=mt!=='snow'?`<td style="text-align:center;color:#7db8f0;">${_esc(String(r.rain??'-'))}</td><td style="text-align:center;color:#a8cdf5;font-weight:800;background:rgba(110,150,230,.06);">${(r.rain!=null&&r.rain!=='')||c.rain?c.rain.toFixed(1):'-'}</td>`:'';
+      const d=dlt[r.id]||{};
+      const snowTd=mt!=='rain'?`<td style="text-align:center;color:#9ce0f0;font-weight:800;background:rgba(120,220,240,.06);">${_esc(String(r.snow??'-'))}</td><td style="text-align:center;font-size:10px;">${_dStr(d.snow)}</td>`:'';
+      const rainTd=mt!=='snow'?`<td style="text-align:center;color:#a8cdf5;font-weight:800;background:rgba(110,150,230,.06);">${_esc(String(r.rain??'-'))}</td><td style="text-align:center;font-size:10px;">${_dStr(d.rain)}</td>`:'';
       const delTd=isAdminUser()?`<td style="text-align:center;"><span onclick="removeAlertReport(${op.id},${r.id})" style="cursor:pointer;color:#c0392b;">×</span></td>`:'';
       return`<tr><td>${_esc((r.time||'').slice(5,16))}</td><td>${_esc(_stationLabel(r.loc))}</td><td>${_esc(r.observer||'-')}</td>${snowTd}${rainTd}${delTd}</tr>${r.note?`<tr><td colspan="${cols}" style="color:#5a8aa0;font-size:9px;padding:1px 6px 4px;">↳ ${_esc(r.note)}</td></tr>`:''}`;
     }).join('')}
   </table>
-  <div style="font-size:9px;color:#456a85;margin-top:5px;">※ '누적'은 해당 관측소의 운영 시작 이후 합계 (그 시점까지)</div>`;
+  <div style="font-size:9px;color:#456a85;margin-top:5px;">※ 값은 관측 시점까지의 <b>누적값</b>(입력 그대로). Δ는 직전 보고 대비 증가량(시간당 강우).</div>`;
 }
 // ── 누적 관측 요약 (관측소별 현재 누적 합계 — 한눈에) ──
 function _renderCumulativeSummary(op){
   const reps=op.reports||[];
   if(!reps.length)return`<div style="font-size:12px;color:#456a85;text-align:center;padding:14px 0;background:#0a1424;border-radius:10px;">아직 누적된 관측값이 없습니다</div>`;
   const mt=_alertMeasureType(op);
+  // 입력값=누적값 → 합산 금지. 관측소별 '최신 누적값'(현재값) + 시계열(추세 그래프용)
   const byLoc={};
-  reps.forEach(r=>{
+  reps.slice().sort((a,b)=>(a.at||0)-(b.at||0)).forEach(r=>{
     const key=r.loc||'사무소';
-    if(!byLoc[key])byLoc[key]={label:_stationLabel(key),snow:0,rain:0,snowCount:0,rainCount:0,lastTime:''};
-    if(r.snow!=null&&r.snow!==''){byLoc[key].snow+=(parseFloat(r.snow)||0);byLoc[key].snowCount++;}
-    if(r.rain!=null&&r.rain!==''){byLoc[key].rain+=(parseFloat(r.rain)||0);byLoc[key].rainCount++;}
+    if(!byLoc[key])byLoc[key]={label:_stationLabel(key),snow:null,rain:null,snowSeq:[],rainSeq:[],lastTime:''};
+    if(r.snow!=null&&r.snow!==''){const v=parseFloat(r.snow)||0;byLoc[key].snow=v;byLoc[key].snowSeq.push(v);}
+    if(r.rain!=null&&r.rain!==''){const v=parseFloat(r.rain)||0;byLoc[key].rain=v;byLoc[key].rainSeq.push(v);}
     if((r.time||'')>(byLoc[key].lastTime))byLoc[key].lastTime=r.time||'';
   });
-  const entries=Object.entries(byLoc).filter(([,v])=>v.snowCount>0||v.rainCount>0);
+  const entries=Object.entries(byLoc).filter(([,v])=>v.snowSeq.length||v.rainSeq.length);
   if(!entries.length)return`<div style="font-size:12px;color:#456a85;text-align:center;padding:14px 0;background:#0a1424;border-radius:10px;">아직 누적된 관측값이 없습니다</div>`;
+  // 미니 막대 추세(스파크라인): 최근 최대 8개 누적값 → 높이 막대
+  const _spark=(seq,col)=>{
+    if(!seq||seq.length<2)return'';
+    const s=seq.slice(-8);const mx=Math.max.apply(null,s)||1;
+    return`<span style="display:inline-flex;align-items:flex-end;gap:1px;height:16px;vertical-align:middle;margin-left:5px;">${s.map(v=>`<span style="display:inline-block;width:3px;height:${Math.max(2,Math.round(v/mx*16))}px;background:${col};border-radius:1px;opacity:.85;"></span>`).join('')}</span>`;
+  };
   const snowHd=mt!=='rain'?'<th>❄️ 누적 적설(cm)</th>':'';
   const rainHd=mt!=='snow'?'<th>🌧️ 누적 강우(mm)</th>':'';
   const rows=entries.map(([,v])=>{
-    const snowTd=mt!=='rain'?`<td style="text-align:center;color:#9ce0f0;font-weight:800;">${v.snowCount?v.snow.toFixed(1):'-'}</td>`:'';
-    const rainTd=mt!=='snow'?`<td style="text-align:center;color:#a8cdf5;font-weight:800;">${v.rainCount?v.rain.toFixed(1):'-'}</td>`:'';
+    const snowTd=mt!=='rain'?`<td style="text-align:center;color:#9ce0f0;font-weight:800;white-space:nowrap;">${v.snow!=null?v.snow.toFixed(1):'-'}${_spark(v.snowSeq,'#7ec8d8')}</td>`:'';
+    const rainTd=mt!=='snow'?`<td style="text-align:center;color:#a8cdf5;font-weight:800;white-space:nowrap;">${v.rain!=null?v.rain.toFixed(1):'-'}${_spark(v.rainSeq,'#7db8f0')}</td>`:'';
     return`<tr><td style="font-weight:600;color:#cfe2f2;">${_esc(v.label)}</td>${snowTd}${rainTd}<td style="font-size:9px;color:#5a8aa0;">${_esc((v.lastTime||'').slice(11,16))}</td></tr>`;
   }).join('');
-  return`<table class="ao-req-table"><tr><th>관측소</th>${snowHd}${rainHd}<th>최근</th></tr>${rows}</table>`;
+  return`<table class="ao-req-table"><tr><th>관측소</th>${snowHd}${rainHd}<th>최근</th></tr>${rows}</table>
+  <div style="font-size:9px;color:#456a85;margin-top:5px;">※ 현재 누적값(최신 보고 기준). 막대는 누적 강우 추세.</div>`;
 }
 function openAlertReport(opId,presetLoc){
   _reportOpId=opId;_reportLoc=presetLoc||'';
