@@ -3186,16 +3186,65 @@ function renderBoard(){
       <span style="flex-shrink:0;color:#6a93b5;font-family:monospace;">${dd} ${tm}</span>
     </div>`;
   };
-  html+=`<div style="margin-top:20px;font-size:12px;color:rgba(255,255,255,.35);font-weight:700;margin-bottom:6px;">📋 오늘 사고 목록 <span style="color:rgba(255,255,255,.25);font-weight:400;">(${_td} · ${todayList.length}건)</span></div>`;
-  if(!todayList.length){
-    html+=`<div style="padding:10px 12px;background:rgba(255,255,255,.02);border-radius:8px;font-size:12px;color:rgba(255,255,255,.3);">오늘 접수된 사고 없음</div>`;
-  }else{
-    todayList.forEach(r=>{html+=_accRow(r);});
-  }
-  // 최근 사고 목록 (오늘 제외, 최신순 최대 15건)
-  if(recentList.length){
-    html+=`<div style="margin-top:18px;font-size:12px;color:rgba(255,255,255,.35);font-weight:700;margin-bottom:6px;">🕑 최근 사고 목록 <span style="color:rgba(255,255,255,.25);font-weight:400;">(최신순 ${recentList.length}건)</span></div>`;
-    recentList.forEach(r=>{html+=_accRow(r);});
+  if(alertActive){
+    // 특보 뷰 하단: 분소별 누적 관측 + 최근 종료된 특보운영
+    if(activeOp){
+      const cum={};
+      (activeOp.reports||[]).forEach(r=>{
+        const loc=r.loc||'사무소';if(!cum[loc])cum[loc]={snow:0,rain:0};
+        if(r.snow!=null&&r.snow!=='')cum[loc].snow+=parseFloat(r.snow)||0;
+        if(r.rain!=null&&r.rain!=='')cum[loc].rain+=parseFloat(r.rain)||0;
+      });
+      const locs=Object.keys(cum);
+      html+=`<div style="margin-top:20px;font-size:12px;color:rgba(255,255,255,.35);font-weight:700;margin-bottom:6px;">📈 누적 관측 (분소별)</div>`;
+      if(!locs.length){
+        html+=`<div style="padding:10px 12px;background:rgba(255,255,255,.02);border-radius:8px;font-size:12px;color:rgba(255,255,255,.3);">관측 보고 없음</div>`;
+      } else {
+        locs.forEach(loc=>{const c=cum[loc];
+          html+=`<div style="display:flex;align-items:center;gap:8px;padding:8px 12px;background:rgba(255,255,255,.02);border-radius:8px;margin-bottom:4px;font-size:12px;border-left:3px solid #4fa8d0;">
+            <span style="flex:1;color:rgba(255,255,255,.7);">${_esc(_stationLabel(loc))}</span>
+            <span style="color:#cfe2f2;font-weight:700;">${c.snow?'❄️ '+c.snow.toFixed(1)+'cm  ':''}${c.rain?'🌧️ '+c.rain.toFixed(1)+'mm':''}${(!c.snow&&!c.rain)?'-':''}</span>
+          </div>`;
+        });
+      }
+    }
+    const closedOps=aops.filter(o=>o.closedAt).sort((a,b)=>(b.startedAtMs||0)-(a.startedAtMs||0)).slice(0,6);
+    if(closedOps.length){
+      html+=`<div style="margin-top:18px;font-size:12px;color:rgba(255,255,255,.35);font-weight:700;margin-bottom:6px;">📜 최근 종료된 특보운영 <span style="color:rgba(255,255,255,.25);font-weight:400;">(${closedOps.length}건)</span></div>`;
+      closedOps.forEach(o=>{const al=_opAlerts(o);const lbl=al.map(a=>_esc(a.type)+_stageShort(a.stage)).join(', ')||'특보';
+        html+=`<div onclick="openAlertHistory(${o.id})" style="display:flex;align-items:center;gap:8px;padding:8px 12px;background:rgba(255,255,255,.02);border-radius:8px;margin-bottom:4px;font-size:12px;cursor:pointer;border-left:3px solid #5d82a0;">
+          <span style="flex:1;color:rgba(255,255,255,.6);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">🌀 ${lbl}</span>
+          <span style="flex-shrink:0;color:#6a93b5;font-family:monospace;">${(o.startedAt||'').slice(5,10)}~${(o.closedAt||'').slice(5,10)}</span>
+        </div>`;
+      });
+    }
+  } else if(hazActive){
+    // 위험 뷰 하단: 조치완료된 위험상황
+    const doneHaz=(DB.g('hazards')||[]).filter(h=>h.hazStatus&&h.hazStatus!=='미조치'&&h.hazStatus!=='조치중').sort((a,b)=>(b.date||'').localeCompare(a.date||'')).slice(0,15);
+    html+=`<div style="margin-top:20px;font-size:12px;color:rgba(255,255,255,.35);font-weight:700;margin-bottom:6px;">✅ 조치완료 위험상황 <span style="color:rgba(255,255,255,.25);font-weight:400;">(${doneHaz.length}건)</span></div>`;
+    if(!doneHaz.length){
+      html+=`<div style="padding:10px 12px;background:rgba(255,255,255,.02);border-radius:8px;font-size:12px;color:rgba(255,255,255,.3);">조치완료된 위험상황 없음</div>`;
+    } else {
+      doneHaz.forEach(h=>{
+        html+=`<div onclick="_boardFocusHaz(${h.id})" style="display:flex;align-items:center;gap:8px;padding:8px 12px;background:rgba(255,255,255,.02);border-radius:8px;margin-bottom:4px;font-size:12px;cursor:pointer;border-left:3px solid #27ae60;">
+          <span style="flex-shrink:0;font-size:9px;font-weight:800;color:#27ae60;background:rgba(39,174,96,.12);border-radius:5px;padding:2px 6px;">${_esc(h.hazStatus)}</span>
+          <span style="flex:1;color:rgba(255,255,255,.7);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${h.hazType?.split(' ')[0]||'⚠️'} ${_esc((h.hazType||'위험상황').replace(/^\S+\s/,''))||'위험상황'} · ${_esc(h.loc||'위치미상')}</span>
+          <span style="flex-shrink:0;color:#6a93b5;font-family:monospace;">${(h.date||'').slice(5,10)}</span>
+        </div>`;
+      });
+    }
+  } else {
+    // 구조 뷰 하단: 오늘/최근 사고 목록
+    html+=`<div style="margin-top:20px;font-size:12px;color:rgba(255,255,255,.35);font-weight:700;margin-bottom:6px;">📋 오늘 사고 목록 <span style="color:rgba(255,255,255,.25);font-weight:400;">(${_td} · ${todayList.length}건)</span></div>`;
+    if(!todayList.length){
+      html+=`<div style="padding:10px 12px;background:rgba(255,255,255,.02);border-radius:8px;font-size:12px;color:rgba(255,255,255,.3);">오늘 접수된 사고 없음</div>`;
+    }else{
+      todayList.forEach(r=>{html+=_accRow(r);});
+    }
+    if(recentList.length){
+      html+=`<div style="margin-top:18px;font-size:12px;color:rgba(255,255,255,.35);font-weight:700;margin-bottom:6px;">🕑 최근 사고 목록 <span style="color:rgba(255,255,255,.25);font-weight:400;">(최신순 ${recentList.length}건)</span></div>`;
+      recentList.forEach(r=>{html+=_accRow(r);});
+    }
   }
   html+=`<div style="text-align:center;margin-top:18px;font-size:10px;color:rgba(255,255,255,.18);">10초마다 자동 갱신 · ${APP_VER}</div>`;
   body.innerHTML=html;
