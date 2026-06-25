@@ -4141,19 +4141,28 @@ async function _refreshFcmStatus(){
   }
   el.innerHTML=line;
 }
-async function testFcmPush(){
+// 관리자가 직접 작성한 내용으로 전 직원에게 푸시 발송
+async function sendCustomPush(){
+  if(!isAdminUser()){toast('⚠️ 관리자만 가능');return;}
   const url=_FCM_PUSH_URL||(DB.g('fcmPushUrl')||'').trim();
-  if(!url){toast('⚠️ 먼저 발송 URL을 저장하세요');return;}
-  toast('🔔 테스트 푸시 발송 중…');
+  if(!url){toast('⚠️ 발송기 URL 미설정');return;}
+  const title=(document.getElementById('pushTitleInp')?.value||'설악산 현장관리').trim()||'설악산 현장관리';
+  const body=(document.getElementById('pushBodyInp')?.value||'').trim();
+  if(!body){toast('⚠️ 보낼 내용을 입력하세요');document.getElementById('pushBodyInp')?.focus();return;}
+  if(!confirm('전 직원에게 푸시를 발송합니다.\n\n제목: '+title+'\n내용: '+body+'\n\n발송할까요?'))return;
+  toast('📨 푸시 발송 중…');
   try{
     const snap=await _fdb.collection('fcmTokens').get();
     const tokens=[];snap.forEach(d=>{const v=d.data()||{};if(v.token)tokens.push(v.token);});
     if(!tokens.length){toast('⚠️ 등록된 기기가 없습니다');return;}
     const res=await fetch(url,{method:'POST',headers:{'content-type':'text/plain;charset=utf-8'},
-      body:JSON.stringify({secret:_FCM_PUSH_SECRET||(DB.g('fcmPushSecret')||''),title:'설악산 현장관리',body:'🔔 테스트 푸시입니다',data:{},tokens})});
+      body:JSON.stringify({secret:_FCM_PUSH_SECRET||(DB.g('fcmPushSecret')||''),title,body,data:{app:'home'},tokens})});
     const out=await res.json().catch(()=>({}));
     if(out.error){toast('❌ 발송기 오류: '+out.error);}
-    else toast(`✅ ${out.sent||0}대 발송${out.invalid&&out.invalid.length?` · 무효 ${out.invalid.length}`:''}`);
+    else{
+      toast(`✅ ${out.sent||0}대 발송 완료${out.invalid&&out.invalid.length?` · 무효 ${out.invalid.length}`:''}`);
+      const b=document.getElementById('pushBodyInp');if(b)b.value='';
+    }
   }catch(e){toast('❌ 발송 실패: '+e.message);}
 }
 
@@ -8812,10 +8821,16 @@ function renderAdmSys(){
     </div>
     <div class="scard" style="margin-bottom:8px;">
       <div class="stitle">📲 푸시 알림 (꺼진 폰까지)</div>
-      <div style="font-size:11px;color:#7a9cb8;margin-bottom:8px;">구조 1보·위험상황 발생 시 OS 푸시가 자동 발송됩니다. 발송기는 <b style="color:#5dbf8a;">앱에 내장</b>돼 별도 설정이 필요 없습니다.</div>
+      <div style="font-size:11px;color:#7a9cb8;margin-bottom:8px;">구조 1보·위험상황 발생 시 자동 발송됩니다. 아래에서 <b style="color:#5dbf8a;">원하는 내용을 직접 작성해 전 직원에게</b> 푸시할 수도 있습니다.</div>
+      <div class="fg"><span class="fl">제목</span>
+        <input id="pushTitleInp" class="fi" type="text" value="설악산 현장관리" maxlength="40" style="font-size:13px;">
+      </div>
+      <div class="fg"><span class="fl">내용</span>
+        <textarea id="pushBodyInp" class="fi" rows="2" placeholder="보낼 메시지를 입력하세요" maxlength="200" style="font-size:13px;resize:vertical;"></textarea>
+      </div>
       <div style="display:flex;gap:6px;margin-top:4px;">
-        <button onclick="testFcmPush()" style="flex:1;background:rgba(79,168,208,.15);color:#4fa8d0;border:1px solid rgba(79,168,208,.35);padding:9px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;">🔔 테스트 발송</button>
-        <button onclick="renderAdmSys()" style="background:rgba(255,255,255,.05);color:#7a9cb8;border:1px solid rgba(255,255,255,.1);padding:9px 12px;border-radius:8px;font-size:12px;cursor:pointer;">↻ 새로고침</button>
+        <button onclick="sendCustomPush()" style="flex:2;background:#1a4a6e;color:#fff;border:none;padding:10px;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;">📨 전 직원에게 발송</button>
+        <button onclick="renderAdmSys()" style="background:rgba(255,255,255,.05);color:#7a9cb8;border:1px solid rgba(255,255,255,.1);padding:10px 12px;border-radius:8px;font-size:12px;cursor:pointer;">↻ 새로고침</button>
       </div>
       <div id="fcmAdvWrap" style="margin-top:8px;">
         <div onclick="var e=document.getElementById('fcmAdv');e.style.display=e.style.display==='none'?'block':'none';" style="font-size:10px;color:#3a6a8a;cursor:pointer;">⚙️ 고급: 발송기 직접 지정 (선택)</div>
