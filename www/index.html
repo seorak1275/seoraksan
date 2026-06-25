@@ -1658,7 +1658,7 @@ const _FB_CFG={
 // history: 점검이력은 무제한으로 계속 쌓이는 로그성 데이터라 단일문서 그대로 두면 매 점검마다 전체가 전원에게 재전송됨 → 건별 문서로 전환
 const _SHARED_COLL=['rescues','hazards','facilities','history'];
 // _SHARED_DOC: 단일 문서에 JSON 배열 저장 (관리자 전용, 동시 쓰기 없음)
-const _SHARED_DOC=['alertOps','staff','catFac','catFacMeta','pendingUsers','approvedUsers','deletedKakaoIds','adminOwnerKakaoId','adminApprovalCode','extAgencies','extAgencyCode','extAgencyDisplayName','geminiApiKey','kmaProxyUrl'];
+const _SHARED_DOC=['alertOps','staff','catFac','catFacMeta','pendingUsers','approvedUsers','deletedKakaoIds','adminOwnerKakaoId','adminApprovalCode','extAgencies','extAgencyCode','extAgencyDisplayName','geminiApiKey','kmaProxyUrl','_acl','loginLog'];
 // 시설물 레거시(단일문서) 폴백/시드 동기화 상태
 let _legacyFacBackup=null; // appData/facilities(구버전)의 백업 — 컬렉션 비었을 때 화면 폴백
 let _facSeedReady=false;   // 시설물 첫 스냅샷·레거시 백업 확인 완료(시드 레이스 방지)
@@ -1698,8 +1698,10 @@ const _fs={};   // Firestore 인메모리 캐시
 let _fdb=null;
 let _fst=null;
 let _fmsg=null;
-let _authReady=false;  // 익명 인증 성공 여부
+let _authReady=false;  // 인증(익명 또는 커스텀 토큰) 성공 여부
 let _authErrCode='';   // 인증 실패 코드 (auth/operation-not-allowed 등)
+let _authRole='';      // 커스텀 토큰 역할: 'admin' | 'member' | '' (익명/미인증)
+let _authKakaoId='';   // 인증된 카카오 ID (커스텀 토큰 발급 시)
 let _swReg=null;
 // 기기 고유 ID (localStorage 영속, 알림 브로드캐스트 출처 구분용)
 const _MY_DEVICE_ID=(function(){
@@ -1982,14 +1984,29 @@ function initFirebase(onReady){
       firebase.auth().onAuthStateChanged(function(u){
         if(u){
           _authReady=true;_authErrCode='';
+          // 커스텀 토큰(비익명) 세션이면 새로고침 후에도 클레임에서 역할 복원
+          if(!u.isAnonymous){
+            u.getIdTokenResult().then(function(r){
+              var c=(r&&r.claims)||{};
+              if(c.member){
+                _authRole=c.admin?'admin':'member';
+                _authKakaoId=c.kakaoId||'';
+                if(c.admin)localStorage.setItem('_tokenAdmin','1');else localStorage.removeItem('_tokenAdmin');
+              }
+              try{updateUserUI();}catch(e){}
+            }).catch(function(){});
+          }
           setTimeout(_flushSyncQueue,300); // 인증 완료 → 막혔던 쓰기 즉시 재시도
-        }
-      });
-      firebase.auth().signInAnonymously().catch(function(e){
-        _authErrCode=(e&&e.code)||'auth/unknown';
-        // 익명 인증이 콘솔에서 꺼져 있으면 모든 쓰기가 막힌다 → 사용자에게 명확히 안내
-        if(_authErrCode==='auth/operation-not-allowed'){
-          setTimeout(function(){try{toast('⚠️ Firebase 익명 인증이 꺼져 있어 동기화가 안 됩니다 (관리자: 콘솔에서 익명 로그인 활성화 필요)');}catch(e){}},2500);
+        }else{
+          // 로그인 세션이 전혀 없을 때만 익명 인증으로 폴백.
+          // (커스텀 토큰 세션은 위 분기에서 유지되므로 덮어쓰지 않는다.)
+          firebase.auth().signInAnonymously().catch(function(e){
+            _authErrCode=(e&&e.code)||'auth/unknown';
+            // 익명 인증이 콘솔에서 꺼져 있으면 모든 쓰기가 막힌다 → 사용자에게 명확히 안내
+            if(_authErrCode==='auth/operation-not-allowed'){
+              setTimeout(function(){try{toast('⚠️ Firebase 익명 인증이 꺼져 있어 동기화가 안 됩니다 (관리자: 콘솔에서 익명 로그인 활성화 필요)');}catch(e){}},2500);
+            }
+          });
         }
       });
     }catch(e){_authErrCode='auth/init-failed';}
@@ -3970,7 +3987,10 @@ function adminLogout(){
   toast('관리자 로그아웃');
 }
 function isAdminUser(){
-  return localStorage.getItem('_adminAuthed')==='1';
+  // 토큰 admin 클레임(허용목록 기반) 또는 기존 비밀번호 인증(전환기 폴백) 둘 다 인정
+  return localStorage.getItem('_adminAuthed')==='1'
+      || localStorage.getItem('_tokenAdmin')==='1'
+      || _authRole==='admin';
 }
 function saveUser(){
   const name=document.getElementById('uNameIn').value.trim();
@@ -8618,10 +8638,73 @@ function importAllData(inp){
   rd.readAsText(f);
 }
 
+// ── 허용목록(_acl) 관리 ──
+function _getAcl(){
+  const a=DB.g('_acl')||{};
+  const norm=x=>(Array.isArray(x)?x:[]).map(String).filter(Boolean);
+  return {members:norm(a.members),admins:norm(a.admins)};
+}
+function _aclSetRole(kakaoId,role){
+  if(!isAdminUser()){toast('⚠️ 관리자만 가능');return;}
+  kakaoId=String(kakaoId);
+  const acl=_getAcl();
+  acl.members=acl.members.filter(id=>id!==kakaoId);
+  acl.admins=acl.admins.filter(id=>id!==kakaoId);
+  if(role==='member')acl.members.push(kakaoId);
+  else if(role==='admin')acl.admins.push(kakaoId);
+  DB.s('_acl',acl);
+  renderAdmSys();
+  toast(role==='none'?'제거됨':role==='admin'?'관리자로 설정':'멤버로 설정');
+}
+function _aclAddById(){
+  if(!isAdminUser()){toast('⚠️ 관리자만 가능');return;}
+  const inp=document.getElementById('aclAddIdInp');
+  const id=(inp&&inp.value||'').trim();
+  if(!id){toast('⚠️ 카카오 ID를 입력하세요');return;}
+  if(!/^\d+$/.test(id)){toast('⚠️ 카카오 ID는 숫자여야 합니다');return;}
+  _aclSetRole(id,'member');
+}
+function _renderAclManager(){
+  const acl=_getAcl();
+  const log=(DB.g('loginLog')||[]).slice().sort((a,b)=>(b.at||0)-(a.at||0));
+  const seen={};const rows=[];
+  log.forEach(e=>{const id=String(e.kakaoId||'');if(!id||seen[id])return;seen[id]=1;rows.push({id,name:e.name||'',dept:e.dept||''});});
+  acl.admins.concat(acl.members).forEach(id=>{id=String(id);if(seen[id])return;seen[id]=1;rows.push({id,name:'(로그인 이력 없음)',dept:''});});
+  const roleOf=id=>acl.admins.includes(String(id))?'admin':(acl.members.includes(String(id))?'member':'none');
+  let html=`<div style="font-size:11px;color:#7a9cb8;margin-bottom:8px;line-height:1.6;">카카오 로그인한 직원만 데이터에 접근하도록 허용목록을 관리합니다. <b style="color:#cfe2f2;">규칙 잠금 전에 모든 직원을 멤버 이상으로 등록</b>하세요. (마스터 계정은 자동 관리자)</div>`;
+  html+=`<div style="font-size:11px;color:#9bbdd4;margin-bottom:6px;">현재 <b style="color:#5dbf8a;">관리자 ${acl.admins.length}</b> · <b style="color:#4fa8d0;">멤버 ${acl.members.length}</b></div>`;
+  if(!rows.length){
+    html+=`<div style="font-size:11px;color:rgba(255,255,255,.3);padding:6px 0;">로그인 이력이 아직 없습니다. 직원들이 카카오 로그인하면 자동으로 목록에 나타납니다.</div>`;
+  }
+  rows.forEach(r=>{
+    const role=roleOf(r.id);
+    const badge=role==='admin'?'<span style="color:#5dbf8a;font-weight:700;">관리자</span>':role==='member'?'<span style="color:#4fa8d0;font-weight:700;">멤버</span>':'<span style="color:#9a5040;">미등록</span>';
+    html+=`<div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid rgba(255,255,255,.05);">
+      <div style="flex:1;min-width:0;">
+        <div style="font-size:12px;color:#cfe2f2;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${_esc(r.name)} ${badge}</div>
+        <div style="font-size:10px;color:#5a7088;font-family:monospace;">ID ${_esc(r.id)}${r.dept?' · '+_esc(r.dept):''}</div>
+      </div>
+      <select onchange="_aclSetRole('${_esc(r.id)}',this.value)" style="background:#0a1626;color:#cfe2f2;border:1px solid rgba(79,168,208,.25);border-radius:7px;padding:5px 7px;font-size:11px;cursor:pointer;">
+        <option value="none"${role==='none'?' selected':''}>미등록</option>
+        <option value="member"${role==='member'?' selected':''}>멤버</option>
+        <option value="admin"${role==='admin'?' selected':''}>관리자</option>
+      </select>
+    </div>`;
+  });
+  html+=`<div style="display:flex;gap:6px;margin-top:10px;">
+    <input id="aclAddIdInp" class="fi" placeholder="카카오 ID 직접 추가 (숫자)" style="flex:1;font-family:monospace;font-size:12px;">
+    <button onclick="_aclAddById()" style="background:#1a4a6e;color:#fff;border:none;padding:8px 12px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;">＋ 멤버</button>
+  </div>`;
+  return html;
+}
 function renderAdmSys(){
   const unseenCnt=_getUnseenCount();
   document.getElementById('admSysWrap').innerHTML=`
 
+    <div class="scard" style="margin-bottom:8px;border:1px solid rgba(93,191,138,.25);">
+      <div class="stitle">🔐 접근 권한 (허용목록)</div>
+      ${_renderAclManager()}
+    </div>
     <div class="scard" style="margin-bottom:8px;">
       <div class="stitle">💾 데이터 백업 / 복원</div>
       <div style="font-size:11px;color:#7a9cb8;margin-bottom:8px;">전체 데이터를 파일로 내려받아 보관하세요 (사진 원본은 서버에 별도 저장)</div>
@@ -8870,6 +8953,49 @@ function openGuide(key){const g=GUIDES[key];if(!g)return;document.getElementById
 // ══════════════════════════════════════════
 // 홈 요약
 // ══════════════════════════════════════════
+// ── 카카오 access_token → Apps Script 검증 → Firebase 커스텀 토큰 로그인 ──
+// 서버(Apps Script)가 카카오 신원을 확인하고 허용목록을 대조한 뒤에만 토큰을 발급한다.
+// 성공 시 _authRole(admin/member)이 세팅되고, 이후 Firestore 접근은 그 토큰으로 이뤄진다.
+// (규칙이 아직 느슨한 전환기에는 실패해도 익명 인증이 유지되어 앱이 깨지지 않는다.)
+async function _signInWithKakaoToken(kakaoAccessToken){
+  const url=_FCM_PUSH_URL||(DB.g('fcmPushUrl')||'').trim();
+  if(!url||!kakaoAccessToken)return{error:'no_url_or_token'};
+  let j;
+  try{
+    const res=await fetch(url,{
+      method:'POST',
+      headers:{'content-type':'text/plain;charset=utf-8'}, // Apps Script preflight 회피
+      body:JSON.stringify({secret:_FCM_PUSH_SECRET||(DB.g('fcmPushSecret')||''),action:'mintToken',kakaoAccessToken:kakaoAccessToken})
+    });
+    j=await res.json();
+  }catch(e){return{error:'network',detail:String(e)};}
+  if(j&&j.token){
+    try{
+      await firebase.auth().signInWithCustomToken(j.token);
+      _authRole=j.role||'member';
+      _authKakaoId=j.kakaoId||'';
+      _authReady=true;_authErrCode='';
+      if(_authRole==='admin')localStorage.setItem('_tokenAdmin','1');
+      else localStorage.removeItem('_tokenAdmin');
+      setTimeout(_flushSyncQueue,300);
+    }catch(e){return{error:'signin_failed',detail:String(e)};}
+  }
+  return j||{error:'empty'};
+}
+// 로그인 이력 기록 (허용목록 관리 UI에서 직원을 골라 추가할 수 있도록 kakaoId+이름 수집)
+function _recordLoginLog(){
+  try{
+    const u=DB.g('currentUser')||{};
+    const kid=u.kakaoId||_authKakaoId;
+    if(!kid)return;
+    const log=(DB.g('loginLog')||[]).slice();
+    const entry={kakaoId:String(kid),name:u.realName||u.name||'',dept:u.dept||'',rank:u.rank||'',at:Date.now()};
+    const i=log.findIndex(e=>String(e.kakaoId)===String(kid));
+    if(i>=0)log[i]=entry; else log.push(entry);
+    log.sort((a,b)=>(b.at||0)-(a.at||0));
+    DB.s('loginLog',log.slice(0,300)); // 최근 300명 유지
+  }catch(e){}
+}
 function kakaoLogin(){
   if(!window.Kakao||!Kakao.isInitialized()){toast('⚠️ 카카오 SDK 오류');return;}
   Kakao.Auth.authorize({redirectUri:'https://109yoon.github.io/seoraksan/',throughTalk:false});
@@ -8877,6 +9003,7 @@ function kakaoLogin(){
 function _handleKakaoCode(code,redirectUri){
   var _uri=redirectUri||'https://109yoon.github.io/seoraksan/';
   window._needsCode=true; // 동기적으로 먼저 세팅 (checkAuth 타이밍 충돌 방지)
+  var _kakaoAccessTok=''; // 서버 검증(커스텀 토큰 발급)에 쓸 카카오 access_token 보관
   fetch('https://kauth.kakao.com/oauth/token',{
     method:'POST',
     headers:{'Content-Type':'application/x-www-form-urlencoded;charset=utf-8'},
@@ -8885,6 +9012,7 @@ function _handleKakaoCode(code,redirectUri){
   .then(function(r){return r.json();})
   .then(function(tok){
     if(!tok.access_token)throw new Error(tok.error_description||'토큰 오류');
+    _kakaoAccessTok=tok.access_token;
     if(window.Kakao&&Kakao.Auth)Kakao.Auth.setAccessToken(tok.access_token);
     return fetch('https://kapi.kakao.com/v2/user/me',{headers:{Authorization:'Bearer '+tok.access_token}});
   })
@@ -8905,6 +9033,14 @@ function _handleKakaoCode(code,redirectUri){
     });
     DB.s('currentUser',merged);
     DB.s('authType','kakao');
+    // 서버 검증 → Firebase 커스텀 토큰 로그인 (허용목록 기반 접근권한 부여)
+    _signInWithKakaoToken(_kakaoAccessTok).then(function(mr){
+      if(mr&&mr.error==='not_allowed'){
+        setTimeout(function(){try{toast('⚠️ 접근 권한이 없습니다. 관리자에게 등록을 요청하세요 (내 ID: '+(mr.kakaoId||'?')+')');}catch(e){}},1200);
+      }
+      try{_recordLoginLog();}catch(e){}
+      try{updateUserUI();}catch(e){}
+    });
     if(window._hideLoading)window._hideLoading();
     if(window.hideLoginScreen)window.hideLoginScreen();
     updateUserUI();
@@ -8926,6 +9062,9 @@ function kakaoLogout(){
   window._needsCode=false;window._requireProfile=false;
   DB.s('currentUser',{});
   DB.s('authType','');
+  // 커스텀 토큰 세션·역할 정리 → 익명 인증으로 복귀
+  localStorage.removeItem('_tokenAdmin');_authRole='';_authKakaoId='';
+  try{firebase.auth().signOut();}catch(e){}
   if(window.showLoginScreen)window.showLoginScreen();
   updateUserUI();
   try{renderSettings();}catch(e){}
