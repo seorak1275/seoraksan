@@ -2537,7 +2537,7 @@ function toggleHiContrast(){
 }
 // VAPID 키 설정 후 FCM 토큰 등록 (Firebase Console > Project Settings > Cloud Messaging > Web Push 인증서)
 const _FCM_VAPID=''; // ← 여기에 Firebase Console에서 발급한 VAPID 키 입력
-const _FCM_PUSH_URL='https://script.google.com/macros/s/AKfycbwE10Z-bdLMaQrNJ6ZntVcrESYFHrrFdAY6Z4O_Wg7guWvbpZFGmeAZ_ILzL0uvoJNd/exec';
+const _FCM_PUSH_URL='https://script.google.com/macros/s/AKfycbwp4JWCBkLC-LlSqiPOmyUEIO3uhv9w0ReJhEaJcXvlK0NWWwIrEK3Jo-DTaBWRHqJW/exec';
 const _FCM_PUSH_SECRET='설악산119';
 async function _initFCM(){
   if(!_fmsg||!_fdb||!_swReg||Notification.permission!=='granted'||!_FCM_VAPID)return;
