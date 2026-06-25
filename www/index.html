@@ -1596,6 +1596,11 @@ body.hi-contrast .stat-lbl{color:rgba(255,255,255,.65)!important;}
 <div id="modalTrailCtrl" class="modal">
   <div class="mbox">
     <div class="mhdr"><span class="mtitle">🚧 탐방로 통제 현황</span><button class="mclose" onclick="closeM('modalTrailCtrl')">×</button></div>
+    <div style="display:flex;gap:5px;margin-bottom:8px;">
+      <button onclick="_trailBatch('통제')" class="ao-loc-btn" style="flex:1;font-size:11px;padding:7px 0;background:rgba(231,76,60,.14);border-color:#e74c3c66;color:#ff8a73;">⛔ 전체 통제</button>
+      <button onclick="_trailBatch('주의')" class="ao-loc-btn" style="flex:1;font-size:11px;padding:7px 0;background:rgba(241,196,15,.13);border-color:#f1c40f55;color:#f1c40f;">⚠️ 전체 주의</button>
+      <button onclick="_trailBatch('개방')" class="ao-loc-btn" style="flex:1;font-size:11px;padding:7px 0;background:rgba(46,204,113,.12);border-color:#2ecc7155;color:#2ecc71;">✅ 전체 개방</button>
+    </div>
     <div id="trailCtrlBody" style="max-height:60vh;overflow-y:auto;"></div>
     <div class="fg" style="margin-top:8px;"><span class="fl">일괄 메모</span><input type="text" id="trailCtrlNote" class="fi" placeholder="예: 호우 주의보로 전 구간 통제"></div>
     <button class="btn btn-red" onclick="saveTrailCtrl()">🚧 통제 현황 저장</button>
@@ -1714,7 +1719,7 @@ const _FB_CFG={
 // history: 점검이력은 무제한으로 계속 쌓이는 로그성 데이터라 단일문서 그대로 두면 매 점검마다 전체가 전원에게 재전송됨 → 건별 문서로 전환
 const _SHARED_COLL=['rescues','hazards','facilities','history'];
 // _SHARED_DOC: 단일 문서에 JSON 배열 저장 (관리자 전용, 동시 쓰기 없음)
-const _SHARED_DOC=['alertOps','staff','catFac','catFacMeta','pendingUsers','approvedUsers','deletedKakaoIds','adminOwnerKakaoId','adminApprovalCode','extAgencies','extAgencyCode','extAgencyDisplayName','geminiApiKey','kmaProxyUrl','_acl','loginLog','trailStatus','crisisLevel'];
+const _SHARED_DOC=['alertOps','staff','catFac','catFacMeta','pendingUsers','approvedUsers','deletedKakaoIds','adminOwnerKakaoId','adminApprovalCode','extAgencies','extAgencyCode','extAgencyDisplayName','geminiApiKey','kmaProxyUrl','_acl','loginLog','trailStatus','crisisLevel','weatherBrief'];
 // 시설물 레거시(단일문서) 폴백/시드 동기화 상태
 let _legacyFacBackup=null; // appData/facilities(구버전)의 백업 — 컬렉션 비었을 때 화면 폴백
 let _facSeedReady=false;   // 시설물 첫 스냅샷·레거시 백업 확인 완료(시드 레이스 방지)
@@ -8549,6 +8554,16 @@ function _renderAlertInput(active){
       <button onclick="openTrailCtrl()" class="ao-loc-btn" style="width:100%;">🚧 탐방로 통제/개방 관리</button>
     </div>`;
   }
+  // 정기 기상 브리핑 (관리자 작성 / 전원 열람)
+  {
+    const wb=DB.g('weatherBrief')||{};
+    const fresh=wb.text&&wb.atMs&&(Date.now()-wb.atMs<6*3600*1000);
+    html+=`<div class="ao-card" style="margin-bottom:12px;">
+      <div class="ao-sec-hd" style="margin-top:0;"><span class="bar" style="background:#4fa8d0;"></span>🌦️ 기상 브리핑${wb.time?` <span style="font-size:10px;color:#6a94b0;font-weight:700;margin-left:6px;">${_esc(wb.time)} 기준</span>`:''}</div>
+      ${wb.text?`<div style="font-size:12.5px;line-height:1.6;color:${fresh?'#cfe2f2':'#8aa6bc'};white-space:pre-wrap;padding:2px 0 4px;">${_esc(wb.text)}</div><div style="font-size:10px;color:#5a7a92;margin-bottom:6px;">— ${_esc(wb.by||'')}${fresh?'':' · ⚠️ 6시간 경과(갱신 필요)'}</div>`:`<div style="font-size:11px;color:#5a7a92;padding:2px 0 6px;">등록된 브리핑이 없습니다.</div>`}
+      ${admin?`<button onclick="openWeatherBrief()" class="ao-loc-btn" style="width:100%;border-color:#4fa8d055;color:#4fa8d0;">✍️ 기상 브리핑 작성/갱신</button>`:''}
+    </div>`;
+  }
   html+=`<div class="ao-sec-hd"><span class="bar"></span>📍 분소별 빠른 입력</div>`;
   ALERT_GROUPS.forEach(g=>{
     g.stations.forEach(st=>{
@@ -8763,6 +8778,17 @@ function setCrisisLevel(level){
   _updateCrisisBanner();
   pushNoti(`🚨 재난위기경보 ${CRISIS_LABEL[level]||level} 발령${type?' — '+type:''}`, '🚨','재난',{app:'alert'},'안전사고');
   toast(`🚨 위기경보 ${level} 설정`);
+  // 심각/경계 단계는 전 탐방로 통제 연동 제안
+  if((level==='심각'||level==='경계')){
+    const ts=DB.g('trailStatus')||{};
+    const openCnt=SEORAK_TRAILS.filter(t=>((ts[t.id]||{}).status||'개방')!=='통제').length;
+    if(openCnt>0&&confirm(`🚨 ${level} 단계입니다.\n현재 미통제 ${openCnt}개 구간을 전부 '통제'로 전환하시겠습니까?`)){
+      SEORAK_TRAILS.forEach(t=>{ts[t.id]={status:'통제',time:now(),at:Date.now(),by:getAuthor(),note:`위기경보 ${level} 일괄통제`};});
+      DB.s('trailStatus',ts);
+      pushNoti(`🚧 위기경보 ${level} 연동 — 전 탐방로 통제`,'🚧','재난',{app:'alert'},'안전사고');
+      toast('🚧 전 탐방로 통제 완료');
+    }
+  }
 }
 function clearCrisisLevel(){
   if(!isAdminUser()){toast('⚠️ 관리자만 가능');return;}
@@ -8770,6 +8796,30 @@ function clearCrisisLevel(){
   const el=document.getElementById('crisisModal');if(el)el.remove();
   _updateCrisisBanner();
   toast('✅ 위기경보 해제');
+}
+// ── 정기 기상 브리핑 ──
+function openWeatherBrief(){
+  if(!isAdminUser()){toast('⚠️ 관리자만 가능');return;}
+  const wb=DB.g('weatherBrief')||{};
+  const tmpl=wb.text||'■ 현재: \n■ 강수: \n■ 풍속: \n■ 전망: \n■ 조치사항: ';
+  const modal=document.createElement('div');
+  modal.id='wbModal';modal.className='modal on';
+  modal.innerHTML=`<div class="mbox"><div class="mhdr"><span class="mtitle">🌦️ 기상 브리핑 작성</span><button class="mclose" onclick="document.getElementById('wbModal').remove()">×</button></div>
+    <div style="font-size:11px;color:#6a94b0;margin-bottom:8px;">전 직원·응소자에게 즉시 공유됩니다. 정기(예: 04:30·16:30) 갱신 권장.</div>
+    <textarea id="wbText" class="fi" style="min-height:160px;line-height:1.6;font-size:13px;resize:vertical;">${_esc(tmpl)}</textarea>
+    <button class="btn btn-primary" style="margin-top:10px;" onclick="saveWeatherBrief()">📢 브리핑 게시</button>
+  </div>`;
+  document.body.appendChild(modal);
+}
+function saveWeatherBrief(){
+  if(!isAdminUser()){toast('⚠️ 관리자만 가능');return;}
+  const text=(document.getElementById('wbText').value||'').trim();
+  if(!text){toast('내용을 입력하세요');return;}
+  DB.s('weatherBrief',{text,time:now(),atMs:Date.now(),by:getAuthor()});
+  const el=document.getElementById('wbModal');if(el)el.remove();
+  pushNoti('🌦️ 기상 브리핑 갱신','🌦️','재난',{app:'alert'},'안전사고');
+  toast('📢 기상 브리핑 게시');
+  renderAlertView();
 }
 function _latestOccupancy(op,loc){
   const list=(op.occupancy||[]).filter(o=>o.loc===loc);
@@ -8849,6 +8899,22 @@ function openTrailCtrl(){
   document.getElementById('trailCtrlBody').innerHTML=html;
   document.getElementById('trailCtrlNote').value='';
   document.getElementById('modalTrailCtrl').classList.add('on');
+}
+// 모달 내 전 구간 상태를 한 번에 선택(저장 전 미리보기, '저장' 눌러야 반영)
+function _trailBatch(st){
+  document.querySelectorAll('#trailCtrlBody .trow, #trailCtrlBody [data-tid]').forEach(()=>{});
+  document.querySelectorAll('#trailCtrlBody > div').forEach(row=>{
+    const btns=row.querySelectorAll('button[data-tid]');
+    btns.forEach(b=>{
+      const on=b.dataset.st===st;
+      b.classList.toggle('on',on);
+      const c=TRAIL_STATUS_COLORS[b.dataset.st];
+      b.style.background=on?c+'26':'rgba(255,255,255,.04)';
+      b.style.borderColor=on?c:'rgba(255,255,255,.1)';
+      b.style.color=on?c:'rgba(255,255,255,.4)';
+    });
+  });
+  toast(`전 구간 '${st}' 선택 — 저장을 눌러 반영`);
 }
 function saveTrailCtrl(){
   const ts=DB.g('trailStatus')||{};
