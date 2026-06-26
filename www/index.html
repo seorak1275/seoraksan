@@ -219,6 +219,8 @@ button{-webkit-tap-highlight-color:transparent;touch-action:manipulation;}
 .mpin-num{background:rgba(8,20,40,.88);border:1px solid rgba(79,168,208,.6);border-radius:3px;padding:1px 3px;font-size:6px;font-weight:700;color:#7ac8e8;white-space:nowrap;cursor:pointer;box-shadow:0 1px 4px rgba(0,0,0,.6);line-height:1.2;user-select:none;-webkit-user-select:none;}
 .map-cluster{min-width:30px;height:30px;padding:0 8px;border-radius:16px;background:rgba(192,57,43,.93);border:2px solid #fff;color:#fff;font-weight:800;font-size:13px;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 9px rgba(0,0,0,.55);cursor:pointer;user-select:none;-webkit-user-select:none;}
 .map-cluster.fac{background:rgba(26,74,110,.94);border-color:rgba(125,211,250,.9);}
+.map-cluster.active{background:rgba(231,76,60,.96);border-color:#fff;box-shadow:0 0 0 3px rgba(231,76,60,.4),0 2px 10px rgba(0,0,0,.55);animation:actClusPulse 1.6s ease-in-out infinite;}
+@keyframes actClusPulse{0%,100%{box-shadow:0 0 0 3px rgba(231,76,60,.4),0 2px 10px rgba(0,0,0,.55);}50%{box-shadow:0 0 0 7px rgba(231,76,60,.12),0 2px 14px rgba(231,76,60,.5);}}
 .sheet-handle{width:30px;height:3px;background:rgba(255,255,255,.18);border-radius:9px;margin:0 auto;}
 .mpin-shelter{border-color:#27ae60;}
 .p-ok{border-color:#27ae60;}.p-warn{border-color:#e67e22;}.p-bad{border-color:#c0392b;}
@@ -2874,7 +2876,6 @@ function _clusterByPixels(map,items,cellPx,onClick,cls){
   if(!proj){items.forEach(it=>{try{it.ov.setMap(map);}catch(e){}});return out;}
   const cells=new Map();
   items.forEach(it=>{
-    if(it.noClus){try{it.ov.setMap(map);}catch(e){}return;} // 진행중 구조: 클러스터에 묶지 않고 항상 개별 표시
     if(!(it.lat&&it.lng)){try{it.ov.setMap(map);}catch(e){}return;}
     let pt;try{pt=proj.pointFromCoords(new kakao.maps.LatLng(it.lat,it.lng));}catch(e){pt=null;}
     if(!pt){try{it.ov.setMap(map);}catch(e){}return;}
@@ -2903,7 +2904,11 @@ var _rClusterOvs=[],_rEvItems=[];
 function _reclusterRescue(){
   if(!mapR)return;
   _rClusterOvs.forEach(o=>{try{o.setMap(null);}catch(e){}});_rClusterOvs=[];
-  _rClusterOvs=_clusterByPixels(mapR,_rEvItems,52,(la,ln)=>_clusterZoom(mapR,la,ln),'');
+  // 진행중(noClus)과 종료/위험을 분리 클러스터링 → 진행중끼리만 겹칠 때 빨간 액티브 클러스터로 묶음
+  const ongoing=_rEvItems.filter(it=>it.noClus);
+  const others=_rEvItems.filter(it=>!it.noClus);
+  _rClusterOvs=_clusterByPixels(mapR,others,52,(la,ln)=>_clusterZoom(mapR,la,ln),'')
+    .concat(_clusterByPixels(mapR,ongoing,46,(la,ln)=>_clusterZoom(mapR,la,ln),'active'));
 }
 // 시설물 점검 지도: 시설물 핀 클러스터
 var _iClusterOvs=[],_iItems=[];
@@ -5246,8 +5251,13 @@ function renderResList(){
   const _sig=_resListTab+'|'+[...resTypeF].join()+'|'+[...resStatusF].join()+'|'+resDateFrom+'|'+resDateTo+'|'+(_resSearchQ||'');
   if(_sig!==_resListSig){_resListSig=_sig;_resListLimit=50;}
   let cards=[];
+  const _hdr=(txt,col)=>`<div style="display:flex;align-items:center;gap:7px;margin:4px 2px 7px;"><span style="font-size:11px;font-weight:800;color:${col};letter-spacing:.3px;">${txt}</span><div style="flex:1;height:1px;background:linear-gradient(90deg,${col}44,transparent);"></div></div>`;
+  // 진행중 구조를 상단에 별도 그룹으로 모아 일일 운영 시인성 강화
   if(_showRes){
-    cards=cards.concat((res.filter(r=>_stOkRes(r.status)&&_dateOkL(r.date)&&_resMatchSearch(r))).slice().reverse().map(r=>{
+    const _rescues=res.filter(r=>_stOkRes(r.status)&&_dateOkL(r.date)&&_resMatchSearch(r)).slice().reverse();
+    const _og=_rescues.filter(r=>r.status==='ongoing');
+    const _dn=_rescues.filter(r=>r.status!=='ongoing');
+    const _mkCard=r=>{
       const isOg=r.status==='ongoing';const ti=RES_TYPES[r.type]||RES_TYPES['기타'];
       const totalPh=(r.reports||[]).length+1;
       const hasCoord=!!(r.lat&&r.lng);
@@ -5263,7 +5273,9 @@ function renderResList(){
           ${isOg&&_elapsedStr(r.date)?`<span class="js-elapsed" data-d="${_esc(r.date)}" style="font-size:10px;font-weight:700;color:#f0a500;white-space:nowrap;">⏱ ${_elapsedStr(r.date)}</span>`:''}
         </div>
       </div>`;
-    }));
+    };
+    if(_og.length)cards.push(_hdr('🔴 진행중 작전 '+_og.length,'#ff6b5e'),..._og.map(_mkCard));
+    if(_dn.length)cards.push(_hdr('✅ 종료 '+_dn.length,'#3ad17a'),..._dn.map(_mkCard));
   }
   if(_showHaz){
     cards=cards.concat((haz.filter(h=>_stOkHaz(h.hazStatus)&&_dateOkL(h.date)&&_resMatchSearch(h))).slice().reverse().map(h=>{
@@ -11674,8 +11686,9 @@ function chkHazOnSite(el){
 // ── 2보 분기 ──
 let _phaseChoice='yes';
 let _timetableEntries=[];
-const TT_STAGES_INIT=['지점통과','요구조자 조우'];
-const TT_STAGES_AFTER=['처치중','처치완료','하산시작','휴식','차량대기','헬기대기중'];
+// 자주 발생하는 단계만 버튼화 — 나머지는 '✏️ 직접입력'으로 수동 기재
+const TT_STAGES_INIT=['지점통과','요구조자 조우','헬기 요청','기상 악화','작전 중단'];
+const TT_STAGES_AFTER=['응급처치','심정지','하산 시작','헬기 도착','헬기 회항(기상)','대피소 숙박','작전 재개','휴식'];
 let _ttFoundVictim=false;
 
 function selectPhaseChoice(choice,el){
@@ -11742,10 +11755,12 @@ function renderTimetableList(){
           </div>
         </div>`).join('')}
     </div>
-    <div style="font-size:10px;color:#4fa8d0;font-weight:700;margin-bottom:6px;">다음 단계 선택</div>
+    <div style="font-size:10px;color:#4fa8d0;font-weight:700;margin-bottom:6px;">단계 선택 <span style="color:rgba(255,255,255,.3);font-weight:400;">· 없으면 직접입력</span></div>
     <div style="display:flex;flex-wrap:wrap;gap:5px;">
-      ${stages.filter(s=>!_timetableEntries.find(e=>e.stage===s&&s!=='지점통과'&&s!=='휴식')).map(s=>
-        `<div onclick="selectTTStage('${s}')" style="padding:6px 12px;border-radius:20px;border:1.5px solid rgba(79,168,208,.3);color:#4fa8d0;font-size:11px;font-weight:600;cursor:pointer;background:rgba(79,168,208,.06);">${s}</div>`).join('')}
+      ${stages.filter(s=>!_timetableEntries.find(e=>e.stage===s&&s!=='지점통과'&&s!=='휴식')).map(s=>{
+        const isVic=s==='요구조자 조우'||s==='심정지';
+        return `<div onclick="selectTTStage('${s}')" style="padding:6px 12px;border-radius:20px;border:1.5px solid ${isVic?'rgba(231,76,60,.4)':'rgba(79,168,208,.3)'};color:${isVic?'#e74c3c':'#4fa8d0'};font-size:11px;font-weight:600;cursor:pointer;background:${isVic?'rgba(231,76,60,.07)':'rgba(79,168,208,.06)'};">${s}</div>`;}).join('')}
+      <div onclick="selectTTStageCustom()" style="padding:6px 12px;border-radius:20px;border:1.5px dashed rgba(255,255,255,.3);color:rgba(255,255,255,.55);font-size:11px;font-weight:600;cursor:pointer;background:transparent;">✏️ 직접입력</div>
     </div>
     <div id="ttInputWrap" style="display:none;margin-top:10px;">
       <div style="font-size:11px;color:#4fa8d0;font-weight:700;margin-bottom:6px;" id="ttStageLabel"></div>
@@ -11773,6 +11788,11 @@ function renderTimetableList(){
     </div>`.replace(/NOWDT/g, new Date().toISOString().slice(0,16));
 }
 let _selectedTTStage='';
+function selectTTStageCustom(){
+  const s=prompt('기록할 단계·상황을 직접 입력하세요\n(예: 헬기 이륙 대기, 대피소 직원 합류, 장비 보급, 요구조자 자력보행 등)');
+  if(!s||!s.trim())return;
+  selectTTStage(s.trim());
+}
 function selectTTStage(stage){
   _selectedTTStage=stage;
   const wrap=document.getElementById('ttInputWrap');
