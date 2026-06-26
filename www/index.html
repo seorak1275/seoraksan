@@ -6825,6 +6825,8 @@ function _buildLogHtml(r){
       logEntries.push({k:_tKey(t.createdAt),t:_tShow(t.createdAt),ico:_ico,label:t.name+' 출동',sub:(_mem?_mem+' · ':'')+(_base&&_tgt?_base+' → '+_tgt:''),type:'team'});
     }
     if(t.arrivedAt)logEntries.push({k:_tKey(t.arrivedAt),t:_tShow(t.arrivedAt),ico:'🏁',label:t.name+' 현장도착',sub:'',type:'team'});
+    if(t.boardedAt)logEntries.push({k:_tKey(t.boardedAt),t:_tShow(t.boardedAt),ico:'🚁',label:t.name+' 환자 탑승',sub:'',type:'team'});
+    (t.transportLog||[]).forEach(tr=>logEntries.push({k:_tKey(tr.at),t:_tShow(tr.at),ico:'🔄',label:t.name+' 이송전환',sub:tr.from+' → '+tr.to,type:'team'}));
   });
   (r.reports||[]).forEach((p,pi)=>{if(p.repTime)logEntries.push({k:_tKey(p.repTime),t:_tShow(p.repTime),ico:'📋',label:(pi+2)+'보 보고'+(p.author?' · '+p.author:''),sub:p.update||'',type:'report'});});
   (r.npsLog||[]).forEach(nl=>{if(nl.time)logEntries.push({k:_tKey(nl.time),t:_tShow(nl.time),ico:'🏕️',label:'공단 공유'+(nl.author?' · '+nl.author:''),sub:nl.text||'',type:'nps'});});
@@ -7328,14 +7330,40 @@ function _buildReportText(r){
   // 출동 인원
   const teamParts=[];
   if(r.members&&r.members.length)teamParts.push('초동팀 '+r.members.join(', '));
-  (r.teams||[]).forEach(t=>{teamParts.push(t.name+(t.members&&t.members.length?' ('+t.members.join(', ')+')':''));});
+  (r.teams||[]).forEach(t=>{
+    const _ops=[];
+    if(t.transportMethod)_ops.push(t.transportMethod);
+    teamParts.push(t.name+(t.members&&t.members.length?' ('+t.members.join(', ')+')':'')+(t.memberCount?' '+t.memberCount+'명':'')+(_ops.length?' ['+_ops.join(', ')+']':''));
+  });
   (r.extraTeams||[]).forEach(t=>{teamParts.push(t.teamName+(t.members&&t.members.length?' ('+t.members.join(', ')+')':''));});
   if(teamParts.length)L.push('출동인원: '+teamParts.join(' / '));
-  // 타임라인
-  const tl=(r.timetable||[]).filter(e=>e.time||e.stage);
-  if(tl.length){
+  // 통합 타임라인 (타임테이블 + 위치통과 + 팀 출동/도착/탑승/이송전환 + CPR 상세)
+  const baseDate=(r.date||'').slice(0,10);
+  const _tKey=t=>{const s=String(t||'').trim();if(/^\d{4}-\d{2}-\d{2}/.test(s))return s;return baseDate+' '+s;};
+  const _hm=t=>{const s=String(t||'').trim();return s.length>5?s.slice(11,16):s;};
+  const tlAll=[];
+  (r.timetable||[]).forEach(e=>{
+    if(!e.time&&!e.stage)return;
+    let extra='';
+    if(e.stage==='심정지'){
+      if(e.cprStart)extra+=' / CPR '+_hm(e.cprStart);
+      if(e.cprEnd)extra+='→'+_hm(e.cprEnd);
+      if(e.aed)extra+=' · AED '+e.aed;
+    }
+    tlAll.push({k:_tKey(e.time),disp:(_hm(e.time)||'시간미상')+' '+(e.stage||'')+(e.note?' — '+e.note:'')+extra});
+  });
+  (r.wpLog||[]).forEach(l=>tlAll.push({k:_tKey(l.time),disp:(l.time||'')+' '+(l.code||'?')+' 통과'+(l.teamName?' ('+l.teamName+')':'')}));
+  (r.teams||[]).forEach(t=>{
+    if(t.requestedAt||t.createdAt)tlAll.push({k:_tKey(t.requestedAt||t.createdAt),disp:_hm(t.requestedAt||t.createdAt)+' '+t.name+' 출동'+(t.members&&t.members.length?' ('+t.members.join(', ')+')':'')});
+    if(t.arrivedAt)tlAll.push({k:_tKey(t.arrivedAt),disp:_hm(t.arrivedAt)+' '+t.name+' 현장도착'});
+    if(t.boardedAt)tlAll.push({k:_tKey(t.boardedAt),disp:_hm(t.boardedAt)+' '+t.name+' 환자 탑승'});
+    (t.transportLog||[]).forEach(tr=>tlAll.push({k:_tKey(tr.at),disp:_hm(tr.at)+' '+t.name+' 이송전환 '+tr.from+'→'+tr.to}));
+  });
+  if(r.handover&&r.handover.to)tlAll.push({k:_tKey(r.handover.time),disp:_hm(r.handover.time)+' 환자 인계 → '+r.handover.to+(r.handover.by?' ('+r.handover.by+')':'')});
+  if(tlAll.length){
     L.push('');L.push('[ 타임라인 ]');
-    sortTTByTime(tl).forEach(e=>{L.push('· '+(e.time||'시간미상')+' '+(e.stage||'')+(e.note?' — '+e.note:''));});
+    tlAll.sort((a,b)=>String(a.k).localeCompare(String(b.k)));
+    tlAll.forEach(e=>L.push('· '+e.disp));
   }
   // 추가 보고
   const ups=(r.reports||[]).filter(p=>p.update||p.extra);
