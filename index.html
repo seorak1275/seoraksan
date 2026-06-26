@@ -4962,7 +4962,8 @@ function _drawFocusRoutes(resId){
         // 표지판 번호 라벨: 전체 표시 (현재·사고지점은 강조, 나머지는 작게)
         if(w.code||w.isTarget||w.isHosp){
           const lbl=document.createElement('div');
-          const txt=w.isHosp?'🏥 '+w.name:(w.code||'')+((isCur||w.isTarget)&&w.name&&w.name!==w.code?' '+(w.name||'').slice(0,6):'');
+          const _nm=(w.name||'').replace(/^\d{2}-\d{2}\s*/,'').trim();  // 이름 앞 코드 중복 제거
+          const txt=w.isHosp?'🏥 '+w.name:(w.code||'')+((isCur||w.isTarget)&&_nm&&_nm!==w.code?' '+_nm.slice(0,8):'');
           if(isCur||w.isTarget||w.isHosp){
             const bc=isCur?col:w.isHosp?'#27ae60':'#e05050';
             lbl.style.cssText=`background:rgba(8,18,36,.93);border:1.5px solid ${bc};border-radius:7px;padding:2px 6px;font-size:10px;font-weight:700;color:${bc};white-space:nowrap;pointer-events:none;`;
@@ -5023,7 +5024,7 @@ function _renderFocusPanel(resId){
     const pct=Math.round((team.wpIdx/total)*100);
     const atEnd=team.wpIdx>=team.wps.length-1;
     const curWp=team.wps[team.wpIdx]||team.wps[0]||{};
-    const curName=(curWp.code?curWp.code+' ':'')+(curWp.name||'').slice(0,14);
+    const curName=(curWp.code?curWp.code+' ':'')+(curWp.name||'').replace(/^\d{2}-\d{2}\s*/,'').slice(0,14);
     const info=rInfos[ti];
     const baseWp=team.wps.find(w=>w.isBase);
     const hasBase=baseWp&&_getBaseByName(baseWp.name);
@@ -5041,7 +5042,7 @@ function _renderFocusPanel(resId){
       const memStr=mems.length?mems.map(m=>_esc(m)).join(' · '):'<span style="opacity:.4;">구성원 미입력</span>';
       const wpList=team.wps.map((w,wi)=>{
         const stIco=w.status==='passed'?'✅':w.status==='active'?'▶':w.status==='skipped'?'⏭':'⬜';
-        const nm=(w.code?w.code+' ':'')+_esc(w.name||'-');
+        const nm=(w.code?w.code+' ':'')+_esc((w.name||'-').replace(/^\d{2}-\d{2}\s*/,''));
         const timeStr=w.passedAt?` <span style="color:rgba(255,255,255,.3);font-size:9px;">${w.passedAt.slice(11,16)}</span>`:'';
         const flag=w.isBase?'🏠':w.isTarget?'🚨':w.descent?'🔽':'';
         return`<div style="display:flex;align-items:center;gap:5px;padding:2px 0;${wi===team.wpIdx?'background:rgba(79,168,208,.07);border-radius:4px;margin:0 -3px;padding:2px 3px;':''}"><span style="font-size:10px;flex-shrink:0;">${stIco}</span><span style="font-size:10px;color:rgba(255,255,255,.7);flex:1;">${flag?flag+' ':''} ${nm}</span>${timeStr}</div>`;
@@ -6546,11 +6547,13 @@ function _compactRouteHtml(team,idx){
         return`<button onclick="event.stopPropagation();tlDescentTeam(${idx})" style="width:100%;padding:14px;border-radius:11px;border:none;background:linear-gradient(180deg,#2ecc71,#27ae60);color:#fff;font-size:14px;font-weight:800;cursor:pointer;box-shadow:0 2px 8px rgba(39,174,96,.4);margin-bottom:8px;">${team.type==='heli'?'🏥 병원 이송 시작':'🔽 하산 시작'}</button>`;
       }
       const _canReturn=!atEnd&&!_hasDescent&&team.wpIdx>0&&!cur.isTarget;
-      return`<div style="display:flex;gap:7px;margin-bottom:8px;">
-        <button id="tlPassBtn_${idx}" onclick="event.stopPropagation();tlPassTeam(${idx})" ${atEnd?'disabled':''} style="flex:2;padding:14px;border-radius:11px;border:none;background:${atEnd?'rgba(79,168,208,.1)':'linear-gradient(180deg,#3f9bd1,#2d7db3)'};color:${atEnd?'rgba(255,255,255,.3)':'#fff'};font-size:14px;font-weight:800;cursor:${atEnd?'default':'pointer'};box-shadow:${atEnd?'none':'0 2px 8px rgba(45,125,179,.4)'};">통과 →</button>
-        <button id="tlSkipBtn_${idx}" onclick="event.stopPropagation();tlSkipTeam(${idx})" ${!canSkip?'disabled':''} style="flex:1;padding:14px;border-radius:11px;border:1px solid rgba(255,255,255,.12);background:transparent;color:rgba(255,255,255,.42);font-size:12px;font-weight:600;cursor:pointer;opacity:${canSkip?1:.3};">건너뛰기</button>
-        ${_canReturn?`<button onclick="event.stopPropagation();tlReturnTeam(${idx})" style="flex:0 0 auto;padding:14px 13px;border-radius:11px;border:1px solid rgba(230,126,34,.4);background:rgba(230,126,34,.1);color:#e8943a;font-size:13px;font-weight:600;cursor:pointer;" title="복귀">↩️</button>`:''}
-      </div>`;
+      const _nextNm=next?((next.code?next.code+' ':'')+(next.name||'').replace(/^\d{2}-\d{2}\s*/,'')).trim():'';
+      return`<div style="display:flex;gap:7px;margin-bottom:6px;">
+        <button id="tlPassBtn_${idx}" onclick="event.stopPropagation();tlPassTeam(${idx})" ${atEnd?'disabled':''} style="flex:2;padding:13px;border-radius:11px;border:none;background:${atEnd?'rgba(79,168,208,.1)':'linear-gradient(180deg,#3f9bd1,#2d7db3)'};color:${atEnd?'rgba(255,255,255,.3)':'#fff'};font-size:14px;font-weight:800;cursor:${atEnd?'default':'pointer'};box-shadow:${atEnd?'none':'0 2px 8px rgba(45,125,179,.4)'};line-height:1.25;">✓ 현 지점 통과<div style="font-size:9px;font-weight:600;opacity:.8;margin-top:1px;">${next?'→ '+_nextNm.slice(0,12):'도착'}</div></button>
+        <button id="tlSkipBtn_${idx}" onclick="event.stopPropagation();tlSkipTeam(${idx})" ${!canSkip?'disabled':''} style="flex:1;padding:13px;border-radius:11px;border:1px solid rgba(255,255,255,.14);background:transparent;color:rgba(255,255,255,.5);font-size:12px;font-weight:600;cursor:pointer;opacity:${canSkip?1:.3};line-height:1.25;">⏭ 건너뛰기<div style="font-size:9px;font-weight:500;opacity:.65;margin-top:1px;">다음 미경유</div></button>
+        ${_canReturn?`<button onclick="event.stopPropagation();tlReturnTeam(${idx})" style="flex:0 0 auto;padding:13px 13px;border-radius:11px;border:1px solid rgba(230,126,34,.4);background:rgba(230,126,34,.1);color:#e8943a;font-size:13px;font-weight:600;cursor:pointer;" title="복귀">↩️</button>`:''}
+      </div>
+      <div style="font-size:9px;color:rgba(255,255,255,.32);text-align:center;margin-bottom:8px;line-height:1.4;">통과 = 지금 위치를 지났음(이동) · 건너뛰기 = 다음 표지판을 안 들르고 지나침</div>`;
     })()}
     <div style="display:flex;gap:6px;margin-bottom:7px;">
       <button onclick="event.stopPropagation();tlSetCurPos(${idx})" style="flex:1;padding:9px;border-radius:9px;border:1px solid rgba(45,125,255,.28);background:rgba(45,125,255,.08);color:#7ab0ff;font-size:11px;font-weight:700;cursor:pointer;">📡 GPS 현위치 확인${team.curPos?'<span style="font-size:9px;color:rgba(255,255,255,.3);font-weight:400;margin-left:4px;">('+team.curPos.at+')</span>':''}</button>
