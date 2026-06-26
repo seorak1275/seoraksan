@@ -6138,12 +6138,23 @@ function _buildRoute(r,facs){
     for(let i=from;i<=Math.min(to,50);i++){const k=`${zs}-${String(i).padStart(2,'0')}`;if(wm[k])res.push(wm[k]);}
     return res;
   }
+  // 내림차순 구간: 높은 번호 표지판에서 낮은 번호로 (반대편에서 접근할 때)
+  function segDown(z,from,to){
+    const res=[],zs=String(z).padStart(2,'0');
+    for(let i=from;i>=Math.max(to,1);i--){const k=`${zs}-${String(i).padStart(2,'0')}`;if(wm[k])res.push(wm[k]);}
+    return res;
+  }
+  // 해당 존에 존재하는 가장 큰 표지판 번호 (끝 표지판 = 연결 분기점)
+  function maxNum(z){
+    let mx=0;Object.values(wm).forEach(w=>{if(w.zone===z&&w.num>mx)mx=w.num;});return mx;
+  }
   function upto(z,max){return seg(z,1,max);}
   let base='',route=[];
   if(zone===1||zone===4||zone===5){base='소공원탐방지원센터';route=upto(zone,code);}
   else if(zone===2){
-    if(code<=10){base='소공원탐방지원센터';route=[...upto(1,5),...upto(2,code)];}
-    else{base='백담탐방지원센터';route=[...upto(10,15),...upto(2,code)];}
+    // 02 존은 02-01(소공원 쪽, 동) ~ 02-14(백담 쪽, 서)로 이어짐.
+    if(code<=10){base='소공원탐방지원센터';route=[...upto(1,5),...upto(2,code)];} // 소공원에서 오름차순 접근
+    else{base='백담탐방지원센터';route=[...upto(10,15),...segDown(2,maxNum(2),code)];} // 백담에서 끝번호(02-14)→내림차순 접근
   }else if(zone===3){
     base='소공원탐방지원센터';
     if(code<=3)route=[...upto(1,5),...upto(2,7),...upto(3,code)];
