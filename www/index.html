@@ -2313,6 +2313,16 @@ function initDB(){
 const pad=n=>String(n).padStart(2,'0');
 // 생년월일(YYYY...) → 만 나이(연도 기준). 값 없으면 '' 반환
 function _ageFromBirth(b){if(!b)return '';const y=parseInt(String(b).slice(0,4));const cy=new Date().getFullYear();if(isNaN(y)||y<1900||y>cy)return '';return cy-y;}
+// 생년월일 텍스트 입력 자동 포매팅: 숫자만 입력 → YYYY-MM-DD 삽입
+function _fmtBirth(el){
+  const c=el.selectionStart;
+  let v=el.value.replace(/\D/g,'').slice(0,8);
+  let fmt='';
+  if(v.length>4)fmt=v.slice(0,4)+'-'+v.slice(4);else fmt=v;
+  if(v.length>6)fmt=v.slice(0,4)+'-'+v.slice(4,6)+'-'+v.slice(6);
+  el.value=fmt;
+  try{el.setSelectionRange(c+(fmt.length-el.value.length+1>0?1:0),c+(fmt.length-el.value.length+1>0?1:0));}catch(e){}
+}
 function now(){const d=new Date();return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate())+' '+pad(d.getHours())+':'+pad(d.getMinutes());}
 function _debounce(fn,ms){let t;return function(...a){clearTimeout(t);t=setTimeout(()=>fn.apply(this,a),ms);};}
 // '2026-06-12 14:30' → '2시간 13분 경과' (골든타임 표시용)
@@ -6525,9 +6535,11 @@ function _compactRouteHtml(team,idx){
         ${_canReturn?`<button onclick="event.stopPropagation();tlReturnTeam(${idx})" style="flex:1;padding:11px;border-radius:8px;border:1px solid rgba(230,126,34,.35);background:rgba(230,126,34,.1);color:#e67e22;font-size:12px;font-weight:600;cursor:pointer;">↩️ 복귀</button>`:''}
       </div>`;
     })()}
-    <button onclick="event.stopPropagation();tlSetCurPos(${idx})" style="width:100%;padding:8px;border-radius:7px;border:1px solid rgba(45,125,255,.35);background:rgba(45,125,255,.1);color:#6aa8ff;font-size:11px;font-weight:700;cursor:pointer;margin-bottom:7px;">📍 GPS로 현위치 갱신${team.curPos?' <span style="font-size:9px;color:rgba(255,255,255,.4);font-weight:400;">('+team.curPos.at+')</span>':''}</button>
-    ${showFull?`<div id="tlWpList_${idx}" style="max-height:230px;overflow-y:auto;border:1px solid rgba(255,255,255,.07);border-radius:8px;padding:6px 8px;margin-bottom:7px;">${team.wps.map((w,i)=>_wpItemHtmlTeam(w,i,team,idx)).join('')}</div>`:''}
-    <button onclick="event.stopPropagation();_toggleTlFull(${idx})" style="width:100%;padding:6px;border-radius:7px;border:1px solid rgba(255,255,255,.08);background:transparent;color:rgba(255,255,255,.28);font-size:11px;cursor:pointer;">${showFull?'▲ 경로 접기':'▾ 전체 경로 ('+team.wps.length+'개)'}</button>`;
+    <div style="display:flex;gap:5px;margin-bottom:7px;">
+      <button onclick="event.stopPropagation();tlSetCurPos(${idx})" style="flex:1;padding:8px;border-radius:7px;border:1px solid rgba(45,125,255,.35);background:rgba(45,125,255,.1);color:#6aa8ff;font-size:11px;font-weight:700;cursor:pointer;">📡 현위치 통과 확인${team.curPos?'<span style="font-size:9px;color:rgba(255,255,255,.3);font-weight:400;margin-left:4px;">('+team.curPos.at+')</span>':''}</button>
+      <button onclick="event.stopPropagation();_toggleTlFull(${idx})" style="padding:8px 10px;border-radius:7px;border:1px solid rgba(255,255,255,.08);background:transparent;color:rgba(255,255,255,.28);font-size:11px;cursor:pointer;white-space:nowrap;">${showFull?'▲ 접기':'▾ 전체 ('+team.wps.length+')'}</button>
+    </div>
+    ${showFull?`<div id="tlWpList_${idx}" style="max-height:230px;overflow-y:auto;border:1px solid rgba(255,255,255,.07);border-radius:8px;padding:6px 8px;margin-bottom:7px;">${team.wps.map((w,i)=>_wpItemHtmlTeam(w,i,team,idx)).join('')}</div>`:''}`;
   return compact;
 }
 
@@ -6718,9 +6730,10 @@ function renderTimeline(r,viewMode,outId){
         </div>
         <div id="tlMiniMap" style="width:100%;height:200px;"></div>
       </div>
-      <!-- GPS 자동 통과 토글 -->
-      <div style="display:flex;justify-content:flex-end;margin-bottom:8px;">
-        <button id="gpsAutoBtn" onclick="toggleGpsAuto()" style="padding:6px 12px;border-radius:8px;border:1px solid ${_gpsAutoOn?'rgba(39,174,96,.45)':'rgba(255,255,255,.14)'};background:${_gpsAutoOn?'rgba(39,174,96,.15)':'transparent'};color:${_gpsAutoOn?'#27ae60':'rgba(255,255,255,.4)'};font-size:11px;font-weight:700;cursor:pointer;">📡 GPS 자동 통과 ${_gpsAutoOn?'ON':'OFF'}</button>
+      <!-- 빠른 단계 기록 + GPS 자동 통과 -->
+      <div style="display:flex;gap:6px;margin-bottom:8px;flex-wrap:wrap;">
+        <button onclick="openTimetable()" style="flex:1;padding:7px 10px;border-radius:8px;border:1px solid rgba(79,168,208,.4);background:rgba(79,168,208,.1);color:#4fa8d0;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;">📍 지점통과 · 조우 기록</button>
+        <button id="gpsAutoBtn" onclick="toggleGpsAuto()" style="padding:7px 10px;border-radius:8px;border:1px solid ${_gpsAutoOn?'rgba(39,174,96,.45)':'rgba(255,255,255,.14)'};background:${_gpsAutoOn?'rgba(39,174,96,.15)':'transparent'};color:${_gpsAutoOn?'#27ae60':'rgba(255,255,255,.4)'};font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;">📡 GPS ${_gpsAutoOn?'ON':'OFF'}</button>
       </div>
       <!-- 팀별 경로 카드 -->
       <div id="tlAllTeams">
@@ -7422,22 +7435,24 @@ function render1BoForm(prefill=null){
       <!-- 1. 부상 현황 -->
       <div class="rsec"><div class="rsec-t">🩺 부상 현황</div>
         <div style="background:#060d1a;border-radius:8px;border:1px solid rgba(255,255,255,.07);padding:10px;margin-bottom:8px;">
-          <!-- 부상 부위 먼저 -->
-          <div style="font-size:10px;color:#7a9cb8;font-weight:700;margin-bottom:5px;">① 부상 부위</div>
-          <div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:8px;" id="injPartPills">
-            ${['머리','목','어깨','팔꿈치','손목','손','흉부','복부','허리','골반','무릎','발목','발'].map(t=>`<div class="pill" onclick="selInjPart(this,'${t}')" style="font-size:11px;cursor:pointer;">${t}</div>`).join('')}
+          <!-- ① 부상 유형 먼저 -->
+          <div style="font-size:10px;color:#7a9cb8;font-weight:700;margin-bottom:5px;">① 부상 유형 <span style="font-weight:400;color:#5a7a92;">※ 전신상태는 부위 불필요</span></div>
+          <div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:8px;" id="injTypePills">
+            ${['골절','탈구','염좌','열상','타박상','두부손상','심정지','저체온증','탈진/탈수','익수','기타(부위)','기타(전신)'].map(t=>`<div class="pill" onclick="selInjType(this,'${t}')" style="font-size:11px;cursor:pointer;">${t}</div>`).join('')}
+          </div>
+          <!-- ② 부상 부위 -->
+          <div id="injPartWrap" style="margin-bottom:8px;">
+            <div style="font-size:10px;color:#7a9cb8;font-weight:700;margin-bottom:5px;">② 부상 부위</div>
+            <div style="display:flex;gap:4px;flex-wrap:wrap;" id="injPartPills">
+              ${['머리','목','어깨','팔꿈치','손목','손','흉부','복부','허리','골반','무릎','발목','발'].map(t=>`<div class="pill" onclick="selInjPart(this,'${t}')" style="font-size:11px;cursor:pointer;">${t}</div>`).join('')}
+            </div>
           </div>
           <!-- 좌/우 — 부위 선택 후 노출 -->
           <div id="injSideWrap" style="display:none;margin-bottom:8px;">
-            <div style="font-size:10px;color:#7a9cb8;font-weight:700;margin-bottom:5px;">위치 (좌/우)</div>
+            <div style="font-size:10px;color:#7a9cb8;font-weight:700;margin-bottom:5px;">좌/우</div>
             <div style="display:flex;gap:4px;flex-wrap:wrap;" id="injSidePills">
-              ${['좌','우','양쪽','모름'].map(s=>`<div class="pill" onclick="selInjSide(this,'${s}')" style="font-size:11px;cursor:pointer;">${s}</div>`).join('')}
+              ${['좌','우','양쪽'].map(s=>`<div class="pill" onclick="selInjSide(this,'${s}')" style="font-size:11px;cursor:pointer;">${s}</div>`).join('')}
             </div>
-          </div>
-          <!-- 부상 유형 — 순서 상관없이 선택 가능 -->
-          <div style="font-size:10px;color:#7a9cb8;font-weight:700;margin:8px 0 5px;">② 부상 유형 <span style="font-weight:400;color:#5a7a92;">※ 전신상태는 부위 불필요</span></div>
-          <div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:8px;" id="injTypePills">
-            ${['골절','탈구','염좌','열상','타박상','두부손상','심정지','저체온증','탈진/탈수','익수','기타(부위)','기타(전신)'].map(t=>`<div class="pill" onclick="selInjType(this,'${t}')" style="font-size:11px;cursor:pointer;">${t}</div>`).join('')}
           </div>
           <button onclick="addInjury()" style="width:100%;padding:7px;background:rgba(79,168,208,.15);border:1px solid rgba(79,168,208,.3);color:#4fa8d0;border-radius:7px;font-size:12px;font-weight:700;cursor:pointer;">＋ 부상 추가</button>
           <div id="injuryList" style="margin-top:6px;"></div>
@@ -7514,7 +7529,7 @@ function render1BoForm(prefill=null){
           </div>
         </div>
         <div class="frow">
-          <div class="fg"><span class="fl">생년월일</span><input type="date" id="r_vBirth" class="fi" value="${p.vBirth||''}"></div>
+          <div class="fg"><span class="fl">생년월일</span><input type="text" inputmode="numeric" id="r_vBirth" class="fi" placeholder="19901231" maxlength="10" value="${p.vBirth||''}" oninput="_fmtBirth(this)"></div>
           <div class="fg"><span class="fl">거주지</span><input type="text" id="r_vAddr" class="fi" placeholder="시/도" value="${p.vAddr||''}"></div>
         </div>
         <div class="fg"><span class="fl">기저질환</span><input type="text" id="r_vDis" class="fi" placeholder="없음 또는 해당 질환" value="${p.vDisease||''}"></div>
