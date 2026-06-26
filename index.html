@@ -2298,7 +2298,8 @@ function initDB(){
   if(!DB.g('history'))    DB.s('history',[]);
   if(!DB.g('alertOps'))   DB.s('alertOps',[]);
   if(!DB.g('notis'))         DB.s('notis',[]);
-  if(!DB.g('notiSetting'))   DB.s('notiSetting',{안전사고:true,낙석:true,위험수목:true,화재:true,기타:true,fac_bad:true,fac_warn:false});
+  if(!DB.g('notiSetting'))   DB.s('notiSetting',{});
+  _ensureNotiDefaults();
   if(!DB.g('currentUser'))   DB.s('currentUser',{name:'',dept:'',rank:'',kakao:null});
 }
 
@@ -2600,8 +2601,45 @@ function chkNation(sel){
 // ══════════════════════════════════════════
 // 알림
 // ══════════════════════════════════════════
+// ── 알림 카테고리(세분화) ── def: 기본 켜짐 여부 / push: OS 푸시 여부(false면 앱 내 종만)
+const NOTI_GROUPS=[
+  {title:'🚨 현장 위험상황·구조', items:[
+    {k:'안전사고',l:'안전사고',sub:'실족·추락·부상',def:true,push:true},
+    {k:'낙석',l:'낙석',sub:'낙석 발생',def:true,push:true},
+    {k:'위험수목',l:'위험수목',sub:'쓰러짐·낙목',def:true,push:true},
+    {k:'화재',l:'화재·산불',sub:'산불·시설 화재',def:true,push:true},
+    {k:'기타',l:'기타 위험',sub:'기타 위험상황',def:true,push:true},
+    {k:'rescue_mobilize',l:'응소 요청',sub:'야간·산불 응소·재알림',def:true,push:true},
+    {k:'progress',l:'진행중 경과 알림',sub:'장시간 미종료 리마인더',def:true,push:true},
+    {k:'rescue_update',l:'추가보고·댓글',sub:'구조 추가보고·댓글',def:false,push:false},
+    {k:'rescue_close',l:'상황 종료',sub:'구조 상황 종료',def:false,push:false},
+  ]},
+  {title:'🏗️ 시설물 점검', items:[
+    {k:'fac_bad',l:'위험 시설물',sub:'파손 심각 등록',def:true,push:true},
+    {k:'fac_warn',l:'보수 필요',sub:'보수필요 판정',def:false,push:false},
+  ]},
+  {title:'🌀 재난대응 (특보·위기경보)', items:[
+    {k:'op_start',l:'특보운영 시작',sub:'특보운영 개시',def:true,push:true},
+    {k:'op_change',l:'특보 상향·하향',sub:'단계 변경·추가 발령',def:true,push:true},
+    {k:'op_end',l:'특보운영 종료',sub:'운영 종료',def:true,push:true},
+    {k:'op_kma',l:'기상특보 수신',sub:'기상청 자동 특보',def:true,push:true},
+    {k:'crisis',l:'재난위기경보',sub:'관심·주의·경계·심각',def:true,push:true},
+    {k:'trail',l:'탐방로 통제',sub:'구간 통제·개방',def:true,push:true},
+    {k:'weather',l:'기상 브리핑',sub:'정기 기상 브리핑',def:true,push:false},
+  ]},
+];
+const NOTI_PUSH=(()=>{const m={};NOTI_GROUPS.forEach(g=>g.items.forEach(it=>{m[it.k]=it.push;}));return m;})();
+// 신규 카테고리를 기존 사용자 설정에 기본값으로 보강
+function _ensureNotiDefaults(){
+  const s=DB.g('notiSetting')||{};let ch=false;
+  NOTI_GROUPS.forEach(g=>g.items.forEach(it=>{if(s[it.k]===undefined){s[it.k]=it.def;ch=true;}}));
+  if(ch)DB.s('notiSetting',s);
+  return s;
+}
 function pushNoti(msg,ico,type='info',link=null,pushCat=null){
   const s=DB.g('notiSetting')||{};if(type!=='info'&&s[type]===false)return;
+  // pushCat 미지정 시: 카테고리 정의에 push:false면 OS 푸시 끔(앱 내 종만)
+  if(pushCat===null)pushCat=(NOTI_PUSH[type]===false)?'info':type;
   const id=Date.now();
   const ns=DB.g('notis')||[];ns.unshift({id,msg,ico,time:now(),read:false,link});
   if(ns.length>80)ns.splice(80);DB.s('notis',ns);updateBell();
@@ -5778,7 +5816,7 @@ function submitNBoFromForm(){
   DB.s('rescues',res);
   _ttInlineEntries=[];
   const phaseNum=res[idx].reports.length;
-  pushNoti(`📋 추가 보고: ${res[idx].title}`,'📋','info',{app:'rescue',tab:2,id:res[idx].id});
+  pushNoti(`📋 추가 보고: ${res[idx].title}`,'📋','rescue_update',{app:'rescue',tab:2,id:res[idx].id});
   toast('✅ 추가 보고 저장 완료');
   renderPhaseBar(phaseNum-1,phaseNum);
   renderTimeline(res[idx],'brief');
@@ -6851,7 +6889,7 @@ function submitComment(resId,variant){
   const listEl=document.getElementById('commentList_'+resId);if(listEl)listEl.innerHTML=cmtHtml;
   const listElAdv=document.getElementById('commentList_adv_'+resId);if(listElAdv)listElAdv.innerHTML=cmtHtml;
   toast('💬 댓글 등록');
-  pushNoti(`💬 댓글: ${text.slice(0,20)}...`,'💬','info',{app:'rescue',tab:2,id:resId});
+  pushNoti(`💬 댓글: ${text.slice(0,20)}...`,'💬','rescue_update',{app:'rescue',tab:2,id:resId});
 }
 
 // ══ AI 출동지령서 스캔 (Gemini) ══
@@ -7077,7 +7115,7 @@ function endSit(){
   const res=DB.g('rescues')||[];const idx=res.findIndex(x=>x.id===selResId);if(idx===-1)return;
   if(!confirm('상황을 종료 처리하겠습니까?'))return;
   res[idx].status='done';DB.s('rescues',res);
-  pushNoti(`✅ 종료: ${res[idx].title}`,'✅','info',{app:'rescue',tab:2,id:res[idx].id});
+  pushNoti(`✅ 종료: ${res[idx].title}`,'✅','rescue_close',{app:'rescue',tab:2,id:res[idx].id});
   try{renderRescueMap();}catch(e){}closeDB();toast('✅ 상황 종료');updateSummary();
   // 타임라인 뷰에 있으면 갱신
   if(document.getElementById('v-report').classList.contains('on')){
@@ -7104,7 +7142,7 @@ function submitNBo(){
   DB.s('rescues',res);
   const phNum=res[idx].reports.length;
   renderPhaseBar(phNum,phNum+1);
-  pushNoti(`📋 추가 보고: ${res[idx].title}`,'📋','info',{app:'rescue',tab:2,id:res[idx].id});
+  pushNoti(`📋 추가 보고: ${res[idx].title}`,'📋','rescue_update',{app:'rescue',tab:2,id:res[idx].id});
   closeM('modalAddPhase');toast('✅ 추가 보고 저장');
   // 타임라인 갱신
   renderTimeline(res[idx]);
@@ -7624,7 +7662,7 @@ function submit1Bo(){
   _registerPendingPhoto('prevInj',{key:'rescues',id:r.id,field:'injuryPhoto'});
   _registerPendingPhoto('prevTrans',{key:'rescues',id:r.id,field:'transPhoto'});
   pushNoti('🚨 구조 1보: '+title+' ('+r.type+')',RES_TYPES[r.type]?.ico||'🚨',r.type,{app:'rescue',tab:2,id:r.id},'안전사고');
-  if(r.mobilize&&r.mobilize.length)pushNoti('🚨 야간 응소 요청: '+r.mobilize.join(', ')+' — '+title,'🚨',r.type,{app:'rescue',tab:2,id:r.id},'안전사고');
+  if(r.mobilize&&r.mobilize.length)pushNoti('🚨 야간 응소 요청: '+r.mobilize.join(', ')+' — '+title,'🚨','rescue_mobilize',{app:'rescue',tab:2,id:r.id});
   syncToSheets('rescue',{id:r.id,title,type:r.type,date:r.date,author:r.author});
   toast('🚨 1보 등록 완료'+(r.mobilize&&r.mobilize.length?' · 응소: '+r.mobilize.join(', '):''));
   _clearRescueDraft(); // 정상 등록됐으므로 임시저장 폐기
@@ -7772,7 +7810,7 @@ function submitHazard(){
   const haz=DB.g('hazards')||[];haz.push(h);DB.s('hazards',haz);
   _registerPendingPhoto('prevHaz',{key:'hazards',id:h.id,field:'photo'});
   pushNoti(`⚠️ 위험상황: ${type} · ${h.loc||'-'}`,'⚠️','낙석',{app:'rescue',tab:2});
-  if(h.mobilize&&h.mobilize.length)pushNoti(`🚨 산불 응소 요청: ${h.mobilize.join(', ')} — ${h.loc||'-'}`,'🚨','화재',{app:'rescue',tab:2});
+  if(h.mobilize&&h.mobilize.length)pushNoti(`🚨 산불 응소 요청: ${h.mobilize.join(', ')} — ${h.loc||'-'}`,'🚨','rescue_mobilize',{app:'rescue',tab:2});
   closeM('modalHazard');try{renderRescueMap();}catch(e){}try{renderResList();}catch(e){}toast('⚠️ 위험상황 등록'+(h.mobilize&&h.mobilize.length?' · 응소: '+h.mobilize.join(', '):''));updateSummary();
 }
 
@@ -8653,7 +8691,7 @@ function startAlertOps(){
       if(note)active.note=note;
       DB.s('alertOps',ops);
       closeM('modalAlertStart');
-      pushNoti((wasUp?'🔺 특보 상향: ':'🔻 특보 하향: ')+_alertType+' '+_stageShort(prevStage)+'→'+_stageShort(_alertLevel),'🚨','재난',{app:'alert'},'안전사고');
+      pushNoti((wasUp?'🔺 특보 상향: ':'🔻 특보 하향: ')+_alertType+' '+_stageShort(prevStage)+'→'+_stageShort(_alertLevel),'🚨','op_change',{app:'alert'});
       toast((wasUp?'🔺 상향: ':'🔻 하향: ')+_alertType+' '+_stageShort(prevStage)+'→'+_stageShort(_alertLevel));
       renderAlertView();updateSummary();
       return;
@@ -8662,7 +8700,7 @@ function startAlertOps(){
     if(note)active.note=note;
     DB.s('alertOps',ops);
     closeM('modalAlertStart');
-    pushNoti('🚨 특보 추가 발령: '+_alertType+_stageShort(_alertLevel),'🚨','재난',{app:'alert'},'안전사고');
+    pushNoti('🚨 특보 추가 발령: '+_alertType+_stageShort(_alertLevel),'🚨','op_change',{app:'alert'});
     toast('🚨 특보 발령: '+_alertType+_stageShort(_alertLevel));
     renderAlertView();updateSummary();
     return;
@@ -8671,7 +8709,7 @@ function startAlertOps(){
   ops.push({id:Date.now(),alerts:[{type:_alertType,stage:_alertLevel,source:'manual',issuedAt:now(),issuedAtMs:Date.now(),by:getAuthor()}],note,startedAt:now(),startedAtMs:Date.now(),reportInterval:_reportInterval||60,closedAt:null,responders:[],reports:[],createdBy:getAuthor()});
   DB.s('alertOps',ops);
   closeM('modalAlertStart');
-  pushNoti('🌀 특보운영 시작: '+_alertType+_stageShort(_alertLevel),'🌀','재난',{app:'alert'},'안전사고');
+  pushNoti('🌀 특보운영 시작: '+_alertType+_stageShort(_alertLevel),'🌀','op_start',{app:'alert'});
   toast('🌀 특보운영 시작');
   _startAlertReminder();
   renderAlertView();updateSummary();
@@ -8730,7 +8768,7 @@ function _syncAutoAlerts(liveList){
     if(added.length)msg.push('🌀 자동발령 '+added.join(', '));
     if(changed.length)msg.push('🔻 단계변경 '+changed.join(', '));
     if(removed.length)msg.push('✅ 자동해제 '+removed.join(', '));
-    pushNoti('📡 기상특보 '+msg.join(' / '),'📡','재난',{app:'alert'},'안전사고');
+    pushNoti('📡 기상특보 '+msg.join(' / '),'📡','op_kma',{app:'alert'});
   }
   if(window.curApp==='alert')renderAlertView();
   updateSummary();
@@ -8778,7 +8816,7 @@ function setCrisisLevel(level){
   DB.s('crisisLevel',{level,type,updatedAt:now(),by:getAuthor()});
   const el=document.getElementById('crisisModal');if(el)el.remove();
   _updateCrisisBanner();
-  pushNoti(`🚨 재난위기경보 ${CRISIS_LABEL[level]||level} 발령${type?' — '+type:''}`, '🚨','재난',{app:'alert'},'안전사고');
+  pushNoti(`🚨 재난위기경보 ${CRISIS_LABEL[level]||level} 발령${type?' — '+type:''}`, '🚨','crisis',{app:'alert'});
   toast(`🚨 위기경보 ${level} 설정`);
   // 심각/경계 단계는 전 탐방로 통제 연동 제안
   if((level==='심각'||level==='경계')){
@@ -8787,7 +8825,7 @@ function setCrisisLevel(level){
     if(openCnt>0&&confirm(`🚨 ${level} 단계입니다.\n현재 미통제 ${openCnt}개 구간을 전부 '통제'로 전환하시겠습니까?`)){
       SEORAK_TRAILS.forEach(t=>{ts[t.id]={status:'통제',time:now(),at:Date.now(),by:getAuthor(),note:`위기경보 ${level} 일괄통제`};});
       DB.s('trailStatus',ts);
-      pushNoti(`🚧 위기경보 ${level} 연동 — 전 탐방로 통제`,'🚧','재난',{app:'alert'},'안전사고');
+      pushNoti(`🚧 위기경보 ${level} 연동 — 전 탐방로 통제`,'🚧','trail',{app:'alert'});
       toast('🚧 전 탐방로 통제 완료');
     }
   }
@@ -8819,7 +8857,7 @@ function saveWeatherBrief(){
   if(!text){toast('내용을 입력하세요');return;}
   DB.s('weatherBrief',{text,time:now(),atMs:Date.now(),by:getAuthor()});
   const el=document.getElementById('wbModal');if(el)el.remove();
-  pushNoti('🌦️ 기상 브리핑 갱신','🌦️','재난',{app:'alert'},'안전사고');
+  pushNoti('🌦️ 기상 브리핑 갱신','🌦️','weather',{app:'alert'});
   toast('📢 기상 브리핑 게시');
   renderAlertView();
 }
@@ -8932,7 +8970,7 @@ function saveTrailCtrl(){
   const ctrlCnt=Object.values(ts).filter(v=>v.status==='통제').length;
   const warnCnt=Object.values(ts).filter(v=>v.status==='주의').length;
   toast(`🚧 통제 ${ctrlCnt}구간 · 주의 ${warnCnt}구간 저장`);
-  if(ctrlCnt>0)pushNoti(`🚧 탐방로 통제 ${ctrlCnt}구간 설정`,'🚧','재난',{app:'alert'},'안전사고');
+  if(ctrlCnt>0)pushNoti(`🚧 탐방로 통제 ${ctrlCnt}구간 설정`,'🚧','trail',{app:'alert'});
   renderAlertView();updateSummary();
 }
 function endAlertOps(id){
@@ -8951,7 +8989,7 @@ function endAlertOps(id){
   ops[idx].closedAtMs=Date.now();
   DB.s('alertOps',ops);
   _stopAlertReminder();
-  pushNoti('✅ 특보운영 종료','✅','재난',{app:'alert'},'안전사고');
+  pushNoti('✅ 특보운영 종료','✅','op_end',{app:'alert'});
   toast('✅ 특보운영 종료');
   renderAlertView();
 }
@@ -9895,16 +9933,23 @@ function renderSettings(){
         <span style="font-size:11px;color:#4fa8d0;">↗</span>
       </a>`;
   } else {
-    const s=DB.g('notiSetting')||{};
-    const items=[{k:'안전사고',l:'안전사고',ico:'🤕',sub:'실족/추락/부상'},{k:'낙석',l:'낙석',ico:'🪨',sub:'낙석 발생'},{k:'위험수목',l:'위험수목',ico:'🌲',sub:'쓰러짐/낙목'},{k:'화재',l:'화재',ico:'🔥',sub:'산불/시설 화재'},{k:'기타',l:'기타',ico:'⚠️',sub:'기타 위험상황'},{k:'fac_bad',l:'위험 시설물',ico:'🚨',sub:'파손 심각 등록'},{k:'fac_warn',l:'보수 필요',ico:'⚙️',sub:'보수필요 판정'}];
+    const s=_ensureNotiDefaults();
+    const allOn=NOTI_GROUPS.every(g=>g.items.every(it=>s[it.k]!==false));
     document.getElementById('settingsNotiWrap').innerHTML=`
       <div class="scard">
-        <div class="stitle">🔔 알림 설정</div>
-        ${items.map(it=>`<div class="tog-row"><div><div class="tog-lbl">${it.ico} ${it.l}</div><div class="tog-sub">${it.sub}</div></div><div class="toggle ${s[it.k]!==false?'on':'off'}" onclick="togNotiSet('${it.k}',this)"></div></div>`).join('')}
+        <div class="stitle" style="display:flex;align-items:center;justify-content:space-between;">🔔 알림 설정
+          <button onclick="togNotiAll(${allOn?'false':'true'})" style="font-size:10px;font-weight:700;background:rgba(79,168,208,.12);color:#4fa8d0;border:1px solid rgba(79,168,208,.3);border-radius:7px;padding:4px 9px;cursor:pointer;">${allOn?'전체 끄기':'전체 켜기'}</button>
+        </div>
+        <div class="tog-sub" style="margin:-4px 0 10px;color:#5a7e98;">📵 끈 항목은 앱 알림·OS 푸시 모두 차단됩니다. '(앱 내만)' 항목은 끄지 않아도 OS 푸시는 가지 않습니다.</div>
+        ${NOTI_GROUPS.map(g=>`
+          <div style="font-size:11px;font-weight:800;color:#6a94b0;letter-spacing:.4px;margin:14px 0 4px;border-top:1px solid rgba(255,255,255,.05);padding-top:10px;">${g.title}</div>
+          ${g.items.map(it=>`<div class="tog-row"><div><div class="tog-lbl">${it.l}${it.push===false?' <span style="font-size:9px;color:#4a7090;font-weight:600;">(앱 내만)</span>':''}</div><div class="tog-sub">${it.sub}</div></div><div class="toggle ${s[it.k]!==false?'on':'off'}" onclick="togNotiSet('${it.k}',this)"></div></div>`).join('')}
+        `).join('')}
       </div>`;
   }
 }
 function togNotiSet(k,el){const s=DB.g('notiSetting')||{};const cur=s[k]!==false;s[k]=!cur;DB.s('notiSetting',s);el.className='toggle '+(!cur?'on':'off');_updateFcmTokenSettings();toast(!cur?'✅ 알림 켜짐':'🔕 꺼짐');}
+function togNotiAll(on){const s=DB.g('notiSetting')||{};NOTI_GROUPS.forEach(g=>g.items.forEach(it=>{s[it.k]=on;}));DB.s('notiSetting',s);_updateFcmTokenSettings();renderSettings();toast(on?'✅ 전체 알림 켜짐':'🔕 전체 알림 꺼짐');}
 
 // ══════════════════════════════════════════
 // Google Sheets
@@ -10740,7 +10785,7 @@ function _checkStaleRescues(){
     if(nowMs-lastAlert<_STALE_REPEAT_MS)return;
     _staleAlerted[r.id]=nowMs;
     pushNoti('⏰ 진행중 '+Math.floor(elapsedH)+'시간 경과 — 상태 확인 필요',
-      '⏰',r.type||'안전사고',{app:'rescue',tab:2,id:r.id},'안전사고');
+      '⏰','progress',{app:'rescue',tab:2,id:r.id});
   });
 }
 setInterval(_checkStaleRescues,15*60*1000);
@@ -11158,7 +11203,7 @@ async function _remindMobilizeNonResponders(coll,id){
       const out=await res.json().catch(()=>({}));
       toast(`🔔 ${out.sent||tokens.length}명에게 재알림 발송됨`);
     }else{
-      pushNoti(`🔔 [재알림] ${pendNames.join(', ')} — ${title} 응소 여부 회신 요청`,'🔔',r.type||'화재',{app:'rescue',tab:2,id},'안전사고');
+      pushNoti(`🔔 [재알림] ${pendNames.join(', ')} — ${title} 응소 여부 회신 요청`,'🔔','rescue_mobilize',{app:'rescue',tab:2,id});
       toast('🔔 미응답자에게 전체 알림으로 발송됨');
     }
   }catch(e){
