@@ -1723,7 +1723,7 @@ const _FB_CFG={
 // history: 점검이력은 무제한으로 계속 쌓이는 로그성 데이터라 단일문서 그대로 두면 매 점검마다 전체가 전원에게 재전송됨 → 건별 문서로 전환
 const _SHARED_COLL=['rescues','hazards','facilities','history'];
 // _SHARED_DOC: 단일 문서에 JSON 배열 저장 (관리자 전용, 동시 쓰기 없음)
-const _SHARED_DOC=['alertOps','staff','catFac','catFacMeta','pendingUsers','approvedUsers','deletedKakaoIds','adminOwnerKakaoId','adminApprovalCode','extAgencies','extAgencyCode','extAgencyDisplayName','geminiApiKey','kmaProxyUrl','_acl','loginLog','trailStatus','crisisLevel','weatherBrief'];
+const _SHARED_DOC=['alertOps','staff','catFac','catFacMeta','pendingUsers','approvedUsers','deletedKakaoIds','adminOwnerKakaoId','adminApprovalCode','extAgencies','extAgencyCode','extAgencyDisplayName','geminiApiKey','kmaProxyUrl','_acl','loginLog','trailStatus','crisisLevel','weatherBrief','weatherLog','trailLog'];
 // 시설물 레거시(단일문서) 폴백/시드 동기화 상태
 let _legacyFacBackup=null; // appData/facilities(구버전)의 백업 — 컬렉션 비었을 때 화면 폴백
 let _facSeedReady=false;   // 시설물 첫 스냅샷·레거시 백업 확인 완료(시드 레이스 방지)
@@ -6037,8 +6037,11 @@ function confirmTlBuild(){
     const wps=route.map(w=>({...w,status:w.isBase?'active':'pending'}));
     _tlTeams.push({id:'nps_'+Date.now(),name,type:'foot',members:_tlBuildMembers.slice(),wpIdx:0,wps,collapsed:false,createdAt:new Date().toISOString()});
   }else{
-    const name=(nameEl&&nameEl.value.trim())||_tlBuildAgencyType+'팀';
     const memCount=parseInt(document.getElementById('tlBuildMemCount')?.value||'0')||0;
+    // 환동해는 3교대 — 오늘 당직팀 번호를 팀명에 반영해 현장 혼선 방지
+    const hw=getHwandonghaTeam();
+    const _defNames={'소방(환동해)':`환동해 ${hw}팀`,'소방(구급)':'소방 구급대','소방':'소방','경찰':'경찰','산림청(헬기)':'산림청 헬기','기타':'유관기관'};
+    const name=(nameEl&&nameEl.value.trim())||_defNames[_tlBuildAgencyType]||_tlBuildAgencyType;
     // 산림청(헬기)·헬기 포함 시 헬기 경로 / 차량은 소방·경찰·구급·환동해
     const isHeli=_tlBuildAgencyType.includes('헬기')||_tlBuildAgencyType.includes('산림청');
     const isVehicle=!isHeli&&['소방','소방(구급)','소방(환동해)','경찰'].some(k=>_tlBuildAgencyType===k||_tlBuildAgencyType.startsWith(k));
@@ -6046,7 +6049,8 @@ function confirmTlBuild(){
     const route=isHeli
       ?[{code:'',name:'헬기 기지',isBase:true,status:'active'},{code:'',name:r.location||'사고지점',lat:r.lat||null,lng:r.lng||null,isTarget:true,status:'pending'}]
       :_buildRoute(r,facs).map(w=>({...w,status:w.isBase?'active':'pending'}));
-    _tlTeams.push({id:'agency_'+Date.now(),name,type,agType:_tlBuildAgencyType,memberCount:memCount,wpIdx:0,wps:route,collapsed:false,createdAt:new Date().toISOString()});
+    // requestedAt=출동요청 시각(생성시점), arrivedAt=현장도착(별도 기록)
+    _tlTeams.push({id:'agency_'+Date.now(),name,type,agType:_tlBuildAgencyType,hwTeam:_tlBuildAgencyType==='소방(환동해)'?hw:null,memberCount:memCount,requestedAt:now(),arrivedAt:null,wpIdx:0,wps:route,collapsed:false,createdAt:new Date().toISOString()});
   }
   const newIdx=_tlTeams.length-1;
   _tlSelTeam=newIdx;_tlWps=_tlTeams[newIdx].wps;_tlWpIdx=0;
@@ -6264,7 +6268,7 @@ function _initTlTeams(r){
 }
 
 function _snapshotTeams(){
-  return _tlTeams.map(t=>({id:t.id,name:t.name,type:t.type,wpIdx:t.wpIdx,wps:(t.wps||[]).map(w=>({...w})),members:(t.members||[]).slice(),curPos:t.curPos||null}));
+  return _tlTeams.map(t=>({id:t.id,name:t.name,type:t.type,wpIdx:t.wpIdx,wps:(t.wps||[]).map(w=>({...w})),members:(t.members||[]).slice(),curPos:t.curPos||null,agType:t.agType||null,hwTeam:t.hwTeam||null,memberCount:t.memberCount||0,requestedAt:t.requestedAt||t.createdAt||null,arrivedAt:t.arrivedAt||null,transportMethod:t.transportMethod||null,createdAt:t.createdAt||null}));
 }
 function _persistTeams(){
   if(!_tlWpResId)return;
@@ -6341,12 +6345,27 @@ function _promptHandover(resId,team){
     try{_rerenderTlFull();}catch(e){}
   },350);
 }
+// 현장도착 시각 기록 (유관기관 공식기록: 출동요청↔현장도착 구분)
+function tlMarkArrival(idx){
+  const team=_tlTeams[idx];if(!team)return;
+  team.arrivedAt=now();
+  _persistTeams();_rerenderTlFull();
+  toast('🏁 '+team.name+' 현장도착 '+String(team.arrivedAt).slice(11,16));
+}
 function tlDescentTeam(idx){
   const team=_tlTeams[idx];if(!team)return;
+  // 도보·차량팀: 이송 방식 선택 (들것이송 / 자력하산) → 단계 명확화
+  if(team.type!=='heli'&&!team.transportMethod){
+    const m=prompt('🔽 하산/이송 방식을 입력하세요\n1 = 들것이송, 2 = 자력하산, 3 = 차량이송\n(취소 시 일반 하산)');
+    if(m==='1')team.transportMethod='들것이송';
+    else if(m==='2')team.transportMethod='자력하산';
+    else if(m==='3')team.transportMethod='차량이송';
+  }else if(team.type==='heli'){team.transportMethod='헬기이송';}
   if(!_appendDescentWps(team)){toast('⚠️ 환자 조우 후 가능');return;}
   _saveTeamState();_tlSelTeam=idx;_tlWps=team.wps;_tlWpIdx=team.wpIdx;
   _persistTeams();_rerenderTlFull();
-  toast(team.type==='heli'?'🏥 '+team.name+': 병원 이송 시작':'🔽 '+team.name+': 하산 경로 생성');
+  const mm=team.transportMethod?' ('+team.transportMethod+')':'';
+  toast(team.type==='heli'?'🏥 '+team.name+': 병원 이송 시작'+mm:'🔽 '+team.name+': 하산 시작'+mm);
 }
 // 타임라인: 복귀 버튼 (다른 팀 회수)
 function tlReturnTeam(idx){
@@ -6562,16 +6581,22 @@ function _tlTeamFullHtml(team,idx){
   const routeInner=team.wps.length>1
     ?_compactRouteHtml(team,idx)
     :`<div style="text-align:center;font-size:11px;color:rgba(255,255,255,.25);padding:10px 0;">경로 데이터 없음</div>`;
+  const _mem=team.memberCount?` <span style="font-size:9px;color:rgba(255,255,255,.4);font-weight:500;">${team.memberCount}명</span>`:'';
+  // 출동요청·현장도착 시각 (유관기관 공식기록용)
+  const _req=team.requestedAt?String(team.requestedAt).slice(11,16):'';
+  const _arr=team.arrivedAt?String(team.arrivedAt).slice(11,16):'';
+  const _timeLine=(team.requestedAt||team.arrivedAt)?`<div style="display:flex;align-items:center;gap:8px;font-size:9px;color:#5a7a92;margin-top:3px;">${_req?`<span>🚨 요청 ${_req}</span>`:''}${_arr?`<span style="color:#27ae60;">🏁 도착 ${_arr}</span>`:`<button onclick="event.stopPropagation();tlMarkArrival(${idx})" style="background:rgba(39,174,96,.12);border:1px solid rgba(39,174,96,.35);color:#27ae60;border-radius:5px;font-size:9px;font-weight:700;padding:1px 7px;cursor:pointer;">🏁 현장도착 기록</button>`}</div>`:'';
   return `<div id="tlTeamCard_${idx}" style="background:${isSel?'rgba(79,168,208,.07)':'rgba(255,255,255,.02)'};border:1px solid ${isSel?'rgba(79,168,208,.3)':'rgba(255,255,255,.07)'};border-radius:10px;margin-bottom:7px;overflow:hidden;">
     <div onclick="toggleTlTeamRoute(${idx})" style="padding:10px 12px;cursor:pointer;user-select:none;">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:7px;">
-        <span style="font-size:11px;font-weight:700;color:${isSel?'#4fa8d0':'#b8d4e8'};">${typeIco} ${_esc(team.name)}</span>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
+        <span style="font-size:11px;font-weight:700;color:${isSel?'#4fa8d0':'#b8d4e8'};">${typeIco} ${_esc(team.name)}${_mem}</span>
         <div style="display:flex;align-items:center;gap:7px;">
           <span style="font-size:9px;font-weight:600;color:${sc};">${_TL_STAGES[si]||''}</span>
           <span style="font-size:10px;color:rgba(255,255,255,.55);font-weight:600;">${isCollapsed?'▼ 경로':'▲'}</span>
         </div>
       </div>
-      <div style="display:flex;align-items:flex-start;">${dots}</div>
+      ${_timeLine}
+      <div style="display:flex;align-items:flex-start;margin-top:7px;">${dots}</div>
     </div>
     <div id="tlTeamRoute_${idx}" style="display:${isCollapsed?'none':'block'};padding:0 12px 12px;border-top:.5px solid rgba(255,255,255,.05);">
       ${routeInner}
@@ -8719,7 +8744,10 @@ function _renderAlertInput(active){
     const ts=DB.g('trailStatus')||{};const ctrlCnt=Object.values(ts).filter(v=>v.status==='통제').length;
     html+=`<div class="ao-card" style="margin-bottom:12px;">
       <div class="ao-sec-hd" style="margin-top:0;"><span class="bar" style="background:#e67e22;"></span>🚧 탐방로 통제 현황${ctrlCnt?` <span style="background:rgba(231,76,60,.2);color:#ff9e80;font-size:10px;font-weight:800;border-radius:6px;padding:1px 7px;margin-left:6px;">통제 ${ctrlCnt}구간</span>`:''}</div>
-      <button onclick="openTrailCtrl()" class="ao-loc-btn" style="width:100%;">🚧 탐방로 통제/개방 관리</button>
+      <div style="display:flex;gap:6px;">
+        <button onclick="openTrailCtrl()" class="ao-loc-btn" style="flex:1;">🚧 통제/개방 관리</button>
+        <button onclick="openTrailLog()" class="ao-loc-btn" style="border-color:rgba(255,255,255,.12);color:#8aa6bc;">🕑 이력</button>
+      </div>
     </div>`;
   }
   // 정기 기상 브리핑 (관리자 작성 / 전원 열람)
@@ -8729,7 +8757,10 @@ function _renderAlertInput(active){
     html+=`<div class="ao-card" style="margin-bottom:12px;">
       <div class="ao-sec-hd" style="margin-top:0;"><span class="bar" style="background:#4fa8d0;"></span>🌦️ 기상 브리핑${wb.time?` <span style="font-size:10px;color:#6a94b0;font-weight:700;margin-left:6px;">${_esc(wb.time)} 기준</span>`:''}</div>
       ${wb.text?`<div style="font-size:12.5px;line-height:1.6;color:${fresh?'#cfe2f2':'#8aa6bc'};white-space:pre-wrap;padding:2px 0 4px;">${_esc(wb.text)}</div><div style="font-size:10px;color:#5a7a92;margin-bottom:6px;">— ${_esc(wb.by||'')}${fresh?'':' · ⚠️ 6시간 경과(갱신 필요)'}</div>`:`<div style="font-size:11px;color:#5a7a92;padding:2px 0 6px;">등록된 브리핑이 없습니다.</div>`}
-      ${admin?`<button onclick="openWeatherBrief()" class="ao-loc-btn" style="width:100%;border-color:#4fa8d055;color:#4fa8d0;">✍️ 기상 브리핑 작성/갱신</button>`:''}
+      <div style="display:flex;gap:6px;">
+        ${admin?`<button onclick="openWeatherBrief()" class="ao-loc-btn" style="flex:1;border-color:#4fa8d055;color:#4fa8d0;">✍️ 작성/갱신</button>`:''}
+        <button onclick="openWeatherLog()" class="ao-loc-btn" style="${admin?'':'width:100%;'}border-color:rgba(255,255,255,.12);color:#8aa6bc;">🕑 이력</button>
+      </div>
     </div>`;
   }
   html+=`<div class="ao-sec-hd"><span class="bar"></span>📍 분소별 빠른 입력</div>`;
@@ -8986,11 +9017,31 @@ function saveWeatherBrief(){
   if(!isAdminUser()){toast('⚠️ 관리자만 가능');return;}
   const text=(document.getElementById('wbText').value||'').trim();
   if(!text){toast('내용을 입력하세요');return;}
-  DB.s('weatherBrief',{text,time:now(),atMs:Date.now(),by:getAuthor()});
+  const entry={text,time:now(),atMs:Date.now(),by:getAuthor()};
+  DB.s('weatherBrief',entry);
+  // 이력 누적 (사후 보고서·추이 확인용, 최근 60건 유지)
+  const log=DB.g('weatherLog')||[];
+  log.unshift(entry);
+  DB.s('weatherLog',log.slice(0,60));
   const el=document.getElementById('wbModal');if(el)el.remove();
   pushNoti('🌦️ 기상 브리핑 갱신','🌦️','weather',{app:'alert'});
   toast('📢 기상 브리핑 게시');
   renderAlertView();
+}
+// 기상 브리핑 이력 열람
+function openWeatherLog(){
+  const log=DB.g('weatherLog')||[];
+  const modal=document.createElement('div');
+  modal.id='wbLogModal';modal.className='modal on';
+  modal.innerHTML=`<div class="mbox"><div class="mhdr"><span class="mtitle">🌦️ 기상 브리핑 이력 <span style="font-size:11px;color:#6a94b0;font-weight:600;">(${log.length}건)</span></span><button class="mclose" onclick="document.getElementById('wbLogModal').remove()">×</button></div>
+    <div style="max-height:60vh;overflow-y:auto;">
+    ${log.length?log.map(e=>`<div style="background:#060d1a;border-radius:9px;padding:10px 12px;margin-bottom:7px;border:1px solid rgba(79,168,208,.12);">
+      <div style="font-size:10px;color:#4fa8d0;font-weight:700;margin-bottom:5px;">${_esc(e.time||'')}${e.by?` · ${_esc(e.by)}`:''}</div>
+      <div style="font-size:12px;color:#cfe2f2;line-height:1.6;white-space:pre-wrap;">${_esc(e.text||'')}</div>
+    </div>`).join(''):'<div style="text-align:center;color:#6a94b0;font-size:12px;padding:24px;">기록된 브리핑이 없습니다.</div>'}
+    </div>
+  </div>`;
+  document.body.appendChild(modal);
 }
 function _latestOccupancy(op,loc){
   const list=(op.occupancy||[]).filter(o=>o.loc===loc);
@@ -9090,19 +9141,44 @@ function _trailBatch(st){
 function saveTrailCtrl(){
   const ts=DB.g('trailStatus')||{};
   const note=document.getElementById('trailCtrlNote').value.trim();
+  const changes=[]; // 변경된 구간만 이력에 기록 (언제·누가·왜)
   document.querySelectorAll('#trailCtrlBody button[data-tid].on').forEach(btn=>{
     const tid=btn.dataset.tid,st=btn.dataset.st;
+    const prev=(ts[tid]||{}).status||'개방';
+    if(prev!==st){const tn=(SEORAK_TRAILS.find(t=>t.id===tid)||{}).name||tid;changes.push({name:tn,from:prev,to:st});}
     ts[tid]={status:st,time:now(),at:Date.now(),by:getAuthor(),note};
   });
   // 버튼 미클릭 = 기존 상태 유지; 없는 구간은 개방으로
   SEORAK_TRAILS.forEach(t=>{if(!ts[t.id])ts[t.id]={status:'개방',time:now(),at:Date.now(),by:'초기'};});
   DB.s('trailStatus',ts);
+  // 변경 이력 누적 (민원·법적 대응용, 최근 100건)
+  if(changes.length){
+    const log=DB.g('trailLog')||[];
+    log.unshift({time:now(),atMs:Date.now(),by:getAuthor(),note,changes});
+    DB.s('trailLog',log.slice(0,100));
+  }
   closeM('modalTrailCtrl');
   const ctrlCnt=Object.values(ts).filter(v=>v.status==='통제').length;
   const warnCnt=Object.values(ts).filter(v=>v.status==='주의').length;
   toast(`🚧 통제 ${ctrlCnt}구간 · 주의 ${warnCnt}구간 저장`);
   if(ctrlCnt>0)pushNoti(`🚧 탐방로 통제 ${ctrlCnt}구간 설정`,'🚧','trail',{app:'alert'});
   renderAlertView();updateSummary();
+}
+// 탐방로 통제 변경 이력 열람
+function openTrailLog(){
+  const log=DB.g('trailLog')||[];
+  const SC=TRAIL_STATUS_COLORS;
+  const modal=document.createElement('div');
+  modal.id='trailLogModal';modal.className='modal on';
+  modal.innerHTML=`<div class="mbox"><div class="mhdr"><span class="mtitle">🚧 통제 변경 이력 <span style="font-size:11px;color:#6a94b0;font-weight:600;">(${log.length}건)</span></span><button class="mclose" onclick="document.getElementById('trailLogModal').remove()">×</button></div>
+    <div style="max-height:60vh;overflow-y:auto;">
+    ${log.length?log.map(e=>`<div style="background:#060d1a;border-radius:9px;padding:10px 12px;margin-bottom:7px;border:1px solid rgba(230,126,34,.15);">
+      <div style="font-size:10px;color:#e67e22;font-weight:700;margin-bottom:5px;">${_esc(e.time||'')} · ${_esc(e.by||'')}${e.note?` <span style="color:#8aa6bc;font-weight:400;">— ${_esc(e.note)}</span>`:''}</div>
+      ${(e.changes||[]).map(c=>`<div style="font-size:11.5px;color:#cfe2f2;line-height:1.7;">${_esc(c.name)}: <span style="color:${SC[c.from]||'#888'};">${_esc(c.from)}</span> → <span style="color:${SC[c.to]||'#888'};font-weight:700;">${_esc(c.to)}</span></div>`).join('')}
+    </div>`).join(''):'<div style="text-align:center;color:#6a94b0;font-size:12px;padding:24px;">변경 이력이 없습니다.</div>'}
+    </div>
+  </div>`;
+  document.body.appendChild(modal);
 }
 function endAlertOps(id){
   if(!isAdminUser()){toast('⚠️ 관리자만 가능');return;}
