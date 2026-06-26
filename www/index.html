@@ -4763,7 +4763,7 @@ function _rebuildTeamChips(){
         try{
           const conn=new kakao.maps.Polyline({
             path:[new kakao.maps.LatLng(cur.lat,cur.lng),new kakao.maps.LatLng(rescue.lat,rescue.lng)],
-            strokeWeight:1.5,strokeColor:'#ffffff',strokeOpacity:.35,strokeStyle:'shortdot',zIndex:2
+            strokeWeight:2,strokeColor:'#ffffff',strokeOpacity:.65,strokeStyle:'shortdot',zIndex:2
           });
           conn.setMap(mapR);_rTeamConnLines.push(conn);
         }catch(e){}
@@ -6698,31 +6698,64 @@ function _buildLogHtml(r){
   const baseDate=(r.date||'').slice(0,10);
   const _tKey=t=>{const s=String(t||'').trim();if(/^\d{4}-\d{2}-\d{2}/.test(s))return s;return baseDate+' '+s;};
   const _tShow=t=>{const s=String(t||'').trim();return s.length>5?s.slice(11,16)||s.slice(-5):s;};
+  // type: 'victim'=요구조자 관련(빨강) | 'team'=팀 이동(파랑) | 'report'=보고(보라) | 'nps'=공단(초록)
   const logEntries=[];
-  if(r.date)logEntries.push({k:_tKey(r.date),t:_tShow(r.date),ico:'🚨',label:'1보 접수',sub:r.reception||''});
-  (r.timetable||[]).forEach(e=>{if(e.time)logEntries.push({k:_tKey(e.time),t:_tShow(e.time),ico:e.stage==='요구조자 조우'?'🎯':'📌',label:e.stage,sub:e.note||''});});
-  (r.wpLog||[]).forEach(l=>{logEntries.push({k:_tKey(l.time),t:l.time,ico:'📍',label:(l.teamName||'팀')+' · '+(l.code||'?')+' 통과',sub:l.wpName||''});});
+  if(r.date)logEntries.push({k:_tKey(r.date),t:_tShow(r.date),ico:'🚨',label:'1보 접수',sub:r.reception||'',type:'victim'});
+  (r.timetable||[]).forEach(e=>{
+    if(!e.time)return;
+    const isVictim=e.stage==='요구조자 조우'||e.stage==='심정지'||e.stage==='의식확인';
+    logEntries.push({k:_tKey(e.time),t:_tShow(e.time),ico:isVictim?'🎯':'📌',label:e.stage,sub:e.note||'',type:isVictim?'victim':'team'});
+  });
+  // 위치통과: "01-15 통과" (팀명은 서브)
+  (r.wpLog||[]).forEach(l=>{
+    logEntries.push({k:_tKey(l.time),t:l.time,ico:'📍',label:(l.code||'?')+' 통과',sub:l.teamName||'',type:'team'});
+  });
   (r.teams||[]).forEach(t=>{
     if(t.createdAt){
-      const _ico=t.type==='heli'?'🚁':t.type==='vehicle'?'🚗':'🚶';
-      const _base=t.wps&&t.wps[0]?t.wps[0].name:'';
-      const _tgt=t.wps&&t.wps.length>1?t.wps[t.wps.length-1].name:'';
-      const _routeSub=_base&&_tgt?_base+' → '+_tgt:'';
-      const _mem=t.members&&t.members.length?' ('+t.members.join(', ')+')':'';
-      logEntries.push({k:_tKey(t.createdAt),t:_tShow(t.createdAt),ico:_ico,label:t.name+' 출동'+_mem,sub:_routeSub});
+      const _ico=t.type==='heli'?'🚁':t.type==='vehicle'?'🚗':'🥾';
+      const _base=t.wps&&t.wps[0]?t.wps[0].name.replace(/^\d{2}-\d{2}\s*/,''):'';
+      const _tgt=t.wps&&t.wps.length>1?t.wps[t.wps.length-1].name.replace(/^\d{2}-\d{2}\s*/,''):'';
+      const _mem=t.members&&t.members.length?t.members.join(', '):'';
+      logEntries.push({k:_tKey(t.createdAt),t:_tShow(t.createdAt),ico:_ico,label:t.name+' 출동',sub:(_mem?_mem+' · ':'')+(_base&&_tgt?_base+' → '+_tgt:''),type:'team'});
     }
+    if(t.arrivedAt)logEntries.push({k:_tKey(t.arrivedAt),t:_tShow(t.arrivedAt),ico:'🏁',label:t.name+' 현장도착',sub:'',type:'team'});
   });
-  (r.reports||[]).forEach((p,pi)=>{if(p.repTime)logEntries.push({k:_tKey(p.repTime),t:_tShow(p.repTime),ico:'📋',label:(pi+2)+'보 보고'+(p.author?' ('+p.author+')':''),sub:p.update||''});});
-  (r.npsLog||[]).forEach(nl=>{if(nl.time)logEntries.push({k:_tKey(nl.time),t:_tShow(nl.time),ico:'🏕️',label:'공단 응소'+(nl.author?' ('+nl.author+')':''),sub:nl.text||''});});
-  if(r.handover&&r.handover.to)logEntries.push({k:_tKey(r.handover.time),t:_tShow(r.handover.time),ico:'🤝',label:'환자 인계: '+r.handover.to,sub:r.handover.by||''});
+  (r.reports||[]).forEach((p,pi)=>{if(p.repTime)logEntries.push({k:_tKey(p.repTime),t:_tShow(p.repTime),ico:'📋',label:(pi+2)+'보 보고'+(p.author?' · '+p.author:''),sub:p.update||'',type:'report'});});
+  (r.npsLog||[]).forEach(nl=>{if(nl.time)logEntries.push({k:_tKey(nl.time),t:_tShow(nl.time),ico:'🏕️',label:'공단 공유'+(nl.author?' · '+nl.author:''),sub:nl.text||'',type:'nps'});});
+  if(r.handover&&r.handover.to)logEntries.push({k:_tKey(r.handover.time),t:_tShow(r.handover.time),ico:'🤝',label:'환자 인계 → '+r.handover.to,sub:r.handover.by||'',type:'victim'});
   logEntries.sort((a,b)=>a.k.localeCompare(b.k));
   if(!logEntries.length)return '';
-  return `<div style="background:#060d1a;border-radius:9px;padding:10px 13px;margin-top:8px;border:.5px solid rgba(79,168,208,.15);">
-    <div style="font-size:11px;color:#4fa8d0;font-weight:700;margin-bottom:6px;">📜 상황 일지 (자동 통합)</div>
-    ${logEntries.map(e=>`<div style="display:flex;gap:8px;padding:3px 0;align-items:baseline;">
-      <span style="font-size:10px;color:#7a9cb8;font-family:monospace;flex-shrink:0;width:38px;">${e.t}</span>
-      <span style="font-size:11px;color:#b8d4e8;line-height:1.5;">${e.ico} ${_esc(e.label)}${e.sub?` <span style="color:#8ab0c8;">— ${_esc(e.sub)}</span>`:''}</span>
-    </div>`).join('')}
+  // 타입별 색상
+  const TYPE_COL={victim:'#e74c3c',team:'#4fa8d0',report:'#9b59b6',nps:'#27ae60'};
+  const TYPE_BG={victim:'rgba(231,76,60,.1)',team:'rgba(79,168,208,.08)',report:'rgba(155,89,182,.08)',nps:'rgba(39,174,96,.08)'};
+  const isWpPass=e=>e.type==='team'&&e.ico==='📍';
+  const rows=logEntries.map((e,i)=>{
+    const col=TYPE_COL[e.type]||'#7a9cb8';
+    const bg=TYPE_BG[e.type]||'transparent';
+    const isLast=i===logEntries.length-1;
+    return `<div style="display:flex;gap:0;position:relative;">
+      <!-- 세로 타임라인 트랙 -->
+      <div style="display:flex;flex-direction:column;align-items:center;width:28px;flex-shrink:0;">
+        <div style="width:8px;height:8px;border-radius:50%;background:${col};flex-shrink:0;margin-top:4px;box-shadow:0 0 4px ${col}66;"></div>
+        ${isLast?'':`<div style="width:1.5px;flex:1;min-height:12px;background:linear-gradient(${col}66,rgba(255,255,255,.06));margin-top:2px;"></div>`}
+      </div>
+      <!-- 이벤트 내용 -->
+      <div style="flex:1;padding:2px 0 ${isLast?'0':'10px'} 4px;">
+        <div style="display:flex;align-items:center;gap:6px;margin-bottom:${e.sub?'2':'0'}px;">
+          <span style="font-size:9px;color:rgba(255,255,255,.28);font-family:monospace;white-space:nowrap;">${e.t}</span>
+          <span style="font-size:${isWpPass(e)?'11':'12'}px;font-weight:${isWpPass(e)?'600':'700'};color:${isWpPass(e)?'rgba(255,255,255,.55)':col};">${e.ico} ${_esc(e.label)}</span>
+        </div>
+        ${e.sub?`<div style="font-size:10px;color:rgba(255,255,255,.35);padding-left:2px;line-height:1.4;">${_esc(e.sub)}</div>`:''}
+      </div>
+    </div>`;
+  }).join('');
+  // 범례
+  const legend=`<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px;">
+    ${Object.entries({요구조자:'victim',팀이동:'team',보고:'report','공단':'nps'}).map(([lbl,tp])=>`<span style="font-size:9px;color:${TYPE_COL[tp]};background:${TYPE_BG[tp]};border-radius:4px;padding:1px 6px;font-weight:700;">${lbl}</span>`).join('')}
+  </div>`;
+  return `<div style="background:#060d1a;border-radius:10px;padding:11px 13px;margin-top:8px;border:.5px solid rgba(79,168,208,.15);">
+    <div style="font-size:11px;color:#4fa8d0;font-weight:700;margin-bottom:7px;">📜 상황 일지</div>
+    ${legend}${rows}
   </div>`;
 }
 function renderTimeline(r,viewMode,outId){
@@ -6790,7 +6823,6 @@ function renderTimeline(r,viewMode,outId){
         ${_tlBuilding?_renderBuildPanelHtml():_renderCreateBtnsHtml()}
       </div>
       ${_scenePhotosHtml(r)}
-      ${(r.wpLog&&r.wpLog.length)?`<div style="background:#060d1a;border-radius:9px;padding:10px 13px;margin-top:4px;border:.5px solid rgba(79,168,208,.15);"><div style="font-size:11px;color:#4fa8d0;font-weight:700;margin-bottom:5px;">📍 위치 통과 기록</div>${r.wpLog.map(l=>`<div style="font-size:11px;color:#b8d4e8;line-height:1.9;font-family:monospace;">${l.time} · ${_esc(l.teamName)} · ${_esc(l.code||'?')}${l.wpName?' ('+_esc(l.wpName)+')':''} 통과</div>`).join('')}</div>`:''}
       ${_buildLogHtml(r)}
       <div style="background:#0b1c30;border-radius:10px;padding:11px 12px;border:.5px solid rgba(79,168,208,.12);margin-top:8px;">
         <div style="font-size:11px;color:#4fa8d0;font-weight:700;margin-bottom:8px;">💬 댓글</div>
