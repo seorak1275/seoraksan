@@ -6281,7 +6281,7 @@ function _initTlTeams(r){
 }
 
 function _snapshotTeams(){
-  return _tlTeams.map(t=>({id:t.id,name:t.name,type:t.type,wpIdx:t.wpIdx,wps:(t.wps||[]).map(w=>({...w})),members:(t.members||[]).slice(),curPos:t.curPos||null,agType:t.agType||null,hwTeam:t.hwTeam||null,memberCount:t.memberCount||0,requestedAt:t.requestedAt||t.createdAt||null,arrivedAt:t.arrivedAt||null,transportMethod:t.transportMethod||null,createdAt:t.createdAt||null}));
+  return _tlTeams.map(t=>({id:t.id,name:t.name,type:t.type,wpIdx:t.wpIdx,wps:(t.wps||[]).map(w=>({...w})),members:(t.members||[]).slice(),curPos:t.curPos||null,agType:t.agType||null,hwTeam:t.hwTeam||null,memberCount:t.memberCount||0,requestedAt:t.requestedAt||t.createdAt||null,arrivedAt:t.arrivedAt||null,boardedAt:t.boardedAt||null,transportMethod:t.transportMethod||null,transportLog:t.transportLog||null,createdAt:t.createdAt||null}));
 }
 function _persistTeams(){
   if(!_tlWpResId)return;
@@ -6380,7 +6380,72 @@ function tlDescentTeam(idx){
   const mm=team.transportMethod?' ('+team.transportMethod+')':'';
   toast(team.type==='heli'?'🏥 '+team.name+': 병원 이송 시작'+mm:'🔽 '+team.name+': 하산 시작'+mm);
 }
-// 타임라인: 복귀 버튼 (다른 팀 회수)
+// ── 헬기 환자 탑승 완료 기록
+function tlMarkBoarding(idx){
+  const team=_tlTeams[idx];if(!team||team.type!=='heli')return;
+  team.boardedAt=now();
+  _persistTeams();_rerenderTlFull();
+  toast('🚁 '+team.name+' 환자 탑승 완료 '+String(team.boardedAt).slice(11,16));
+}
+
+// ── 조우 지점 변경: 요구조자가 내려오거나 합류 지점이 바뀌는 경우
+function tlChangeTarget(idx){
+  const team=_tlTeams[idx];if(!team)return;
+  if(team.wps.some(w=>w.descent)){toast('⚠️ 이미 하산 중 — 변경 불가');return;}
+  const curTargetIdx=team.wps.findIndex(w=>w.isTarget);
+  if(curTargetIdx<0){toast('⚠️ 목표 지점 없음');return;}
+  const curTarget=team.wps[curTargetIdx];
+  const newCode=prompt('현재 조우 예정: '+(curTarget.code||curTarget.name)+'\n\n새 조우 지점 코드를 입력하세요\n(예: 01-10) — 요구조자가 내려온 경우 더 가까운 지점으로 변경');
+  if(!newCode||!newCode.trim())return;
+  const code=newCode.trim().toUpperCase();
+  // wm(웨이포인트 맵)에서 해당 코드 검색
+  const facs=DB.g('facilities')||[];
+  let found=null;
+  facs.forEach(f=>{const m=f.name&&f.name.match(/^(\d{2})-(\d{2})/);if(m&&(m[0]===code||f.name.toUpperCase().startsWith(code)))found=f;});
+  if(!found){
+    // 현재 wps에서도 검색
+    found=team.wps.find(w=>w.code&&w.code.toUpperCase()===code);
+    if(!found){toast('⚠️ '+code+' 지점을 찾을 수 없습니다');return;}
+  }
+  // 새 목표가 현재 위치보다 앞(진행방향)에 있어야 함
+  const newTargetInRoute=team.wps.findIndex((w,i)=>i>team.wpIdx&&w.code&&w.code.toUpperCase()===code);
+  if(newTargetInRoute>=0){
+    // 이미 경로에 있는 지점 — 그 지점을 새 목표로
+    team.wps.forEach((w,i)=>{w.isTarget=false;if(i===newTargetInRoute)w.isTarget=true;});
+    // 새 목표 이후 지점들 제거 (불필요한 상행 구간)
+    team.wps=team.wps.slice(0,newTargetInRoute+1);
+    team.wps[newTargetInRoute].isTarget=true;
+  }else{
+    // 경로에 없음 — 현재 목표 지점을 교체
+    team.wps[curTargetIdx]={code:found.name&&found.name.match(/^(\d{2}-\d{2})/)?found.name.match(/^(\d{2}-\d{2})/)[1]:code,name:found.name||code,lat:found.lat||null,lng:found.lng||null,isTarget:true,status:'pending',approx:false};
+    team.wps=team.wps.slice(0,curTargetIdx+1);
+  }
+  _saveTeamState();_persistTeams();_rerenderTlFull();
+  const nm=found.name||code;
+  toast('📍 조우 지점 변경: '+nm);
+  // 상황일지에 기록
+  if(_tlWpResId){const _res=DB.g('rescues')||[];const _ri=_res.findIndex(x=>x.id===_tlWpResId);if(_ri>=0){if(!_res[_ri].timetable)_res[_ri].timetable=[];_res[_ri].timetable.push({stage:'조우 지점 변경',time:now().slice(11,16),note:team.name+' → '+nm});DB.s('rescues',_res);}}
+}
+
+// ── 이송 방법 전환 (도보→차량, 들것→헬기 인계 등)
+function tlChangeTransport(idx){
+  const team=_tlTeams[idx];if(!team)return;
+  const methods=['들것이송','자력하산','차량이송','헬기이송(인계)'];
+  const cur=team.transportMethod||'미지정';
+  const picked=prompt('현재: '+cur+'\n\n새 이송 방법:\n1=들것이송\n2=자력하산\n3=차량이송\n4=헬기이송(인계)');
+  const map={'1':'들것이송','2':'자력하산','3':'차량이송','4':'헬기이송(인계)'};
+  const newMethod=map[picked&&picked.trim()];
+  if(!newMethod)return;
+  const prev=team.transportMethod||'미지정';
+  team.transportMethod=newMethod;
+  if(!team.transportLog)team.transportLog=[];
+  team.transportLog.push({from:prev,to:newMethod,at:now()});
+  _persistTeams();_rerenderTlFull();
+  toast('🔄 '+team.name+' 이송 방법 변경: '+prev+' → '+newMethod);
+  if(_tlWpResId){const _res=DB.g('rescues')||[];const _ri=_res.findIndex(x=>x.id===_tlWpResId);if(_ri>=0){if(!_res[_ri].timetable)_res[_ri].timetable=[];_res[_ri].timetable.push({stage:'이송방법 변경',time:now().slice(11,16),note:team.name+': '+prev+' → '+newMethod,type:'team'});DB.s('rescues',_res);}}
+}
+
+// ── 타임라인: 복귀 버튼 (다른 팀 회수)
 function tlReturnTeam(idx){
   const team=_tlTeams[idx];if(!team)return;
   if(!confirm(team.name+' 복귀(하산)시킬까요? 남은 상행 구간은 취소됩니다.'))return;
@@ -6533,14 +6598,36 @@ function _compactRouteHtml(team,idx){
   const curLabel=(cur.code?cur.code+' ':'')+_nm(cur.name);
   const nextLabel=next?(next.code?next.code+' ':'')+_nm(next.name):'';
   const _hasDescent=team.wps.some(w=>w.descent);
-  // 환자 조우 도달 → 하산 시작 버튼
+  // 환자 조우 도달 → 헬기는 4단계, 나머지는 하산 시작
   if(atEnd&&cur.isTarget&&!_hasDescent){
-    return`
-    <div style="background:rgba(39,174,96,.08);border:1px solid rgba(39,174,96,.25);border-radius:12px;padding:12px 14px;margin-bottom:10px;">
-      <div style="font-size:10px;color:#5dbf8a;font-weight:700;margin-bottom:4px;">🎯 환자 조우</div>
+    const joguCard=`
+    <div style="background:rgba(39,174,96,.08);border:1px solid rgba(39,174,96,.3);border-radius:12px;padding:12px 14px;margin-bottom:10px;">
+      <div style="font-size:10px;color:#5dbf8a;font-weight:700;margin-bottom:4px;">🎯 환자 조우 지점</div>
       <div style="font-size:15px;font-weight:800;color:#eef5fb;">${curLabel}</div>
-    </div>
-    <button onclick="event.stopPropagation();tlDescentTeam(${idx})" style="width:100%;padding:15px;border-radius:12px;border:none;background:linear-gradient(180deg,#2ecc71,#27ae60);color:#fff;font-size:15px;font-weight:800;cursor:pointer;box-shadow:0 3px 10px rgba(39,174,96,.4);">${team.type==='heli'?'🚁 병원 이송 시작':'🔽 하산 시작'}</button>`;
+    </div>`;
+    if(team.type==='heli'){
+      // 헬기 4단계: 현장도착 → 환자탑승 → 이송시작
+      if(!team.arrivedAt){
+        return joguCard+`<button onclick="event.stopPropagation();tlMarkArrival(${idx})" style="width:100%;padding:15px;border-radius:12px;border:none;background:linear-gradient(180deg,#e67e22,#c0392b);color:#fff;font-size:14px;font-weight:800;cursor:pointer;margin-bottom:6px;">🏁 헬기 현장도착 기록</button>`;
+      }else if(!team.boardedAt){
+        return joguCard+`
+        <div style="display:flex;gap:6px;padding:7px 9px;background:rgba(39,174,96,.06);border-radius:9px;margin-bottom:10px;font-size:10px;color:#5dbf8a;">
+          <span>🏁 도착 ${String(team.arrivedAt).slice(11,16)}</span>
+        </div>
+        <button onclick="event.stopPropagation();tlMarkBoarding(${idx})" style="width:100%;padding:15px;border-radius:12px;border:none;background:linear-gradient(180deg,#3f9bd1,#2d7db3);color:#fff;font-size:14px;font-weight:800;cursor:pointer;">🚁 환자 탑승 완료</button>`;
+      }else{
+        return joguCard+`
+        <div style="display:flex;gap:10px;padding:7px 9px;background:rgba(39,174,96,.06);border-radius:9px;margin-bottom:10px;font-size:10px;color:#5dbf8a;">
+          <span>🏁 도착 ${String(team.arrivedAt).slice(11,16)}</span>
+          <span>🚁 탑승 ${String(team.boardedAt).slice(11,16)}</span>
+        </div>
+        <button onclick="event.stopPropagation();tlDescentTeam(${idx})" style="width:100%;padding:15px;border-radius:12px;border:none;background:linear-gradient(180deg,#2ecc71,#27ae60);color:#fff;font-size:15px;font-weight:800;cursor:pointer;box-shadow:0 3px 10px rgba(39,174,96,.4);">🏥 병원 이송 시작</button>`;
+      }
+    }
+    // 도보·차량팀: 조우 지점 변경 버튼 + 하산 시작
+    return joguCard+`
+    <button onclick="event.stopPropagation();tlDescentTeam(${idx})" style="width:100%;padding:15px;border-radius:12px;border:none;background:linear-gradient(180deg,#2ecc71,#27ae60);color:#fff;font-size:15px;font-weight:800;cursor:pointer;box-shadow:0 3px 10px rgba(39,174,96,.4);margin-bottom:7px;">🔽 하산 시작</button>
+    <button onclick="event.stopPropagation();tlChangeTarget(${idx})" style="width:100%;padding:9px;border-radius:9px;border:1px solid rgba(241,196,15,.3);background:rgba(241,196,15,.06);color:#f0c040;font-size:11px;font-weight:700;cursor:pointer;">📍 조우 지점 변경 (요구조자가 내려온 경우)</button>`;
   }
   // 하산/이송 완료
   if(atEnd&&_hasDescent){
@@ -6572,9 +6659,13 @@ function _compactRouteHtml(team,idx){
   const passBtn=!atEnd?`
     <button id="tlPassBtn_${idx}" onclick="event.stopPropagation();tlPassTeam(${idx})" style="width:100%;padding:15px;border-radius:12px;border:none;background:linear-gradient(180deg,#3f9bd1,#2a6fa3);color:#fff;font-size:15px;font-weight:800;cursor:pointer;box-shadow:0 3px 10px rgba(45,125,179,.4);margin-bottom:8px;">✓ 통과 → ${next?nextLabel.split(' ')[0]||'다음':''}</button>`:'';
   // GPS + 전체경로 (보조 작은 버튼들)
+  const _canChangeTarget=!_hasDescent&&team.wps.some(w=>w.isTarget)&&!atEnd;
+  const _canChangeTransport=_hasDescent&&team.transportMethod;
   const secBtns=`
-    <div style="display:flex;gap:6px;">
-      <button onclick="event.stopPropagation();tlSetCurPos(${idx})" style="flex:1;padding:8px;border-radius:9px;border:1px solid rgba(79,168,208,.22);background:rgba(79,168,208,.06);color:#6aa8ff;font-size:11px;font-weight:600;cursor:pointer;">📡 GPS 위치 확인${team.curPos?` <span style="font-size:9px;opacity:.5;">${String(team.curPos.at).slice(11,16)}</span>`:''}</button>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;">
+      <button onclick="event.stopPropagation();tlSetCurPos(${idx})" style="flex:1;padding:8px;border-radius:9px;border:1px solid rgba(79,168,208,.22);background:rgba(79,168,208,.06);color:#6aa8ff;font-size:11px;font-weight:600;cursor:pointer;white-space:nowrap;">📡 GPS${team.curPos?` <span style="font-size:9px;opacity:.5;">${String(team.curPos.at).slice(11,16)}</span>`:''}</button>
+      ${_canChangeTarget?`<button onclick="event.stopPropagation();tlChangeTarget(${idx})" style="flex:1;padding:8px;border-radius:9px;border:1px solid rgba(241,196,15,.28);background:rgba(241,196,15,.05);color:#e8c84a;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap;">📍 조우 지점</button>`:''}
+      ${_canChangeTransport?`<button onclick="event.stopPropagation();tlChangeTransport(${idx})" style="flex:1;padding:8px;border-radius:9px;border:1px solid rgba(230,126,34,.28);background:rgba(230,126,34,.05);color:#e8943a;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap;">🔄 이송 전환</button>`:''}
       <button onclick="event.stopPropagation();_toggleTlFull(${idx})" style="padding:8px 10px;border-radius:9px;border:1px solid rgba(255,255,255,.1);background:transparent;color:rgba(255,255,255,.35);font-size:11px;cursor:pointer;white-space:nowrap;">${showFull?'▲ 접기':'▾ 전체'}</button>
     </div>`;
   const fullList=showFull?`<div id="tlWpList_${idx}" style="max-height:240px;overflow-y:auto;border:1px solid rgba(255,255,255,.07);border-radius:9px;padding:6px 8px;margin-top:8px;">${team.wps.map((w,i)=>_wpItemHtmlTeam(w,i,team,idx)).join('')}</div>`:'';
@@ -6592,7 +6683,16 @@ function _tlTeamFullHtml(team,idx){
   const _mem=team.memberCount?` <span style="font-size:9px;color:rgba(255,255,255,.38);">${team.memberCount}명</span>`:'';
   const _req=team.requestedAt?String(team.requestedAt).slice(11,16):'';
   const _arr=team.arrivedAt?String(team.arrivedAt).slice(11,16):'';
-  const _timeChips=(_req||_arr)?`<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:5px;">${_req?`<span style="font-size:9px;color:#5a7a92;background:rgba(255,255,255,.04);border-radius:5px;padding:1px 6px;">🚨 출동요청 ${_req}</span>`:''}${_arr?`<span style="font-size:9px;color:#27ae60;background:rgba(39,174,96,.08);border-radius:5px;padding:1px 6px;">🏁 도착 ${_arr}</span>`:`<button onclick="event.stopPropagation();tlMarkArrival(${idx})" style="background:rgba(39,174,96,.1);border:1px solid rgba(39,174,96,.3);color:#5dbf8a;border-radius:5px;font-size:9px;font-weight:700;padding:1px 7px;cursor:pointer;">🏁 도착 기록</button>`}</div>`:'';
+  const _brd=team.boardedAt?String(team.boardedAt).slice(11,16):'';
+  const _transport=team.transportMethod?`<span style="font-size:9px;color:#e8943a;background:rgba(230,126,34,.1);border-radius:5px;padding:1px 6px;">${team.transportMethod}</span>`:'';
+  // 유관기관: 출동요청·도착 시각 칩 / 공단팀: 도착 기록 버튼
+  const _isAgency=team.agType!=null;
+  const _timeChips=`<div style="display:flex;gap:5px;flex-wrap:wrap;margin-top:5px;">
+    ${_req?`<span style="font-size:9px;color:#5a7a92;background:rgba(255,255,255,.04);border-radius:5px;padding:1px 6px;">🚨 ${_req}</span>`:''}
+    ${_arr?`<span style="font-size:9px;color:#27ae60;background:rgba(39,174,96,.08);border-radius:5px;padding:1px 6px;">🏁 ${_arr}</span>`:(_isAgency?`<button onclick="event.stopPropagation();tlMarkArrival(${idx})" style="background:rgba(39,174,96,.1);border:1px solid rgba(39,174,96,.3);color:#5dbf8a;border-radius:5px;font-size:9px;font-weight:700;padding:1px 7px;cursor:pointer;">🏁 도착 기록</button>`:'')}
+    ${_brd?`<span style="font-size:9px;color:#4fa8d0;background:rgba(79,168,208,.08);border-radius:5px;padding:1px 6px;">🚁 탑승 ${_brd}</span>`:''}
+    ${_transport}
+  </div>`;
   const routeInner=team.wps.length>1
     ?_compactRouteHtml(team,idx)
     :`<div style="text-align:center;font-size:11px;color:rgba(255,255,255,.25);padding:10px 0;">경로 데이터 없음</div>`;
@@ -6704,7 +6804,13 @@ function _buildLogHtml(r){
   (r.timetable||[]).forEach(e=>{
     if(!e.time)return;
     const isVictim=e.stage==='요구조자 조우'||e.stage==='심정지'||e.stage==='의식확인';
-    logEntries.push({k:_tKey(e.time),t:_tShow(e.time),ico:isVictim?'🎯':'📌',label:e.stage,sub:e.note||'',type:isVictim?'victim':'team'});
+    const isCpr=e.stage==='심정지'&&(e.cprStart||e.cprEnd);
+    let sub=e.note||'';
+    if(isCpr){
+      const cprDur=e.cprStart&&e.cprEnd?(()=>{try{const s=new Date(e.cprStart.replace(' ','T')),en=new Date(e.cprEnd.replace(' ','T'));const m=Math.round((en-s)/60000);return m>0?' ('+m+'분)':'';}catch(e){return ''}})():'';
+      sub=(e.cprStart?'CPR '+String(e.cprStart).slice(11,16):'')+(e.cprEnd?'→'+String(e.cprEnd).slice(11,16)+cprDur:'')+(e.aed?' · AED '+e.aed:'')+(sub?' · '+sub:'');
+    }
+    logEntries.push({k:_tKey(e.time),t:_tShow(e.time),ico:e.stage==='심정지'?'💔':isVictim?'🎯':'📌',label:e.stage,sub,type:isVictim?'victim':'team'});
   });
   // 위치통과: "01-15 통과" (팀명은 서브)
   (r.wpLog||[]).forEach(l=>{
@@ -11619,21 +11725,49 @@ function renderTimetableList(){
         <div class="fg"><span class="fl">시간</span><input type="datetime-local" id="ttTime" class="fi" value="NOWDT"></div>
       </div>
       <div class="fg"><span class="fl">메모 (선택)</span><input type="text" id="ttNote" class="fi" placeholder="지점명, 특이사항 등"></div>
-      <button onclick="confirmTTEntry()" style="width:100%;padding:9px;background:#1a4a6e;color:#fff;border:none;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;margin-top:5px;">추가</button>
-    </div>`.replace('NOWDT', new Date().toISOString().slice(0,16));
+      <!-- CPR 추가 필드 (심정지 선택 시만 표시) -->
+      <div id="ttCprWrap" style="display:none;background:rgba(231,76,60,.07);border:1px solid rgba(231,76,60,.25);border-radius:9px;padding:10px 12px;margin-top:6px;">
+        <div style="font-size:10px;color:#e74c3c;font-weight:700;margin-bottom:7px;">🫀 CPR 기록</div>
+        <div class="frow">
+          <div class="fg"><span class="fl">CPR 시작</span><input type="datetime-local" id="ttCprStart" class="fi" value="NOWDT"></div>
+          <div class="fg"><span class="fl">CPR 종료</span><input type="datetime-local" id="ttCprEnd" class="fi"></div>
+        </div>
+        <div class="frow">
+          <div class="fg"><span class="fl">AED 사용</span>
+            <div style="display:flex;gap:6px;margin-top:4px;">
+              <button id="ttAedY" onclick="this.style.background='rgba(231,76,60,.25)';this.style.color='#e74c3c';document.getElementById('ttAedN').style.background='transparent';document.getElementById('ttAedN').style.color='rgba(255,255,255,.4)';this._v=1;" style="flex:1;padding:6px;border-radius:7px;border:1px solid rgba(231,76,60,.3);background:transparent;color:rgba(255,255,255,.4);font-size:11px;font-weight:700;cursor:pointer;">사용함</button>
+              <button id="ttAedN" onclick="this.style.background='rgba(79,168,208,.15)';this.style.color='#4fa8d0';document.getElementById('ttAedY').style.background='transparent';document.getElementById('ttAedY').style.color='rgba(255,255,255,.4)';" style="flex:1;padding:6px;border-radius:7px;border:1px solid rgba(79,168,208,.25);background:rgba(79,168,208,.1);color:#4fa8d0;font-size:11px;font-weight:700;cursor:pointer;">미사용</button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <button onclick="confirmTTEntry()" style="width:100%;padding:9px;background:#1a4a6e;color:#fff;border:none;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;margin-top:8px;">추가</button>
+    </div>`.replace(/NOWDT/g, new Date().toISOString().slice(0,16));
 }
 let _selectedTTStage='';
 function selectTTStage(stage){
   _selectedTTStage=stage;
   const wrap=document.getElementById('ttInputWrap');
   const label=document.getElementById('ttStageLabel');
+  const cprWrap=document.getElementById('ttCprWrap');
   if(wrap){wrap.style.display='block';}
-  if(label){label.textContent='📍 '+stage+' 시간 입력';}
+  if(label){label.textContent=(stage==='심정지'?'💔':'📍')+' '+stage+' 시간 입력';}
+  if(cprWrap){cprWrap.style.display=stage==='심정지'?'block':'none';}
 }
 function confirmTTEntry(){
   const time=document.getElementById('ttTime')?.value||'';
   const note=document.getElementById('ttNote')?.value||'';
-  _timetableEntries.push({stage:_selectedTTStage,time:time.replace('T',' '),note});
+  const entry={stage:_selectedTTStage,time:time.replace('T',' '),note};
+  // 심정지 → CPR 데이터 수집
+  if(_selectedTTStage==='심정지'){
+    const cs=document.getElementById('ttCprStart')?.value||'';
+    const ce=document.getElementById('ttCprEnd')?.value||'';
+    const aedY=document.getElementById('ttAedY');
+    if(cs)entry.cprStart=cs.replace('T',' ');
+    if(ce)entry.cprEnd=ce.replace('T',' ');
+    entry.aed=aedY&&aedY._v?'사용':'미사용';
+  }
+  _timetableEntries.push(entry);
   if(_selectedTTStage==='요구조자 조우') _ttFoundVictim=true;
   renderTimetableList();
 }
