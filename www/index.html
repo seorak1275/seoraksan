@@ -3429,9 +3429,9 @@ function renderBoard(){
         if(r.rain!=null&&r.rain!=='')cum[loc].rain+=parseFloat(r.rain)||0;
       });
       const locs=Object.keys(cum);
-      html+=`<div style="margin-top:20px;font-size:12px;color:rgba(255,255,255,.35);font-weight:700;margin-bottom:6px;">📈 누적 관측 (분소별)</div>`;
+      html+=`<div style="margin-top:20px;font-size:12px;color:#8ab0c8;font-weight:700;margin-bottom:6px;">📈 누적 관측 (분소별)</div>`;
       if(!locs.length){
-        html+=`<div style="padding:10px 12px;background:rgba(255,255,255,.02);border-radius:8px;font-size:12px;color:rgba(255,255,255,.3);">관측 보고 없음</div>`;
+        html+=`<div style="padding:10px 12px;background:rgba(255,255,255,.02);border-radius:8px;font-size:12px;color:rgba(255,255,255,.42);">관측 보고 없음</div>`;
       } else {
         locs.forEach(loc=>{const c=cum[loc];
           html+=`<div style="display:flex;align-items:center;gap:8px;padding:8px 12px;background:rgba(255,255,255,.02);border-radius:8px;margin-bottom:4px;font-size:12px;border-left:3px solid #4fa8d0;">
@@ -3443,7 +3443,7 @@ function renderBoard(){
     }
     const closedOps=aops.filter(o=>o.closedAt).sort((a,b)=>(b.startedAtMs||0)-(a.startedAtMs||0)).slice(0,6);
     if(closedOps.length){
-      html+=`<div style="margin-top:18px;font-size:12px;color:rgba(255,255,255,.35);font-weight:700;margin-bottom:6px;">📜 최근 종료된 특보운영 <span style="color:rgba(255,255,255,.25);font-weight:400;">(${closedOps.length}건)</span></div>`;
+      html+=`<div style="margin-top:18px;font-size:12px;color:#8ab0c8;font-weight:700;margin-bottom:6px;">📜 최근 종료된 특보운영 <span style="color:#5a7e98;font-weight:400;">(${closedOps.length}건)</span></div>`;
       closedOps.forEach(o=>{const al=_opAlerts(o);const lbl=al.map(a=>_esc(a.type)+_stageShort(a.stage)).join(', ')||'특보';
         html+=`<div onclick="openAlertHistory(${o.id})" style="display:flex;align-items:center;gap:8px;padding:8px 12px;background:rgba(255,255,255,.02);border-radius:8px;margin-bottom:4px;font-size:12px;cursor:pointer;border-left:3px solid #5d82a0;">
           <span style="flex:1;color:rgba(255,255,255,.6);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">🌀 ${lbl}</span>
