@@ -4229,20 +4229,6 @@ function _renderStaffQuickPick(){
   const wrap=document.getElementById('staffQuickPick');
   if(wrap)wrap.style.display='none';
 }
-function _fillFromStaff(name,rank,dept){
-  const ni=document.getElementById('uNameIn');if(ni)ni.value=name;
-  const ds=document.getElementById('uDeptIn');if(ds&&dept)ds.value=dept;
-  document.querySelectorAll('#rankPills .pill').forEach(p=>{
-    p.classList.toggle('on',!!rank&&p.textContent.trim()===rank);
-  });
-  // 칩 강조
-  const chips=document.getElementById('staffQuickChips');
-  if(chips)chips.querySelectorAll('div').forEach(c=>{
-    const isMe=c.textContent.trim().startsWith(name);
-    c.style.background=isMe?'rgba(79,168,208,.3)':'rgba(79,168,208,.1)';
-    c.style.borderColor=isMe?'rgba(79,168,208,.7)':'rgba(79,168,208,.3)';
-  });
-}
 function openChangeUser(){
   const u=DB.g('currentUser')||{};
   const authType=DB.g('authType');
@@ -4432,12 +4418,6 @@ function _checkNewJoinerAlert(){
     }
   }
   _joinerAlertInited=true;
-}
-function setAdminCode(){
-  const _ac=document.getElementById('adminCodeInp');const code=(_ac?_ac.value:'').trim();
-  if(!code){toast('⚠️ 코드를 입력하세요');return;}
-  DB.s('adminApprovalCode',code);
-  toast('✅ 승인 코드 저장: '+code);
 }
 // 외부기관 관리 행 HTML
 function _extAgencyRowsHtml(){
@@ -5259,14 +5239,17 @@ function renderResList(){
     const _dn=_rescues.filter(r=>r.status!=='ongoing');
     const _mkCard=r=>{
       const isOg=r.status==='ongoing';const ti=RES_TYPES[r.type]||RES_TYPES['기타'];
-      const totalPh=(r.reports||[]).length+1;
       const hasCoord=!!(r.lat&&r.lng);
       return `<div class="lcard" onclick="openResListDetail(${r.id})" style="position:relative;border-left:3px solid ${isOg?'#e74c3c':'#27ae60'};">
         <div class="lico" style="background:${isOg?ti.color:'#1a3a1a'};border:none;color:#fff;">${ti.ico}</div>
-        <div class="linfo"><div class="lname">🚨 ${_esc(r.title)}${r.extAgency?` <span style="font-size:9px;background:rgba(255,120,30,.18);color:#f08050;border:1px solid rgba(255,120,30,.35);border-radius:9px;padding:1px 6px;font-weight:700;vertical-align:middle;">🚒 ${_esc(r.extAgency)}</span>`:''}${(r.mobilize&&r.mobilize.length)?` <span style="font-size:9px;background:rgba(231,76,60,.18);color:#e74c3c;border:1px solid rgba(231,76,60,.4);border-radius:9px;padding:1px 6px;font-weight:700;vertical-align:middle;">🚨 ${_esc(r.mobilize.join('·'))}</span>${_mobilizeCompactBadge(r)}`:''}</div>
-          <div class="lmeta">${_esc(r.type)} · ${r.date}</div>
-          <div class="lmeta">작성: ${_esc(r.author||'-')} · ${totalPh}보 기록 · 사고자: ${_esc(r.vName||'미상')}${(r.victims2&&r.victims2.length)?` <span style="color:#e9897e;font-weight:700;">외 ${r.victims2.length}명</span>`:''}</div>
-          ${hasCoord?`<button onclick="event.stopPropagation();viewOnMap(${r.lat},${r.lng})" style="margin-top:5px;padding:4px 10px;background:rgba(79,168,208,.12);border:1px solid rgba(79,168,208,.35);color:#4fa8d0;border-radius:7px;font-size:11px;font-weight:600;cursor:pointer;">🗺️ 지도보기</button>`:''}
+        <div class="linfo">
+          <div class="lname">🚨 ${_esc(r.title)}</div>
+          ${(r.extAgency||(r.mobilize&&r.mobilize.length))?`<div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:3px;">
+            ${r.extAgency?`<span style="font-size:9px;background:rgba(255,120,30,.18);color:#f08050;border:1px solid rgba(255,120,30,.35);border-radius:9px;padding:1px 7px;font-weight:700;">🚒 ${_esc(r.extAgency)}</span>`:''}
+            ${(r.mobilize&&r.mobilize.length)?`<span style="font-size:9px;background:rgba(231,76,60,.18);color:#e74c3c;border:1px solid rgba(231,76,60,.4);border-radius:9px;padding:1px 7px;font-weight:700;">🚨 ${_esc(r.mobilize.join('·'))}</span>${_mobilizeCompactBadge(r)}`:''}
+          </div>`:''}
+          <div class="lmeta" style="margin-top:3px;">${_esc(r.type)} · ${r.date} · 사고자 ${_esc(r.vName||'미상')}${(r.victims2&&r.victims2.length)?` <span style="color:#e9897e;font-weight:700;">외 ${r.victims2.length}명</span>`:''}</div>
+          ${hasCoord?`<button onclick="event.stopPropagation();viewOnMap(${r.lat},${r.lng})" style="margin-top:6px;padding:6px 12px;background:rgba(79,168,208,.12);border:1px solid rgba(79,168,208,.35);color:#4fa8d0;border-radius:8px;font-size:11px;font-weight:600;cursor:pointer;">🗺️ 지도보기</button>`:''}
         </div>
         <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;align-self:flex-start;flex-shrink:0;">
           <span class="lbadge" style="background:${isOg?'rgba(231,76,60,.22)':'rgba(39,174,96,.2)'};color:${isOg?'#ff6b5e':'#3ad17a'};">${isOg?'진행중':'종료'}</span>
@@ -5286,7 +5269,7 @@ function renderResList(){
           <div style="font-size:22px;">${h.hazType?.split(' ')[0]||'⚠️'}</div>
           <div style="flex:1;min-width:0;">
             <div style="font-size:13px;color:#e0edf8;font-weight:600;">${_esc(h.hazType||'위험상황')} · ${_esc(h.loc||'-')}${(h.mobilize&&h.mobilize.length)?` <span style="font-size:9px;background:rgba(231,76,60,.18);color:#e74c3c;border:1px solid rgba(231,76,60,.4);border-radius:9px;padding:1px 6px;font-weight:700;vertical-align:middle;">🚨 ${_esc(h.mobilize.join('·'))}</span>${_mobilizeCompactBadge(h)}`:''}</div>
-            <div style="font-size:10.5px;color:#8ab4cc;margin-top:3px;">${h.dt||'-'} · ${_esc(h.danger||'-')} · ${_esc(h.author||'-')}</div>
+            <div style="font-size:11px;color:#8ab4cc;margin-top:3px;">${h.dt||'-'} · ${_esc(h.danger||'-')} · ${_esc(h.author||'-')}</div>
             <div style="font-size:11px;color:#7a9cb8;margin-top:2px;">${_esc((h.desc||'').slice(0,40))}${(h.desc||'').length>40?'...':''}</div>
             ${hasCoord?`<button onclick="event.stopPropagation();viewOnMap(${h.lat},${h.lng})" style="margin-top:5px;padding:4px 10px;background:rgba(230,126,34,.12);border:1px solid rgba(230,126,34,.35);color:#e67e22;border-radius:7px;font-size:11px;font-weight:600;cursor:pointer;">🗺️ 지도보기</button>`:''}
           </div>
@@ -6308,7 +6291,6 @@ function _saveTeamState(){
 }
 
 
-const _TL_STAGES=['출발','이동중','환자조우','하산'];
 function _teamStageIdx(team){
   if(!team.wps.length||team.wpIdx===0)return 0;            // 출발
   const cur=team.wps[team.wpIdx]||{};
@@ -6458,15 +6440,6 @@ function tlChangeTransport(idx){
 }
 
 // ── 타임라인: 복귀 버튼 (다른 팀 회수)
-function tlReturnTeam(idx){
-  const team=_tlTeams[idx];if(!team)return;
-  if(!confirm(team.name+' 복귀(하산)시킬까요? 남은 상행 구간은 취소됩니다.'))return;
-  if(!_appendReturnWps(team)){toast('⚠️ 복귀 불가 상태');return;}
-  _saveTeamState();_tlSelTeam=idx;_tlWps=team.wps;_tlWpIdx=team.wpIdx;
-  _persistTeams();_rerenderTlFull();
-  toast('↩️ '+team.name+': 복귀 경로 생성');
-}
-
 // ── GPS 자동 통과 감지 (타임라인 화면이 열려 있는 동안) ──
 let _gpsAutoOn=false,_gpsWatchId=null,_gpsDeclined={};
 function _stopGpsAuto(){
@@ -6588,7 +6561,6 @@ function _wpItemHtmlTeam(w,i,team,teamIdx){
   </div>`;
 }
 
-function _wpItemHtml(w,i){return _wpItemHtmlTeam(w,i,{wps:_tlWps,wpIdx:_tlWpIdx},_tlSelTeam);}
 
 function _toggleTlFull(idx){
   if(!_tlTeams[idx])return;
@@ -6604,7 +6576,7 @@ function _compactRouteHtml(team,idx){
   const prog=team.wpIdx;
   const pct=Math.round((prog/total)*100);
   const showFull=!!team.showFull;
-  if(!cur)return`<div style="text-align:center;font-size:11px;color:rgba(255,255,255,.25);padding:10px 0;">경로 데이터 없음</div>`;
+  if(!cur)return`<div style="text-align:center;font-size:11px;color:rgba(255,255,255,.42);padding:10px 0;">경로 데이터 없음</div>`;
   // 이름에서 코드 접두어 제거
   const _nm=n=>(n||'').replace(/^\d{2}-\d{2}\s*/,'').trim()||n||'';
   const curLabel=(cur.code?cur.code+' ':'')+_nm(cur.name);
@@ -6646,7 +6618,7 @@ function _compactRouteHtml(team,idx){
     return`<div style="text-align:center;padding:14px;font-size:13px;color:#2ecc71;font-weight:800;">✅ ${team.type==='heli'?'병원 이송':'하산'} 완료</div>`;
   }
   // 진행 바
-  const barHtml=`<div style="background:rgba(255,255,255,.07);border-radius:4px;height:4px;margin-bottom:10px;overflow:hidden;"><div style="height:100%;width:${pct}%;background:linear-gradient(90deg,#2d7db3,#4fa8d0);border-radius:4px;transition:width .3s;"></div></div>`;
+  const barHtml=`<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;"><div style="flex:1;background:rgba(255,255,255,.09);border-radius:5px;height:7px;overflow:hidden;"><div style="height:100%;width:${pct}%;background:linear-gradient(90deg,#2d7db3,#4fa8d0);border-radius:5px;transition:width .3s;"></div></div><span style="font-size:10px;color:#7a9cb8;font-weight:700;font-family:monospace;flex-shrink:0;">${pct}%</span></div>`;
   // 현재 위치 카드
   const curCard=`
     <div style="background:rgba(231,76,60,.09);border:1px solid rgba(231,76,60,.3);border-radius:11px;padding:11px 14px;margin-bottom:7px;">
@@ -6696,18 +6668,18 @@ function _tlTeamFullHtml(team,idx){
   const _req=team.requestedAt?String(team.requestedAt).slice(11,16):'';
   const _arr=team.arrivedAt?String(team.arrivedAt).slice(11,16):'';
   const _brd=team.boardedAt?String(team.boardedAt).slice(11,16):'';
-  const _transport=team.transportMethod?`<span style="font-size:9px;color:#e8943a;background:rgba(230,126,34,.1);border-radius:5px;padding:1px 6px;">${team.transportMethod}</span>`:'';
+  const _transport=team.transportMethod?`<span style="font-size:10px;color:#e8943a;background:rgba(230,126,34,.12);border-radius:6px;padding:2px 7px;font-weight:600;">${team.transportMethod}</span>`:'';
   // 유관기관: 출동요청·도착 시각 칩 / 공단팀: 도착 기록 버튼
   const _isAgency=team.agType!=null;
-  const _timeChips=`<div style="display:flex;gap:5px;flex-wrap:wrap;margin-top:5px;">
-    ${_req?`<span style="font-size:9px;color:#5a7a92;background:rgba(255,255,255,.04);border-radius:5px;padding:1px 6px;">🚨 ${_req}</span>`:''}
-    ${_arr?`<span style="font-size:9px;color:#27ae60;background:rgba(39,174,96,.08);border-radius:5px;padding:1px 6px;">🏁 ${_arr}</span>`:(_isAgency?`<button onclick="event.stopPropagation();tlMarkArrival(${idx})" style="background:rgba(39,174,96,.1);border:1px solid rgba(39,174,96,.3);color:#5dbf8a;border-radius:5px;font-size:9px;font-weight:700;padding:1px 7px;cursor:pointer;">🏁 도착 기록</button>`:'')}
-    ${_brd?`<span style="font-size:9px;color:#4fa8d0;background:rgba(79,168,208,.08);border-radius:5px;padding:1px 6px;">🚁 탑승 ${_brd}</span>`:''}
+  const _timeChips=`<div style="display:flex;gap:5px;flex-wrap:wrap;margin-top:6px;">
+    ${_req?`<span style="font-size:10px;color:#7a96ad;background:rgba(255,255,255,.05);border-radius:6px;padding:2px 7px;">🚨 ${_req}</span>`:''}
+    ${_arr?`<span style="font-size:10px;color:#3ad17a;background:rgba(39,174,96,.1);border-radius:6px;padding:2px 7px;">🏁 ${_arr}</span>`:(_isAgency?`<button onclick="event.stopPropagation();tlMarkArrival(${idx})" style="background:rgba(39,174,96,.12);border:1px solid rgba(39,174,96,.35);color:#5dbf8a;border-radius:6px;font-size:10px;font-weight:700;padding:3px 9px;cursor:pointer;">🏁 도착 기록</button>`:'')}
+    ${_brd?`<span style="font-size:10px;color:#5fb0d8;background:rgba(79,168,208,.1);border-radius:6px;padding:2px 7px;">🚁 탑승 ${_brd}</span>`:''}
     ${_transport}
   </div>`;
   const routeInner=team.wps.length>1
     ?_compactRouteHtml(team,idx)
-    :`<div style="text-align:center;font-size:11px;color:rgba(255,255,255,.25);padding:10px 0;">경로 데이터 없음</div>`;
+    :`<div style="text-align:center;font-size:11px;color:rgba(255,255,255,.42);padding:10px 0;">경로 데이터 없음</div>`;
   return `<div id="tlTeamCard_${idx}" style="background:${isSel?'rgba(79,168,208,.06)':'rgba(255,255,255,.015)'};border:1.5px solid ${isSel?'rgba(79,168,208,.4)':'rgba(255,255,255,.08)'};border-radius:12px;margin-bottom:8px;overflow:hidden;">
     <div onclick="toggleTlTeamRoute(${idx})" style="padding:11px 13px;cursor:pointer;user-select:none;-webkit-user-select:none;">
       <div style="display:flex;align-items:center;justify-content:space-between;">
@@ -6767,7 +6739,6 @@ function tlPassTeam(idx){
     _checkAllTeamsDone(_tlWpResId);
   },dur);
 }
-function tlSkipTeam(idx){_saveTeamState();_tlSelTeam=idx;_tlWps=_tlTeams[idx].wps;_tlWpIdx=_tlTeams[idx].wpIdx;tlSkip();}
 function tlWarpToTeam(teamIdx,wpIdx){_saveTeamState();_tlSelTeam=teamIdx;_tlWps=_tlTeams[teamIdx].wps;_tlWpIdx=_tlTeams[teamIdx].wpIdx;tlWarpTo(wpIdx);}
 
 function _rerenderTlFull(){
@@ -6784,26 +6755,6 @@ function tlWarpTo(idx){
   if(_tlAnimating||idx<1||idx>=_tlWps.length)return;
   _tlWps.forEach((w,i)=>{if(w.status!=='skipped')w.status=i<idx?'passed':i===idx?'active':'pending';});
   _tlWpIdx=idx;_saveTeamState();_persistTeams();_rerenderTlFull();
-}
-
-function tlPass(){ tlPassTeam(_tlSelTeam); }  // 호환용 위임 — 실제 로직은 tlPassTeam (team 스코프)
-
-function tlSkip(){
-  if(_tlAnimating||_tlWpIdx>=_tlWps.length-2)return;
-  const si=_tlWpIdx+1;_tlWps[si].status='skipped';
-  if(si+1<_tlWps.length){_tlWps[si+1].status='active';_tlWpIdx=si+1;}else _tlWpIdx=si;
-  _saveTeamState();_persistTeams();_rerenderTlFull();
-}
-
-function toggleTlVehicle(){
-  _tlVehicle=!_tlVehicle;
-  const b=document.getElementById('tlVehicleBtn');
-  if(b){
-    b.style.background=_tlVehicle?'rgba(231,76,60,.18)':'transparent';
-    b.style.borderColor=_tlVehicle?'rgba(231,76,60,.45)':'rgba(255,255,255,.12)';
-    b.style.color=_tlVehicle?'#e74c3c':'rgba(255,255,255,.4)';
-    b.textContent='🚗 '+(_tlVehicle?'차량 ON':'차량 OFF');
-  }
 }
 
 function _buildLogHtml(r){
@@ -6862,7 +6813,7 @@ function _buildLogHtml(r){
       <!-- 이벤트 내용 -->
       <div style="flex:1;padding:2px 0 ${isLast?'0':'10px'} 4px;">
         <div style="display:flex;align-items:center;gap:6px;margin-bottom:${e.sub?'2':'0'}px;">
-          <span style="font-size:9px;color:rgba(255,255,255,.28);font-family:monospace;white-space:nowrap;">${e.t}</span>
+          <span style="font-size:11px;color:#7a9cb8;font-family:monospace;font-weight:600;white-space:nowrap;">${e.t}</span>
           <span style="font-size:${isWpPass(e)?'11':'12'}px;font-weight:${isWpPass(e)?'600':'700'};color:${isWpPass(e)?'rgba(255,255,255,.55)':col};">${e.ico} ${_esc(e.label)}</span>
         </div>
         ${e.sub?`<div style="font-size:10px;color:rgba(255,255,255,.35);padding-left:2px;line-height:1.4;">${_esc(e.sub)}</div>`:''}
@@ -8965,10 +8916,6 @@ function _renderAlertInput(active){
   return html+'</div>';
 }
 
-function _alertRespChip(r,opId){
-  const del=isAdminUser()?`<span onclick="removeAlertResponder(${opId},'${_escq(r.name)}','${_escq(r.loc||'사무소')}')" style="cursor:pointer;color:#c0392b;font-size:11px;margin-left:2px;">×</span>`:'';
-  return `<span class="ao-resp-chip"><b style="color:#e0edf8;">${_esc(r.name)}</b> ${_esc(r.role||'')}${r.arrivedAt?' <span style="color:#7ec8a0;">'+_esc(r.arrivedAt)+'</span>':''}${del}</span>`;
-}
 
 function _renderAlertReqTable(level){
   const req=ALERT_REQS[level];
@@ -9845,26 +9792,6 @@ function _toggleAdmRank(uid,rank){
     el.dataset.sel=on?'1':'';
   });
 }
-function _saveAdmMember(id){
-  const list=DB.g('pendingUsers')||[];
-  const idx=list.findIndex(u=>String(u.id)===String(id));
-  if(idx<0){toast('⚠️ 직원을 찾을 수 없습니다');return;}
-  const name=(document.getElementById('admME_name_'+id)||{}).value?.trim();
-  const dept=(document.getElementById('admME_dept_'+id)||{}).value||'';
-  const rankEl=document.querySelector(`#admME_ranks_${id} [data-sel="1"]`);
-  const rank=rankEl?rankEl.textContent.trim():'';
-  if(!name){toast('⚠️ 이름을 입력하세요');return;}
-  list[idx]={...list[idx],realName:name,name,dept,rank};
-  DB.s('pendingUsers',list);
-  // 현재 로그인 사용자와 같은 kakaoId면 currentUser도 갱신
-  const me=DB.g('currentUser')||{};
-  if(me.kakaoId&&String(me.kakaoId)===String(list[idx].kakaoId||list[idx].id)){
-    DB.s('currentUser',{...me,realName:name,name,dept,rank});
-    updateUserUI();
-  }
-  renderAdmMembers();
-  toast('✅ 직원 정보 수정됨');
-}
 function renderAdmCat(){
   const cats=DB.g('catFac')||[];
   const meta=DB.g('catFacMeta')||{};
@@ -9998,39 +9925,6 @@ function _aclAddById(){
   if(!id){toast('⚠️ 카카오 ID를 입력하세요');return;}
   if(!/^\d+$/.test(id)){toast('⚠️ 카카오 ID는 숫자여야 합니다');return;}
   _aclSetRole(id,'member');
-}
-function _renderAclManager(){
-  const acl=_getAcl();
-  const log=(DB.g('loginLog')||[]).slice().sort((a,b)=>(b.at||0)-(a.at||0));
-  const seen={};const rows=[];
-  log.forEach(e=>{const id=String(e.kakaoId||'');if(!id||seen[id])return;seen[id]=1;rows.push({id,name:e.name||'',dept:e.dept||''});});
-  acl.admins.concat(acl.members).forEach(id=>{id=String(id);if(seen[id])return;seen[id]=1;rows.push({id,name:'(로그인 이력 없음)',dept:''});});
-  const roleOf=id=>acl.admins.includes(String(id))?'admin':(acl.members.includes(String(id))?'member':'none');
-  let html=`<div style="font-size:11px;color:#7a9cb8;margin-bottom:8px;line-height:1.6;">카카오 로그인한 직원만 데이터에 접근하도록 허용목록을 관리합니다. <b style="color:#cfe2f2;">규칙 잠금 전에 모든 직원을 멤버 이상으로 등록</b>하세요. (마스터 계정은 자동 관리자)</div>`;
-  html+=`<div style="font-size:11px;color:#9bbdd4;margin-bottom:6px;">현재 <b style="color:#5dbf8a;">관리자 ${acl.admins.length}</b> · <b style="color:#4fa8d0;">멤버 ${acl.members.length}</b></div>`;
-  if(!rows.length){
-    html+=`<div style="font-size:11px;color:rgba(255,255,255,.3);padding:6px 0;">로그인 이력이 아직 없습니다. 직원들이 카카오 로그인하면 자동으로 목록에 나타납니다.</div>`;
-  }
-  rows.forEach(r=>{
-    const role=roleOf(r.id);
-    const badge=role==='admin'?'<span style="color:#5dbf8a;font-weight:700;">관리자</span>':role==='member'?'<span style="color:#4fa8d0;font-weight:700;">멤버</span>':'<span style="color:#9a5040;">미등록</span>';
-    html+=`<div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid rgba(255,255,255,.05);">
-      <div style="flex:1;min-width:0;">
-        <div style="font-size:12px;color:#cfe2f2;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${_esc(r.name)} ${badge}</div>
-        <div style="font-size:10px;color:#5a7088;font-family:monospace;">ID ${_esc(r.id)}${r.dept?' · '+_esc(r.dept):''}</div>
-      </div>
-      <select onchange="_aclSetRole('${_esc(r.id)}',this.value)" style="background:#0a1626;color:#cfe2f2;border:1px solid rgba(79,168,208,.25);border-radius:7px;padding:5px 7px;font-size:11px;cursor:pointer;">
-        <option value="none"${role==='none'?' selected':''}>미등록</option>
-        <option value="member"${role==='member'?' selected':''}>멤버</option>
-        <option value="admin"${role==='admin'?' selected':''}>관리자</option>
-      </select>
-    </div>`;
-  });
-  html+=`<div style="display:flex;gap:6px;margin-top:10px;">
-    <input id="aclAddIdInp" class="fi" placeholder="카카오 ID 직접 추가 (숫자)" style="flex:1;font-family:monospace;font-size:12px;">
-    <button onclick="_aclAddById()" style="background:#1a4a6e;color:#fff;border:none;padding:8px 12px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;">＋ 멤버</button>
-  </div>`;
-  return html;
 }
 function renderAdmSys(){
   const unseenCnt=_getUnseenCount();
@@ -11751,7 +11645,7 @@ function renderTimetableList(){
               <div style="font-size:10px;color:#4a7090;">${e.time||'-'}</div>
               ${e.note?`<div style="font-size:11px;color:#7a9cb8;margin-top:2px;">${e.note}</div>`:''}
             </div>
-            <button onclick="removeTTEntry(${i})" style="background:none;border:none;color:#c0392b;font-size:14px;cursor:pointer;">×</button>
+            <button onclick="removeTTEntry(${i})" style="background:rgba(192,57,43,.12);border:1px solid rgba(192,57,43,.3);border-radius:8px;color:#e05050;font-size:13px;font-weight:700;cursor:pointer;width:38px;height:38px;flex-shrink:0;display:flex;align-items:center;justify-content:center;">✕</button>
           </div>
         </div>`).join('')}
     </div>
@@ -11819,7 +11713,11 @@ function confirmTTEntry(){
   if(_selectedTTStage==='요구조자 조우') _ttFoundVictim=true;
   renderTimetableList();
 }
-function removeTTEntry(i){_timetableEntries.splice(i,1);if(!_timetableEntries.find(e=>e.stage==='요구조자 조우'))_ttFoundVictim=false;renderTimetableList();}
+function removeTTEntry(i){
+  const e=_timetableEntries[i];
+  if(e&&!confirm('"'+(e.stage||'기록')+'" 기록을 삭제할까요?'))return;
+  _timetableEntries.splice(i,1);if(!_timetableEntries.find(e=>e.stage==='요구조자 조우'))_ttFoundVictim=false;renderTimetableList();
+}
 function addTimetableEntry(){selectTTStage('지점통과');}
 function saveTimetable(){
   const res=DB.g('rescues')||[];const idx=res.findIndex(x=>x.id===curResId);if(idx===-1)return;
@@ -11922,7 +11820,7 @@ function renderTTInline(){
         </div>
         <div style="display:flex;gap:4px;flex-shrink:0;">
           <button onclick="editTTInline(${i})" style="background:rgba(79,168,208,.08);border:1px solid rgba(79,168,208,.2);color:#4fa8d0;font-size:10px;padding:3px 8px;border-radius:5px;cursor:pointer;">✏️</button>
-          <button onclick="removeTTInline(${i})" style="background:rgba(192,57,43,.08);border:1px solid rgba(192,57,43,.2);color:#c0392b;font-size:10px;padding:3px 8px;border-radius:5px;cursor:pointer;">×</button>
+          <button onclick="removeTTInline(${i})" style="background:rgba(192,57,43,.12);border:1px solid rgba(192,57,43,.3);color:#e05050;font-size:13px;font-weight:700;width:36px;height:36px;flex-shrink:0;border-radius:8px;cursor:pointer;display:flex;align-items:center;justify-content:center;">✕</button>
         </div>
       </div>`).join('')
     : '<div style="font-size:11px;color:rgba(255,255,255,.25);padding:6px 0 10px;">아직 기록 없음 — 아래에서 단계 선택</div>';
@@ -12028,6 +11926,8 @@ function selectTTInline(stage, pillEl){
 }
 
 function removeTTInline(i){
+  const e=_ttInlineEntries[i];
+  if(e&&!confirm('"'+(e.stage||'기록')+'" 기록을 삭제할까요?'))return;
   _ttInlineEntries.splice(i,1);
   _ttInlineFoundVictim = _ttInlineEntries.some(e=>e.stage==='요구조자 조우');
   renderTTInline();
