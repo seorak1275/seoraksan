@@ -1920,10 +1920,10 @@ function switchTab(idx,el){
   if(isExternal()&&idx!==1){toast('⚠️ 외부기관 계정은 지도만 이용 가능합니다');return;}
   [1,2,3].forEach(i=>document.getElementById('nv'+i).classList.remove('on'));if(el)el.classList.add('on');closeDB();
   if(curApp==='rescue'){
-    if(idx===1){showV('v-rescue-map');rMaps();updateRescueCross();}
+    if(idx===1){showV('v-rescue-map');rMaps();updateRescueCross();try{renderRescueMap();}catch(e){}} // 복귀 시 핀 최신화
     else{if(_rFocusResId)exitFocusMode();if(idx===2){showV('v-rescue-list');renderResList();}else{showV('v-rescue-stats');renderRescueStats();}}
   } else if(curApp==='inspect'){
-    if(idx===1){showV('v-inspect-map');rMaps();updateInspectCross();}
+    if(idx===1){showV('v-inspect-map');rMaps();updateInspectCross();try{renderInspectMap();}catch(e){}}
     else if(idx===2){showV('v-inspect-list');renderFacList();}
     else{showV('v-inspect-stats');renderInspectStats();}
   }
@@ -6222,7 +6222,7 @@ function render1BoForm(prefill=null){
       :`<button class="btn-submit" style="background:#1a4a6e;color:#fff;" onclick="submit1Bo()">💾 1보 등록</button>`;
   }
 
-  _ttEntries=p.timetable||[];
+  _ttInlineEntries=p.timetable||[];   // (수정) 미선언 _ttEntries → strict 모드 ReferenceError로 이후 초기화 전체 중단되던 버그
   initExtraDispatch(p);
   initExtraTeams(p);
   initWAlerts(p);
@@ -6361,6 +6361,8 @@ function submit1Bo(){
   const res=DB.g('rescues')||[];
   res.push(r);
   DB.s('rescues',res);
+  // 저장 즉시 지도·목록·요약 갱신 → 등록 직후 지도에 바로 표시
+  try{renderRescueMap();}catch(e){}try{renderResList();}catch(e){}try{updateSummary();}catch(e){}
   // 오프라인 대기 사진을 이 레코드에 연결 (연결 복구 시 자동 반영)
   _registerPendingPhoto('prevInj',{key:'rescues',id:r.id,field:'injuryPhoto'});
   _registerPendingPhoto('prevTrans',{key:'rescues',id:r.id,field:'transPhoto'});
