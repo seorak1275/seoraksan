@@ -1254,11 +1254,10 @@ var _rClusterOvs=[],_rEvItems=[];
 function _reclusterRescue(){
   if(!mapR)return;
   _rClusterOvs.forEach(o=>{try{o.setMap(null);}catch(e){}});_rClusterOvs=[];
-  // 진행중(noClus)과 종료/위험을 분리 클러스터링 → 진행중끼리만 겹칠 때 빨간 액티브 클러스터로 묶음
-  const ongoing=_rEvItems.filter(it=>it.noClus);
+  // 종료/위험만 클러스터링(개수 버블). 진행중은 절대 합치지 않고 개별 칩으로 항상 표시.
   const others=_rEvItems.filter(it=>!it.noClus);
-  _rClusterOvs=_clusterByPixels(mapR,others,52,(la,ln)=>_clusterZoom(mapR,la,ln),'')
-    .concat(_clusterByPixels(mapR,ongoing,46,(la,ln)=>_clusterZoom(mapR,la,ln),'active'));
+  _rClusterOvs=_clusterByPixels(mapR,others,52,(la,ln)=>_clusterZoom(mapR,la,ln),'');
+  _rEvItems.filter(it=>it.noClus).forEach(it=>{try{it.ov.setMap(mapR);}catch(e){}});
 }
 // 시설물 점검 지도: 시설물 핀 클러스터
 var _iClusterOvs=[],_iItems=[];
@@ -3013,7 +3012,15 @@ function renderRescueMap(){
     if(!_stOkRes(r.status))return;
     if(!_resDateOk(r.date))return;
     const isOg=r.status==='ongoing';const ti=RES_TYPES[r.type]||RES_TYPES['기타'];
-    const el=document.createElement('div');el.className=`mpin ${ti.pc}${isOg?' blink':' p-done'}`;el.innerHTML=ti.ico;el.dataset.ev='1';
+    const el=document.createElement('div');
+    if(isOg){
+      // 진행중: 클러스터 없이 개별 — 읽기 쉬운 빨간 칩(아이콘+유형)
+      el.className='res-chip-og';
+      el.innerHTML=`${ti.ico} <span>${_esc(r.type||'사고')}</span>`;
+    }else{
+      el.className=`mpin ${ti.pc} p-done`;el.innerHTML=ti.ico;
+    }
+    el.dataset.ev='1';
     el.dataset.rid=String(r.id);
     let _ts=null;
     el.addEventListener('touchstart',e=>{_ts={x:e.touches[0].clientX,y:e.touches[0].clientY};},{passive:true});
@@ -6598,6 +6605,20 @@ function _updateResFilterPanels(){
   ['resMFP_date','resLFP_date'].forEach(id=>_filterSec(id,'📅 날짜',dateHtml,null,dateActive));
   ['resMFP_type','resLFP_type'].forEach(id=>_filterSec(id,'종류',typeHtml,resTypeF));
   ['resMFP_status','resLFP_status'].forEach(id=>_filterSec(id,'상태',stHtml,resStatusF));
+  _syncOngoingBtn();
+}
+// 지도 '🔴 진행중' 토글 — 현재 사고만 보기 (상태 필터를 진행중 단독으로)
+function toggleOngoingOnly(){
+  const on=resStatusF.size===1&&resStatusF.has('진행중');
+  resStatusF=on?new Set():new Set(['진행중']);
+  _persistFilters();_updateResFilterPanels();renderRescueMap();renderResList();
+}
+function _syncOngoingBtn(){
+  const b=document.getElementById('resOngoingBtn');if(!b)return;
+  const on=resStatusF.size===1&&resStatusF.has('진행중');
+  b.style.background=on?'rgba(231,76,60,.92)':'rgba(11,28,48,.85)';
+  b.style.color=on?'#fff':'#ff8a73';
+  b.style.borderColor=on?'#ff5a45':'rgba(231,76,60,.5)';
 }
 function setResDate(which,v){
   if(which==='from')resDateFrom=v;else resDateTo=v;
