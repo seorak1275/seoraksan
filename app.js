@@ -2308,15 +2308,65 @@ function _updateMiniMapEl(containerId,lat,lng,_retry){
     }catch(e){}
   }
 }
-function _updateFormMiniMap(lat,lng){_updateMiniMapEl('r_loc_mini_map',lat,lng);}
-function initFormMiniMap(lat,lng){
-  delete _miniMaps['r_loc_mini_map'];
+// ── 구조 폼 인라인 위치 미니맵: 중앙 십자선 + 표지판 + 드래그로 좌표·사고장소 자동갱신 ──
+let _formMap=null,_formMapSignsAdded=false;
+function _addFormMapSigns(){
+  if(_formMapSignsAdded||!_formMap)return;
+  const signs=(DB.g('facilities')||[]).filter(f=>f.type&&f.type.includes('다목적위치표지판')&&f.lat&&f.lng);
+  if(!signs.length)return; // 아직 로딩 전이면 다음 갱신 때 다시 시도
+  signs.forEach(f=>{
+    const m=(f.name||'').match(/^\d{1,2}-\d{1,3}/);
+    const code=m?m[0]:(f.name||'').slice(0,5);
+    const d=document.createElement('div');
+    d.style.cssText='background:rgba(8,18,36,.82);border:1px solid rgba(125,211,250,.45);border-radius:5px;padding:1px 4px;font-size:9px;font-weight:700;color:#7dd3fa;font-family:monospace;pointer-events:none;white-space:nowrap;';
+    d.textContent=code;
+    new kakao.maps.CustomOverlay({position:new kakao.maps.LatLng(f.lat,f.lng),content:d,zIndex:2}).setMap(_formMap);
+  });
+  _formMapSignsAdded=true;
+}
+function _updateFormMiniMap(lat,lng){
+  if(!window._KR){ setTimeout(()=>_updateFormMiniMap(lat,lng),300); return; }
   const el=document.getElementById('r_loc_mini_map');
-  if(el)el.style.display='none';
+  if(!el)return;
+  el.style.display='block';
+  const pos=new kakao.maps.LatLng(lat,lng);
+  if(!_formMap){
+    try{
+      el.style.position='relative';
+      _formMap=new kakao.maps.Map(el,{center:pos,level:4});
+      _formMap.setMapTypeId(kakao.maps.MapTypeId.HYBRID);
+      // 중앙 고정 십자선 (지도를 움직여 중심점=선택 위치)
+      const cross=document.createElement('div');
+      cross.style.cssText='position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);z-index:5;pointer-events:none;width:36px;height:36px;';
+      cross.innerHTML='<div style="position:absolute;left:50%;top:0;width:2px;height:100%;background:rgba(231,76,60,.9);transform:translateX(-50%);"></div><div style="position:absolute;top:50%;left:0;height:2px;width:100%;background:rgba(231,76,60,.9);transform:translateY(-50%);"></div><div style="position:absolute;left:50%;top:50%;width:11px;height:11px;border:2px solid #fff;border-radius:50%;background:rgba(231,76,60,.75);transform:translate(-50%,-50%);box-shadow:0 0 6px rgba(0,0,0,.7);"></div>';
+      el.appendChild(cross);
+      _addFormMapSigns();
+      // 드래그 → 중심 좌표·사고장소 자동 갱신 (디바운스)
+      let _ft=null;
+      kakao.maps.event.addListener(_formMap,'center_changed',function(){
+        const c=_formMap.getCenter(),la=c.getLat(),ln=c.getLng();
+        const cd=document.getElementById('r_minimap_coords');if(cd)cd.textContent=la.toFixed(5)+', '+ln.toFixed(5);
+        clearTimeout(_ft);
+        _ft=setTimeout(function(){
+          const g=document.getElementById('r_gps');if(g)g.value=la.toFixed(5)+', '+ln.toFixed(5);
+          _autoFillLoc(la,ln);
+          const st=document.getElementById('r_gps_status');if(st)st.textContent='✅ 지도 중심으로 위치 지정됨';
+        },280);
+      });
+    }catch(e){console.warn('formMap',e);return;}
+  }else{
+    try{el.style.display='block';_formMap.relayout();_formMap.setCenter(pos);_addFormMapSigns();}catch(e){}
+  }
+}
+function initFormMiniMap(lat,lng){
+  // 폼 재렌더 시 이전 지도 인스턴스 폐기 (DOM이 새로 생성되므로)
+  _formMap=null;_formMapSignsAdded=false;
+  const el=document.getElementById('r_loc_mini_map');
+  if(el){el.style.display='none';el.innerHTML='';}
   if(lat&&lng){
     const v=(+lat).toFixed(5)+', '+(+lng).toFixed(5);
     const cd=document.getElementById('r_minimap_coords');if(cd)cd.textContent=v;
-    const st=document.getElementById('r_gps_status');if(st)st.textContent='✅ 위치 확인 — 🗺 지도에서 조정 가능';
+    const st=document.getElementById('r_gps_status');if(st)st.textContent='✅ 위치 확인 — 🗺 지도를 드래그해 조정';
     setTimeout(()=>_updateFormMiniMap(+lat,+lng),200);
   }
 }
