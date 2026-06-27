@@ -4662,7 +4662,7 @@ function _buildRoute(r,facs){
   }
   const res=[{code:'',name:base,isBase:true,lat:_baseObj?_baseObj.lat:null,lng:_baseObj?_baseObj.lng:null,status:'active'}];
   route.forEach((w,i)=>res.push({code:w.code,name:w.name,lat:w.lat,lng:w.lng,approx:w.approx||false,isTarget:i===route.length-1,status:'pending'}));
-  // 거점 → 첫 도보 지점 거리가 멀면(차로 들머리 접근) 차량 이동 구간으로 표시
+  // 거점 → 첫 도보 지점 거리가 멀면(차로 들머리 접근) 차량 이동 구간으로 표시 (명시 구간 외 폴백)
   if(res.length>1&&_baseObj&&_baseObj.lat){
     const _ff=res[1];
     if(_ff&&_ff.lat&&_ff.lng){
@@ -4679,6 +4679,20 @@ function _buildRoute(r,facs){
       res.forEach(w=>{w.isTarget=false;});
       res.push({code:_tKey,name:r.location||(`${_tKey} 부근`),lat:r.lat,lng:r.lng,approx:!_hasTargetSign,isTarget:true,status:'pending'});
     }
+  }
+  // ── 차량 이동 가능 구간 ──
+  // 소공원 구간: 01-01~01-04(와선대), 백담 구간: 10-01~10-07(백담탐방지원센터)까지 차량 접근 가능.
+  // 이 구간을 넘는 사고는 출동→차량으로 종점까지 이동 후 종점(와선대/백담센터)부터 도보.
+  const VEH_SEG={1:4,10:7};
+  res.forEach(w=>{
+    if(!w.code)return;
+    const _m=w.code.match(/^(\d+)-(\d+)/);if(!_m)return;
+    const _z=+_m[1],_n=+_m[2];
+    if(VEH_SEG[_z]!=null&&_n<=VEH_SEG[_z])w.byVehicle=true;
+  });
+  // 차량 구간의 마지막 지점 = 도보 전환점(와선대/백담센터). 그 지점에 도보 시작 표시.
+  for(let i=0;i<res.length;i++){
+    if(res[i].byVehicle&&(i+1>=res.length||!res[i+1].byVehicle)){res[i].vehEnd=true;break;}
   }
   return res;
 }
@@ -4989,8 +5003,10 @@ function _wpItemHtmlTeam(w,i,team,teamIdx){
     dbg='rgba(79,168,208,.08)';dbd='rgba(79,168,208,.25)';dtxt=w.isHosp?'🏥':(w.code||'·');nc='rgba(255,255,255,.35)';
     if(w.descent)badge='<span style="background:rgba(39,174,96,.08);color:rgba(93,191,138,.7);border:1px solid rgba(39,174,96,.18);border-radius:5px;font-size:9px;padding:1px 6px;">🔽 하산</span>';
   }
-  // 차량 접근 구간(거점→들머리): 🚗 배지로 명시
-  const vehBadge=w.byVehicle?`<span style="background:rgba(231,76,60,.14);color:#ff6a4d;border:1px solid rgba(231,76,60,.3);border-radius:5px;font-size:9px;padding:1px 6px;font-weight:700;margin-right:4px;">🚗 차량 이동${w.vehKm?' '+w.vehKm.toFixed(1)+'km':''}</span>`:'';
+  // 차량 접근 구간: 🚗 배지 / 차량 종점(와선대·백담센터)은 🥾 도보 시작 배지
+  const vehBadge=w.vehEnd
+    ?`<span style="background:rgba(241,196,15,.14);color:#f0c040;border:1px solid rgba(241,196,15,.35);border-radius:5px;font-size:9px;padding:1px 6px;font-weight:700;margin-right:4px;">🚗→🥾 도보 시작</span>`
+    :(w.byVehicle?`<span style="background:rgba(231,76,60,.14);color:#ff6a4d;border:1px solid rgba(231,76,60,.3);border-radius:5px;font-size:9px;padding:1px 6px;font-weight:700;margin-right:4px;">🚗 차량 이동${w.vehKm?' '+w.vehKm.toFixed(1)+'km':''}</span>`:'');
   const click=(!isBase&&!isActive)?`onclick="event.stopPropagation();tlWarpToTeam(${teamIdx},${i})"`:'' ;
   return `<div id="tlWp_${teamIdx}_${i}" class="tl-wp${isActive?' tl-wp-active':''}${isLast?' last':''}" ${click} style="${!isBase&&!isActive?'cursor:pointer;':''}">
     <div style="position:relative;flex-shrink:0;">
@@ -5062,22 +5078,24 @@ function _compactRouteHtml(team,idx){
   }
   // 진행 바
   const barHtml=`<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;"><div style="flex:1;background:rgba(255,255,255,.09);border-radius:5px;height:7px;overflow:hidden;"><div style="height:100%;width:${pct}%;background:linear-gradient(90deg,#2d7db3,#4fa8d0);border-radius:5px;transition:width .3s;"></div></div><span style="font-size:10px;color:#7a9cb8;font-weight:700;font-family:monospace;flex-shrink:0;">${pct}%</span></div>`;
-  // 현재 위치 카드
+  // 현재 위치 카드 (차량 구간이면 '차량 이동 중' 멘트)
+  const _inVeh=!!cur.byVehicle;
   const curCard=`
-    <div style="background:rgba(231,76,60,.09);border:1px solid rgba(231,76,60,.3);border-radius:11px;padding:11px 14px;margin-bottom:7px;">
+    <div style="background:${_inVeh?'rgba(231,76,60,.13)':'rgba(231,76,60,.09)'};border:1px solid ${_inVeh?'rgba(231,76,60,.45)':'rgba(231,76,60,.3)'};border-radius:11px;padding:11px 14px;margin-bottom:7px;">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px;">
-        <span style="font-size:10px;color:#ff7060;font-weight:700;">📍 현재 위치</span>
+        <span style="font-size:10px;color:#ff7060;font-weight:700;">${_inVeh?'🚗 차량 이동 중':'📍 현재 위치'}</span>
         <span style="font-size:10px;color:rgba(255,255,255,.3);font-family:monospace;">${prog} / ${total}</span>
       </div>
       <div style="font-size:15px;font-weight:800;color:#eef5fb;line-height:1.3;word-break:keep-all;">${curLabel}</div>
+      ${_inVeh?`<div style="font-size:10px;color:#ff9e80;margin-top:3px;font-weight:600;">${cur.vehEnd?'🥾 여기서부터 도보 이동':'🚗 차량 접근 구간 — 종점까지 차량 이동'}</div>`:''}
       ${cur.passedAt?`<div style="font-size:10px;color:rgba(255,255,255,.3);margin-top:3px;">${String(cur.passedAt).slice(11,16)} 통과</div>`:''}
     </div>`;
-  // 다음 위치
+  // 다음 위치 (차량 종점이면 '도보 시작점' 멘트)
   const nextCard=next?`
     <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;padding:0 2px;">
       <span style="font-size:13px;color:rgba(79,168,208,.45);">↓</span>
       <div style="flex:1;min-width:0;">
-        <div style="font-size:10px;color:#4a7090;font-weight:600;margin-bottom:1px;">다음${next.byVehicle?' 🚗':''}${next.descent?' 🔽':''}</div>
+        <div style="font-size:10px;color:${next.vehEnd?'#ff9e80':'#4a7090'};font-weight:600;margin-bottom:1px;">${next.vehEnd?'다음 · 🥾 도보 시작점':'다음'}${next.byVehicle&&!next.vehEnd?' 🚗':''}${next.descent?' 🔽':''}</div>
         <div style="font-size:13px;font-weight:600;color:rgba(255,255,255,.7);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${nextLabel}</div>
       </div>
     </div>`:
