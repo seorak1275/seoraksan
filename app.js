@@ -2005,6 +2005,13 @@ const ZONE_NAMES = {
   '10':'백담계곡','11':'장수대·한계령','12':'한계산성·백담 분기',
   '13':'귀때기청봉','14':'점봉산',
 };
+// 위치필터 칩 라벨: '01 (천불동계곡)'
+function _zoneLbl(z){return ZONE_NAMES[z]?z+' ('+ZONE_NAMES[z]+')':z;}
+// 시설물이 해당 존(zz)에 속하는지: 코드(NN-?? 또는 NN) prefix로 판정 (substring 오매칭 방지)
+function _facInZone(f,z){
+  const c=((f&&(f.loc||''))||'').trim()||(((f&&f.name)||'').match(/^\d+-\d+/)||[''])[0];
+  return c.startsWith(z+'-')||c===z;
+}
 
 // 표지판 코드(ZZ-NN) → 거점 {primary, alt} 반환 ← 모든 라우팅의 단일 진입점
 function getBaseForSign(signCode){
@@ -6610,7 +6617,7 @@ function renderInspectMap(){
   const filtered=facs.filter(f=>{
     const sOk=facMapStatusF.size===0||facMapStatusF.has(f.status);
     const tOk=facMapTypeF.size===0||[...facMapTypeF].some(t=>f.type.includes(t));
-    const lOk=facMapLocF.size===0||[...facMapLocF].some(v=>(f.loc||'').includes(v));
+    const lOk=facMapLocF.size===0||[...facMapLocF].some(v=>_facInZone(f,v));
     return sOk&&tOk&&lOk;
   });
   filtered.forEach(f=>{
@@ -6664,8 +6671,8 @@ function _updateInspFilterPanel(types,locs){
     sChips.map(({l,v,c})=>_filterChip(l,facMapStatusF,v,`_smfs('s','${v}')`,c)).join(''),facMapStatusF);
   _filterSec('inspFP_type','종류',
     types.filter(t=>t!=='전체').map(v=>_filterChip(v,facMapTypeF,v,`_smfs('t','${v.replace(/'/g,"\\'")}')`,'#4fa8d0')).join(''),facMapTypeF);
-  _filterSec('inspFP_loc','위치',
-    locs.filter(v=>v!=='전체').map(v=>_filterChip(v,facMapLocF,v,`_smfs('l','${v.replace(/'/g,"\\'")}')`,'#9b59b6')).join(''),facMapLocF);
+  _filterSec('inspFP_loc','위치 (구간)',
+    locs.filter(v=>v!=='전체').map(v=>_filterChip(_zoneLbl(v),facMapLocF,v,`_smfs('l','${v.replace(/'/g,"\\'")}')`,'#9b59b6')).join(''),facMapLocF);
   // 배지/카운트 업데이트
   const total=facMapStatusF.size+facMapTypeF.size+facMapLocF.size;
   ['inspFilterBadge','facListFilterBadge'].forEach(id=>{const el=document.getElementById(id);if(!el)return;el.style.display=total?'inline-flex':'none';if(total)el.textContent=total;});
@@ -6734,7 +6741,7 @@ function _updateFacListFilterPanel(types,locs){
   _filterSec('facLFP_sort','정렬',_filterChip('⏰ 점검 오래된순',sortSet,'overdue',`setFacListSort('overdue')`,'#f0a500'),sortSet);
   _filterSec('facLFP_status','상태',sChips.map(({l,v,c})=>_filterChip(l,facMapStatusF,v,`_smfs('s','${v}');renderFacList();`,c)).join(''),facMapStatusF);
   _filterSec('facLFP_type','종류',(types||[]).map(v=>_filterChip(v,facMapTypeF,v,`_smfs('t','${v.replace(/'/g,"\\'")}');renderFacList();`,'#4fa8d0')).join(''),facMapTypeF);
-  _filterSec('facLFP_loc','위치',(locs||[]).map(v=>_filterChip(v,facMapLocF,v,`_smfs('l','${v.replace(/'/g,"\\'")}');renderFacList();`,'#9b59b6')).join(''),facMapLocF);
+  _filterSec('facLFP_loc','위치 (구간)',(locs||[]).map(v=>_filterChip(_zoneLbl(v),facMapLocF,v,`_smfs('l','${v.replace(/'/g,"\\'")}');renderFacList();`,'#9b59b6')).join(''),facMapLocF);
   const total=facMapStatusF.size+facMapTypeF.size+facMapLocF.size;
   ['facListFilterBadge'].forEach(id=>{const el=document.getElementById(id);if(!el)return;el.style.display=total?'inline-flex':'none';if(total)el.textContent=total;});
   const fc=document.getElementById('facListFilterCount');if(fc)fc.textContent=total?`(${total})`:'';
@@ -6874,7 +6881,7 @@ function renderFacList(){
   const filtered=facs.filter(f=>{
     const sOk=facMapStatusF.size===0||facMapStatusF.has(f.status);
     const tOk=facMapTypeF.size===0||[...facMapTypeF].some(t=>f.type.includes(t));
-    const lOk=facMapLocF.size===0||[...facMapLocF].some(v=>(f.loc||'').includes(v));
+    const lOk=facMapLocF.size===0||[...facMapLocF].some(v=>_facInZone(f,v));
     return sOk&&tOk&&lOk;
   });
   // 시설별 마지막 점검일(가장 최근 history 항목) — 점검 오래된순 정렬·표시에 사용
