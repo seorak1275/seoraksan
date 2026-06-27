@@ -4252,6 +4252,7 @@ function submitNBoFromForm(){
     cause: document.getElementById('r_cause')?.value||res[idx].cause,
     situation: document.getElementById('r_sit')?.value||'',
     alcohol: document.getElementById('r_alc')?.value||'없음',
+    alcAmount: document.getElementById('r_alcAmount')?.value||'',
     injuries: _injuries,
     rescueMethod: getSelPills('rescMeth'),
     members,
@@ -5370,7 +5371,7 @@ function renderTimeline(r,viewMode,outId){
     const rm=_okA(r.rescueMethod);if(rm.length)rows.push(_row('구조',rm.join(', ')));
     const mob=_okA(r.mobilize);if(mob.length)rows.push(_row('응소',mob.join(', ')));
     if(_ok(r.cause))rows.push(_row('원인',_esc(r.cause)));
-    if(_ok(r.alcohol)&&r.alcohol!=='알수없음')rows.push(_row('음주',_esc(r.alcohol)));
+    if(_ok(r.alcohol)&&r.alcohol!=='알수없음')rows.push(_row('음주',_esc(r.alcohol)+(_ok(r.alcAmount)?' · '+_esc(r.alcAmount):'')));
     if(_ok(r.situation))rows.push(_row('경위',_esc(r.situation)));
     if(_ok(r.hospital)&&r.hospital!=='미정')rows.push(_row('이송',_esc(r.hospital)));
     if(r.handover&&r.handover.to)rows.push(_row('인계',_esc(r.handover.to)+(r.handover.time?' · '+r.handover.time.slice(11):'')+(r.handover.by?' ('+_esc(r.handover.by)+')':'')));
@@ -5687,6 +5688,39 @@ function submitNpsResponse(resId,text){
   }
 }
 // ── 구조 보고서 텍스트/공유/인쇄 ────────────────────
+// 활력징후 스테퍼: 빈값이면 예시값으로 시작, 이후 ±step (음수 금지, max 제한)
+function _vitStep(id,delta,example,step,max){
+  const el=document.getElementById(id);if(!el)return;
+  let v=parseFloat(el.value);
+  if(isNaN(v))v=example;          // 첫 조작 → 예시값을 첫값으로
+  else v=v+delta*step;
+  if(v<0)v=0;
+  if(max!=null&&v>max)v=max;
+  el.value=step<1?(Math.round(v*10)/10).toFixed(1):String(Math.round(v));
+}
+// 직접 입력 시 음수·초과 방지
+function _vitClamp(el,max){
+  if(el.value===''||el.value==='-')return;
+  let v=parseFloat(el.value);
+  if(isNaN(v))return;
+  if(v<0)el.value='0';
+  else if(max!=null&&v>max)el.value=String(max);
+}
+// Enter(모바일 '다음') → 다음 활력징후 입력으로 포커스 이동
+function _vitNext(e){
+  if(e.key!=='Enter')return;
+  e.preventDefault();
+  const inputs=[...document.querySelectorAll('.vit-input')];
+  const i=inputs.indexOf(e.target);
+  if(i>=0&&i<inputs.length-1)inputs[i+1].focus();
+  else e.target.blur();
+}
+// 음주 의심·확인됨 → 음주량 입력란 표시
+function _toggleAlcAmount(){
+  const a=document.getElementById('r_alc')?.value;
+  const w=document.getElementById('alcAmountWrap');
+  if(w)w.style.display=(a&&a!=='없음')?'block':'none';
+}
 // 활력징후 수집 — 하나라도 입력됐을 때만 객체 반환(측정시각 포함)
 function _collectVitals(){
   const g=id=>{const e=document.getElementById(id);return e?e.value.trim():'';};
@@ -5728,7 +5762,7 @@ function _buildReportText(r){
   if(_ok(r.cause))L.push('원인: '+r.cause);
   const rm=_okA(r.rescueMethod);if(rm.length)L.push('구조방법: '+rm.join(', '));
   const mob=_okA(r.mobilize);if(mob.length)L.push('응소: '+mob.join(', '));
-  if(_ok(r.alcohol)&&r.alcohol!=='알수없음')L.push('음주: '+r.alcohol);
+  if(_ok(r.alcohol)&&r.alcohol!=='알수없음')L.push('음주: '+r.alcohol+(_ok(r.alcAmount)?' ('+r.alcAmount+')':''));
   if(_ok(r.situation))L.push('사고경위: '+r.situation);
   if(_ok(r.hospital)&&r.hospital!=='미정')L.push('이송: '+r.hospital);
   if(r.handover&&r.handover.to)L.push('인계: '+r.handover.to+(r.handover.time?' ('+r.handover.time+')':''));
@@ -6096,23 +6130,34 @@ function render1BoForm(prefill=null){
 
       <!-- 4. 활력징후 (음주여부 + 중증도 포함) -->
       <div class="rsec"><div class="rsec-t">💓 활력징후 <span style="font-size:9px;color:#7a9cb8;font-weight:400;">(보고마다 기록 → 추이 확인)</span></div>
+        <div style="font-size:9px;color:#5a7e98;margin-bottom:6px;">＋/− 버튼은 예시값에서 시작해 조정 · 안 건드리면 빈값으로 저장</div>
         <div class="frow">
-          <div class="fg"><span class="fl">맥박 (회/분)</span><input type="number" inputmode="numeric" id="r_hr" class="fi" placeholder="예: 88" value="${p.vitals?.hr||''}"></div>
-          <div class="fg"><span class="fl">SpO₂ (%)</span><input type="number" inputmode="numeric" id="r_spo2" class="fi" placeholder="예: 97" value="${p.vitals?.spo2||''}"></div>
+          <div class="fg"><span class="fl">맥박 (회/분)</span>
+            <div class="vit-step"><button type="button" onclick="_vitStep('r_hr',-1,80,1)">−</button><input type="number" inputmode="numeric" id="r_hr" class="fi vit-input" min="0" placeholder="예: 80" value="${p.vitals?.hr||''}" enterkeyhint="next" onkeydown="_vitNext(event)" oninput="_vitClamp(this)"><button type="button" onclick="_vitStep('r_hr',1,80,1)">＋</button></div>
+          </div>
+          <div class="fg"><span class="fl">SpO₂ (%)</span>
+            <div class="vit-step"><button type="button" onclick="_vitStep('r_spo2',-1,98,1,100)">−</button><input type="number" inputmode="numeric" id="r_spo2" class="fi vit-input" min="0" max="100" placeholder="예: 98" value="${p.vitals?.spo2||''}" enterkeyhint="next" onkeydown="_vitNext(event)" oninput="_vitClamp(this,100)"><button type="button" onclick="_vitStep('r_spo2',1,98,1,100)">＋</button></div>
+          </div>
         </div>
         <div class="frow">
-          <div class="fg"><span class="fl">체온 (℃)</span><input type="number" inputmode="decimal" step="0.1" id="r_temp" class="fi" placeholder="예: 36.5" value="${p.vitals?.temp||''}"></div>
+          <div class="fg"><span class="fl">체온 (℃)</span>
+            <div class="vit-step"><button type="button" onclick="_vitStep('r_temp',-1,36.5,0.1)">−</button><input type="number" inputmode="decimal" step="0.1" id="r_temp" class="fi vit-input" min="0" placeholder="예: 36.5" value="${p.vitals?.temp||''}" enterkeyhint="next" onkeydown="_vitNext(event)" oninput="_vitClamp(this)"><button type="button" onclick="_vitStep('r_temp',1,36.5,0.1)">＋</button></div>
+          </div>
           <div class="fg"><span class="fl">의식 (AVPU)</span>
             <select id="r_avpu" class="fsel">${['','A (명료)','V (음성반응)','P (통증반응)','U (무반응)'].map(o=>`<option${(p.vitals?.avpu||'')===o?' selected':''}>${o||'선택'}</option>`).join('')}</select>
           </div>
         </div>
-        <div class="fg"><span class="fl">혈압 (선택)</span><input type="text" id="r_bp" class="fi" placeholder="예: 120/80" value="${p.vitals?.bp||''}"></div>
+        <div class="fg"><span class="fl">혈압 (선택)</span><input type="text" id="r_bp" class="fi vit-input" placeholder="예: 120/80" value="${p.vitals?.bp||''}" enterkeyhint="done"></div>
         <!-- 음주 여부 — 버튼식 -->
         <div class="fg"><span class="fl">음주 여부</span>
           <div style="display:flex;gap:6px;" id="alcPills">
-            ${['없음','의심','확인됨'].map(o=>`<div class="pill${(p.alcohol||'없음')===o?' on':''}" onclick="sPill(this,'alcPills')" style="flex:1;text-align:center;font-size:12px;font-weight:700;padding:8px 0;cursor:pointer;">${o==='없음'?'🚫 없음':o==='의심'?'⚠️ 의심':'🍺 확인됨'}</div>`).join('')}
+            ${['없음','의심','확인됨'].map(o=>`<div class="pill${(p.alcohol||'없음')===o?' on':''}" onclick="sPill(this,'alcPills');_toggleAlcAmount()" style="flex:1;text-align:center;font-size:12px;font-weight:700;padding:8px 0;cursor:pointer;">${o==='없음'?'🚫 없음':o==='의심'?'⚠️ 의심':'🍺 확인됨'}</div>`).join('')}
           </div>
           <input type="hidden" id="r_alc" value="${p.alcohol||'없음'}">
+        </div>
+        <div class="fg" id="alcAmountWrap" style="display:${(p.alcohol&&p.alcohol!=='없음')?'block':'none'};">
+          <span class="fl">음주량 (선택)</span>
+          <input type="text" id="r_alcAmount" class="fi" placeholder="예: 소주 1병, 맥주 2캔, 추정 다량" value="${p.alcAmount||''}">
         </div>
         <!-- 중증도 -->
         <div class="fg"><span class="fl">중증도 <button class="info-btn" onclick="openGuide('severity')">ℹ KTAS</button></span>
@@ -6329,6 +6374,7 @@ function submit1Bo(){
     injuryTypes:getSelPills('injTypes'),
     severity:getSelPills('sevPills')[0]||'',
     alcohol:document.getElementById('r_alc')?.value||'없음',
+    alcAmount:document.getElementById('r_alcAmount')?.value||'',
     injuries:_injuries,
     situation:document.getElementById('r_sit')?.value||'',
     rescueMethod:getSelPills('rescMeth'),

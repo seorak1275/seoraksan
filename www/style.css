@@ -275,6 +275,11 @@ button{-webkit-tap-highlight-color:transparent;touch-action:manipulation;}
 .fl{display:block;font-size:10.5px;color:#6fa6cc;margin-bottom:5px;font-weight:600;}
 .fi,.fsel,.fta{width:100%;background:#060d1a;border:1px solid rgba(255,255,255,.09);color:#e0edf8;padding:9px 11px;border-radius:8px;font-size:12px;outline:none;font-family:inherit;}
 .fi,.fsel{min-height:44px;}
+/* 활력징후 스테퍼: [−] 값 [+] — 예시값 시드 + 마이너스 방지 */
+.vit-step{display:flex;align-items:stretch;gap:6px;}
+.vit-step .fi{text-align:center;flex:1;}
+.vit-step button{flex:0 0 44px;min-height:44px;background:#0b1c30;border:1px solid rgba(79,168,208,.3);color:#4fa8d0;border-radius:8px;font-size:20px;font-weight:700;cursor:pointer;user-select:none;-webkit-user-select:none;line-height:1;}
+.vit-step button:active{background:rgba(79,168,208,.18);}
 .fi:focus,.fsel:focus,.fta:focus{border-color:rgba(79,168,208,.5);}
 .fi.ro{background:#040a14;color:#3a6a8a;border-color:transparent;}
 .fta{resize:none;line-height:1.6;}
