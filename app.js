@@ -1215,6 +1215,18 @@ function _scaleOvs(els,level,off){
     } else if(el.classList.contains('mpin-num')){
       if(s.numFs===0){el.style.display='none';}
       else{el.style.display='';el.style.fontSize=s.numFs+'px';el.style.padding=s.numPad;}
+    } else if(el.classList.contains('res-chip-og')){
+      // 진행중 사고 칩: 축소(레벨↑)면 아이콘만 작게, 확대(레벨↓)면 전체 칩
+      const span=el.querySelector('span');
+      if(level>=7){ // 축소: 아이콘만 원형
+        if(span)span.style.display='none';
+        el.style.padding=level>=9?'1px 3px':'2px 4px';
+        el.style.fontSize=(level>=9?9:11)+'px';el.style.borderRadius='50%';
+      } else { // 확대: 전체 칩(유형 텍스트 표시)
+        if(span)span.style.display='';
+        el.style.padding=level<=4?'3px 9px 3px 7px':'2px 7px 2px 6px';
+        el.style.fontSize=(level<=4?11:10)+'px';el.style.borderRadius='11px';
+      }
     }
   });
 }
@@ -3007,16 +3019,21 @@ function renderRescueMap(){
   const _stOkRes=s=>resStatusF.size===0||(resStatusF.has('진행중')&&s==='ongoing')||(resStatusF.has('종료')&&s==='done');
   const _stOkHaz=s=>{const active=!s||s==='미조치'||s==='조치중';return resStatusF.size===0||(resStatusF.has('진행중')&&active)||(resStatusF.has('종료')&&!active);};
   // 구조 이력 핀
-  if(_showRes)(DB.g('rescues')||[]).forEach(r=>{
+  const _resAll=DB.g('rescues')||[];
+  // 하루·유형별 사고 번호: 같은 날 같은 유형이 2건 이상이면 '안전사고1·2·3…' 부여 (전 상태 통산)
+  const _dtg={};_resAll.forEach(x=>{const k=(x.type||'')+'|'+((x.date||'').slice(0,10));(_dtg[k]=_dtg[k]||[]).push(x);});
+  Object.values(_dtg).forEach(g=>g.sort((a,b)=>(a.id||0)-(b.id||0)));
+  const _accNum=r=>{const k=(r.type||'')+'|'+((r.date||'').slice(0,10));const g=_dtg[k]||[];return g.length<2?(r.type||'사고'):(r.type||'사고')+(g.findIndex(x=>x.id===r.id)+1);};
+  if(_showRes)_resAll.forEach(r=>{
     if(!r.lat||!r.lng)return;
     if(!_stOkRes(r.status))return;
     if(!_resDateOk(r.date))return;
     const isOg=r.status==='ongoing';const ti=RES_TYPES[r.type]||RES_TYPES['기타'];
     const el=document.createElement('div');
     if(isOg){
-      // 진행중: 클러스터 없이 개별 — 읽기 쉬운 빨간 칩(아이콘+유형)
+      // 진행중: 클러스터 없이 개별 — 읽기 쉬운 빨간 칩(아이콘+유형+당일번호)
       el.className='res-chip-og';
-      el.innerHTML=`${ti.ico} <span>${_esc(r.type||'사고')}</span>`;
+      el.innerHTML=`${ti.ico} <span>${_esc(_accNum(r))}</span>`;
     }else{
       el.className=`mpin ${ti.pc} p-done`;el.innerHTML=ti.ico;
     }
