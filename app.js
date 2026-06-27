@@ -1875,6 +1875,8 @@ function openApp(mode){
   if(mode==='rescue'){
     document.getElementById('topTitle').textContent='재난/구조 관리';
     document.getElementById('nvl2').textContent='목록';
+    // 세션 첫 진입: 기본 필터를 '진행중'으로 (현재 사고만 먼저 보여줌 — 이후 🚨구조/진행중 버튼으로 조절)
+    if(!window._resStatusDefaulted){window._resStatusDefaulted=true;resStatusF=new Set(['진행중']);_persistFilters();}
     showV('v-rescue-map');bn.style.display='flex';setNv();updateRescueCross();
     history.pushState({view:mode},'','');
     rMaps();setTimeout(()=>{try{renderRescueMap();if(mapR&&!window._mapRInited){window._mapRInited=true;mapR.setCenter(new kakao.maps.LatLng(DC.lat,DC.lng));mapR.setLevel(9);}}catch(e){renderResList();}},200);
@@ -3353,7 +3355,21 @@ function _drawFocusRoutes(resId){
     // (팀 이름 라벨은 팀 칩이 같은 자리에 이미 표시되므로 별도 라벨 생략)
   });
 
-  try{if(mapR)mapR.setBounds(bounds,60);}catch(e){}
+  _focusBounds=bounds;
+  _fitFocusBounds();
+}
+// 포커스 모드: 하단 패널에 경로가 가리지 않도록 패널 높이만큼 아래 여백을 줘서 맞춤
+let _focusBounds=null;
+function _fitFocusBounds(){
+  if(!mapR||!_focusBounds)return;
+  const panel=document.getElementById('focusModePanel');
+  const mapEl=document.getElementById('mapRescue');
+  const mh=(mapEl&&mapEl.offsetHeight)||window.innerHeight||600;
+  let bpad=Math.round(mh*0.42); // 패널 미표시 시 기본값
+  if(panel&&panel.classList.contains('on')&&panel.offsetHeight>0){
+    bpad=Math.min(panel.offsetHeight+24,Math.round(mh*0.72)); // 패널 높이 + 여유 (과도 방지 상한)
+  }
+  try{mapR.setBounds(_focusBounds,50,40,bpad,40);}catch(e){}
 }
 
 let _fpTeamOpen=new Set(); // 펼쳐진 팀 카드 인덱스
@@ -3474,6 +3490,8 @@ function enterFocusMode(resId){
   _renderFocusPanel(resId);
   // Close existing popup
   const popup=document.getElementById('resPopup');if(popup)popup.classList.remove('on');
+  // 패널 슬라이드업(.3s) 후 실제 패널 높이로 경로 재맞춤 → 하단 가림 방지
+  setTimeout(_fitFocusBounds,360);
 }
 
 function exitFocusMode(){
@@ -8000,6 +8018,7 @@ function admTab(tab,el){
   document.getElementById('adm-'+tab).classList.add('on');
   ({ctrl:renderAdmCtrl,members:renderAdmMembers,cat:renderAdmCat,sheets:renderAdmSheets,sys:renderAdmSys,staff:renderAdmMembers})[tab]?.();
 }
+let _admResLimit=15; // 관리자 구조이력 표시 개수(더보기로 증가)
 function renderAdmCtrl(){
   const facs=DB.g('facilities')||[];const res=DB.g('rescues')||[];const haz=DB.g('hazards')||[];
   document.getElementById('admCtrlWrap').innerHTML=`
@@ -8017,6 +8036,9 @@ function renderAdmCtrl(){
     ${facs.filter(f=>f.status!=='ok').map(f=>`<div class="adm-row"><div class="adm-info"><div class="adm-name">${f.type.split(' ')[0]} ${f.name}</div><div class="adm-meta">${f.loc||'-'} · <span style="color:${SC(f.status)};">${SL(f.status)}</span></div></div><div class="adm-btns"><button class="abtn" onclick="admChangeFacSt(${f.id})">변경</button><button class="abtn del" onclick="admDelFac(${f.id})">삭제</button></div></div>`).join('')||'<div class="muted" style="font-size:12px;padding:5px 0;">위험/요주의 없음</div>'}
     <div class="sec-label">🚨 진행중 구조</div>
     ${res.filter(r=>r.status==='ongoing').map(r=>{const ti=RES_TYPES[r.type]||RES_TYPES['기타'];return`<div class="adm-row"><div class="adm-info"><div class="adm-name">${ti.ico} ${r.title}</div><div class="adm-meta">${r.type} · ${r.date} · ${r.vName||'미상'}</div></div><div class="adm-btns"><button class="abtn" onclick="admEndRes(${r.id})">상황종료</button><button class="abtn del" onclick="admDelRes(${r.id})">삭제</button></div></div>`;}).join('')||'<div class="muted" style="font-size:12px;padding:5px 0;">진행중 없음</div>'}
+    <div class="sec-label">📒 구조 이력 (전체 ${res.length}건 · 삭제 가능)</div>
+    ${res.slice().sort((a,b)=>(b.id||0)-(a.id||0)).slice(0,_admResLimit).map(r=>{const ti=RES_TYPES[r.type]||RES_TYPES['기타'];const og=r.status==='ongoing';return`<div class="adm-row"><div class="adm-info"><div class="adm-name">${ti.ico} ${r.title} ${og?'<span style="font-size:9px;color:#ff6b5e;font-weight:700;">●진행중</span>':'<span style="font-size:9px;color:#3ad17a;">종료</span>'}</div><div class="adm-meta">${r.type} · ${r.date} · ${r.vName||'미상'}</div></div><button class="abtn del" onclick="admDelRes(${r.id})">삭제</button></div>`;}).join('')||'<div class="muted" style="font-size:12px;padding:5px 0;">구조 이력 없음</div>'}
+    ${res.length>_admResLimit?`<button class="abtn" style="width:100%;margin-top:6px;" onclick="_admResLimit+=30;renderAdmCtrl();">▾ 더 보기 (${res.length-_admResLimit}건)</button>`:''}
     <div class="sec-label">📋 전체 시설물</div>
     ${facs.map(f=>`<div class="adm-row"><div class="adm-info"><div class="adm-name">${f.type.split(' ')[0]} ${f.name}</div><div class="adm-meta"><span style="color:${SC(f.status)};">${SL(f.status)}</span> · ${f.author||'-'}</div></div><button class="abtn del" onclick="admDelFac(${f.id})">삭제</button></div>`).join('')}`;
 }
