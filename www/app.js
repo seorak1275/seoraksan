@@ -3709,6 +3709,7 @@ function renderResList(){
           <div class="lico" style="background:#c0392b;border:none;color:#fff;">🆘</div>
           <div class="linfo">
             <div class="lname">🆘 ${_esc(p.name||'익명')} <span style="font-size:9px;color:#8ab4cc;font-weight:400;">±${p.acc||'?'}m · ${mm}분 전</span></div>
+            ${_sosForeignBadge(p)?`<div style="margin-top:2px;">${_sosForeignBadge(p)}</div>`:''}
             ${p.msg?`<div class="lmeta" style="margin-top:2px;color:#cfe2f2;">${_esc(p.msg)}</div>`:''}
             <div class="lmeta" style="margin-top:2px;font-family:monospace;">${(+p.lat).toFixed(5)}, ${(+p.lng).toFixed(5)}</div>
             <button onclick="event.stopPropagation();sosToRescue('${p.id}')" style="margin-top:6px;padding:6px 12px;background:rgba(231,76,60,.15);border:1px solid rgba(231,76,60,.45);color:#ff6b5e;border-radius:8px;font-size:11px;font-weight:700;cursor:pointer;">🚨 구조 사고로 등록</button>
@@ -10706,17 +10707,18 @@ document.addEventListener('input',e=>{
 let _sosDb=null,_sosId=null,_sosWatch=null,_sosLast=null,_sosCount=0;
 // 다국어(10): 한국어·영어·중국어·일본어·베트남어·태국어·러시아어·스페인어·프랑스어·독일어
 const _SOS_LANGS=[['ko','한국어'],['en','English'],['zh','中文'],['ja','日本語'],['vi','Tiếng Việt'],['th','ไทย'],['ru','Русский'],['es','Español'],['fr','Français'],['de','Deutsch']];
+const _SOS_LABEL={ko:'한국어',en:'영어',zh:'중국어',ja:'일본어',vi:'베트남어',th:'태국어',ru:'러시아어',es:'스페인어',fr:'프랑스어',de:'독일어'};
 const _SOS_T={
-  ko:{org:'설악산 국립공원 구조대',sub:'이 화면을 켠 채로 두면<br>구조대가 당신의 위치를 실시간으로 받습니다',perm:'위치 권한을 허용해 주세요',locating:'위치 확인 중…',recv:'구조대가 위치를 받고 있습니다',block:'전송이 막혔습니다 — 신호 잡히면 자동 재시도',start:'📍 내 위치 전송 시작',retry:'📍 다시 시도',info:'구조대에 전할 정보 (선택)',name:'이름',msg:'상태·부상·주변 지형 등',tip:'화면을 켜 두고 안전한 곳에서 기다리세요.<br>구조대가 출동합니다.'},
-  en:{org:'Seoraksan Nat’l Park Rescue',sub:'Keep this screen on.<br>The rescue team receives your location in real time.',perm:'Please allow location access',locating:'Getting your location…',recv:'The rescue team is receiving your location',block:'Sending blocked — will retry when signal returns',start:'📍 Send my location',retry:'📍 Try again',info:'Info for the rescue team (optional)',name:'Name',msg:'Condition, injury, surroundings…',tip:'Keep the screen on and wait in a safe place.<br>The rescue team is coming.'},
-  zh:{org:'雪岳山国立公园救援队',sub:'请保持此屏幕开启，<br>救援队正在实时接收您的位置。',perm:'请允许获取位置权限',locating:'正在获取位置…',recv:'救援队正在接收您的位置',block:'发送受阻 — 有信号时将自动重试',start:'📍 发送我的位置',retry:'📍 重试',info:'提供给救援队的信息（可选）',name:'姓名',msg:'状态、受伤、周围地形等',tip:'请保持屏幕开启并在安全处等待。<br>救援队正在赶来。'},
-  ja:{org:'雪岳山国立公園 救助隊',sub:'この画面をつけたままにしてください。<br>救助隊が位置をリアルタイムで受信します。',perm:'位置情報の許可をお願いします',locating:'位置を確認中…',recv:'救助隊が位置を受信しています',block:'送信がブロックされました — 電波が入ると自動で再試行',start:'📍 自分の位置を送信',retry:'📍 再試行',info:'救助隊への情報（任意）',name:'名前',msg:'状態・けが・周囲の地形など',tip:'画面をつけたまま安全な場所でお待ちください。<br>救助隊が向かっています。'},
-  vi:{org:'Cứu hộ Vườn QG Seoraksan',sub:'Giữ màn hình này bật.<br>Đội cứu hộ đang nhận vị trí của bạn theo thời gian thực.',perm:'Vui lòng cho phép truy cập vị trí',locating:'Đang xác định vị trí…',recv:'Đội cứu hộ đang nhận vị trí của bạn',block:'Bị chặn gửi — sẽ thử lại khi có sóng',start:'📍 Gửi vị trí của tôi',retry:'📍 Thử lại',info:'Thông tin cho đội cứu hộ (tùy chọn)',name:'Tên',msg:'Tình trạng, chấn thương, địa hình…',tip:'Giữ màn hình bật và chờ ở nơi an toàn.<br>Đội cứu hộ đang đến.'},
-  th:{org:'หน่วยกู้ภัยอุทยานซอรัคซาน',sub:'เปิดหน้าจอนี้ไว้<br>ทีมกู้ภัยกำลังรับตำแหน่งของคุณแบบเรียลไทม์',perm:'โปรดอนุญาตการเข้าถึงตำแหน่ง',locating:'กำลังหาตำแหน่ง…',recv:'ทีมกู้ภัยกำลังรับตำแหน่งของคุณ',block:'การส่งถูกบล็อก — จะลองใหม่เมื่อมีสัญญาณ',start:'📍 ส่งตำแหน่งของฉัน',retry:'📍 ลองอีกครั้ง',info:'ข้อมูลสำหรับทีมกู้ภัย (ไม่บังคับ)',name:'ชื่อ',msg:'อาการ บาดเจ็บ ภูมิประเทศ',tip:'เปิดหน้าจอไว้และรอในที่ปลอดภัย<br>ทีมกู้ภัยกำลังไป'},
-  ru:{org:'Спасатели нацпарка Сораксан',sub:'Не выключайте экран.<br>Спасатели получают вашу геолокацию в реальном времени.',perm:'Разрешите доступ к геолокации',locating:'Определение местоположения…',recv:'Спасатели получают ваше местоположение',block:'Отправка заблокирована — повтор при сигнале',start:'📍 Отправить геолокацию',retry:'📍 Повторить',info:'Информация для спасателей (необязательно)',name:'Имя',msg:'Состояние, травмы, местность…',tip:'Не выключайте экран и ждите в безопасном месте.<br>Спасатели уже в пути.'},
-  es:{org:'Rescate Parque Nac. Seoraksan',sub:'Mantén esta pantalla encendida.<br>El equipo de rescate recibe tu ubicación en tiempo real.',perm:'Permite el acceso a la ubicación',locating:'Obteniendo tu ubicación…',recv:'El equipo de rescate recibe tu ubicación',block:'Envío bloqueado: reintento al haber señal',start:'📍 Enviar mi ubicación',retry:'📍 Reintentar',info:'Información para el rescate (opcional)',name:'Nombre',msg:'Estado, lesión, entorno…',tip:'Mantén la pantalla encendida y espera en lugar seguro.<br>El rescate va en camino.'},
-  fr:{org:'Secours Parc Nat. Seoraksan',sub:'Gardez cet écran allumé.<br>L’équipe de secours reçoit votre position en temps réel.',perm:'Autorisez l’accès à la localisation',locating:'Localisation en cours…',recv:'L’équipe de secours reçoit votre position',block:'Envoi bloqué — nouvelle tentative au signal',start:'📍 Envoyer ma position',retry:'📍 Réessayer',info:'Infos pour les secours (facultatif)',name:'Nom',msg:'État, blessure, environnement…',tip:'Gardez l’écran allumé et attendez en lieu sûr.<br>Les secours arrivent.'},
-  de:{org:'Bergrettung NP Seoraksan',sub:'Lassen Sie diesen Bildschirm an.<br>Das Rettungsteam empfängt Ihren Standort in Echtzeit.',perm:'Bitte Standortzugriff erlauben',locating:'Standort wird ermittelt…',recv:'Das Rettungsteam empfängt Ihren Standort',block:'Senden blockiert — erneuter Versuch bei Signal',start:'📍 Meinen Standort senden',retry:'📍 Erneut versuchen',info:'Infos für die Rettung (optional)',name:'Name',msg:'Zustand, Verletzung, Umgebung…',tip:'Bildschirm anlassen und an sicherem Ort warten.<br>Die Rettung kommt.'}
+  ko:{org:'설악산 국립공원 구조대',sub:'이 화면을 켠 채로 두면<br>구조대가 당신의 위치를 실시간으로 받습니다',perm:'위치 권한을 허용해 주세요',locating:'위치 확인 중…',recv:'구조대가 위치를 받고 있습니다',block:'전송이 막혔습니다 — 신호 잡히면 자동 재시도',start:'📍 내 위치 전송 시작',retry:'📍 다시 시도',info:'구조대에 전할 정보 (선택)',name:'이름',msg:'상태·부상·주변 지형 등',country:'국적 (예: 대한민국)',tip:'화면을 켜 두고 안전한 곳에서 기다리세요.<br>구조대가 출동합니다.',fail:'전송 실패 — 아래 좌표를 복사해, 링크를 보낸 번호로 문자 회신해 주세요',copy:'📋 좌표 복사'},
+  en:{org:'Seoraksan Nat’l Park Rescue',sub:'Keep this screen on.<br>The rescue team receives your location in real time.',perm:'Please allow location access',locating:'Getting your location…',recv:'The rescue team is receiving your location',block:'Sending blocked — will retry when signal returns',start:'📍 Send my location',retry:'📍 Try again',info:'Info for the rescue team (optional)',name:'Name',msg:'Condition, injury, surroundings…',country:'Country',tip:'Keep the screen on and wait in a safe place.<br>The rescue team is coming.',fail:'Send failed — copy the coordinates below and text them to the number that sent you this link',copy:'📋 Copy coordinates'},
+  zh:{org:'雪岳山国立公园救援队',sub:'请保持此屏幕开启，<br>救援队正在实时接收您的位置。',perm:'请允许获取位置权限',locating:'正在获取位置…',recv:'救援队正在接收您的位置',block:'发送受阻 — 有信号时将自动重试',start:'📍 发送我的位置',retry:'📍 重试',info:'提供给救援队的信息（可选）',name:'姓名',msg:'状态、受伤、周围地形等',country:'国家',tip:'请保持屏幕开启并在安全处等待。<br>救援队正在赶来。',fail:'发送失败 — 请复制下方坐标，并短信发送给给您链接的号码',copy:'📋 复制坐标'},
+  ja:{org:'雪岳山国立公園 救助隊',sub:'この画面をつけたままにしてください。<br>救助隊が位置をリアルタイムで受信します。',perm:'位置情報の許可をお願いします',locating:'位置を確認中…',recv:'救助隊が位置を受信しています',block:'送信がブロックされました — 電波が入ると自動で再試行',start:'📍 自分の位置を送信',retry:'📍 再試行',info:'救助隊への情報（任意）',name:'名前',msg:'状態・けが・周囲の地形など',country:'国籍',tip:'画面をつけたまま安全な場所でお待ちください。<br>救助隊が向かっています。',fail:'送信失敗 — 下の座標をコピーし、リンクを送った番号にSMSで返信してください',copy:'📋 座標をコピー'},
+  vi:{org:'Cứu hộ Vườn QG Seoraksan',sub:'Giữ màn hình này bật.<br>Đội cứu hộ đang nhận vị trí của bạn theo thời gian thực.',perm:'Vui lòng cho phép truy cập vị trí',locating:'Đang xác định vị trí…',recv:'Đội cứu hộ đang nhận vị trí của bạn',block:'Bị chặn gửi — sẽ thử lại khi có sóng',start:'📍 Gửi vị trí của tôi',retry:'📍 Thử lại',info:'Thông tin cho đội cứu hộ (tùy chọn)',name:'Tên',msg:'Tình trạng, chấn thương, địa hình…',country:'Quốc gia',tip:'Giữ màn hình bật và chờ ở nơi an toàn.<br>Đội cứu hộ đang đến.',fail:'Gửi thất bại — sao chép tọa độ bên dưới và nhắn tin tới số đã gửi liên kết',copy:'📋 Sao chép tọa độ'},
+  th:{org:'หน่วยกู้ภัยอุทยานซอรัคซาน',sub:'เปิดหน้าจอนี้ไว้<br>ทีมกู้ภัยกำลังรับตำแหน่งของคุณแบบเรียลไทม์',perm:'โปรดอนุญาตการเข้าถึงตำแหน่ง',locating:'กำลังหาตำแหน่ง…',recv:'ทีมกู้ภัยกำลังรับตำแหน่งของคุณ',block:'การส่งถูกบล็อก — จะลองใหม่เมื่อมีสัญญาณ',start:'📍 ส่งตำแหน่งของฉัน',retry:'📍 ลองอีกครั้ง',info:'ข้อมูลสำหรับทีมกู้ภัย (ไม่บังคับ)',name:'ชื่อ',msg:'อาการ บาดเจ็บ ภูมิประเทศ',country:'ประเทศ',tip:'เปิดหน้าจอไว้และรอในที่ปลอดภัย<br>ทีมกู้ภัยกำลังไป',fail:'ส่งไม่สำเร็จ — คัดลอกพิกัดด้านล่างแล้วส่ง SMS ไปยังเบอร์ที่ส่งลิงก์ให้คุณ',copy:'📋 คัดลอกพิกัด'},
+  ru:{org:'Спасатели нацпарка Сораксан',sub:'Не выключайте экран.<br>Спасатели получают вашу геолокацию в реальном времени.',perm:'Разрешите доступ к геолокации',locating:'Определение местоположения…',recv:'Спасатели получают ваше местоположение',block:'Отправка заблокирована — повтор при сигнале',start:'📍 Отправить геолокацию',retry:'📍 Повторить',info:'Информация для спасателей (необязательно)',name:'Имя',msg:'Состояние, травмы, местность…',country:'Страна',tip:'Не выключайте экран и ждите в безопасном месте.<br>Спасатели уже в пути.',fail:'Сбой отправки — скопируйте координаты ниже и отправьте SMS на номер, приславший ссылку',copy:'📋 Копировать координаты'},
+  es:{org:'Rescate Parque Nac. Seoraksan',sub:'Mantén esta pantalla encendida.<br>El equipo de rescate recibe tu ubicación en tiempo real.',perm:'Permite el acceso a la ubicación',locating:'Obteniendo tu ubicación…',recv:'El equipo de rescate recibe tu ubicación',block:'Envío bloqueado: reintento al haber señal',start:'📍 Enviar mi ubicación',retry:'📍 Reintentar',info:'Información para el rescate (opcional)',name:'Nombre',msg:'Estado, lesión, entorno…',country:'País',tip:'Mantén la pantalla encendida y espera en lugar seguro.<br>El rescate va en camino.',fail:'Error de envío — copia las coordenadas y envíalas por SMS al número que te dio el enlace',copy:'📋 Copiar coordenadas'},
+  fr:{org:'Secours Parc Nat. Seoraksan',sub:'Gardez cet écran allumé.<br>L’équipe de secours reçoit votre position en temps réel.',perm:'Autorisez l’accès à la localisation',locating:'Localisation en cours…',recv:'L’équipe de secours reçoit votre position',block:'Envoi bloqué — nouvelle tentative au signal',start:'📍 Envoyer ma position',retry:'📍 Réessayer',info:'Infos pour les secours (facultatif)',name:'Nom',msg:'État, blessure, environnement…',country:'Pays',tip:'Gardez l’écran allumé et attendez en lieu sûr.<br>Les secours arrivent.',fail:'Échec d’envoi — copiez les coordonnées et envoyez-les par SMS au numéro qui vous a envoyé le lien',copy:'📋 Copier les coordonnées'},
+  de:{org:'Bergrettung NP Seoraksan',sub:'Lassen Sie diesen Bildschirm an.<br>Das Rettungsteam empfängt Ihren Standort in Echtzeit.',perm:'Bitte Standortzugriff erlauben',locating:'Standort wird ermittelt…',recv:'Das Rettungsteam empfängt Ihren Standort',block:'Senden blockiert — erneuter Versuch bei Signal',start:'📍 Meinen Standort senden',retry:'📍 Erneut versuchen',info:'Infos für die Rettung (optional)',name:'Name',msg:'Zustand, Verletzung, Umgebung…',country:'Land',tip:'Bildschirm anlassen und an sicherem Ort warten.<br>Die Rettung kommt.',fail:'Senden fehlgeschlagen — Koordinaten kopieren und per SMS an die Nummer senden, die den Link geschickt hat',copy:'📋 Koordinaten kopieren'}
 };
 let _sosLang='ko';
 function _st(k){return (_SOS_T[_sosLang]||_SOS_T.en)[k]||_SOS_T.en[k]||k;}
@@ -10724,6 +10726,7 @@ function _sosBuildUI(){
   const wrap=document.getElementById('sosVictim');if(!wrap)return;
   const _nm=(document.getElementById('sosName')||{}).value||'';
   const _mg=(document.getElementById('sosMsg')||{}).value||'';
+  const _ct=(document.getElementById('sosCountry')||{}).value||'';
   const langBtns=_SOS_LANGS.map(([c,n])=>`<button onclick="_sosSetLang('${c}')" style="flex:0 0 auto;background:${_sosLang===c?'#c0392b':'rgba(255,255,255,.08)'};color:#fff;border:1px solid ${_sosLang===c?'#ffe14d':'rgba(255,255,255,.15)'};border-radius:14px;padding:5px 11px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;">${n}</button>`).join('');
   wrap.innerHTML=`
     <div style="display:flex;gap:6px;overflow-x:auto;width:100%;max-width:440px;padding-bottom:5px;margin-bottom:2px;-webkit-overflow-scrolling:touch;">${langBtns}</div>
@@ -10739,17 +10742,23 @@ function _sosBuildUI(){
     <div style="margin-top:16px;width:100%;max-width:420px;">
       <div style="font-size:12px;color:#8ab4cc;font-weight:700;margin-bottom:6px;">${_st('info')}</div>
       <input id="sosName" placeholder="${_st('name')}" value="${_esc(_nm)}" oninput="_sosPushInfo()" style="width:100%;box-sizing:border-box;background:#0b1c30;border:1px solid rgba(255,255,255,.15);color:#fff;border-radius:9px;padding:12px;font-size:15px;margin-bottom:7px;">
+      ${_sosLang!=='ko'?`<input id="sosCountry" placeholder="${_st('country')}" value="${_esc(_ct)}" oninput="_sosPushInfo()" style="width:100%;box-sizing:border-box;background:#0b1c30;border:1px solid rgba(255,255,255,.15);color:#fff;border-radius:9px;padding:12px;font-size:15px;margin-bottom:7px;">`:''}
       <textarea id="sosMsg" placeholder="${_st('msg')}" oninput="_sosPushInfo()" rows="3" style="width:100%;box-sizing:border-box;background:#0b1c30;border:1px solid rgba(255,255,255,.15);color:#fff;border-radius:9px;padding:12px;font-size:15px;resize:vertical;">${_esc(_mg)}</textarea>
     </div>
     <div id="sosTip" style="margin-top:16px;font-size:12px;color:#5a7e98;text-align:center;line-height:1.6;max-width:420px;">${_st('tip')}</div>`;
   _sosRefreshStatus();
 }
 function _sosRefreshStatus(){
-  if(_sosLast)_sosSet('✅',_st('recv'),'#7ee0a0');
-  else if(_sosWatch!=null)_sosSet('📡',_st('locating'),'#ffd9d0');
-  else _sosSet('📡',_st('perm'),'#ffd9d0');
+  const btn=document.getElementById('sosStartBtn');
+  if(_sosLast){ // 이미 위치 수신 중 → 좌표 유지, 시작버튼 숨김 (언어 바꿔도 끊김 없음)
+    _sosSet('✅',_st('recv'),'#7ee0a0');
+    if(btn)btn.style.display='none';
+    const c=document.getElementById('sosCoords');
+    if(c)c.innerHTML=_sosLast.lat.toFixed(6)+', '+_sosLast.lng.toFixed(6)+'<br>±'+_sosLast.acc+'m';
+  }else if(_sosWatch!=null){_sosSet('📡',_st('locating'),'#ffd9d0');if(btn)btn.style.display='none';}
+  else{_sosSet('📡',_st('perm'),'#ffd9d0');if(btn)btn.style.display='block';}
 }
-function _sosSetLang(l){_sosLang=l;try{localStorage.setItem('_sosLang',l);}catch(e){}_sosBuildUI();}
+function _sosSetLang(l){_sosLang=l;try{localStorage.setItem('_sosLang',l);}catch(e){}_sosBuildUI();if(_sosLast)_sosWrite(true);} // 언어 즉시 반영 + 팀에 lang 전달
 function _bootSos(){
   ['loadingScreen','loginScreen','approvalGate'].forEach(id=>{const e=document.getElementById(id);if(e)e.remove();});
   try{if(window._safeLoadingTimer)clearTimeout(window._safeLoadingTimer);clearInterval(window._loadTipTimer);clearInterval(window._loadBarTimer);}catch(e){}
@@ -10812,26 +10821,36 @@ function _sosWrite(force){
     let moved=999;try{if(_sosLastWritePos)moved=_haversineKm(_sosLastWritePos.lat,_sosLastWritePos.lng,_sosLast.lat,_sosLast.lng)*1000;}catch(e){}
     if(dt<15000&&moved<25)return;
   }
-  const name=(document.getElementById('sosName')||{}).value||'';
-  const msg=(document.getElementById('sosMsg')||{}).value||'';
-  const d=new Date();
-  const rec={id:_sosId,lat:_sosLast.lat,lng:_sosLast.lng,acc:_sosLast.acc,
-    name:String(name).slice(0,40),msg:String(msg).slice(0,300),
-    at:d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')+' '+String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0')+':'+String(d.getSeconds()).padStart(2,'0'),
-    ts:nowMs,ua:navigator.userAgent.slice(0,120)}; // active는 팀만 설정(조난자가 비활성 링크를 되살릴 수 없게)
+  // 데이터 최소화: 좌표 소수 5자리(약 1m), ua·at 제거(at는 ts로 대체), 빈 값·한국어 lang 생략
+  const name=String((document.getElementById('sosName')||{}).value||'').slice(0,40);
+  const msg=String((document.getElementById('sosMsg')||{}).value||'').slice(0,250);
+  const country=String((document.getElementById('sosCountry')||{}).value||'').slice(0,30);
+  const rec={id:_sosId,lat:+_sosLast.lat.toFixed(5),lng:+_sosLast.lng.toFixed(5),acc:Math.round(_sosLast.acc),ts:nowMs};
+  if(name)rec.name=name;
+  if(msg)rec.msg=msg;
+  if(_sosLang!=='ko'){rec.lang=_sosLang;if(country)rec.country=country;} // 외국어 → 언어 계열 전달
   _sosLastWriteTs=nowMs;_sosLastWritePos={lat:_sosLast.lat,lng:_sosLast.lng};
   _sosDb.collection('sos').doc(_sosId).set(rec,{merge:true}).then(function(){
     _sosCount++;
     _sosSet('✅',_st('recv'),'#7ee0a0');
     const c=document.getElementById('sosCoords');
-    if(c)c.innerHTML=_sosLast.lat.toFixed(6)+', '+_sosLast.lng.toFixed(6)+'<br>±'+_sosLast.acc+'m · ✓'+_sosCount+' · '+rec.at.slice(11);
+    if(c)c.innerHTML=_sosLast.lat.toFixed(6)+', '+_sosLast.lng.toFixed(6)+'<br>±'+Math.round(_sosLast.acc)+'m · ✓'+_sosCount;
   }).catch(function(e){
+    // 전송 실패 → 좌표 복사 후 회신 안내 (데이터 안 터질 때 최후 수단)
     _sosSet('⚠️',_st('block'),'#ffd9d0');
     const c=document.getElementById('sosCoords');
-    if(c)c.innerHTML=_sosLast.lat.toFixed(5)+', '+_sosLast.lng.toFixed(5)+'<br>'+(e&&(e.code||e.message)||'network');
+    const co=_sosLast.lat.toFixed(5)+', '+_sosLast.lng.toFixed(5);
+    if(c)c.innerHTML='<div style="color:#ffd24d;font-weight:700;margin-bottom:6px;line-height:1.5;">'+_st('fail')+'</div>'
+      +'<div style="font-size:16px;color:#fff;font-weight:800;letter-spacing:.5px;">'+co+'</div>'
+      +'<button onclick="_sosCopyCoords(\''+co+'\')" style="margin-top:8px;background:#1a4a6e;color:#fff;border:none;border-radius:8px;padding:10px 16px;font-size:14px;font-weight:700;cursor:pointer;">'+_st('copy')+'</button>';
     _sosLastWriteTs=0; // 다음 기회에 즉시 재시도
   });
 }
+function _sosCopyCoords(co){
+  if(navigator.clipboard)navigator.clipboard.writeText(co).then(function(){toast('📋 '+co);}).catch(function(){_sosSmsFallback(co);});
+  else _sosSmsFallback(co);
+}
+function _sosSmsFallback(co){try{location.href='sms:?body='+encodeURIComponent('SOS '+co);}catch(e){}}
 let _sosInfoTimer=null;
 function _sosPushInfo(){clearTimeout(_sosInfoTimer);_sosInfoTimer=setTimeout(()=>_sosWrite(true),600);}
 
@@ -10918,6 +10937,7 @@ function openSosRequest(){
       </div>
       ${has?`<div onclick="_sosFocus('${p.id}')" style="cursor:pointer;margin-bottom:7px;">
         <div style="font-size:13px;font-weight:800;color:#ff8a73;">🆘 ${_esc(p.name||'익명')}</div>
+        ${_sosForeignBadge(p)?`<div style="margin-top:3px;">${_sosForeignBadge(p)}</div>`:''}
         ${p.msg?`<div style="font-size:12px;color:#cfe2f2;margin-top:2px;">${_esc(p.msg)}</div>`:''}
         <div style="font-size:10px;color:#5a7e98;font-family:monospace;margin-top:2px;">${(+p.lat).toFixed(5)}, ${(+p.lng).toFixed(5)} · 탭하면 지도 이동</div>
       </div>`:''}
@@ -10952,6 +10972,13 @@ function _sosModal(title,html){
 }
 function _sosCloseModal(){const m=document.getElementById('sosModal');if(m)m.remove();}
 // 조난자 위치 삭제 (테스트·종료된 항목 정리)
+// 외국인/언어/국적 배지 (팀 화면용)
+function _sosForeignBadge(p){
+  if(!p||!p.lang||p.lang==='ko')return '';
+  const lbl=(typeof _SOS_LABEL!=='undefined'&&_SOS_LABEL[p.lang])||p.lang;
+  return '<span style="font-size:10px;background:rgba(241,196,15,.15);color:#f0c040;border:1px solid rgba(241,196,15,.35);border-radius:6px;padding:1px 7px;font-weight:700;">🌐 외국인 · '+lbl+(p.country?' · '+_esc(p.country):'')+'</span>';
+}
+function _sosAtStr(p){if(!p)return '';if(p.at)return p.at.slice(11);try{return new Date(p.ts).toTimeString().slice(0,8);}catch(e){return '';}}
 function deleteSosPing(id,silent){
   if(!_fdb)return;
   if(!silent&&!confirm('이 조난자 위치를 삭제할까요?'))return;
@@ -10996,8 +11023,9 @@ function _sosPinPopup(id){
   const html=`
     <div style="background:#0b1c30;border:1px solid rgba(231,76,60,.4);border-radius:11px;padding:13px 15px;margin-bottom:10px;">
       <div style="font-size:16px;font-weight:800;color:#ff8a73;">🆘 ${_esc(p.name||'익명 조난자')}</div>
+      ${_sosForeignBadge(p)?`<div style="margin-top:5px;">${_sosForeignBadge(p)}</div>`:''}
       ${p.msg?`<div style="font-size:13px;color:#e0edf8;margin-top:6px;line-height:1.5;">${_esc(p.msg)}</div>`:''}
-      <div style="font-size:11px;color:#8ab4cc;margin-top:8px;font-family:monospace;">📍 ${(+p.lat).toFixed(6)}, ${(+p.lng).toFixed(6)}<br>정확도 ±${p.acc||'?'}m · ${mm}분 전 수신 · ${_esc(p.at||'')}</div>
+      <div style="font-size:11px;color:#8ab4cc;margin-top:8px;font-family:monospace;">📍 ${(+p.lat).toFixed(6)}, ${(+p.lng).toFixed(6)}<br>정확도 ±${p.acc||'?'}m · ${mm}분 전 수신 · ${_sosAtStr(p)}</div>
     </div>
     <div style="display:flex;gap:6px;">
       <button onclick="_sosFocus('${p.id}')" style="flex:1;background:rgba(79,168,208,.12);color:#4fa8d0;border:1px solid rgba(79,168,208,.35);border-radius:8px;padding:11px;font-size:13px;font-weight:700;cursor:pointer;">🗺️ 위치로 이동</button>
@@ -11022,10 +11050,15 @@ function sosToRescue(id){
   // 가까운 표지판 코드 → 제목 'NN-NN 조난'
   let sign=null;try{sign=_nearestSignFull(p.lat,p.lng);}catch(e){}
   const code=sign?sign.code:'';
+  // 외국인이면 국적/언어를 인적사항·경위에 반영
+  const isForeign=p.lang&&p.lang!=='ko';
+  const langLbl=isForeign?((typeof _SOS_LABEL!=='undefined'&&_SOS_LABEL[p.lang])||p.lang):'';
+  const foreignNote=isForeign?('[외국인'+(p.country?' · '+p.country:'')+' · '+langLbl+'] '):'';
   const prefill={
     type:'조난', lat:p.lat, lng:p.lng, loctype:'법정탐방로',
     vName:(p.name||''),                       // 이름은 사고자 인적사항(세부)에
-    situation:(p.msg||''),                    // 조난자가 보낸 메모 → 사고경위
+    vNation:(isForeign?'외국인':'알수없음'), vNationality:(isForeign?(p.country||langLbl):''),
+    situation:(foreignNote+(p.msg||'')).trim(),// 외국인 표기 + 조난자 메모 → 사고경위
     title:(code?code+' 조난':'조난'), sosId:id
   };
   // 1보 작성 폼 열기 (openNewRescue와 동일 경로)
@@ -11261,10 +11294,17 @@ window.onload=function(){
 
   // ── Service Worker 등록 (PWA 오프라인 + FCM 백그라운드 알림) ──
   if('serviceWorker' in navigator){
+    var _hadController=!!navigator.serviceWorker.controller; // 첫 설치(claim)와 '업데이트'를 구분
     navigator.serviceWorker.register('sw.js').then(function(reg){
       _swReg=reg;
       if('Notification' in window&&Notification.permission==='granted') _initFCM();
+      try{reg.update();}catch(e){} // 새 버전 즉시 확인
     }).catch(function(){});
+    // 새 서비스워커가 활성화(업데이트)되면 자동 새로고침 → '며칠 전 버전에 멈춤' 방지(자가치유)
+    navigator.serviceWorker.addEventListener('controllerchange',function(){
+      if(!_hadController||window._swReloaded)return; // 첫 설치는 새로고침 안 함(루프 방지)
+      window._swReloaded=true;location.reload();
+    });
   }
   // 네이티브(APK): 알림 권한 먼저 요청 → 끝난 뒤 위치 권한 요청 (시스템 다이얼로그가 겹치지 않도록 순차 실행)
   Promise.resolve(_initNativePush()).catch(function(){}).then(function(){return _initNativeLocationPerm();}).catch(function(){});
