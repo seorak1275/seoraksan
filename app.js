@@ -10718,8 +10718,11 @@ function _sosSet(ico,txt,col){
   if(i)i.textContent=ico;if(t){t.textContent=txt;if(col)t.style.color=col;}
   if(b&&col==='#7ee0a0')b.style.borderColor='rgba(46,204,113,.6)';
 }
+let _sosHeartbeat=null;
 function _sosRequest(){
   if(!navigator.geolocation){_sosSet('⚠️','이 기기는 위치를 지원하지 않습니다','#ffd9d0');return;}
+  // 하트비트: 가만히 있어 watchPosition이 안 울려도 20초마다 강제 재전송(연결 유지)
+  if(!_sosHeartbeat)_sosHeartbeat=setInterval(function(){if(_sosLast&&_sosAuthed)_sosWrite(true);},20000);
   if(_sosWatch!=null)return; // 이미 추적 중
   _sosSet('📡','위치 확인 중...','#ffd9d0');
   _sosWatch=navigator.geolocation.watchPosition(_sosOnPos,_sosOnErr,{enableHighAccuracy:true,timeout:20000,maximumAge:2000});
@@ -10757,7 +10760,18 @@ function _sosWrite(force){
     at:d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')+' '+String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0')+':'+String(d.getSeconds()).padStart(2,'0'),
     ts:nowMs,ua:navigator.userAgent.slice(0,120),active:true};
   _sosLastWriteTs=nowMs;_sosLastWritePos={lat:_sosLast.lat,lng:_sosLast.lng};
-  _sosDb.collection('sos').doc(_sosId).set(rec,{merge:true}).then(()=>{_sosCount++;}).catch(()=>{});
+  _sosDb.collection('sos').doc(_sosId).set(rec,{merge:true}).then(function(){
+    _sosCount++;
+    _sosSet('✅','구조대가 위치를 받고 있습니다','#7ee0a0');
+    const c=document.getElementById('sosCoords');
+    if(c)c.innerHTML='위도 '+_sosLast.lat.toFixed(6)+' · 경도 '+_sosLast.lng.toFixed(6)+'<br>정확도 ±'+_sosLast.acc+'m · '+_sosCount+'회 전송됨 · '+rec.at.slice(11);
+  }).catch(function(e){
+    // 전송 실패(인증·네트워크·권한) → 화면에 정직하게 표시
+    _sosSet('⚠️','전송이 막혔습니다 — 신호 잡히면 자동 재시도','#ffd9d0');
+    const c=document.getElementById('sosCoords');
+    if(c)c.innerHTML='위치는 확인됨 ('+_sosLast.lat.toFixed(5)+', '+_sosLast.lng.toFixed(5)+')<br>전송 오류: '+(e&&(e.code||e.message)||'네트워크')+' — 자동 재시도 중';
+    _sosLastWriteTs=0; // 다음 기회에 즉시 재시도
+  });
 }
 let _sosInfoTimer=null;
 function _sosPushInfo(){clearTimeout(_sosInfoTimer);_sosInfoTimer=setTimeout(()=>_sosWrite(true),600);}
@@ -10769,15 +10783,20 @@ function _initSosWatch(){
   window._sosWatchBound=true;
   try{
     _fdb.collection('sos').onSnapshot(function(snap){
-      _sosPings=snap.docs.map(d=>d.data()).filter(p=>p&&p.lat&&p.lng);
-      const fresh=_sosPings.filter(p=>Date.now()-(p.ts||0)<12*3600000); // 최근 12시간
-      _sosPings=fresh;
-      // 신규 조난자 알림
+      _sosPings=snap.docs.map(d=>d.data()).filter(p=>p&&p.lat&&p.lng&&Date.now()-(p.ts||0)<12*3600000); // 최근 12시간
+      // 신규 조난자 알림 (최초 스냅샷은 알림 생략)
       const seen=window._sosSeen||(window._sosSeen={});
-      fresh.forEach(p=>{if(!seen[p.id]){seen[p.id]=1;if(Object.keys(seen).length>1){try{toast('🆘 조난·사고자 위치 수신: '+(p.name||'익명')+(p.acc?' (±'+p.acc+'m)':''),6000);}catch(e){}try{pushNoti('🆘 조난·사고자 위치 수신'+(p.name?': '+p.name:''),'🆘','sos',{app:'rescue',tab:1});}catch(e){}}}});
-      try{if(window.curApp==='rescue'){renderRescueMap();renderResList();}}catch(e){}
+      _sosPings.forEach(p=>{
+        if(!seen[p.id]){seen[p.id]=1;
+          if(window._sosInited){try{toast('🆘 조난·사고자 위치 수신: '+(p.name||'익명')+(p.acc?' (±'+p.acc+'m)':''),6000);}catch(e){}try{pushNoti('🆘 조난·사고자 위치 수신'+(p.name?': '+p.name:''),'🆘','sos',{app:'rescue',tab:1});}catch(e){}}
+        }
+      });
+      window._sosInited=true;
+      // 핀은 지도에 직접 그림(현재 탭 무관). 목록은 구조 탭일 때만.
+      try{_drawSosPins();}catch(e){}
+      try{if(window.curApp==='rescue')renderResList();}catch(e){}
       try{_updateSosFab();}catch(e){}
-    });
+    },function(err){try{_logErr&&_logErr('sos listen: '+(err&&err.message||err));}catch(e){}});
   }catch(e){}
 }
 function _sosBadgeCount(){return (_sosPings||[]).length;}
@@ -11125,6 +11144,7 @@ window.onload=function(){
     try{_startKmaWarnPoll();}catch(e){}
     const d=new Date();const days=['일','월','화','수','목','금','토'];
     document.getElementById('homeDate').textContent=d.getFullYear()+'년 '+(d.getMonth()+1)+'월 '+d.getDate()+'일 ('+days[d.getDay()]+')';
+    try{_initSosWatch();}catch(e){} // 🆘 조난·사고자 위치 실시간 구독 (early return 전에 보장)
     if(window._kakaoAuthCode){var _kc=window._kakaoAuthCode;window._kakaoAuthCode=null;_handleKakaoCode(_kc);return;}
     // Firebase 준비 후 FCM 토큰 갱신 (권한·SW·VAPID 모두 준비된 경우만)
     if('Notification' in window&&Notification.permission==='granted') _initFCM();
@@ -11134,7 +11154,6 @@ window.onload=function(){
     if(window._hideLoading) window._hideLoading();
     // 이미 관리자 세션이면 과거 안전사고 데이터 1회 자동 반영 (아카이브 로드 후)
     try{setTimeout(_autoSeedAccidents,6000);}catch(e){}
-    try{_initSosWatch();}catch(e){} // 🆘 조난자 위치 실시간 구독
   });
 };
 
