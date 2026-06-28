@@ -28,26 +28,29 @@
 var KAKAO_KEY='4ba2cd810d516a4f336d4dee5fa5eba5';
 if(window.Kakao&&!Kakao.isInitialized()) Kakao.init(KAKAO_KEY);
 (function(){
-  var s=document.createElement('script');
-  s.src='//dapi.kakao.com/v2/maps/sdk.js?appkey='+KAKAO_KEY+'&libraries=services&autoload=false';
-  s.onload=function(){
-    try{
-      kakao.maps.load(function(){window._KR=true;if(window._KCB)window._KCB();});
-    }catch(e){window._KMapsErr='로드콜백 오류: '+e.message;}
-  };
-  // 스크립트 자체가 차단/실패(네트워크 차단 등)된 경우
-  s.onerror=function(){window._KMapsErr='SDK 스크립트 로드 실패(네트워크 차단 가능)';};
-  document.head.appendChild(s);
-  // 10초 안에 준비 안 되면(도메인 미등록·네트워크 차단 등) 진단 로그 남김 —
-  // 카카오맵 JS키는 현재 페이지 출처(origin)가 카카오 디벨로퍼스에 등록돼 있어야
-  // 동작한다. 웹(109yoon.github.io)과 앱(Capacitor 기본 출처 https://localhost)은
-  // 서로 다른 출처이므로 둘 다 등록돼 있어야 함.
+  // SDK 로드 재시도(네트워크 블립·느린 회선 대비). https 명시(일부 인앱 브라우저는 // 프로토콜상대 경로에서 실패).
+  var tries=0;
+  function loadSDK(){
+    tries++;
+    var s=document.createElement('script');
+    s.src='https://dapi.kakao.com/v2/maps/sdk.js?appkey='+KAKAO_KEY+'&libraries=services&autoload=false';
+    s.onload=function(){
+      try{ kakao.maps.load(function(){window._KR=true;if(window._KCB)window._KCB();}); }
+      catch(e){window._KMapsErr='로드콜백 오류: '+e.message;}
+    };
+    s.onerror=function(){ window._KMapsErr='SDK 로드 실패('+tries+'회)'; if(tries<3)setTimeout(loadSDK,1500*tries); };
+    document.head.appendChild(s);
+  }
+  loadSDK();
+  window._retryKakao=function(){ if(window._KR){if(typeof toast==='function')toast('✅ 지도 정상');return;} tries=0; window._KMapsErr=''; loadSDK(); if(typeof toast==='function')toast('🔄 지도 다시 불러오는 중...'); };
+  // 카카오맵 JS키는 현재 페이지 출처(origin)가 카카오 디벨로퍼스에 등록돼 있어야 동작.
+  // 웹(109yoon.github.io)과 APK(Capacitor https://localhost)는 서로 다른 출처라 둘 다 등록 필요.
   setTimeout(function(){
     if(window._KR)return;
-    var msg='카카오맵 미로딩(10s) origin='+location.origin+(window._KMapsErr?(' / '+window._KMapsErr):'');
+    var msg='카카오맵 미로딩(15s) origin='+location.origin+(window._KMapsErr?(' / '+window._KMapsErr):'');
     if(typeof _logErr==='function')_logErr(msg);
-    if(typeof toast==='function')toast('⚠️ 지도를 불러올 수 없습니다');
-  },10000);
+    if(typeof toast==='function')toast('⚠️ 지도를 불러올 수 없습니다 — 새로고침해 보세요 (origin: '+location.origin+')',8000);
+  },15000);
 })();
 // 카카오 redirect 콜백: ?code= 파라미터 조기 감지
 (function(){var p=new URLSearchParams(location.search);var c=p.get('code');if(c){history.replaceState(null,'',location.pathname);window._kakaoAuthCode=c;}})();
