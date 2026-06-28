@@ -3837,7 +3837,7 @@ function renderRescueStats(){
       if(r.vGender&&r.vGender!=='알수없음')genderMap[r.vGender]=(genderMap[r.vGender]||0)+1; // 미상은 차트에서 제외(타 화면과 일관)
       if(r.loctype)loctypeMap[r.loctype]=(loctypeMap[r.loctype]||0)+1;
       if(r.weather)weatherMap[r.weather]=(weatherMap[r.weather]||0)+1;
-      if(r.vBirth){const age=_ageFromBirth(r.vBirth);if(age!==''&&!isNaN(age)){const ag=age<20?'10대 이하':age<30?'20대':age<40?'30대':age<50?'40대':age<60?'50대':age<70?'60대':'70대+';ageMap[ag]=(ageMap[ag]||0)+1;}}
+      {let age=r.vBirth?_ageFromBirth(r.vBirth):(r.vAge!=null&&r.vAge!==''?parseInt(r.vAge):'');if(age!==''&&!isNaN(age)){const ag=age<20?'10대 이하':age<30?'20대':age<40?'30대':age<50?'40대':age<60?'50대':age<70?'60대':'70대+';ageMap[ag]=(ageMap[ag]||0)+1;}}
       // 발생 시각: r.date("YYYY-MM-DD HH:MM" 또는 "...THH:MM")에서 시(時) 추출 (r.time 필드는 존재하지 않음)
       {const _tm=(r.date||'').match(/[ T](\d{1,2}):/);if(_tm){const h=parseInt(_tm[1],10);if(h<6)timeMap['새벽(0-6시)']++;else if(h<12)timeMap['오전(6-12시)']++;else if(h<18)timeMap['오후(12-18시)']++;else timeMap['저녁(18-24시)']++;}}
     });
@@ -5384,11 +5384,12 @@ function renderTimeline(r,viewMode,outId){
     if(_ok(r.location))rows.push(_row('위치',_esc(r.location)+(_ok(r.loctype)?' · '+_esc(r.loctype):'')));
     const wx=[_ok(r.weather)?_esc(r.weather):'',_ok(r.weatherAlert)?_esc(r.weatherAlert):''].filter(Boolean).join(' ');
     if(wx)rows.push(_row('기상',wx));
-    const vp=[_ok(r.vName)?_esc(r.vName):'',_ok(r.vBirth)?_ageFromBirth(r.vBirth)+'세':'',_ok(r.vGender)&&r.vGender!=='알수없음'?_esc(r.vGender):'',_ok(r.vNation)&&r.vNation!=='알수없음'?_esc(r.vNation):''].filter(Boolean);
+    const vp=[_ok(r.vName)?_esc(r.vName):'',_ok(r.vBirth)?_ageFromBirth(r.vBirth)+'세':(_ok(r.vAge)?_esc(r.vAge)+'세':''),_ok(r.vGender)&&r.vGender!=='알수없음'?_esc(r.vGender):'',_ok(r.vNation)&&r.vNation!=='알수없음'?_esc(r.vNation):''].filter(Boolean);
     if(vp.length)rows.push(_row('사고자',vp.join(' · ')+((r.victims2&&r.victims2.length)?` <span style="color:#e9897e;font-weight:700;">외 ${r.victims2.length}명</span>`:'')));
     if(r.victims2&&r.victims2.length)rows.push(_row('추가자',r.victims2.map(v=>[_esc(v.name||'미상'),v.gender&&v.gender!=='알수없음'?_esc(v.gender):'',v.age?_esc(v.age)+'세':'',_esc(v.severity),_esc(v.note)].filter(Boolean).join(' · ')).join('<br>')));
     if(_ok(r.vTel))rows.push(_row('연락처',_esc(r.vTel)));
     if(_ok(r.severity))rows.push(_row('중증도',_esc(r.severity)));
+    if(_ok(r.outcome))rows.push(_row('결과',_esc(r.outcome)+(_ok(r.causeCategory)?' · '+_esc(r.causeCategory):'')));
     // 활력징후 추이: 1보 + 각 보고의 vitals 수집
     {const vseq=[];if(r.vitals&&_vitalsStr(r.vitals))vseq.push(r.vitals);(r.reports||[]).forEach(p=>{if(p.vitals&&_vitalsStr(p.vitals))vseq.push(p.vitals);});
      if(vseq.length){const vhtml=vseq.map(v=>`<div style="font-size:10px;color:#9bbdd4;line-height:1.6;"><span style="color:#4a7090;">${(v.at||'').slice(5,16)||'-'}</span> ${_vitalsStr(v)}</div>`).join('');rows.push(_row('활력',vhtml));}}
@@ -5776,7 +5777,7 @@ function _buildReportText(r){
   if(_ok(r.lat)&&_ok(r.lng))L.push('좌표: '+(+r.lat).toFixed(5)+', '+(+r.lng).toFixed(5));
   const wx=[_ok(r.weather)?r.weather:'',_ok(r.weatherAlert)?r.weatherAlert:''].filter(Boolean).join(' ');
   if(wx)L.push('기상: '+wx);
-  const vp=[_ok(r.vName)?r.vName:'',_ok(r.vBirth)?_ageFromBirth(r.vBirth)+'세':'',_ok(r.vGender)&&r.vGender!=='알수없음'?r.vGender:'',_ok(r.vNation)&&r.vNation!=='알수없음'?r.vNation:''].filter(Boolean);
+  const vp=[_ok(r.vName)?r.vName:'',_ok(r.vBirth)?_ageFromBirth(r.vBirth)+'세':(_ok(r.vAge)?r.vAge+'세':''),_ok(r.vGender)&&r.vGender!=='알수없음'?r.vGender:'',_ok(r.vNation)&&r.vNation!=='알수없음'?r.vNation:''].filter(Boolean);
   if(vp.length)L.push('사고자: '+vp.join(' · ')+((r.victims2&&r.victims2.length)?' 외 '+r.victims2.length+'명':''));
   if(r.victims2&&r.victims2.length){r.victims2.forEach((v,i)=>L.push('  추가자'+(i+1)+': '+[v.name||'미상',v.gender&&v.gender!=='알수없음'?v.gender:'',v.age?v.age+'세':'',v.severity,v.note].filter(Boolean).join(' · ')));}
   if(_ok(r.vTel))L.push('연락처: '+r.vTel);
@@ -8403,6 +8404,35 @@ function renderAdmSheets(){
 function saveSheetsUrl(){const url=document.getElementById('sheetsUrlIn')?.value?.trim();if(!url){toast('⚠️ URL 입력');return;}DB.s('sheetsUrl',url);toast('✅ URL 저장');renderAdmSheets();}
 // ── 전체 데이터 백업/복원 (JSON) ──
 const _BACKUP_KEYS=['rescues','hazards','facilities','history','catFac','catFacMeta','pendingUsers','approvedUsers','deletedKakaoIds'];
+// 과거 안전사고 데이터(2020~2026) 가져오기 — accidents-seed.json 머지 (id 기준 중복 제외)
+async function importAccidentSeed(){
+  if(!isAdminUser()){toast('⚠️ 관리자만 가능');return;}
+  if(!confirm('2020~2026 과거 안전사고 약 1,312건을 가져옵니다.\n이미 가져온 건 건너뜁니다. 동기화는 백그라운드로 진행됩니다.'))return;
+  toast('📥 데이터 불러오는 중...');
+  let seed;
+  try{const resp=await fetch('./accidents-seed.json?v='+APP_VER);seed=await resp.json();}
+  catch(e){toast('⚠️ 데이터 파일을 불러오지 못했습니다');return;}
+  if(!Array.isArray(seed)||!seed.length){toast('⚠️ 데이터 없음');return;}
+  // 아카이브까지 로드해 전체 기존 id와 비교(중복 방지)
+  try{await _loadArchive('rescues');}catch(e){}
+  const cur=DB.g('rescues')||[];
+  const have=new Set(cur.map(r=>String(r.id)));
+  const add=seed.filter(r=>!have.has(String(r.id)));
+  if(!add.length){toast('✅ 이미 모두 가져왔습니다 (추가 0건)');return;}
+  DB.s('rescues',cur.concat(add));
+  toast('✅ 안전사고 '+add.length+'건 가져옴 — 동기화 백그라운드 진행',5000);
+  try{renderAdmSys();}catch(e){}try{renderRescueMap();}catch(e){}try{renderResList();}catch(e){}try{updateSummary();}catch(e){}
+}
+function removeImportedAccidents(){
+  if(!isAdminUser()){toast('⚠️ 관리자만 가능');return;}
+  const cur=DB.g('rescues')||[];
+  const imp=cur.filter(r=>r.imported);
+  if(!imp.length){toast('가져온 데이터가 없습니다 (통계 화면을 한번 열면 보관분까지 로드됩니다)');return;}
+  if(!confirm('가져온 과거 안전사고 '+imp.length+'건을 삭제할까요?'))return;
+  DB.s('rescues',cur.filter(r=>!r.imported));
+  toast('🗑️ '+imp.length+'건 삭제');
+  try{renderAdmSys();}catch(e){}try{renderRescueMap();}catch(e){}try{renderResList();}catch(e){}try{updateSummary();}catch(e){}
+}
 function exportAllData(){
   const data={};
   _BACKUP_KEYS.forEach(k=>{data[k]=DB.g(k);});
@@ -8470,6 +8500,14 @@ function renderAdmSys(){
         <button onclick="exportAllData()" style="flex:1;background:rgba(39,174,96,.1);color:#27ae60;border:1px solid rgba(39,174,96,.3);padding:9px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;">⬇️ 전체 백업</button>
         <button onclick="document.getElementById('restoreFileInp').click()" style="flex:1;background:rgba(230,126,34,.08);color:#e67e22;border:1px solid rgba(230,126,34,.28);padding:9px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;">⬆️ 복원</button>
         <input type="file" id="restoreFileInp" accept=".json" style="display:none;" onchange="importAllData(this)">
+      </div>
+    </div>
+    <div class="scard" style="margin-bottom:8px;">
+      <div class="stitle">📊 과거 안전사고 데이터 (2020~2026)</div>
+      <div style="font-size:11px;color:#7a9cb8;margin-bottom:8px;">엑셀 통계자료 약 1,312건을 가져옵니다. 통계·사고다발구간 히트맵에 반영됩니다. (이미 가져온 건 건너뜀, 동기화는 백그라운드 진행 — 최근 1년 외는 자동 보관)</div>
+      <div style="display:flex;gap:6px;">
+        <button onclick="importAccidentSeed()" style="flex:1;background:rgba(79,168,208,.12);color:#4fa8d0;border:1px solid rgba(79,168,208,.35);padding:9px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;">📥 데이터 가져오기</button>
+        <button onclick="removeImportedAccidents()" style="flex:none;background:rgba(192,57,43,.08);color:#c0392b;border:1px solid rgba(192,57,43,.28);padding:9px 12px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;">가져온 것 삭제</button>
       </div>
     </div>
     <div class="scard" style="margin-bottom:8px;">
