@@ -2159,7 +2159,7 @@ function _buildResRouteHtml(data){
   const signLabel=signCode?`<div style="font-size:10px;color:#3a6a8a;margin-bottom:5px;padding:0 2px;">📍 ${signCode}${zoneName?' · '+zoneName:''}${pb?' → '+sn(pb.name):''}${ab?` <span style="color:#e0a840;font-size:9px;">/ ${sn(ab.name)}</span>`:''}</div>`:
     (hasGPS?`<div style="font-size:10px;color:#e05050;margin-bottom:5px;padding:0 2px;">⚠️ 표지판 코드 없음</div>`:'');
 
-  const btns=[dispatch,descent,evac,heli].filter(Boolean);
+  const btns=[dispatch].filter(Boolean); // 좌표복사·대피·헬기 버튼 제거(요청) — 출동 정보만 유지
   if(!btns.length&&!signLabel)return'';
   return signLabel+(btns.length?`<div style="display:flex;gap:5px;">${btns.join('')}</div>`:'');
 }
@@ -6465,6 +6465,13 @@ function submit1Bo(){
   if(_tlWpResId==='_form_tl_'&&_tlTeams.length){
     r.teams=_snapshotTeams();
     _tlWpResId=r.id;
+  }
+  // SOS에서 온 1보면: 레코드에 sosId 연결 + 1회용 토큰 종료(중복 핀 방지)
+  if(window._pendingSosId){
+    r.sosId=window._pendingSosId;
+    if(_fdb)_fdb.collection('sos').doc(window._pendingSosId).set({active:false,closedAt:Date.now()},{merge:true}).catch(()=>{});
+    _sosPings=(_sosPings||[]).filter(x=>x.id!==window._pendingSosId);
+    window._pendingSosId=null;try{_drawSosPins();_updateSosFab();}catch(e){}
   }
   const res=DB.g('rescues')||[];
   res.push(r);
@@ -10961,20 +10968,28 @@ function _sosFocus(id){
   _sosCloseModal();
   if(mapR&&p.lat&&p.lng){try{mapR.setCenter(new kakao.maps.LatLng(p.lat,p.lng));mapR.setLevel(4);}catch(e){}}
 }
-// 조난자 위치를 정식 구조 사고로 등록
+// 조난·사고자 위치 → 1보 작성 폼으로 바로 이동 (코드기반 제목 '09-11 조난', 이름은 사고자란)
 function sosToRescue(id){
-  const p=(_sosPings||[]).find(x=>x.id===id);if(!p)return;
-  const r={id:Date.now(),type:'조난',status:'ongoing',date:now(),lat:p.lat,lng:p.lng,
-    location:'위치전송 ('+(p.name||'익명')+')',loctype:'법정탐방로',sosId:p.id,
-    vName:p.name||'',situation:p.msg||'',
-    author:getAuthor?getAuthor():'구조대',title:'조난 '+(p.name||'위치전송')};
-  const res=DB.g('rescues')||[];res.push(r);DB.s('rescues',res);
-  // 정식 사고로 전환 → 1회용 토큰 종료(active:false), sos 핀 제거(중복 방지)
-  if(_fdb)_fdb.collection('sos').doc(p.id).set({active:false,closedAt:Date.now()},{merge:true}).catch(()=>{});
-  _sosPings=(_sosPings||[]).filter(x=>x.id!==p.id);try{_drawSosPins();_updateSosFab();}catch(e){}
-  toast('🚨 조난 사고로 등록됨 — 목록·지도에 표시');
-  try{renderRescueMap();}catch(e){}try{renderResList();}catch(e){}try{updateSummary();}catch(e){}
+  const p=(_sosPings||[]).find(x=>x.id===id);if(!p||!p.lat||!p.lng){toast('위치 수신 후 등록 가능');return;}
+  window._pendingSosId=id; // 1보 '제출' 시점에 토큰 종료(작성 취소 시 위치 유지)
   _sosCloseModal();
+  // 가까운 표지판 코드 → 제목 'NN-NN 조난'
+  let sign=null;try{sign=_nearestSignFull(p.lat,p.lng);}catch(e){}
+  const code=sign?sign.code:'';
+  const prefill={
+    type:'조난', lat:p.lat, lng:p.lng, loctype:'법정탐방로',
+    vName:(p.name||''),                       // 이름은 사고자 인적사항(세부)에
+    situation:(p.msg||''),                    // 조난자가 보낸 메모 → 사고경위
+    title:(code?code+' 조난':'조난'), sosId:id
+  };
+  // 1보 작성 폼 열기 (openNewRescue와 동일 경로)
+  curResId=null;
+  document.getElementById('topTitle').textContent='신규 구조 접수 (1보)';
+  document.getElementById('bnav').style.display='none';
+  showV('v-report');renderPhaseBar(0,1);render1BoForm(prefill);
+  try{_autoFillLoc(p.lat,p.lng);}catch(e){}     // 사고 장소 자동(가까운 표지판)
+  setTimeout(function(){const t=document.getElementById('r_title');if(t){t.value=prefill.title;t.dataset.userEdited='1';}},220); // 제목 'NN-NN 조난' 고정
+  toast('🚨 조난 접수 — 1보 작성 화면');
 }
 
 window.onload=function(){
