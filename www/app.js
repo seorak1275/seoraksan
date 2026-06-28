@@ -3700,7 +3700,7 @@ function renderResList(){
   // 🆘 조난·사고자 위치 수신 — 별도 sos 컬렉션이라 목록 최상단에 노출(아직 사고 미등록 건만)
   if(_resListTab!=='haz'&&(_sosPings||[]).length){
     const _regIds=new Set((res||[]).map(r=>r.sosId).filter(Boolean));
-    const _open=(_sosPings||[]).filter(p=>!_regIds.has(p.id)).sort((a,b)=>(b.ts||0)-(a.ts||0));
+    const _open=(_sosPings||[]).filter(p=>p.lat&&p.lng&&!_regIds.has(p.id)).sort((a,b)=>(b.ts||0)-(a.ts||0));
     if(_open.length){
       cards.push(_hdr('🆘 위치 수신 (미등록) '+_open.length,'#ffd24d'));
       _open.forEach(p=>{
@@ -10689,8 +10689,10 @@ function _bootSos(){
   ['loadingScreen','loginScreen','approvalGate'].forEach(id=>{const e=document.getElementById(id);if(e)e.remove();});
   try{if(window._safeLoadingTimer)clearTimeout(window._safeLoadingTimer);clearInterval(window._loadTipTimer);clearInterval(window._loadBarTimer);}catch(e){}
   // 조난자별 고유 ID (재접속 시 같은 문서 갱신)
-  try{_sosId=localStorage.getItem('_sosId');}catch(e){}
-  if(!_sosId){_sosId='sos_'+Math.random().toString(36).slice(2,8)+Date.now().toString(36).slice(-4);try{localStorage.setItem('_sosId',_sosId);}catch(e){}}
+  // 링크의 토큰(?sos=<token>)을 문서 ID로 사용 → 팀이 발급(active:true)한 1회용 링크만 팀 화면에 표시됨
+  var _tok=((new URLSearchParams(location.search).get('sos'))||'').trim();
+  if(/^[a-z0-9]{4,12}$/i.test(_tok))_sosId=_tok;
+  else _sosId='x'+Math.random().toString(36).slice(2,8); // 토큰 없는 구버전·무효 링크 → 미발급이라 팀에 안 뜸
   // 전체화면 UI
   const wrap=document.createElement('div');
   wrap.id='sosVictim';
@@ -10770,7 +10772,7 @@ function _sosWrite(force){
   const rec={id:_sosId,lat:_sosLast.lat,lng:_sosLast.lng,acc:_sosLast.acc,
     name:String(name).slice(0,40),msg:String(msg).slice(0,300),
     at:d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')+' '+String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0')+':'+String(d.getSeconds()).padStart(2,'0'),
-    ts:nowMs,ua:navigator.userAgent.slice(0,120),active:true};
+    ts:nowMs,ua:navigator.userAgent.slice(0,120)}; // active는 팀만 설정(조난자가 비활성 링크를 되살릴 수 없게)
   _sosLastWriteTs=nowMs;_sosLastWritePos={lat:_sosLast.lat,lng:_sosLast.lng};
   _sosDb.collection('sos').doc(_sosId).set(rec,{merge:true}).then(function(){
     _sosCount++;
@@ -10788,28 +10790,28 @@ function _sosWrite(force){
 let _sosInfoTimer=null;
 function _sosPushInfo(){clearTimeout(_sosInfoTimer);_sosInfoTimer=setTimeout(()=>_sosWrite(true),600);}
 
-// ── 구조대 측: 조난자 위치 실시간 구독 ──
-let _sosPings=[];
+// ── 구조대 측: 조난·사고자 위치 실시간 구독 (1회용 토큰: 팀이 발급한 active 링크만 표시) ──
+let _sosPings=[];                              // 활성(active) 발급 토큰 전체(위치 있든 없든)
+function _sosLocated(){return (_sosPings||[]).filter(p=>p.lat&&p.lng);} // 실제 위치 수신된 건
 function _initSosWatch(){
   if(!_fdb||window._sosWatchBound)return;
   window._sosWatchBound=true;
   try{
     _fdb.collection('sos').onSnapshot(function(snap){
-      _sosPings=snap.docs.map(d=>d.data()).filter(p=>p&&p.lat&&p.lng&&Date.now()-(p.ts||0)<12*3600000); // 최근 12시간
-      // 신규 조난자 알림 (최초 스냅샷은 알림 생략)
+      // 팀이 발급(active:true)했고 48시간 이내인 것만 — 밤샘·다일 구조 커버, 옛 링크 자동 무효
+      _sosPings=snap.docs.map(d=>d.data()).filter(p=>p&&p.active===true&&Date.now()-(p.issuedAt||p.ts||0)<48*3600000);
+      // 위치가 새로 수신된 조난자 알림(최초 스냅샷·미수신 토큰은 제외)
       const seen=window._sosSeen||(window._sosSeen={});
       _sosPings.forEach(p=>{
-        if(!seen[p.id]){seen[p.id]=1;
+        if(p.lat&&p.lng&&!seen[p.id]){seen[p.id]=1;
           if(window._sosInited){try{toast('🆘 조난·사고자 위치 수신: '+(p.name||'익명')+(p.acc?' (±'+p.acc+'m)':''),6000);}catch(e){}try{pushNoti('🆘 조난·사고자 위치 수신'+(p.name?': '+p.name:''),'🆘','sos',{app:'rescue',tab:1});}catch(e){}}
         }
       });
       window._sosInited=true;
-      try{_drawSosPins();}catch(e){}   // 구조지도: 위치 갱신은 핀만 이동(깜빡임 없음)
+      try{_drawSosPins();}catch(e){}
       try{_updateSosFab();}catch(e){}
-      // 상황판(본소) 지도가 켜져 있으면 즉시 갱신
       try{const bv=document.getElementById('v-board');if(bv&&bv.classList.contains('on')&&_boardMap)_renderBoardPins(false);}catch(e){}
-      // 조난자 추가/사라짐(목록 변동) 시에만 지도·목록 전체 갱신 → 즉시 표시
-      const ids=_sosPings.map(p=>p.id).sort().join(',');
+      const ids=_sosLocated().map(p=>p.id).sort().join(',');
       if(ids!==window._sosIdSig){
         window._sosIdSig=ids;
         clearTimeout(window._sosRefreshT);
@@ -10828,45 +10830,70 @@ function _initSosWatch(){
     },function(err){try{_logErr&&_logErr('sos listen: '+(err&&err.message||err));}catch(e){}});
   }catch(e){}
 }
-function _sosBadgeCount(){return (_sosPings||[]).length;}
+function _sosBadgeCount(){return _sosLocated().length;}
 function _updateSosFab(){
   const b=document.getElementById('sosReqBtn');if(!b)return;
   const n=_sosBadgeCount();
   b.innerHTML='🆘 조난·사고자'+(n?' <span style="background:#fff;color:#c0392b;border-radius:50%;padding:0 5px;font-weight:800;">'+n+'</span>':' 위치요청');
   b.style.background=n?'rgba(192,57,43,.95)':'rgba(192,57,43,.6)';
 }
-// 조난자에게 보낼 공개 링크 (로그인 불필요)
-function _sosVictimUrl(){return location.origin+location.pathname+'?sos=1';}
+function _sosVictimUrl(tok){return location.origin+location.pathname+'?sos='+tok;}
+// 새 1회용 링크 발급 (토큰 생성 → active:true 문서 생성)
+function _sosNewLink(){
+  if(!_fdb){toast('연결 준비 중 — 잠시 후 다시');return;}
+  const tok=Math.random().toString(36).slice(2,7); // 5자리 토큰
+  const by=(typeof getAuthor==='function')?getAuthor():'구조대';
+  _fdb.collection('sos').doc(tok).set({id:tok,active:true,issuedAt:Date.now(),by:by},{merge:true})
+    .then(function(){toast('🔗 1회용 링크 생성됨 — 조난자에게 보내세요',5000);openSosRequest();if(navigator.share)_sosShareUrl(tok);})
+    .catch(function(e){toast('생성 실패: '+(e&&(e.code||e.message)||''));});
+}
+// 접수 종료 (active:false → 그 링크로는 더 이상 수신 안 됨, 기록은 남음)
+function _sosCloseToken(id){
+  if(!confirm('이 1회용 링크를 종료할까요?\n종료하면 해당 링크로는 더 이상 위치가 들어오지 않습니다.'))return;
+  if(_fdb)_fdb.collection('sos').doc(id).set({active:false,closedAt:Date.now()},{merge:true}).catch(()=>{});
+  _sosPings=(_sosPings||[]).filter(p=>p.id!==id);
+  try{_drawSosPins();_updateSosFab();}catch(e){}
+  if(document.getElementById('sosModal'))openSosRequest();
+  toast('✅ 접수 종료 — 링크 비활성화됨');
+}
 function openSosRequest(){
-  const url=_sosVictimUrl();
-  const n=_sosBadgeCount();
-  const list=(_sosPings||[]).sort((a,b)=>(b.ts||0)-(a.ts||0)).map(p=>{
-    const mm=Math.round((Date.now()-(p.ts||0))/60000);
-    return `<div style="display:flex;gap:6px;align-items:stretch;margin-bottom:6px;">
-      <div onclick="_sosFocus('${p.id}')" style="flex:1;min-width:0;background:#0b1c30;border:1px solid rgba(231,76,60,.35);border-radius:10px;padding:10px 12px;cursor:pointer;">
-        <div style="font-size:13px;font-weight:800;color:#ff8a73;">🆘 ${_esc(p.name||'익명 조난자')} <span style="font-size:10px;color:#8ab4cc;font-weight:400;">±${p.acc||'?'}m · ${mm}분 전</span></div>
-        ${p.msg?`<div style="font-size:12px;color:#cfe2f2;margin-top:3px;">${_esc(p.msg)}</div>`:''}
-        <div style="font-size:10px;color:#5a7e98;font-family:monospace;margin-top:3px;">${(+p.lat).toFixed(5)}, ${(+p.lng).toFixed(5)} · 탭하면 지도 이동</div>
+  const toks=(_sosPings||[]).slice().sort((a,b)=>(b.issuedAt||0)-(a.issuedAt||0));
+  const cards=toks.map(p=>{
+    const url=_sosVictimUrl(p.id);
+    const has=p.lat&&p.lng;
+    const mm=p.ts?Math.round((Date.now()-(p.ts||0))/60000):null;
+    const status=has
+      ? `<span style="color:#3ad17a;font-weight:800;">🟢 위치 수신 ±${p.acc||'?'}m</span> <span style="color:#8ab4cc;font-size:10px;">${mm}분 전</span>`
+      : `<span style="color:#ffd24d;font-weight:700;">⚪ 전송 대기 중</span>`;
+    return `<div style="background:#0b1c30;border:1px solid ${has?'rgba(231,76,60,.4)':'rgba(255,255,255,.12)'};border-radius:11px;padding:11px 12px;margin-bottom:8px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+        <span style="font-size:12px;">${status}</span>
+        <span style="font-size:9px;color:#5a7e98;font-family:monospace;">🔗 1회용 · ${p.id}</span>
       </div>
-      <button onclick="deleteSosPing('${p.id}')" title="삭제" style="flex:0 0 44px;background:rgba(192,57,43,.12);border:1px solid rgba(192,57,43,.3);color:#e05050;border-radius:10px;font-size:15px;font-weight:700;cursor:pointer;">✕</button>
+      ${has?`<div onclick="_sosFocus('${p.id}')" style="cursor:pointer;margin-bottom:7px;">
+        <div style="font-size:13px;font-weight:800;color:#ff8a73;">🆘 ${_esc(p.name||'익명')}</div>
+        ${p.msg?`<div style="font-size:12px;color:#cfe2f2;margin-top:2px;">${_esc(p.msg)}</div>`:''}
+        <div style="font-size:10px;color:#5a7e98;font-family:monospace;margin-top:2px;">${(+p.lat).toFixed(5)}, ${(+p.lng).toFixed(5)} · 탭하면 지도 이동</div>
+      </div>`:''}
+      <div style="display:flex;gap:5px;margin-bottom:6px;">
+        <input readonly value="${url}" onclick="this.select()" style="flex:1;min-width:0;background:#060d1a;border:1px solid rgba(79,168,208,.3);color:#7dd3fa;border-radius:7px;padding:8px;font-size:11px;font-family:monospace;">
+        <button onclick="_sosCopyUrl('${p.id}')" style="flex-shrink:0;background:#1a4a6e;color:#fff;border:none;border-radius:7px;padding:0 11px;font-size:12px;font-weight:700;cursor:pointer;">복사</button>
+      </div>
+      <div style="display:flex;gap:5px;">
+        ${navigator.share?`<button onclick="_sosShareUrl('${p.id}')" style="flex:1;background:rgba(39,174,96,.12);color:#27ae60;border:1px solid rgba(39,174,96,.35);border-radius:7px;padding:8px;font-size:12px;font-weight:700;cursor:pointer;">📤 보내기</button>`:`<button onclick="_sosSms('${p.id}')" style="flex:1;background:rgba(79,168,208,.1);color:#4fa8d0;border:1px solid rgba(79,168,208,.3);border-radius:7px;padding:8px;font-size:12px;font-weight:700;cursor:pointer;">✉️ 문자</button>`}
+        ${has?`<button onclick="sosToRescue('${p.id}')" style="flex:1;background:rgba(231,76,60,.15);color:#ff6b5e;border:1px solid rgba(231,76,60,.4);border-radius:7px;padding:8px;font-size:12px;font-weight:700;cursor:pointer;">🚨 구조등록</button>`:''}
+        <button onclick="_sosCloseToken('${p.id}')" style="flex-shrink:0;background:rgba(192,57,43,.1);color:#c0392b;border:1px solid rgba(192,57,43,.3);border-radius:7px;padding:8px 11px;font-size:12px;font-weight:700;cursor:pointer;">종료</button>
+      </div>
     </div>`;
-  }).join('')||'<div style="font-size:12px;color:rgba(255,255,255,.35);padding:8px 0;text-align:center;">아직 수신된 조난자 위치가 없습니다</div>';
+  }).join('');
   const html=`
-    <div style="font-size:12px;color:#8ab4cc;margin-bottom:6px;">아래 링크를 조난자에게 문자·카톡으로 보내세요. 조난자가 열면 <b style="color:#fff;">로그인 없이</b> 위치가 실시간 전송됩니다.</div>
-    <div style="display:flex;gap:6px;margin-bottom:6px;">
-      <input id="sosUrlInp" readonly value="${url}" style="flex:1;background:#060d1a;border:1px solid rgba(79,168,208,.3);color:#7dd3fa;border-radius:8px;padding:10px;font-size:12px;font-family:monospace;">
-      <button onclick="_sosCopyUrl()" style="flex-shrink:0;background:#1a4a6e;color:#fff;border:none;border-radius:8px;padding:0 14px;font-size:13px;font-weight:700;cursor:pointer;">복사</button>
+    <div style="background:rgba(241,196,15,.08);border:1px solid rgba(241,196,15,.25);border-radius:9px;padding:9px 11px;margin-bottom:10px;font-size:12px;color:#e8c84a;line-height:1.5;">
+      🔗 <b>1회용 링크</b>입니다. 조난·사고자마다 새로 발급해 보내세요.<br>
+      <span style="color:#9bbdd4;">구조가 끝나면 <b style="color:#ff8a73;">접수 종료</b>를 누르면 그 링크는 비활성화됩니다. (보내지 않아도 48시간 후 자동 만료)</span>
     </div>
-    <div style="display:flex;gap:6px;margin-bottom:12px;">
-      ${navigator.share?`<button onclick="_sosShareUrl()" style="flex:1;background:rgba(39,174,96,.15);color:#27ae60;border:1px solid rgba(39,174,96,.4);border-radius:8px;padding:10px;font-size:13px;font-weight:700;cursor:pointer;">📤 문자·카톡으로 보내기</button>`:''}
-      <button onclick="_sosSms()" style="flex:1;background:rgba(79,168,208,.12);color:#4fa8d0;border:1px solid rgba(79,168,208,.35);border-radius:8px;padding:10px;font-size:13px;font-weight:700;cursor:pointer;">✉️ 문자 앱 열기</button>
-    </div>
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
-      <span style="font-size:12px;color:#ff8a73;font-weight:700;">📍 수신된 조난자 위치 (${n})</span>
-      ${n?`<button onclick="clearAllSos()" style="background:rgba(192,57,43,.1);color:#c0392b;border:1px solid rgba(192,57,43,.3);border-radius:7px;padding:5px 10px;font-size:11px;font-weight:700;cursor:pointer;">🗑️ 전체 삭제</button>`:''}
-    </div>
-    ${list}`;
-  _sosModal('🆘 조난·사고자 위치요청',html);
+    <button onclick="_sosNewLink()" style="width:100%;padding:14px;border-radius:11px;border:none;background:linear-gradient(180deg,#e74c3c,#c0392b);color:#fff;font-size:15px;font-weight:800;cursor:pointer;box-shadow:0 3px 10px rgba(192,57,43,.4);margin-bottom:12px;">➕ 새 1회용 링크 만들기</button>
+    ${toks.length?cards:'<div style="font-size:12px;color:rgba(255,255,255,.35);padding:6px 0;text-align:center;">발급된 링크가 없습니다. 위 버튼으로 새 링크를 만드세요.</div>'}`;
+  _sosModal('🆘 조난·사고자 위치요청 (1회용 링크)',html);
 }
 function _sosModal(title,html){
   let m=document.getElementById('sosModal');
@@ -10923,12 +10950,12 @@ function _sosPinPopup(id){
       <button onclick="_sosFocus('${p.id}')" style="flex:1;background:rgba(79,168,208,.12);color:#4fa8d0;border:1px solid rgba(79,168,208,.35);border-radius:8px;padding:11px;font-size:13px;font-weight:700;cursor:pointer;">🗺️ 위치로 이동</button>
       <button onclick="sosToRescue('${p.id}')" style="flex:1;background:linear-gradient(180deg,#e74c3c,#c0392b);color:#fff;border:none;border-radius:8px;padding:11px;font-size:13px;font-weight:800;cursor:pointer;">🚨 구조 사고로 등록</button>
     </div>
-    <button onclick="_sosCloseModal();deleteSosPing('${p.id}')" style="width:100%;margin-top:7px;background:rgba(192,57,43,.1);color:#c0392b;border:1px solid rgba(192,57,43,.3);border-radius:8px;padding:10px;font-size:12px;font-weight:700;cursor:pointer;">🗑️ 이 위치 삭제</button>`;
+    <button onclick="_sosCloseModal();_sosCloseToken('${p.id}')" style="width:100%;margin-top:7px;background:rgba(192,57,43,.1);color:#c0392b;border:1px solid rgba(192,57,43,.3);border-radius:8px;padding:10px;font-size:12px;font-weight:700;cursor:pointer;">🔚 접수 종료 (링크 비활성화)</button>`;
   _sosModal('🆘 조난자 위치',html);
 }
-function _sosCopyUrl(){const u=_sosVictimUrl();if(navigator.clipboard)navigator.clipboard.writeText(u).then(()=>toast('📋 링크 복사됨')).catch(()=>_fallbackCopy(u));else _fallbackCopy(u);}
-function _sosShareUrl(){const u=_sosVictimUrl();if(navigator.share)navigator.share({title:'설악산 구조대 위치전송',text:'아래 링크를 열면 위치가 구조대에 전송됩니다.\n'+u}).catch(()=>{});}
-function _sosSms(){const u=_sosVictimUrl();location.href='sms:?body='+encodeURIComponent('[설악산 구조대] 아래 링크를 열어 위치를 보내주세요(로그인 불필요): '+u);}
+function _sosCopyUrl(tok){const u=_sosVictimUrl(tok);if(navigator.clipboard)navigator.clipboard.writeText(u).then(()=>toast('📋 1회용 링크 복사됨')).catch(()=>_fallbackCopy(u));else _fallbackCopy(u);}
+function _sosShareUrl(tok){const u=_sosVictimUrl(tok);if(navigator.share)navigator.share({title:'설악산 구조대 위치전송',text:'[설악산 구조대] 아래 1회용 링크를 열면 위치가 구조대에 전송됩니다(로그인 불필요).\n'+u}).catch(()=>{});}
+function _sosSms(tok){const u=_sosVictimUrl(tok);location.href='sms:?body='+encodeURIComponent('[설악산 구조대] 아래 1회용 링크를 열어 위치를 보내주세요(로그인 불필요): '+u);}
 function _sosFocus(id){
   const p=(_sosPings||[]).find(x=>x.id===id);if(!p)return;
   _sosCloseModal();
@@ -10942,7 +10969,9 @@ function sosToRescue(id){
     vName:p.name||'',situation:p.msg||'',
     author:getAuthor?getAuthor():'구조대',title:'조난 '+(p.name||'위치전송')};
   const res=DB.g('rescues')||[];res.push(r);DB.s('rescues',res);
-  deleteSosPing(p.id,true); // 정식 사고로 전환됐으므로 sos 핀 제거(중복 방지)
+  // 정식 사고로 전환 → 1회용 토큰 종료(active:false), sos 핀 제거(중복 방지)
+  if(_fdb)_fdb.collection('sos').doc(p.id).set({active:false,closedAt:Date.now()},{merge:true}).catch(()=>{});
+  _sosPings=(_sosPings||[]).filter(x=>x.id!==p.id);try{_drawSosPins();_updateSosFab();}catch(e){}
   toast('🚨 조난 사고로 등록됨 — 목록·지도에 표시');
   try{renderRescueMap();}catch(e){}try{renderResList();}catch(e){}try{updateSummary();}catch(e){}
   _sosCloseModal();
