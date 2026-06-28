@@ -1514,6 +1514,18 @@ function _renderBoardPins(fit){
     const ov=new kakao.maps.CustomOverlay({position:pos,content:el,yAnchor:1,zIndex:4});
     ov.setMap(_boardMap);_boardOvs.push(ov);bounds.extend(pos);n++;
   });
+  // 🆘 조난·사고자 위치 (실시간) — 가장 눈에 띄게
+  (_sosPings||[]).forEach(p=>{
+    if(!p.lat||!p.lng)return;
+    const el=document.createElement('div');
+    el.innerHTML=`<div style="display:flex;flex-direction:column;align-items:center;cursor:pointer;">
+      <div style="background:#c0392b;border:2.5px solid #ffe14d;border-radius:50%;width:34px;height:34px;display:flex;align-items:center;justify-content:center;font-size:16px;box-shadow:0 0 0 3px rgba(231,76,60,.4),0 2px 8px rgba(0,0,0,.6);animation:blink 1s infinite;">🆘</div>
+      <div style="margin-top:3px;background:rgba(10,22,38,.92);border:1.5px solid #ffe14d;color:#fff;border-radius:8px;padding:2px 8px;font-size:11px;font-weight:800;white-space:nowrap;box-shadow:0 1px 5px rgba(0,0,0,.5);">🆘 ${_esc(p.name||'조난·사고자')}</div></div>`;
+    el.onclick=()=>{try{_boardMap.setCenter(new kakao.maps.LatLng(p.lat,p.lng));_boardMap.setLevel(4);}catch(e){}};
+    const pos=new kakao.maps.LatLng(p.lat,p.lng);
+    const ov=new kakao.maps.CustomOverlay({position:pos,content:el,yAnchor:1,zIndex:9,clickable:true});
+    ov.setMap(_boardMap);_boardOvs.push(ov);bounds.extend(pos);n++;
+  });
   // 다목적위치표지판 핀 (번호 표시, 작은 레이블)
   (DB.g('facilities')||[]).filter(f=>f.type&&f.type.includes('다목적위치표지판')&&f.lat&&f.lng).forEach(f=>{
     const code=(f.name.match(/\d[\d\-]*\d|\d/)||[f.name.slice(0,6)])[0];
@@ -10792,10 +10804,27 @@ function _initSosWatch(){
         }
       });
       window._sosInited=true;
-      // 핀은 지도에 직접 그림(현재 탭 무관). 목록은 구조 탭일 때만.
-      try{_drawSosPins();}catch(e){}
-      try{if(window.curApp==='rescue')renderResList();}catch(e){}
+      try{_drawSosPins();}catch(e){}   // 구조지도: 위치 갱신은 핀만 이동(깜빡임 없음)
       try{_updateSosFab();}catch(e){}
+      // 상황판(본소) 지도가 켜져 있으면 즉시 갱신
+      try{const bv=document.getElementById('v-board');if(bv&&bv.classList.contains('on')&&_boardMap)_renderBoardPins(false);}catch(e){}
+      // 조난자 추가/사라짐(목록 변동) 시에만 지도·목록 전체 갱신 → 즉시 표시
+      const ids=_sosPings.map(p=>p.id).sort().join(',');
+      if(ids!==window._sosIdSig){
+        window._sosIdSig=ids;
+        clearTimeout(window._sosRefreshT);
+        window._sosRefreshT=setTimeout(function(){
+          try{
+            if(window.curApp==='rescue'){
+              const mv=document.getElementById('v-rescue-map');
+              if(mv&&mv.classList.contains('on')){try{renderRescueMap();}catch(e){}}
+              try{renderResList();}catch(e){}
+            }
+            const bv=document.getElementById('v-board');
+            if(bv&&bv.classList.contains('on')&&_boardMap){try{_renderBoardPins(false);}catch(e){}}
+          }catch(e){}
+        },350);
+      }
     },function(err){try{_logErr&&_logErr('sos listen: '+(err&&err.message||err));}catch(e){}});
   }catch(e){}
 }
