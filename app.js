@@ -1031,7 +1031,7 @@ function _cleanOldSharedNotis(){
 }
 function _showSystemNoti(body,ico){
   if(document.visibilityState==='visible')return; // 앱 보이는 중이면 불필요
-  if(Notification.permission!=='granted')return;
+  if(typeof Notification==='undefined'||Notification.permission!=='granted')return; // 인앱 브라우저 등 Notification 미지원 환경 보호
   const title='설악산 현장관리 '+(ico||'🔔');
   if(_swReg){
     _swReg.showNotification(title,{body,icon:'icons/icon-192.png',vibrate:[200,100,200]});
@@ -1051,7 +1051,7 @@ const _FCM_VAPID=''; // ← 여기에 Firebase Console에서 발급한 VAPID 키
 const _FCM_PUSH_URL='https://script.google.com/macros/s/AKfycbwp4JWCBkLC-LlSqiPOmyUEIO3uhv9w0ReJhEaJcXvlK0NWWwIrEK3Jo-DTaBWRHqJW/exec';
 const _FCM_PUSH_SECRET='설악산119';
 async function _initFCM(){
-  if(!_fmsg||!_fdb||!_swReg||Notification.permission!=='granted'||!_FCM_VAPID)return;
+  if(!_fmsg||!_fdb||!_swReg||typeof Notification==='undefined'||Notification.permission!=='granted'||!_FCM_VAPID)return;
   try{
     const token=await _fmsg.getToken({vapidKey:_FCM_VAPID,serviceWorkerRegistration:_swReg});
     if(token)_saveFcmToken(token,'web');
@@ -11286,6 +11286,7 @@ window.onload=function(){
         {enableHighAccuracy:true,timeout:15000}
       );
     } else if(type==='noti'){
+      if(typeof Notification==='undefined'){toast('이 브라우저는 알림을 지원하지 않습니다');return;}
       Notification.requestPermission().then(function(r){
         _permBanner('noti',r);
         toast(r==='granted'?'🔔 알림 권한 허용됨':'⚠️ 알림 권한이 거부되었습니다');
