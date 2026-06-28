@@ -9021,10 +9021,16 @@ function _handleKakaoCode(code,redirectUri){
     if(deletedIds.includes(kakaoId)){
       DB.s('deletedKakaoIds',deletedIds.filter(function(id){return id!==kakaoId;}));
     }
+    // 서버에 저장된 내 프로필(이름·부서·계급) 복원 — localStorage가 비어도 재입력 불필요(카카오 재로그인만으로 복구)
+    var _roster=[].concat(DB.g('pendingUsers')||[],DB.g('approvedUsers')||[]);
+    var _saved=_roster.find(function(x){return x&&String(x.kakaoId||x.id)===kakaoId;})||{};
     var merged=Object.assign({},u,{
       kakaoId:kakaoId,
       kakaoImg:prof.profile_image_url||prof.thumbnail_image_url||'',
-      name:u.name||prof.nickname||''
+      realName:u.realName||_saved.realName||'',
+      name:u.name||_saved.name||_saved.realName||prof.nickname||'',
+      dept:u.dept||_saved.dept||'',
+      rank:u.rank||_saved.rank||''
     });
     DB.s('currentUser',merged);
     DB.s('authType','kakao');
