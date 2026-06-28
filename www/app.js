@@ -10765,10 +10765,13 @@ function openSosRequest(){
   const n=_sosBadgeCount();
   const list=(_sosPings||[]).sort((a,b)=>(b.ts||0)-(a.ts||0)).map(p=>{
     const mm=Math.round((Date.now()-(p.ts||0))/60000);
-    return `<div onclick="_sosFocus('${p.id}')" style="background:#0b1c30;border:1px solid rgba(231,76,60,.35);border-radius:10px;padding:10px 12px;margin-bottom:6px;cursor:pointer;">
-      <div style="font-size:13px;font-weight:800;color:#ff8a73;">🆘 ${_esc(p.name||'익명 조난자')} <span style="font-size:10px;color:#8ab4cc;font-weight:400;">±${p.acc||'?'}m · ${mm}분 전</span></div>
-      ${p.msg?`<div style="font-size:12px;color:#cfe2f2;margin-top:3px;">${_esc(p.msg)}</div>`:''}
-      <div style="font-size:10px;color:#5a7e98;font-family:monospace;margin-top:3px;">${(+p.lat).toFixed(5)}, ${(+p.lng).toFixed(5)} · 탭하면 지도 이동</div>
+    return `<div style="display:flex;gap:6px;align-items:stretch;margin-bottom:6px;">
+      <div onclick="_sosFocus('${p.id}')" style="flex:1;min-width:0;background:#0b1c30;border:1px solid rgba(231,76,60,.35);border-radius:10px;padding:10px 12px;cursor:pointer;">
+        <div style="font-size:13px;font-weight:800;color:#ff8a73;">🆘 ${_esc(p.name||'익명 조난자')} <span style="font-size:10px;color:#8ab4cc;font-weight:400;">±${p.acc||'?'}m · ${mm}분 전</span></div>
+        ${p.msg?`<div style="font-size:12px;color:#cfe2f2;margin-top:3px;">${_esc(p.msg)}</div>`:''}
+        <div style="font-size:10px;color:#5a7e98;font-family:monospace;margin-top:3px;">${(+p.lat).toFixed(5)}, ${(+p.lng).toFixed(5)} · 탭하면 지도 이동</div>
+      </div>
+      <button onclick="deleteSosPing('${p.id}')" title="삭제" style="flex:0 0 44px;background:rgba(192,57,43,.12);border:1px solid rgba(192,57,43,.3);color:#e05050;border-radius:10px;font-size:15px;font-weight:700;cursor:pointer;">✕</button>
     </div>`;
   }).join('')||'<div style="font-size:12px;color:rgba(255,255,255,.35);padding:8px 0;text-align:center;">아직 수신된 조난자 위치가 없습니다</div>';
   const html=`
@@ -10781,7 +10784,10 @@ function openSosRequest(){
       ${navigator.share?`<button onclick="_sosShareUrl()" style="flex:1;background:rgba(39,174,96,.15);color:#27ae60;border:1px solid rgba(39,174,96,.4);border-radius:8px;padding:10px;font-size:13px;font-weight:700;cursor:pointer;">📤 문자·카톡으로 보내기</button>`:''}
       <button onclick="_sosSms()" style="flex:1;background:rgba(79,168,208,.12);color:#4fa8d0;border:1px solid rgba(79,168,208,.35);border-radius:8px;padding:10px;font-size:13px;font-weight:700;cursor:pointer;">✉️ 문자 앱 열기</button>
     </div>
-    <div style="font-size:12px;color:#ff8a73;font-weight:700;margin-bottom:6px;">📍 수신된 조난자 위치 (${n})</div>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+      <span style="font-size:12px;color:#ff8a73;font-weight:700;">📍 수신된 조난자 위치 (${n})</span>
+      ${n?`<button onclick="clearAllSos()" style="background:rgba(192,57,43,.1);color:#c0392b;border:1px solid rgba(192,57,43,.3);border-radius:7px;padding:5px 10px;font-size:11px;font-weight:700;cursor:pointer;">🗑️ 전체 삭제</button>`:''}
+    </div>
     ${list}`;
   _sosModal('🆘 조난자 위치요청',html);
 }
@@ -10795,6 +10801,24 @@ function _sosModal(title,html){
   m.onclick=function(e){if(e.target===m)_sosCloseModal();};
 }
 function _sosCloseModal(){const m=document.getElementById('sosModal');if(m)m.remove();}
+// 조난자 위치 삭제 (테스트·종료된 항목 정리)
+function deleteSosPing(id,silent){
+  if(!_fdb)return;
+  if(!silent&&!confirm('이 조난자 위치를 삭제할까요?'))return;
+  _fdb.collection('sos').doc(id).delete().catch(()=>{});
+  _sosPings=(_sosPings||[]).filter(p=>p.id!==id);
+  try{if(window._sosSeen)delete window._sosSeen[id];}catch(e){}
+  try{_drawSosPins();}catch(e){}try{_updateSosFab();}catch(e){}
+  if(!silent){toast('🗑️ 위치 삭제됨');if(document.getElementById('sosModal'))openSosRequest();}
+}
+function clearAllSos(){
+  const all=(_sosPings||[]).slice();
+  if(!all.length){toast('삭제할 위치 없음');return;}
+  if(!confirm('수신된 조난자 위치 '+all.length+'건을 모두 삭제할까요?\n(테스트 정리용 — 실제 조난자가 있으면 주의)'))return;
+  all.forEach(p=>deleteSosPing(p.id,true));
+  toast('🗑️ '+all.length+'건 삭제됨');
+  _sosCloseModal();
+}
 let _sosOvs=[];
 function _drawSosPins(){
   _sosOvs.forEach(o=>{try{o.setMap(null);}catch(e){}});_sosOvs=[];
@@ -10821,7 +10845,8 @@ function _sosPinPopup(id){
     <div style="display:flex;gap:6px;">
       <button onclick="_sosFocus('${p.id}')" style="flex:1;background:rgba(79,168,208,.12);color:#4fa8d0;border:1px solid rgba(79,168,208,.35);border-radius:8px;padding:11px;font-size:13px;font-weight:700;cursor:pointer;">🗺️ 위치로 이동</button>
       <button onclick="sosToRescue('${p.id}')" style="flex:1;background:linear-gradient(180deg,#e74c3c,#c0392b);color:#fff;border:none;border-radius:8px;padding:11px;font-size:13px;font-weight:800;cursor:pointer;">🚨 구조 사고로 등록</button>
-    </div>`;
+    </div>
+    <button onclick="_sosCloseModal();deleteSosPing('${p.id}')" style="width:100%;margin-top:7px;background:rgba(192,57,43,.1);color:#c0392b;border:1px solid rgba(192,57,43,.3);border-radius:8px;padding:10px;font-size:12px;font-weight:700;cursor:pointer;">🗑️ 이 위치 삭제</button>`;
   _sosModal('🆘 조난자 위치',html);
 }
 function _sosCopyUrl(){const u=_sosVictimUrl();if(navigator.clipboard)navigator.clipboard.writeText(u).then(()=>toast('📋 링크 복사됨')).catch(()=>_fallbackCopy(u));else _fallbackCopy(u);}
