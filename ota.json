@@ -1,1 +1,1 @@
-{"version":"2026.06.29.2","url":"https://109yoon.github.io/seoraksan/bundle.zip","notes":"직원 자동승인 토글·신규 승인섹션·승인 즉시 멤버십, 승인대기 자동입장, 지도 로딩가드"}
+{"version":"2026.06.29.3","url":"https://109yoon.github.io/seoraksan/bundle.zip","notes":"지도 SDK 무응답 자동 재시도(7초 타임아웃) + 로더 견고화"}
