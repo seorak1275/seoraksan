@@ -1090,6 +1090,8 @@ function _resMatchSearch(r){
 }
 let _resListLimit=50,_resListSig='';
 function _moreResList(){_resListLimit+=50;renderResList();}
+var _resSortNewest=true; // 구조 목록 정렬: 기본 최신순(위가 최신)
+function toggleResSort(){_resSortNewest=!_resSortNewest;try{renderResList();}catch(e){}toast(_resSortNewest?'↕ 최신순 정렬':'↕ 오래된순 정렬');}
 function renderResList(){
   const res=DB.g('rescues')||[];const haz=DB.g('hazards')||[];
   _updateResFilterPanels();
@@ -1103,6 +1105,8 @@ function renderResList(){
   if(_sig!==_resListSig){_resListSig=_sig;_resListLimit=50;}
   let cards=[];
   const _hdr=(txt,col)=>`<div style="display:flex;align-items:center;gap:7px;margin:4px 2px 7px;"><span style="font-size:11px;font-weight:800;color:${col};letter-spacing:.3px;">${txt}</span><div style="flex:1;height:1px;background:linear-gradient(90deg,${col}44,transparent);"></div></div>`;
+  // 정렬 토글(기본 최신순) — 날짜 정렬이 헷갈린다는 피드백 반영
+  cards.push(`<div style="display:flex;justify-content:flex-end;margin:0 2px 6px;"><button onclick="toggleResSort()" style="background:rgba(79,168,208,.1);color:#4fa8d0;border:1px solid rgba(79,168,208,.28);border-radius:16px;padding:5px 12px;font-size:11px;font-weight:700;cursor:pointer;">↕ ${_resSortNewest?'최신순':'오래된순'}</button></div>`);
   // 🆘 조난·사고자 위치 수신 — 별도 sos 컬렉션이라 목록 최상단에 노출(아직 사고 미등록 건만)
   if(_resListTab!=='haz'&&(_sosPings||[]).length){
     const _regIds=new Set((res||[]).map(r=>r.sosId).filter(Boolean));
@@ -1126,7 +1130,9 @@ function renderResList(){
   }
   // 진행중 구조를 상단에 별도 그룹으로 모아 일일 운영 시인성 강화
   if(_showRes){
-    const _rescues=res.filter(r=>_stOkRes(r.status)&&_dateOkL(r.date)&&_resMatchSearch(r)).slice().reverse();
+    // res는 id(=시각) 내림차순(최신 먼저). 기본 최신순, 토글 시 오래된순
+    const _rescues=res.filter(r=>_stOkRes(r.status)&&_dateOkL(r.date)&&_resMatchSearch(r)).slice();
+    if(!_resSortNewest)_rescues.reverse();
     const _og=_rescues.filter(r=>r.status==='ongoing');
     const _dn=_rescues.filter(r=>r.status!=='ongoing');
     const _mkCard=r=>{
@@ -1408,17 +1414,16 @@ function _renderHeatMap(tab){
     map.setMapTypeId(kakao.maps.MapTypeId.HYBRID);
     const bounds=new kakao.maps.LatLngBounds();
     const colOf=n=>n>=5?'#c0392b':n>=3?'#e74c3c':n>=2?'#e67e22':'#f1c40f';
+    // 시인성: 사고가 많은 곳일수록 불투명도↑(지도가 잘 안 보일 정도) + 반경↑. 숫자 라벨은 표시 안 함(요청).
+    const maxN=Math.max(...cells.map(c=>c.n),1);
     cells.forEach(c=>{
       const pos=new kakao.maps.LatLng(c.lat,c.lng);
       bounds.extend(pos);
+      const op=Math.min(0.3+(c.n/maxN)*0.55,0.85); // 1건→옅게, 최다 발생지→거의 불투명(0.85)
       new kakao.maps.Circle({
-        center:pos,radius:140+Math.min(c.n,8)*45,
-        fillColor:colOf(c.n),fillOpacity:.42,strokeWeight:1,strokeColor:colOf(c.n),strokeOpacity:.6,map
+        center:pos,radius:150+Math.min(c.n,10)*55,
+        fillColor:colOf(c.n),fillOpacity:op,strokeWeight:1.5,strokeColor:colOf(c.n),strokeOpacity:Math.min(op+0.1,0.95),map
       });
-      const lbl=document.createElement('div');
-      lbl.style.cssText='font-size:11px;font-weight:800;color:#fff;text-shadow:0 1px 3px rgba(0,0,0,.9);pointer-events:none;';
-      lbl.textContent=c.n;
-      new kakao.maps.CustomOverlay({position:pos,content:lbl,zIndex:3}).setMap(map);
     });
     if(cells.length>1)map.setBounds(bounds,30);else map.setCenter(new kakao.maps.LatLng(cells[0].lat,cells[0].lng));
   }catch(e){}

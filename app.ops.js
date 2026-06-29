@@ -1752,11 +1752,11 @@ function renderAdmMembers(){
   loginLog.forEach(e=>{
     const kid=String(e.kakaoId||'');if(!kid||seen[kid])return;seen[kid]=1;
     const pu=pending.find(p=>String(p.kakaoId||p.id)===kid);
-    unified.push({kakaoId:kid,name:(pu&&(pu.realName||pu.name))||e.name||'',dept:(pu&&pu.dept)||e.dept||'',rank:(pu&&pu.rank)||e.rank||'',kakaoImg:(pu&&pu.kakaoImg)||'',approvalStatus:(pu&&pu.approvalStatus)||'',puId:(pu&&pu.id)||''});
+    unified.push({kakaoId:kid,name:(pu&&(pu.realName||pu.name))||e.name||'',dept:(pu&&pu.dept)||e.dept||'',rank:(pu&&pu.rank)||e.rank||'',kakaoImg:(pu&&pu.kakaoImg)||'',approvalStatus:(pu&&pu.approvalStatus)||'',puId:(pu&&pu.id)||'',reg:(pu&&pu.submittedAt)||e.at||0});
   });
   pending.forEach(p=>{
     const kid=String(p.kakaoId||p.id);if(seen[kid])return;seen[kid]=1;
-    unified.push({kakaoId:kid,name:p.realName||p.name||'',dept:p.dept||'',rank:p.rank||'',kakaoImg:p.kakaoImg||'',approvalStatus:p.approvalStatus||'',puId:p.id});
+    unified.push({kakaoId:kid,name:p.realName||p.name||'',dept:p.dept||'',rank:p.rank||'',kakaoImg:p.kakaoImg||'',approvalStatus:p.approvalStatus||'',puId:p.id,reg:p.submittedAt||0});
   });
 
   const usedDepts=[...new Set(unified.map(u=>u.dept).filter(Boolean))];
@@ -1820,6 +1820,7 @@ function renderAdmMembers(){
           <div style="flex:1;min-width:0;">
             <div style="font-size:12px;font-weight:700;color:#e0edf8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${_esc(u.name||'이름없음')} ${roleBadge} ${appBadge}</div>
             <div style="font-size:10px;color:#4a7090;margin-top:1px;">${_esc(u.dept)}${u.rank?' · '+_esc(u.rank):''} <span style="font-family:monospace;color:#2a5060;">ID ${_esc(u.kakaoId)}</span></div>
+            ${u.reg?`<div style="font-size:9px;color:#3a5a6a;margin-top:1px;">📅 등록 ${new Date(u.reg).toLocaleString('ko-KR',{year:'2-digit',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'})}</div>`:''}
           </div>
           <div style="display:flex;align-items:center;gap:4px;flex-shrink:0;">
             <select onchange="_aclSetRole('${_escq(u.kakaoId)}',this.value)" style="background:#0a1626;color:#cfe2f2;border:1px solid rgba(79,168,208,.25);border-radius:7px;padding:4px 5px;font-size:10px;cursor:pointer;">

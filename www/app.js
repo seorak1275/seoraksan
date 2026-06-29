@@ -1951,8 +1951,63 @@ function _sosBuildUI(){
       ${_sosLang!=='ko'?`<input id="sosCountry" placeholder="${_st('country')}" value="${_esc(_ct)}" oninput="_sosPushInfo()" style="width:100%;box-sizing:border-box;background:#0b1c30;border:1px solid rgba(255,255,255,.15);color:#fff;border-radius:9px;padding:12px;font-size:15px;margin-bottom:7px;">`:''}
       <textarea id="sosMsg" placeholder="${_st('msg')}" oninput="_sosPushInfo()" rows="3" style="width:100%;box-sizing:border-box;background:#0b1c30;border:1px solid rgba(255,255,255,.15);color:#fff;border-radius:9px;padding:12px;font-size:15px;resize:vertical;">${_esc(_mg)}</textarea>
     </div>
-    <div id="sosTip" style="margin-top:16px;font-size:12px;color:#5a7e98;text-align:center;line-height:1.6;max-width:420px;">${_st('tip')}</div>`;
+    <div id="sosTip" style="margin-top:16px;font-size:12px;color:#5a7e98;text-align:center;line-height:1.6;max-width:420px;">${_st('tip')}</div>
+    <div style="width:100%;max-width:420px;margin-top:18px;">
+      <div style="font-size:12px;color:#8ab4cc;font-weight:700;margin-bottom:6px;">💬 ${_sct('chat')}</div>
+      <div id="sosChat" style="background:#0b1c30;border:1px solid rgba(255,255,255,.1);border-radius:12px;padding:10px;min-height:60px;max-height:260px;overflow-y:auto;"></div>
+      <div style="display:flex;gap:6px;margin-top:7px;">
+        <input id="sosChatIn" placeholder="${_sct('chatPh')}" style="flex:1;min-width:0;box-sizing:border-box;background:#0b1c30;border:1px solid rgba(255,255,255,.15);color:#fff;border-radius:9px;padding:11px;font-size:15px;" onkeydown="if(event.key==='Enter')_sosVictimSend()">
+        <button onclick="_sosVictimSend()" style="flex-shrink:0;background:#1a6e9e;color:#fff;border:none;border-radius:9px;padding:0 16px;font-size:14px;font-weight:700;cursor:pointer;">${_sct('send')}</button>
+      </div>
+    </div>`;
   _sosRefreshStatus();
+  try{_sosRenderChat();}catch(e){}
+}
+// 조난자 대화 라벨(간소 10개국 — 본 사전과 별도)
+const _SOS_CHAT={
+  ko:{chat:'구조대와 대화',send:'전송',chatPh:'메시지 입력'},en:{chat:'Chat with rescue team',send:'Send',chatPh:'Type a message'},
+  zh:{chat:'与救援队对话',send:'发送',chatPh:'输入消息'},ja:{chat:'救助隊と会話',send:'送信',chatPh:'メッセージを入力'},
+  vi:{chat:'Trò chuyện với đội cứu hộ',send:'Gửi',chatPh:'Nhập tin nhắn'},th:{chat:'แชทกับทีมกู้ภัย',send:'ส่ง',chatPh:'พิมพ์ข้อความ'},
+  ru:{chat:'Чат со спасателями',send:'Отпр.',chatPh:'Введите сообщение'},es:{chat:'Chat con rescate',send:'Enviar',chatPh:'Escribe un mensaje'},
+  fr:{chat:'Discuter avec les secours',send:'Envoyer',chatPh:'Écrire un message'},de:{chat:'Chat mit der Rettung',send:'Senden',chatPh:'Nachricht eingeben'}
+};
+function _sct(k){return (_SOS_CHAT[_sosLang]||_SOS_CHAT.en)[k]||_SOS_CHAT.en[k]||k;}
+function _sosMsgTime(ts){try{const d=new Date(ts);const p=n=>String(n).padStart(2,'0');return p(d.getMonth()+1)+'/'+p(d.getDate())+' '+p(d.getHours())+':'+p(d.getMinutes());}catch(e){return '';}}
+// 채팅 말풍선: mySide 기준 내 메시지는 오른쪽, 상대는 왼쪽(라벨 표시). 팀 말풍선은 조난자에겐 소속, 팀에겐 보낸 사람 이름.
+function _sosChatBubbles(msgs,mySide){
+  if(!msgs||!msgs.length)return '<div style="text-align:center;font-size:11px;color:#5a7e98;padding:12px 0;">아직 주고받은 메시지가 없습니다</div>';
+  return msgs.slice().sort((a,b)=>(a.ts||0)-(b.ts||0)).map(m=>{
+    const mine=(m.f===mySide);
+    let label='';
+    if(!mine){
+      if(m.f==='t')label=(mySide==='v'?(m.org||'구조대'):(m.by||m.org||'구조대'));
+      else label=(m.by||'조난자');
+    }
+    const bg=mine?'#1a6e9e':'#22384e',align=mine?'flex-end':'flex-start';
+    return '<div style="display:flex;flex-direction:column;align-items:'+align+';margin-bottom:8px;">'
+      +(label?'<div style="font-size:10px;color:#7dd3fa;font-weight:700;margin-bottom:2px;padding:0 4px;">'+_esc(label)+'</div>':'')
+      +'<div style="max-width:80%;background:'+bg+';color:#eaf4fb;border-radius:13px;padding:8px 11px;font-size:14px;line-height:1.45;word-break:break-word;">'+_esc(m.x||'')+'</div>'
+      +'<div style="font-size:9px;color:#5a7e98;margin-top:2px;padding:0 4px;">'+_sosMsgTime(m.ts)+'</div></div>';
+  }).join('');
+}
+// sos 문서 msgs 배열에 메시지 추가(arrayUnion → 동시 추가에도 누락 없음). 인증 사용자(팀·익명 조난자) 모두 허용.
+function _sosAppendMsg(id,msg){
+  const db=_fdb||_sosDb;if(!db||!id)return;
+  try{db.collection('sos').doc(id).set({msgs:firebase.firestore.FieldValue.arrayUnion(msg)},{merge:true}).catch(function(){});}catch(e){}
+}
+let _sosMsgsCache=[];
+function _sosRenderChat(){
+  const el=document.getElementById('sosChat');if(!el)return;
+  el.innerHTML=_sosChatBubbles(_sosMsgsCache,'v');
+  el.scrollTop=el.scrollHeight;
+}
+function _sosVictimSend(){
+  const inp=document.getElementById('sosChatIn');const t=((inp&&inp.value)||'').trim();if(!t)return;
+  inp.value='';
+  const nm=((document.getElementById('sosName')||{}).value||'').trim()||'조난자';
+  const msg={f:'v',x:t.slice(0,300),by:nm.slice(0,20),org:'',ts:Date.now()};
+  _sosMsgsCache=(_sosMsgsCache||[]).concat([msg]);_sosRenderChat(); // 낙관적 즉시 표시
+  _sosAppendMsg(_sosId,msg);
 }
 function _sosRefreshStatus(){
   const btn=document.getElementById('sosStartBtn');
@@ -2074,8 +2129,13 @@ function _sosVictimListen(){
 }
 function _sosVictimUpdate(d){
   if(!d)return;
-  if(d.teamMsg&&d.teamMsg!==_sosTeamMsgSeen){_sosTeamMsgSeen=d.teamMsg;_sosShowTeamMsg(d.teamMsg);}
-  else if(!d.teamMsg&&_sosTeamMsgSeen){_sosTeamMsgSeen='';const e=document.getElementById('sosTeamMsg');if(e)e.remove();}
+  // 채팅 메시지 동기화(+구버전 teamMsg는 팀 메시지로 흡수)
+  let msgs=(d.msgs||[]).slice();
+  if(d.teamMsg&&!msgs.some(m=>m.f==='t'&&m.x===d.teamMsg)){msgs.push({f:'t',x:d.teamMsg,org:'구조대',ts:d.teamMsgAt||Date.now()});}
+  const prevLen=(_sosMsgsCache||[]).length;
+  _sosMsgsCache=msgs;
+  try{_sosRenderChat();}catch(e){}
+  if(msgs.length>prevLen){try{const last=msgs[msgs.length-1];if(last&&last.f==='t')toast('💬 구조대 메시지가 도착했습니다');}catch(e){}}
   if(d.active===false&&!_sosClosed){_sosClosed=true;_sosStopAll();_sosShowClosed();}
 }
 function _sosStopAll(){
@@ -2169,7 +2229,14 @@ function _sosRefreshAll(){
   try{_updateSosFab();}catch(e){}
   try{if(window.curApp==='rescue')renderResList();}catch(e){}
   try{const bv=document.getElementById('v-board');if(bv&&bv.classList.contains('on')&&_boardMap)_renderBoardPins(false);}catch(e){}
-  try{if(document.getElementById('sosModal'))openSosRequest();}catch(e){}
+  // 모달이 열려 있으면: 팝업(대화)이면 채팅만 갱신(입력 보존), 목록이면 목록 갱신
+  try{if(document.getElementById('sosModal')){if(window._sosPopupId)_sosRefreshTeamChat();else openSosRequest();}}catch(e){}
+}
+function _sosRefreshTeamChat(){
+  if(!window._sosPopupId)return;
+  const c=document.getElementById('sosTeamChat');if(!c)return;
+  const p=(_sosPings||[]).find(x=>x.id===window._sosPopupId);if(!p)return;
+  c.innerHTML=_sosChatBubbles(p.msgs||[],'t');c.scrollTop=c.scrollHeight;
 }
 function _sosCloseToken(id){
   if(!confirm('이 1회용 링크를 종료할까요?\n종료하면 해당 링크로는 더 이상 위치가 들어오지 않고, 접속한 사람 화면에도 종료 안내가 표시됩니다.'))return;
@@ -2179,6 +2246,7 @@ function _sosCloseToken(id){
   toast('✅ 접수 종료 — 링크 비활성화됨');
 }
 function openSosRequest(){
+  window._sosPopupId=null; // 목록 화면 → 팝업 대화 모드 해제
   const toks=(_sosPings||[]).slice().sort((a,b)=>(b.issuedAt||0)-(a.issuedAt||0));
   const cards=toks.map(p=>{
     const url=_sosVictimUrl(p.id);
@@ -2204,7 +2272,7 @@ function openSosRequest(){
       </div>
       <div style="display:flex;gap:5px;">
         ${navigator.share?`<button onclick="_sosShareUrl('${p.id}')" style="flex:1;background:rgba(39,174,96,.12);color:#27ae60;border:1px solid rgba(39,174,96,.35);border-radius:7px;padding:8px;font-size:12px;font-weight:700;cursor:pointer;">📤 보내기</button>`:`<button onclick="_sosSms('${p.id}')" style="flex:1;background:rgba(79,168,208,.1);color:#4fa8d0;border:1px solid rgba(79,168,208,.3);border-radius:7px;padding:8px;font-size:12px;font-weight:700;cursor:pointer;">✉️ 문자</button>`}
-        <button onclick="_sosSendMsg('${p.id}')" style="flex:1;background:rgba(125,211,250,.1);color:#7dd3fa;border:1px solid rgba(125,211,250,.3);border-radius:7px;padding:8px;font-size:12px;font-weight:700;cursor:pointer;">💬 메시지${p.teamMsg?' ✓':''}</button>
+        <button onclick="_sosPinPopup('${p.id}')" style="flex:1;background:rgba(125,211,250,.1);color:#7dd3fa;border:1px solid rgba(125,211,250,.3);border-radius:7px;padding:8px;font-size:12px;font-weight:700;cursor:pointer;">💬 대화${(p.msgs&&p.msgs.length)?' '+p.msgs.length:''}</button>
         ${has?`<button onclick="sosToRescue('${p.id}')" style="flex:1;background:rgba(231,76,60,.15);color:#ff6b5e;border:1px solid rgba(231,76,60,.4);border-radius:7px;padding:8px;font-size:12px;font-weight:700;cursor:pointer;">🚨 구조등록</button>`:''}
         <button onclick="_sosCloseToken('${p.id}')" style="flex-shrink:0;background:rgba(192,57,43,.1);color:#c0392b;border:1px solid rgba(192,57,43,.3);border-radius:7px;padding:8px 11px;font-size:12px;font-weight:700;cursor:pointer;">종료</button>
       </div>
@@ -2228,7 +2296,7 @@ function _sosModal(title,html){
     ${html}</div>`;
   m.onclick=function(e){if(e.target===m)_sosCloseModal();};
 }
-function _sosCloseModal(){const m=document.getElementById('sosModal');if(m)m.remove();}
+function _sosCloseModal(){window._sosPopupId=null;const m=document.getElementById('sosModal');if(m)m.remove();}
 // 조난자 위치 삭제 (테스트·종료된 항목 정리)
 // 외국인/언어/국적 배지 (팀 화면용)
 function _sosForeignBadge(p){
@@ -2277,38 +2345,51 @@ function _drawSosPins(){
 }
 function _sosPinPopup(id){
   const p=(_sosPings||[]).find(x=>x.id===id);if(!p)return;
-  const mm=Math.round((Date.now()-(p.ts||0))/60000);
+  window._sosPopupId=id; // 스냅샷 갱신 시 이 대화만 갱신(입력 보존)
+  const has=p.lat&&p.lng;
+  const mm=p.ts?Math.round((Date.now()-(p.ts||0))/60000):null;
   const html=`
     <div style="background:#0b1c30;border:1px solid rgba(231,76,60,.4);border-radius:11px;padding:13px 15px;margin-bottom:10px;">
       <div style="font-size:16px;font-weight:800;color:#ff8a73;">🆘 ${_esc(p.name||'익명 조난자')}</div>
       ${_sosForeignBadge(p)?`<div style="margin-top:5px;">${_sosForeignBadge(p)}</div>`:''}
       ${p.msg?`<div style="font-size:13px;color:#e0edf8;margin-top:6px;line-height:1.5;">${_esc(p.msg)}</div>`:''}
-      <div style="font-size:11px;color:#8ab4cc;margin-top:8px;font-family:monospace;">📍 ${(+p.lat).toFixed(6)}, ${(+p.lng).toFixed(6)}<br>정확도 ±${p.acc||'?'}m · ${mm}분 전 수신 · ${_sosAtStr(p)}</div>
+      ${has?`<div style="font-size:11px;color:#8ab4cc;margin-top:8px;font-family:monospace;">📍 ${(+p.lat).toFixed(6)}, ${(+p.lng).toFixed(6)}<br>정확도 ±${p.acc||'?'}m · ${mm}분 전 수신 · ${_sosAtStr(p)}</div>`:`<div style="font-size:11px;color:#ffd24d;margin-top:8px;">⚪ 아직 위치 미수신 — 대화는 가능합니다</div>`}
     </div>
-    <div style="display:flex;gap:6px;">
+    ${has?`<div style="display:flex;gap:6px;">
       <button onclick="_sosFocus('${p.id}')" style="flex:1;background:rgba(79,168,208,.12);color:#4fa8d0;border:1px solid rgba(79,168,208,.35);border-radius:8px;padding:11px;font-size:13px;font-weight:700;cursor:pointer;">🗺️ 위치로 이동</button>
       <button onclick="sosToRescue('${p.id}')" style="flex:1;background:linear-gradient(180deg,#e74c3c,#c0392b);color:#fff;border:none;border-radius:8px;padding:11px;font-size:13px;font-weight:800;cursor:pointer;">🚨 구조 사고로 등록</button>
+    </div>`:''}
+    <div style="margin-top:10px;background:#0b1c30;border:1px solid rgba(255,255,255,.08);border-radius:11px;padding:10px;">
+      <div style="font-size:12px;font-weight:700;color:#7dd3fa;margin-bottom:7px;">💬 조난자와 대화 <span style="font-size:10px;color:#5a7e98;font-weight:400;">상대 화면에 실시간 표시</span></div>
+      <div id="sosTeamChat" style="max-height:230px;overflow-y:auto;margin-bottom:8px;">${_sosChatBubbles(p.msgs||[],'t')}</div>
+      <div style="display:flex;gap:6px;">
+        <input id="sosTeamChatIn" placeholder="메시지 입력" style="flex:1;min-width:0;box-sizing:border-box;background:#060d1a;border:1px solid rgba(255,255,255,.15);color:#fff;border-radius:8px;padding:10px;font-size:14px;" onkeydown="if(event.key==='Enter')_sosTeamSend('${p.id}')">
+        <button onclick="_sosTeamSend('${p.id}')" style="flex-shrink:0;background:#1a6e9e;color:#fff;border:none;border-radius:8px;padding:0 15px;font-size:13px;font-weight:700;cursor:pointer;">전송</button>
+      </div>
     </div>
-    <button onclick="_sosSendMsg('${p.id}')" style="width:100%;margin-top:7px;background:rgba(125,211,250,.1);color:#7dd3fa;border:1px solid rgba(125,211,250,.3);border-radius:8px;padding:10px;font-size:12px;font-weight:700;cursor:pointer;">💬 조난자에게 메시지 보내기${p.teamMsg?' (보낸 메시지 있음)':''}</button>
     <button onclick="_sosCloseModal();_sosCloseToken('${p.id}')" style="width:100%;margin-top:7px;background:rgba(192,57,43,.1);color:#c0392b;border:1px solid rgba(192,57,43,.3);border-radius:8px;padding:10px;font-size:12px;font-weight:700;cursor:pointer;">🔚 접수 종료 (링크 비활성화)</button>`;
-  _sosModal('🆘 조난자 위치',html);
+  _sosModal('🆘 조난자',html);
+  setTimeout(function(){const c=document.getElementById('sosTeamChat');if(c)c.scrollTop=c.scrollHeight;},30);
+}
+// 구조대 → 조난자 메시지 전송(채팅) — 보낸 사람 이름/소속 함께 저장
+function _sosTeamSend(id){
+  const inp=document.getElementById('sosTeamChatIn');const t=((inp&&inp.value)||'').trim();if(!t)return;
+  inp.value='';
+  const u=DB.g('currentUser')||{};
+  const by=(u.realName||u.name||'구조대').slice(0,20);
+  const org=(u.dept||'설악산 구조대').slice(0,20);
+  const msg={f:'t',x:t.slice(0,300),by:by,org:org,ts:Date.now()};
+  const p=(_sosPings||[]).find(x=>x.id===id);if(p)p.msgs=(p.msgs||[]).concat([msg]);
+  _sosRefreshTeamChat(); // 낙관적 즉시 표시
+  _sosAppendMsg(id,msg);
 }
 function _sosCopyBtnOk(btn){if(!btn)return;const o=btn.textContent;btn.textContent='✓ 복사됨';btn.style.background='#27ae60';setTimeout(function(){try{btn.textContent=o;btn.style.background='#1a4a6e';}catch(e){}},1600);}
 function _sosCopyUrl(tok,btn){const u=_sosVictimUrl(tok);if(navigator.clipboard)navigator.clipboard.writeText(u).then(function(){toast('📋 링크 복사됨 — 조난·사고자에게 보내세요');_sosCopyBtnOk(btn);}).catch(function(){_fallbackCopy(u);_sosCopyBtnOk(btn);});else{_fallbackCopy(u);_sosCopyBtnOk(btn);}}
 function _sosShareUrl(tok){const u=_sosVictimUrl(tok);if(navigator.share)navigator.share({title:'설악산 구조대 위치전송',text:'[설악산 구조대] 아래 1회용 링크를 열면 위치가 구조대에 전송됩니다(로그인 불필요).\n'+u}).catch(()=>{});}
 function _sosSms(tok){const u=_sosVictimUrl(tok);location.href='sms:?body='+encodeURIComponent('[설악산 구조대] 아래 1회용 링크를 열어 위치를 보내주세요(로그인 불필요): '+u);}
 // 구조대 → 조난·사고자에게 메시지 전송 (그 사람 화면 하단에 즉시 표시 · 비우면 삭제)
-function _sosSendMsg(id){
-  const p=(_sosPings||[]).find(x=>x.id===id);
-  const prev=(p&&p.teamMsg)||'';
-  const m=prompt('조난·사고자에게 보낼 메시지\n(상대방 화면 하단에 바로 표시됩니다. 비우면 삭제)',prev);
-  if(m==null)return;
-  const t=String(m).slice(0,200);
-  if(p)p.teamMsg=t; // 로컬 즉시 반영
-  if(_fdb)_fdb.collection('sos').doc(id).set({teamMsg:t,teamMsgAt:Date.now()},{merge:true})
-    .then(function(){toast(t?'📤 메시지를 보냈습니다':'메시지를 삭제했습니다');})
-    .catch(function(e){toast('전송 실패: '+(e&&(e.code||e.message)||''));});
-}
+// 카드의 '💬 대화' 버튼 → 채팅 팝업 열기
+function _sosSendMsg(id){_sosPinPopup(id);}
 function _sosFocus(id){
   const p=(_sosPings||[]).find(x=>x.id===id);if(!p)return;
   _sosCloseModal();
@@ -2362,7 +2443,7 @@ function sosToRescue(id){
 // 앱 자체 업데이트 (OTA · Capgo 자체호스팅) — APK 전용. 웹/PWA는 서비스워커가 자동 갱신.
 // 번들(www)의 새 버전을 ota.json으로 알리면, 설치된 앱이 받아서 그 자리에서 교체(재빌드 불필요).
 // ══════════════════════════════════════════
-const OTA_VER='2026.06.29.10';                         // ← 현재 번들 버전 (릴리스마다 올림 · build-ota.sh가 ota.json에 반영)
+const OTA_VER='2026.06.29.11';                         // ← 현재 번들 버전 (릴리스마다 올림 · build-ota.sh가 ota.json에 반영)
 const OTA_MANIFEST='https://109yoon.github.io/seoraksan/ota.json';
 let _otaInfo=null;
 function _otaPlugin(){try{return (window.Capacitor&&window.Capacitor.Plugins&&window.Capacitor.Plugins.CapacitorUpdater)||null;}catch(e){return null;}}
