@@ -24,6 +24,30 @@ function openChangeUser(){
   const banner=document.getElementById('kakaoUserBanner');
   if(banner)banner.style.display=(u.kakaoId||u.kakaoImg)?'block':'none';
   _renderStaffQuickPick();
+  // 개인정보 잠금: 이미 입력 완료된 카카오 사용자는 본인이 못 바꾸고 관리자만 수정(이름·소속 임의변경 혼선 방지)
+  const _profileDone=!!(u.dept&&u.rank&&(u.realName||u.name));
+  const _locked=isKakao&&_profileDone&&!isAdminUser();
+  const _nameIn=document.getElementById('uNameIn');
+  const _deptIn=document.getElementById('uDeptIn');
+  const _pillsBox=document.getElementById('rankPills');
+  const _saveBtn=document.getElementById('userSaveBtn');
+  const _lockNote=document.getElementById('userLockNote');
+  const _quick=document.getElementById('staffQuickPick');
+  if(_locked){
+    if(titleEl)titleEl.textContent='👤 내 정보';
+    if(_nameIn){_nameIn.readOnly=true;_nameIn.style.opacity='.6';}
+    if(_deptIn){_deptIn.disabled=true;_deptIn.style.opacity='.6';}
+    if(_pillsBox){_pillsBox.style.pointerEvents='none';_pillsBox.style.opacity='.6';}
+    if(_quick)_quick.style.display='none';
+    if(_saveBtn)_saveBtn.style.display='none';
+    if(_lockNote)_lockNote.style.display='block';
+  }else{
+    if(_nameIn){_nameIn.readOnly=false;_nameIn.style.opacity='';}
+    if(_deptIn){_deptIn.disabled=false;_deptIn.style.opacity='';}
+    if(_pillsBox){_pillsBox.style.pointerEvents='';_pillsBox.style.opacity='';}
+    if(_saveBtn)_saveBtn.style.display='';
+    if(_lockNote)_lockNote.style.display='none';
+  }
   document.getElementById('modalUser').classList.add('on');
 }
 async function _sha256(str){
@@ -325,7 +349,7 @@ function updateUserUI(){
   // 아바타: 카카오 프로필 사진 or 이니셜
   if(av){
     if(u.kakaoImg){
-      av.innerHTML=`<img src="${_esc(u.kakaoImg)}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;" onerror="this.parentElement.textContent='👤'">`;
+      av.innerHTML=`<img src="${_esc(_imgHttps(u.kakaoImg))}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;" onerror="this.parentElement.textContent='👤'">`;
     } else {
       const initial=u.name?u.name.charAt(0):'👤';
       av.textContent=initial;
@@ -667,6 +691,10 @@ function _clearFocusPolylines(){
 
 function _drawFocusRoutes(resId){
   _clearFocusPolylines();
+  // 길따라 라인(네비게이션식 경로)·차/도보 ETA 표시 제거 — 7/20 이후 카카오 걷기·차 길찾기 API 도입 후 재구현 예정.
+  // (아래 원본 로직은 비활성. 재구현 시 이 return만 제거)
+  return;
+  /* eslint-disable */ // 이하 비활성 코드
   if(!mapR||!resId)return;
   const rescue=(DB.g('rescues')||[]).find(r=>r.id===resId);
   if(!rescue||!rescue.teams)return;
@@ -849,11 +877,8 @@ function _renderFocusPanel(resId){
     const baseWp=team.wps.find(w=>w.isBase);
     const hasBase=baseWp&&_getBaseByName(baseWp.name);
     const tps=team.wps.filter(w=>!w.isBase&&w.lat&&w.lng);
+    // 경로/ETA(차·도보) 표시 제거 — 7/20 카카오 걷기·차 길찾기 API 도입 후 재구현 예정
     let routeStr='';
-    if(hasBase){
-      const body=info?_routeInfoStr(info,tps.length>1):'🚗 계산중…'+(tps.length>1?' · 🚶 …':'');
-      routeStr=`<div id="rinfo-${resId}-${ti}" style="font-size:10px;color:rgba(240,192,64,${info?'.65':'.45'});margin-top:5px;padding-top:5px;border-top:1px solid rgba(255,255,255,.05);">${body}</div>`;
-    }
     const isOpen=_fpTeamOpen.has(ti);
     // 세부정보: 구성원 + 경유지 목록
     let detailHtml='';

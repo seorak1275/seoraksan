@@ -7,6 +7,8 @@ function _logErr(msg){
     localStorage.setItem('_errLog',JSON.stringify(log.slice(0,30)));
   }catch(e){}
 }
+// 카카오 프로필 사진 URL은 http:// 로 오는데, 앱이 https://localhost 출처라 혼합콘텐츠로 차단됨 → https로 승격
+function _imgHttps(u){return String(u||'').replace(/^http:\/\//i,'https://');}
 window.addEventListener('error',e=>{_logErr((e.message||'오류')+' @'+(e.filename||'').split('/').pop()+':'+(e.lineno||''));});
 window.addEventListener('unhandledrejection',e=>{_logErr('Promise: '+((e.reason&&e.reason.message)||e.reason||'거부'));});
 
@@ -461,6 +463,19 @@ function initFirebase(onReady){
     function _onRemoteUpdate(){
       _checkDeletedUser();updateSummary();
       try{_checkNewJoinerAlert();}catch(e){}
+      // 새 기기 첫 로그인: 동기화 전이라 프로필을 못 찾아 입력창이 떴어도, pendingUsers가 도착하면
+      // 서버 기록에서 자동 복원하고 입력창을 닫음(개인정보 재입력 방지)
+      try{
+        var _cu=DB.g('currentUser')||{};
+        if(_resolveAuthType()==='kakao'&&_cu.kakaoId&&!(_cu.dept&&_cu.rank&&(_cu.realName||_cu.name))){
+          if(_restoreProfileFromServer(_cu.kakaoId)){
+            updateUserUI();
+            var _mu=document.getElementById('modalUser');
+            if(_mu&&_mu.classList.contains('on')){window._requireProfile=false;window._needsCode=false;try{closeM('modalUser');}catch(e){}}
+            try{_enforceAccessGate();}catch(e){}
+          }
+        }
+      }catch(e){}
       // 승인 대기 중인 사용자: _acl 동기화 즉시 멤버 판정 → 재로그인 없이 자동 입장
       try{var _g=document.getElementById('approvalGate');if(_g&&_g.style.display!=='none'){if(_isAutoApprove()){var _u=DB.g('currentUser')||{};if(_u.kakaoId)_aclSelfApprove(_u.kakaoId);}if(_isMember()){_g.style.display='none';_stopApprovalPoll();updateUserUI();try{goHome();}catch(e){}toast('✅ 승인 완료 — 환영합니다');}}}catch(e){}
       try{_updateCrisisBanner();}catch(e){}

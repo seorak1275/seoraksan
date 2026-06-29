@@ -633,7 +633,8 @@ if(window.Kakao&&!Kakao.isInitialized()) Kakao.init(KAKAO_KEY);
       <div style="font-size:11px;color:#4a7090;margin-bottom:6px;">관리자에게 받은 승인 코드를 입력하세요</div>
       <input type="text" id="uCodeIn" class="fi" placeholder="승인 코드 입력" style="letter-spacing:2px;text-transform:uppercase;" onkeydown="if(event.key==='Enter')saveUser()">
     </div>
-    <button class="btn-submit" style="background:#1a4a6e;color:#fff;" onclick="saveUser()">저장</button>
+    <div id="userLockNote" style="display:none;background:rgba(79,168,208,.08);border:1px solid rgba(79,168,208,.22);border-radius:8px;padding:11px 12px;font-size:11px;color:#9bbdd4;line-height:1.6;">ℹ️ 이름·소속·직위는 <b style="color:#cfe2f2;">관리자만</b> 수정할 수 있습니다.<br>변경이 필요하면 관리자에게 문의하세요. (직원이 임의로 바꾸면 혼선이 생겨 잠가둠)</div>
+    <button id="userSaveBtn" class="btn-submit" style="background:#1a4a6e;color:#fff;" onclick="saveUser()">저장</button>
   </div>
 </div>
 
