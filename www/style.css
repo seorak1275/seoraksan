@@ -174,7 +174,7 @@ button{-webkit-tap-highlight-color:transparent;touch-action:manipulation;}
 .p-tree{border-color:#ca6f1e;background:#ca6f1e;color:#fff;}.p-fire{border-color:#a93226;background:#a93226;color:#fff;}
 .p-haz{border-color:#e67e22;background:#e67e22;color:#fff;}.p-etc{border-color:#5d6d7e;background:#4a5568;color:#fff;}
 /* 종료 사고: 너무 흐리지 않게(시인성↑) + 회녹색 테두리로 '종료' 구분 */
-.p-done{opacity:.7;filter:saturate(.65);border-color:#3a7a52 !important;}
+.p-done{opacity:.96;filter:none;border-color:#3a7a52 !important;}
 .p-me{border-color:#4fa8d0;background:#4fa8d0;color:#fff;}
 /* 합성(opacity·transform)만 애니메이션 → 매 프레임 repaint 없이 GPU에서 처리(배터리 절약).
    글로우는 정적 box-shadow로 유지 */

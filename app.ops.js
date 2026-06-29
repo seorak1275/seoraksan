@@ -2101,12 +2101,16 @@ function toggleAutoApprove(){
 }
 // 관리자 기기: 대기 중인 신청자를 모두 멤버로 등록(자동 승인 ON일 때)
 function _autoApproveSweep(){
-  const pend=_pendingNotApproved();
-  if(!pend.length)return 0;
+  // 로그인 이력(loginLog) + 가입신청(pendingUsers)의 모든 kakaoId를 멤버로 등록.
+  // (이전엔 pendingUsers만 훑어, 로그인만 하고 신청레코드 없는 사용자가 누락 → 승인버튼 잔존·입장불가)
   const acl=_getAcl();let n=0;
-  pend.forEach(function(u){
-    const kid=String(u.kakaoId||'');
-    if(kid&&acl.admins.indexOf(kid)<0&&acl.members.indexOf(kid)<0){acl.members.push(kid);n++;}
+  const deleted=new Set((DB.g('deletedKakaoIds')||[]).map(String)); // 관리자가 내보낸 사람은 제외
+  const ids=new Set();
+  (DB.g('loginLog')||[]).forEach(function(e){if(e&&e.kakaoId)ids.add(String(e.kakaoId));});
+  (DB.g('pendingUsers')||[]).forEach(function(p){const k=String(p.kakaoId||p.id||'');if(k)ids.add(k);});
+  ids.forEach(function(k){
+    if(!k||deleted.has(k))return;
+    if(acl.admins.indexOf(k)<0&&acl.members.indexOf(k)<0){acl.members.push(k);n++;}
   });
   if(n){DB.s('_acl',acl);
     // pendingUsers 상태도 approved로 갱신
@@ -2233,10 +2237,6 @@ function renderAdmSys(){
         </div>
       </div>
       <div id="fcmStatus" style="font-size:10px;color:#3a6a8a;margin-top:8px;line-height:1.7;">등록된 기기 확인 중…</div>
-    </div>
-    <div class="scard" style="margin-bottom:8px;">
-      <div class="stitle">👥 새 가입자 알림${unseenCnt>0?` <span style="background:#c0392b;color:#fff;font-size:10px;padding:1px 7px;border-radius:20px;margin-left:6px;font-weight:700;">${unseenCnt}</span>`:''}</div>
-      ${_renderPendingList()}
     </div>
     <div class="scard" style="margin-bottom:8px;"><div class="stitle">📊 데이터 현황</div>
       <div style="font-size:12px;color:#b8d4e8;line-height:2.1;">시설물 <b>${(DB.g('facilities')||[]).length}개</b> · 점검이력 <b>${(DB.g('history')||[]).length}건</b><br>구조이력 <b>${(DB.g('rescues')||[]).length}건</b> · 위험상황 <b>${(DB.g('hazards')||[]).length}건</b><br>특보운영 <b>${(DB.g('alertOps')||[]).length}건</b> · 대원 <b>${(DB.g('members')||[]).length}명</b></div>
