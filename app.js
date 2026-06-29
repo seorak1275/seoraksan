@@ -8578,6 +8578,11 @@ function renderAdmSys(){
       </div>
     </div>
     <div class="scard" style="margin-bottom:8px;">
+      <div class="stitle">🔄 앱 업데이트</div>
+      <div style="font-size:11px;color:#7a9cb8;margin-bottom:8px;">현재 버전 <b style="color:#cfe2f2;">${OTA_VER}</b> · 앱(APK)은 재설치 없이 최신 코드로 자체 업데이트됩니다. (웹은 새로고침 시 자동)</div>
+      <button onclick="_otaCheck(true)" style="width:100%;padding:11px;border-radius:8px;border:1px solid rgba(79,168,208,.4);background:rgba(79,168,208,.12);color:#4fa8d0;font-size:13px;font-weight:700;cursor:pointer;">🔄 업데이트 확인 / 적용</button>
+    </div>
+    <div class="scard" style="margin-bottom:8px;">
       <div class="stitle">🆘 조난·사고자 위치 접수</div>
       <div style="font-size:11px;color:#7a9cb8;margin-bottom:8px;">악용·오작동 시 전체 접수를 차단할 수 있습니다. 차단 중엔 1회용 링크도 발급되지 않고 수신 위치가 표시되지 않습니다.</div>
       ${(()=>{const blk=!!DB.g('sosBlocked');return `<button onclick="toggleSosBlock()" style="width:100%;padding:11px;border-radius:8px;border:1px solid ${blk?'rgba(39,174,96,.4)':'rgba(192,57,43,.4)'};background:${blk?'rgba(39,174,96,.12)':'rgba(192,57,43,.12)'};color:${blk?'#27ae60':'#e05050'};font-size:13px;font-weight:700;cursor:pointer;">${blk?'⛔ 현재 차단됨 — 탭하여 접수 허용':'🆗 현재 허용됨 — 탭하여 접수 차단'}</button>`;})()}
@@ -11092,6 +11097,49 @@ function sosToRescue(id){
   toast('🚨 조난 접수 — 1보 작성 화면');
 }
 
+// ══════════════════════════════════════════
+// 앱 자체 업데이트 (OTA · Capgo 자체호스팅) — APK 전용. 웹/PWA는 서비스워커가 자동 갱신.
+// 번들(www)의 새 버전을 ota.json으로 알리면, 설치된 앱이 받아서 그 자리에서 교체(재빌드 불필요).
+// ══════════════════════════════════════════
+const OTA_VER='2026.06.28.1';                         // ← 현재 번들 버전 (릴리스마다 올림 · build-ota.sh가 ota.json에 반영)
+const OTA_MANIFEST='https://109yoon.github.io/seoraksan/ota.json';
+let _otaInfo=null;
+function _otaPlugin(){try{return (window.Capacitor&&window.Capacitor.Plugins&&window.Capacitor.Plugins.CapacitorUpdater)||null;}catch(e){return null;}}
+function _isNativeApp(){try{return !!(window.Capacitor&&window.Capacitor.isNativePlatform&&window.Capacitor.isNativePlatform());}catch(e){return false;}}
+async function _otaCheck(manual){
+  const plug=_otaPlugin();
+  if(!_isNativeApp()||!plug){ if(manual)toast('웹은 새로고침으로 자동 갱신됩니다(앱 전용 기능)'); return; }
+  let m;
+  try{ const r=await fetch(OTA_MANIFEST+'?t='+Date.now(),{cache:'no-store'}); m=await r.json(); }
+  catch(e){ if(manual)toast('⚠️ 업데이트 확인 실패 (네트워크)'); return; }
+  if(!m||!m.version||!m.url){ if(manual)toast('업데이트 정보 없음'); return; }
+  if(String(m.version)===String(OTA_VER)){ _otaInfo=null;_otaBanner(); if(manual)toast('✅ 최신 버전입니다 ('+OTA_VER+')'); return; }
+  _otaInfo=m; _otaBanner();
+  if(manual)_otaApply();
+}
+async function _otaApply(){
+  const plug=_otaPlugin(); if(!plug||!_otaInfo)return;
+  try{
+    toast('⬇️ 업데이트 받는 중… 잠시만요 (완료되면 자동 재시작)',8000);
+    const b=await plug.download({url:_otaInfo.url,version:String(_otaInfo.version)});
+    await plug.set(b); // 적용 + 자동 재시작 (새 번들이 notifyAppReady 못하면 다음 실행 시 자동 롤백)
+  }catch(e){ toast('⚠️ 업데이트 실패: '+(e&&(e.message||e.code)||e)); }
+}
+function _otaBanner(){
+  let el=document.getElementById('otaBanner');
+  if(!_otaInfo){ if(el)el.remove(); return; }
+  if(!el){ el=document.createElement('div'); el.id='otaBanner'; document.body.appendChild(el); }
+  el.style.cssText='position:fixed;top:0;left:0;right:0;z-index:99998;background:linear-gradient(180deg,#e74c3c,#c0392b);color:#fff;padding:11px 14px;font-size:13px;font-weight:700;display:flex;align-items:center;justify-content:space-between;gap:10px;box-shadow:0 2px 10px rgba(0,0,0,.5);cursor:pointer;padding-top:calc(11px + env(safe-area-inset-top));';
+  el.innerHTML='<span>🔄 새 버전이 있습니다'+(_otaInfo.notes?' — '+_esc(_otaInfo.notes):'')+'</span><button style="background:#fff;color:#c0392b;border:none;border-radius:7px;padding:6px 12px;font-size:12px;font-weight:800;cursor:pointer;flex-shrink:0;">지금 업데이트</button>';
+  el.onclick=_otaApply;
+}
+function _otaInit(){
+  if(!_isNativeApp())return;
+  const plug=_otaPlugin();
+  if(plug&&plug.notifyAppReady){try{plug.notifyAppReady();}catch(e){}} // 현재 번들 정상 표시(미호출 시 다음 실행 롤백)
+  setTimeout(function(){_otaCheck(false);},4000); // 시작 후 조용히 확인 → 있으면 상단 배너
+}
+
 window.onload=function(){
   // 🆘 조난자 위치전송 모드(?sos): 로그인·앱 로딩 전부 건너뛰고 위치만 전송
   if(/[?&]sos(=|&|$)/.test(location.search)){ try{_bootSos();}catch(e){document.body.innerHTML='<div style="color:#fff;padding:30px;font-size:16px;">위치 전송 초기화 오류: '+(e&&e.message||e)+'<br>새로고침 해주세요.</div>';} return; }
@@ -11313,6 +11361,7 @@ window.onload=function(){
       window._swReloaded=true;location.reload();
     });
   }
+  try{_otaInit();}catch(e){} // APK 자체 업데이트(OTA) 확인
   // 네이티브(APK): 알림 권한 먼저 요청 → 끝난 뒤 위치 권한 요청 (시스템 다이얼로그가 겹치지 않도록 순차 실행)
   Promise.resolve(_initNativePush()).catch(function(){}).then(function(){return _initNativeLocationPerm();}).catch(function(){});
 
