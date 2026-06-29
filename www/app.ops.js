@@ -1790,7 +1790,7 @@ function renderAdmMembers(){
     html+=`<div style="background:rgba(230,126,34,.07);border:1px solid rgba(230,126,34,.3);border-radius:11px;padding:11px;margin-bottom:12px;">
       <div style="font-size:12px;font-weight:800;color:#e67e22;margin-bottom:9px;">🆕 신규 승인 대기 <span style="background:#e67e22;color:#fff;border-radius:10px;padding:0 7px;font-size:10px;margin-left:3px;">${pendingNew.length}</span></div>`
       +pendingNew.map(u=>`<div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-top:1px solid rgba(255,255,255,.05);">
-        ${u.kakaoImg?`<img src="${_esc(u.kakaoImg)}" style="width:34px;height:34px;border-radius:50%;object-fit:cover;flex-shrink:0;" onerror="this.style.display='none'">`:`<div style="width:34px;height:34px;border-radius:50%;background:#3a2a18;display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0;">🆕</div>`}
+        ${u.kakaoImg?`<img src="${_esc(_imgHttps(u.kakaoImg))}" style="width:34px;height:34px;border-radius:50%;object-fit:cover;flex-shrink:0;" onerror="this.style.display='none'">`:`<div style="width:34px;height:34px;border-radius:50%;background:#3a2a18;display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0;">🆕</div>`}
         <div style="flex:1;min-width:0;">
           <div style="font-size:13px;font-weight:700;color:#e0edf8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${_esc(u.name||'이름없음')}</div>
           <div style="font-size:10px;color:#9c8060;margin-top:1px;">${_esc(u.dept||'소속 미입력')}${u.rank?' · '+_esc(u.rank):''} <span style="font-family:monospace;color:#6a5030;">ID ${_esc(u.kakaoId)}</span></div>
@@ -1816,7 +1816,7 @@ function renderAdmMembers(){
       const editId='adme_'+u.kakaoId;
       return `<div style="padding:8px 0;border-bottom:1px solid rgba(255,255,255,.05);">
         <div style="display:flex;align-items:center;gap:8px;">
-          ${u.kakaoImg?`<img src="${_esc(u.kakaoImg)}" style="width:32px;height:32px;border-radius:50%;object-fit:cover;flex-shrink:0;" onerror="this.style.display='none'">`:`<div style="width:32px;height:32px;border-radius:50%;background:#1a3a5a;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0;">👤</div>`}
+          ${u.kakaoImg?`<img src="${_esc(_imgHttps(u.kakaoImg))}" style="width:32px;height:32px;border-radius:50%;object-fit:cover;flex-shrink:0;" onerror="this.style.display='none'">`:`<div style="width:32px;height:32px;border-radius:50%;background:#1a3a5a;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0;">👤</div>`}
           <div style="flex:1;min-width:0;">
             <div style="font-size:12px;font-weight:700;color:#e0edf8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${_esc(u.name||'이름없음')} ${roleBadge} ${appBadge}</div>
             <div style="font-size:10px;color:#4a7090;margin-top:1px;">${_esc(u.dept)}${u.rank?' · '+_esc(u.rank):''} <span style="font-family:monospace;color:#2a5060;">ID ${_esc(u.kakaoId)}</span></div>

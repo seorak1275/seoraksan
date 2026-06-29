@@ -25,7 +25,7 @@ function renderSettings(){
       </div>
       <div class="scard" style="margin-bottom:8px;">
         <div class="stitle">💬 카카오 로그인</div>
-        ${(()=>{if(u.kakaoImg||u.kakaoId){return`<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;"><img src="${_esc(u.kakaoImg||'')}" style="width:36px;height:36px;border-radius:50%;object-fit:cover;background:#1a3a5a;" onerror="this.style.display='none'"><div style="font-size:12px;color:#b8d4e8;"><b style="color:#e0edf8;">${_esc(u.name||'')}</b> 님으로 연결됨</div></div><button onclick="kakaoLogout()" style="width:100%;background:rgba(255,80,80,.12);color:#ff8a80;border:1px solid rgba(255,80,80,.25);padding:9px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;margin-bottom:6px;">🚪 카카오 로그아웃</button><button onclick="withdrawAccount()" style="width:100%;background:rgba(180,20,20,.12);color:#cc4444;border:1px solid rgba(180,20,20,.25);padding:8px;border-radius:8px;font-size:11px;font-weight:600;cursor:pointer;">🗑️ 회원탈퇴</button>`;}return`<div style="font-size:11px;color:#7a9cb8;margin-bottom:8px;">카카오 계정으로 로그인하면 작성자 정보가 자동 설정됩니다.</div><button onclick="kakaoLogin()" style="width:100%;background:rgba(254,229,0,.18);color:#f0d900;border:1px solid rgba(254,229,0,.3);padding:9px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;">💬 카카오로 로그인</button>`;})()}
+        ${(()=>{if(u.kakaoImg||u.kakaoId){return`<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;"><img src="${_esc(_imgHttps(u.kakaoImg||''))}" style="width:36px;height:36px;border-radius:50%;object-fit:cover;background:#1a3a5a;" onerror="this.style.display='none'"><div style="font-size:12px;color:#b8d4e8;"><b style="color:#e0edf8;">${_esc(u.name||'')}</b> 님으로 연결됨</div></div><button onclick="kakaoLogout()" style="width:100%;background:rgba(255,80,80,.12);color:#ff8a80;border:1px solid rgba(255,80,80,.25);padding:9px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;margin-bottom:6px;">🚪 카카오 로그아웃</button><button onclick="withdrawAccount()" style="width:100%;background:rgba(180,20,20,.12);color:#cc4444;border:1px solid rgba(180,20,20,.25);padding:8px;border-radius:8px;font-size:11px;font-weight:600;cursor:pointer;">🗑️ 회원탈퇴</button>`;}return`<div style="font-size:11px;color:#7a9cb8;margin-bottom:8px;">카카오 계정으로 로그인하면 작성자 정보가 자동 설정됩니다.</div><button onclick="kakaoLogin()" style="width:100%;background:rgba(254,229,0,.18);color:#f0d900;border:1px solid rgba(254,229,0,.3);padding:9px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;">💬 카카오로 로그인</button>`;})()}
       </div>
       <a href="https://github.com/109yoon/seoraksan/releases/latest" target="_blank" style="display:flex;align-items:center;gap:10px;background:#0b1c30;border:1px solid rgba(79,168,208,.18);border-radius:10px;padding:11px 13px;text-decoration:none;flex-shrink:0;">
         <span style="font-size:18px;">📱</span>
@@ -208,7 +208,7 @@ function _handleKakaoCode(code,redirectUri){
     var _saved=_roster.find(function(x){return x&&String(x.kakaoId||x.id)===kakaoId;})||{};
     var merged=Object.assign({},u,{
       kakaoId:kakaoId,
-      kakaoImg:prof.profile_image_url||prof.thumbnail_image_url||'',
+      kakaoImg:_imgHttps(prof.profile_image_url||prof.thumbnail_image_url||''),
       realName:u.realName||_saved.realName||'',
       name:u.name||_saved.name||_saved.realName||prof.nickname||'',
       dept:u.dept||_saved.dept||'',
@@ -2357,7 +2357,7 @@ function sosToRescue(id){
 // 앱 자체 업데이트 (OTA · Capgo 자체호스팅) — APK 전용. 웹/PWA는 서비스워커가 자동 갱신.
 // 번들(www)의 새 버전을 ota.json으로 알리면, 설치된 앱이 받아서 그 자리에서 교체(재빌드 불필요).
 // ══════════════════════════════════════════
-const OTA_VER='2026.06.29.8';                         // ← 현재 번들 버전 (릴리스마다 올림 · build-ota.sh가 ota.json에 반영)
+const OTA_VER='2026.06.29.9';                         // ← 현재 번들 버전 (릴리스마다 올림 · build-ota.sh가 ota.json에 반영)
 const OTA_MANIFEST='https://109yoon.github.io/seoraksan/ota.json';
 let _otaInfo=null;
 function _otaPlugin(){try{return (window.Capacitor&&window.Capacitor.Plugins&&window.Capacitor.Plugins.CapacitorUpdater)||null;}catch(e){return null;}}

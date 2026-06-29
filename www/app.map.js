@@ -723,9 +723,7 @@ function openApp(mode){
       localStorage.setItem('_adminAuthed','1');
     }
     if(localStorage.getItem('_adminAuthed')!=='1'){
-      const ov=document.getElementById('adminLoginOverlay');
-      ov.style.display='flex';
-      setTimeout(()=>document.getElementById('adminLoginPw').focus(),200);
+      _showAdminDenied(); // 권한 없음 안내(예전처럼 비번 로그인창을 바로 띄우지 않음)
       return;
     }
     // 이미 인증된 기기에서 소유자 미등록이면 현재 카카오 계정을 소유자로 등록
@@ -739,6 +737,20 @@ function openApp(mode){
     document.getElementById('topTitle').textContent='전체 통계';
     bn.style.display='none';showV('v-stats');history.pushState({view:mode},'','');renderFullStats();
   }
+}
+// 관리자 권한 없음 안내 (비밀번호 로그인창 대신) — 관리자는 _acl 등록/소유자/토큰으로 자동 통과
+function _showAdminDenied(){
+  const u=DB.g('currentUser')||{};
+  let el=document.getElementById('adminDeniedOverlay');
+  if(!el){el=document.createElement('div');el.id='adminDeniedOverlay';document.body.appendChild(el);}
+  el.style.cssText='position:fixed;inset:0;z-index:10002;background:#060d1a;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:calc(28px + env(safe-area-inset-top)) 28px calc(28px + env(safe-area-inset-bottom));text-align:center;';
+  el.innerHTML='<div style="font-size:46px;">🔒</div>'
+    +'<div style="font-size:18px;font-weight:800;color:#e0edf8;margin-top:8px;">관리자 권한이 없습니다</div>'
+    +'<div style="font-size:13px;color:#7a9cb8;line-height:1.9;margin-top:12px;max-width:300px;">이 메뉴는 <b style="color:#9fc0da;">관리자만</b> 접근할 수 있습니다.<br>권한이 필요하면 <b style="color:#9fc0da;">관리자에게 문의</b>해 주세요.</div>'
+    +(u.kakaoId?'<div style="font-size:11px;color:#4a7090;margin-top:14px;font-family:monospace;background:rgba(255,255,255,.04);border-radius:8px;padding:7px 12px;">내 카카오 ID: <b style="color:#cfe2f2;">'+_esc(String(u.kakaoId))+'</b><br><span style="color:#5a8aaa;">이 ID를 관리자에게 전달하면 권한을 받을 수 있습니다</span></div>':'')
+    +'<button onclick="(function(){var e=document.getElementById(\'adminDeniedOverlay\');if(e)e.remove();goHome();})()" style="margin-top:22px;width:100%;max-width:280px;background:#1a4a6e;color:#fff;border:none;border-radius:11px;padding:13px;font-size:14px;font-weight:700;cursor:pointer;">홈으로</button>'
+    +'<div onclick="(function(){var e=document.getElementById(\'adminDeniedOverlay\');if(e)e.remove();var ov=document.getElementById(\'adminLoginOverlay\');if(ov){ov.style.display=\'flex\';setTimeout(function(){var p=document.getElementById(\'adminLoginPw\');if(p)p.focus();},200);}})()" style="margin-top:18px;font-size:11px;color:#2a4a5a;cursor:pointer;text-decoration:underline;">관리자 인증(비밀번호)</div>';
+  el.style.display='flex';
 }
 function switchTab(idx,el){
   if(isExternal()&&idx!==1){toast('⚠️ 외부기관 계정은 지도만 이용 가능합니다');return;}
