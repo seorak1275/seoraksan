@@ -79,7 +79,10 @@ function _reclusterRescue(){
   _rClusterOvs.forEach(o=>{try{o.setMap(null);}catch(e){}});_rClusterOvs=[];
   // 종료/위험만 클러스터링(개수 버블). 진행중은 절대 합치지 않고 개별 칩으로 항상 표시.
   const others=_rEvItems.filter(it=>!it.noClus);
-  _rClusterOvs=_clusterByPixels(mapR,others,52,(la,ln)=>_clusterZoom(mapR,la,ln),'');
+  // 너무 크게 뭉치지 않도록 셀을 작게(줌인일수록 더 잘게) — 가까운 것만 묶임
+  let lv=9;try{lv=mapR.getLevel();}catch(e){}
+  const cell=lv>=10?48:lv>=8?36:lv>=6?28:22;
+  _rClusterOvs=_clusterByPixels(mapR,others,cell,(la,ln)=>_clusterZoom(mapR,la,ln),'');
   _rEvItems.filter(it=>it.noClus).forEach(it=>{try{it.ov.setMap(mapR);}catch(e){}});
 }
 // 시설물 점검 지도: 시설물 핀 클러스터
