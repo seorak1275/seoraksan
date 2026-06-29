@@ -19,6 +19,8 @@ GitHub Pages(`109yoon.github.io/seoraksan`)는 `main` 브랜치를 서빙한다.
    git checkout main && git merge claude/update-java-version-xi45x --no-edit && git push -u origin main && git checkout claude/update-java-version-xi45x
    ```
 5. 코드 구조를 바꿨으면 `sw.js`의 `_CACHE` 버전을 올려 캐시 갱신 유도
+6. **APK 자체 업데이트(OTA)**: 코드 변경 시 `www/app.js`의 `OTA_VER`를 올리고 `sh build-ota.sh "변경요약"` 실행 → `bundle.zip`·`ota.json` 갱신 → 같이 커밋·푸시. (설치된 앱이 자동/버튼으로 새 번들을 받아 교체. 재빌드 불필요)
+   - 최초 1회만 빌드 담당이 `npm install` 후 APK 재빌드 필요(Capgo 플러그인 포함)
 
 ## 파일 구조
 
