@@ -1971,7 +1971,7 @@ function _bootSos(){
   try{var sv=localStorage.getItem('_sosLang');if(sv&&_SOS_T[sv])_sosLang=sv;else{var nl=(navigator.language||'ko').slice(0,2).toLowerCase();if(_SOS_T[nl])_sosLang=nl;}}catch(e){}
   const wrap=document.createElement('div');
   wrap.id='sosVictim';
-  wrap.style.cssText='position:fixed;inset:0;z-index:99999;background:#0a1320;color:#e0edf8;display:flex;flex-direction:column;align-items:center;padding:18px;overflow-y:auto;font-family:inherit;-webkit-text-size-adjust:100%;';
+  wrap.style.cssText='position:fixed;inset:0;z-index:99999;background:#0a1320;color:#e0edf8;display:flex;flex-direction:column;align-items:center;padding:calc(18px + env(safe-area-inset-top)) 18px calc(18px + env(safe-area-inset-bottom));overflow-y:auto;font-family:inherit;-webkit-text-size-adjust:100%;';
   document.body.innerHTML='';document.body.appendChild(wrap);
   _sosBuildUI();
   document.title='🆘 SOS — 설악산 구조대';
@@ -2357,7 +2357,7 @@ function sosToRescue(id){
 // 앱 자체 업데이트 (OTA · Capgo 자체호스팅) — APK 전용. 웹/PWA는 서비스워커가 자동 갱신.
 // 번들(www)의 새 버전을 ota.json으로 알리면, 설치된 앱이 받아서 그 자리에서 교체(재빌드 불필요).
 // ══════════════════════════════════════════
-const OTA_VER='2026.06.29.6';                         // ← 현재 번들 버전 (릴리스마다 올림 · build-ota.sh가 ota.json에 반영)
+const OTA_VER='2026.06.29.7';                         // ← 현재 번들 버전 (릴리스마다 올림 · build-ota.sh가 ota.json에 반영)
 const OTA_MANIFEST='https://109yoon.github.io/seoraksan/ota.json';
 let _otaInfo=null;
 function _otaPlugin(){try{return (window.Capacitor&&window.Capacitor.Plugins&&window.Capacitor.Plugins.CapacitorUpdater)||null;}catch(e){return null;}}
