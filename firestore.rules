@@ -13,9 +13,12 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // 🆘 조난·사고자 위치 전송: 공개 쓰기 허용(로그인 불필요), 읽기·삭제는 구조대만
+    // 🆘 조난·사고자 위치 전송: 공개 쓰기 허용(로그인 불필요), 목록·삭제는 구조대만
+    //   단일 문서 get은 공개 허용 — 조난자가 자신의 토큰 링크 상태(종료·구조대 메시지)를 읽어야 함.
+    //   (토큰을 모르면 문서 ID를 알 수 없어 노출 위험 없음 / list는 막아 전체 열람 차단)
     match /sos/{doc} {
-      allow read, delete: if request.auth != null;
+      allow get: if true;
+      allow list, delete: if request.auth != null;
       allow create, update: if request.resource.data.lat is number
                             && request.resource.data.lng is number
                             && request.resource.data.lat > 33 && request.resource.data.lat < 39

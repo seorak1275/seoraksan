@@ -5914,7 +5914,7 @@ function endSit(){
   if(!confirm('상황을 종료 처리하겠습니까?'))return;
   res[idx].status='done';DB.s('rescues',res);
   pushNoti(`✅ 종료: ${res[idx].title}`,'✅','rescue_close',{app:'rescue',tab:2,id:res[idx].id});
-  try{renderRescueMap();}catch(e){}closeDB();toast('✅ 상황 종료');updateSummary();
+  try{renderRescueMap();}catch(e){}try{renderResList();}catch(e){}closeDB();toast('✅ 상황 종료');updateSummary();
   // 타임라인 뷰에 있으면 갱신
   if(document.getElementById('v-report').classList.contains('on')){
     renderTimeline(res[idx],_tlViewMode||'brief');
@@ -8219,7 +8219,7 @@ function admDelFac(id){
   _loadArchive('history').then(()=>{DB.s('history',(DB.g('history')||[]).filter(h=>h.facId!==id));});
   renderAdmCtrl();try{renderInspectMap();}catch(e){}toast('🗑️ 삭제');updateSummary();
 }
-function admEndRes(id){if(!isAdminUser()){toast('⚠️ 관리자만 가능');return;}const res=DB.g('rescues')||[];const i=res.findIndex(x=>x.id===id);if(i===-1)return;if(!confirm("'"+(res[i].title||'')+"' 상황을 종료 처리하겠습니까?"))return;res[i].status='done';DB.s('rescues',res);renderAdmCtrl();try{renderRescueMap();}catch(e){}toast('✅ 상황 종료');}
+function admEndRes(id){if(!isAdminUser()){toast('⚠️ 관리자만 가능');return;}const res=DB.g('rescues')||[];const i=res.findIndex(x=>x.id===id);if(i===-1)return;if(!confirm("'"+(res[i].title||'')+"' 상황을 종료 처리하겠습니까?"))return;res[i].status='done';DB.s('rescues',res);renderAdmCtrl();try{renderRescueMap();}catch(e){}try{renderResList();}catch(e){}toast('✅ 상황 종료');}
 function admDelRes(id){
   if(!isAdminUser()){toast('⚠️ 관리자만 가능');return;}
   const res=DB.g('rescues')||[];const r=res.find(x=>x.id===id);if(!r)return;
@@ -8227,12 +8227,12 @@ function admDelRes(id){
   // 목록에서 즉시 제거(되돌리기 대비 사본 보관). 사진 등 비가역 삭제는 5초 후 확정 시에만.
   const backup=JSON.parse(JSON.stringify(r));
   DB.s('rescues',(DB.g('rescues')||[]).filter(x=>x.id!==id));
-  renderAdmCtrl();try{renderRescueMap();}catch(e){}updateSummary();
+  renderAdmCtrl();try{renderRescueMap();}catch(e){}try{renderResList();}catch(e){}updateSummary();
   _undoToast("🗑️ '"+(r.title||'구조 기록')+"' 삭제됨",
     function(){ // 되돌리기
       const cur=DB.g('rescues')||[];
       if(!cur.some(x=>x.id===backup.id)){cur.push(backup);DB.s('rescues',cur);}
-      renderAdmCtrl();try{renderRescueMap();}catch(e){}updateSummary();toast('↩ 삭제 취소됨');
+      renderAdmCtrl();try{renderRescueMap();}catch(e){}try{renderResList();}catch(e){}updateSummary();toast('↩ 삭제 취소됨');
     },
     function(){ // 5초 후 실제 확정: 사진·댓글 영구 삭제
       if(backup&&_fst){
@@ -10731,8 +10731,21 @@ const _SOS_T={
   fr:{org:'Secours Parc Nat. Seoraksan',sub:'Gardez cet écran allumé.<br>L’équipe de secours reçoit votre position en temps réel.',perm:'Autorisez l’accès à la localisation',locating:'Localisation en cours…',recv:'L’équipe de secours reçoit votre position',block:'Envoi bloqué — nouvelle tentative au signal',start:'📍 Envoyer ma position',retry:'📍 Réessayer',info:'Infos pour les secours (facultatif)',name:'Nom',msg:'État, blessure, environnement…',country:'Pays',tip:'Gardez l’écran allumé et attendez en lieu sûr.<br>Les secours arrivent.',fail:'Échec d’envoi — copiez les coordonnées et envoyez-les par SMS au numéro qui vous a envoyé le lien',copy:'📋 Copier les coordonnées'},
   de:{org:'Bergrettung NP Seoraksan',sub:'Lassen Sie diesen Bildschirm an.<br>Das Rettungsteam empfängt Ihren Standort in Echtzeit.',perm:'Bitte Standortzugriff erlauben',locating:'Standort wird ermittelt…',recv:'Das Rettungsteam empfängt Ihren Standort',block:'Senden blockiert — erneuter Versuch bei Signal',start:'📍 Meinen Standort senden',retry:'📍 Erneut versuchen',info:'Infos für die Rettung (optional)',name:'Name',msg:'Zustand, Verletzung, Umgebung…',country:'Land',tip:'Bildschirm anlassen und an sicherem Ort warten.<br>Die Rettung kommt.',fail:'Senden fehlgeschlagen — Koordinaten kopieren und per SMS an die Nummer senden, die den Link geschickt hat',copy:'📋 Koordinaten kopieren'}
 };
+// 추가 문구(링크 종료 안내·구조대 메시지) — 본 사전이 길어 분리 보관
+const _SOS_T2={
+  ko:{closedT:'위치 접수가 종료되었습니다',closed:'구조대가 이 링크의 접수를 종료했습니다.<br>도움이 더 필요하면 119 또는 구조대에 다시 연락해 주세요.',teamLabel:'구조대 메시지'},
+  en:{closedT:'Location sharing ended',closed:'The rescue team has closed this request.<br>If you still need help, call 119 or contact the rescue team again.',teamLabel:'Message from rescue team'},
+  zh:{closedT:'位置接收已结束',closed:'救援队已结束此链接的接收。<br>如仍需帮助，请拨打119或再次联系救援队。',teamLabel:'救援队消息'},
+  ja:{closedT:'位置の受付が終了しました',closed:'救助隊がこのリンクの受付を終了しました。<br>さらに支援が必要な場合は119または救助隊に再度ご連絡ください。',teamLabel:'救助隊からのメッセージ'},
+  vi:{closedT:'Đã kết thúc chia sẻ vị trí',closed:'Đội cứu hộ đã đóng yêu cầu này.<br>Nếu vẫn cần trợ giúp, hãy gọi 119 hoặc liên hệ lại đội cứu hộ.',teamLabel:'Tin nhắn từ đội cứu hộ'},
+  th:{closedT:'สิ้นสุดการรับตำแหน่งแล้ว',closed:'ทีมกู้ภัยได้ปิดคำขอนี้แล้ว<br>หากยังต้องการความช่วยเหลือ โปรดโทร 119 หรือติดต่อทีมกู้ภัยอีกครั้ง',teamLabel:'ข้อความจากทีมกู้ภัย'},
+  ru:{closedT:'Приём геолокации завершён',closed:'Спасатели закрыли этот запрос.<br>Если вам всё ещё нужна помощь, позвоните 119 или свяжитесь со спасателями снова.',teamLabel:'Сообщение спасателей'},
+  es:{closedT:'Recepción de ubicación finalizada',closed:'El equipo de rescate ha cerrado esta solicitud.<br>Si aún necesitas ayuda, llama al 119 o contacta de nuevo con el equipo de rescate.',teamLabel:'Mensaje del equipo de rescate'},
+  fr:{closedT:'Réception de position terminée',closed:'L’équipe de secours a clôturé cette demande.<br>Si vous avez encore besoin d’aide, appelez le 119 ou recontactez les secours.',teamLabel:'Message de l’équipe de secours'},
+  de:{closedT:'Standortempfang beendet',closed:'Das Rettungsteam hat diese Anfrage geschlossen.<br>Wenn Sie weiterhin Hilfe brauchen, rufen Sie 119 an oder kontaktieren Sie das Rettungsteam erneut.',teamLabel:'Nachricht des Rettungsteams'}
+};
 let _sosLang='ko';
-function _st(k){return (_SOS_T[_sosLang]||_SOS_T.en)[k]||_SOS_T.en[k]||k;}
+function _st(k){const a=(_SOS_T[_sosLang]||_SOS_T.en),b=(_SOS_T2[_sosLang]||_SOS_T2.en);return a[k]||b[k]||_SOS_T.en[k]||_SOS_T2.en[k]||k;}
 function _sosBuildUI(){
   const wrap=document.getElementById('sosVictim');if(!wrap)return;
   const _nm=(document.getElementById('sosName')||{}).value||'';
@@ -10789,7 +10802,8 @@ function _bootSos(){
   try{
     _sosDb=firebase.firestore();
     firebase.auth().signInAnonymously().catch(()=>{});
-    firebase.auth().onAuthStateChanged(function(u){ if(u){ _sosAuthed=true; _sosRequest(); if(_sosLast)_sosWrite(); } });
+    firebase.auth().onAuthStateChanged(function(u){ if(u){ _sosAuthed=true; _sosRequest(); if(_sosLast)_sosWrite(); _sosVictimListen(); } });
+    _sosVictimListen(); // 인증 전이라도(공개 get 허용) 종료·메시지 감지 시도
   }catch(e){}
   setTimeout(_sosRequest,400);
 }
@@ -10839,7 +10853,8 @@ function _sosWrite(force){
   const rec={id:_sosId,lat:+_sosLast.lat.toFixed(5),lng:+_sosLast.lng.toFixed(5),acc:Math.round(_sosLast.acc),ts:nowMs};
   if(name)rec.name=name;
   if(msg)rec.msg=msg;
-  if(_sosLang!=='ko'){rec.lang=_sosLang;if(country)rec.country=country;} // 외국어 → 언어 계열 전달
+  if(_sosLang!=='ko'){rec.lang=_sosLang;rec.country=country||'';} // 외국어 → 언어 계열 전달
+  else{rec.lang='';rec.country='';} // 한국어로 되돌리면 외국인 표기 즉시 해제(이전 외국어 값 잔존 방지)
   _sosLastWriteTs=nowMs;_sosLastWritePos={lat:_sosLast.lat,lng:_sosLast.lng};
   _sosDb.collection('sos').doc(_sosId).set(rec,{merge:true}).then(function(){
     _sosCount++;
@@ -10864,6 +10879,48 @@ function _sosCopyCoords(co){
 function _sosSmsFallback(co){try{location.href='sms:?body='+encodeURIComponent('SOS '+co);}catch(e){}}
 let _sosInfoTimer=null;
 function _sosPushInfo(){clearTimeout(_sosInfoTimer);_sosInfoTimer=setTimeout(()=>_sosWrite(true),600);}
+// ── 조난자 측: 자신의 링크 문서 구독 → 구조대의 종료·메시지를 실시간 수신 ──
+let _sosClosed=false,_sosTeamMsgSeen='',_sosVictimBound=false;
+function _sosVictimListen(){
+  if(_sosVictimBound||!_sosDb||!_sosId)return;
+  _sosVictimBound=true;
+  try{
+    _sosDb.collection('sos').doc(_sosId).onSnapshot(function(d){
+      _sosVictimUpdate(d.exists?d.data():null);
+    },function(){ _sosVictimBound=false; }); // 권한·네트워크 실패 시 다음 인증/요청에서 재시도
+  }catch(e){ _sosVictimBound=false; }
+}
+function _sosVictimUpdate(d){
+  if(!d)return;
+  if(d.teamMsg&&d.teamMsg!==_sosTeamMsgSeen){_sosTeamMsgSeen=d.teamMsg;_sosShowTeamMsg(d.teamMsg);}
+  else if(!d.teamMsg&&_sosTeamMsgSeen){_sosTeamMsgSeen='';const e=document.getElementById('sosTeamMsg');if(e)e.remove();}
+  if(d.active===false&&!_sosClosed){_sosClosed=true;_sosStopAll();_sosShowClosed();}
+}
+function _sosStopAll(){
+  try{if(_sosWatch!=null)navigator.geolocation.clearWatch(_sosWatch);}catch(e){}_sosWatch=null;
+  try{clearInterval(_sosHeartbeat);}catch(e){}_sosHeartbeat=null;
+  try{clearTimeout(_sosInfoTimer);}catch(e){}
+}
+function _sosShowClosed(){
+  const wrap=document.getElementById('sosVictim');if(!wrap)return;
+  const e=document.getElementById('sosTeamMsg');// 종료 시 하단 메시지는 본문으로 흡수
+  wrap.innerHTML='<div style="margin:auto;text-align:center;max-width:380px;padding:34px 18px;">'
+    +'<div style="font-size:48px;">✅</div>'
+    +'<div style="font-size:20px;font-weight:800;margin-top:14px;color:#7ee0a0;">'+_st('closedT')+'</div>'
+    +'<div style="font-size:14px;color:#9bbdd4;margin-top:12px;line-height:1.7;">'+_st('closed')+'</div>'
+    +(_sosTeamMsgSeen?'<div style="margin-top:18px;background:#11233a;border:1px solid rgba(125,211,250,.3);border-radius:12px;padding:14px;text-align:left;"><div style="font-size:11px;color:#7dd3fa;font-weight:700;margin-bottom:4px;">📢 '+_st('teamLabel')+'</div><div style="font-size:15px;color:#e0edf8;line-height:1.5;">'+_esc(_sosTeamMsgSeen)+'</div></div>':'')
+    +'</div>';
+  if(e)e.remove();
+}
+function _sosShowTeamMsg(m){
+  if(_sosClosed){_sosShowClosed();return;}
+  let el=document.getElementById('sosTeamMsg');
+  if(!el){el=document.createElement('div');el.id='sosTeamMsg';el.style.cssText='position:fixed;left:0;right:0;bottom:0;z-index:100001;background:linear-gradient(180deg,#1a4a6e,#0d3350);color:#fff;padding:14px 16px calc(14px + env(safe-area-inset-bottom));box-shadow:0 -3px 14px rgba(0,0,0,.55);';document.body.appendChild(el);}
+  el.innerHTML='<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;">'
+    +'<div style="flex:1;min-width:0;"><div style="font-size:11px;color:#7dd3fa;font-weight:700;margin-bottom:3px;">📢 '+_st('teamLabel')+'</div>'
+    +'<div style="font-size:15px;font-weight:600;line-height:1.5;word-break:break-word;">'+_esc(m)+'</div></div>'
+    +'<button onclick="this.closest(\'#sosTeamMsg\').remove()" style="background:none;border:none;color:rgba(255,255,255,.6);font-size:22px;line-height:1;cursor:pointer;flex-shrink:0;">×</button></div>';
+}
 
 // ── 구조대 측: 조난·사고자 위치 실시간 구독 (1회용 토큰: 팀이 발급한 active 링크만 표시) ──
 let _sosPings=[];                              // 활성(active) 발급 토큰 전체(위치 있든 없든)
@@ -10924,12 +10981,19 @@ function _sosNewLink(){
     .catch(function(e){toast('생성 실패: '+(e&&(e.code||e.message)||''));});
 }
 // 접수 종료 (active:false → 그 링크로는 더 이상 수신 안 됨, 기록은 남음)
+// 조난·사고자 관련 화면(지도·목록·상황판·열린 모달) 즉시 동기화 — 액션 후 바로 반영
+function _sosRefreshAll(){
+  try{_drawSosPins();}catch(e){}
+  try{_updateSosFab();}catch(e){}
+  try{if(window.curApp==='rescue')renderResList();}catch(e){}
+  try{const bv=document.getElementById('v-board');if(bv&&bv.classList.contains('on')&&_boardMap)_renderBoardPins(false);}catch(e){}
+  try{if(document.getElementById('sosModal'))openSosRequest();}catch(e){}
+}
 function _sosCloseToken(id){
-  if(!confirm('이 1회용 링크를 종료할까요?\n종료하면 해당 링크로는 더 이상 위치가 들어오지 않습니다.'))return;
+  if(!confirm('이 1회용 링크를 종료할까요?\n종료하면 해당 링크로는 더 이상 위치가 들어오지 않고, 접속한 사람 화면에도 종료 안내가 표시됩니다.'))return;
   if(_fdb)_fdb.collection('sos').doc(id).set({active:false,closedAt:Date.now()},{merge:true}).catch(()=>{});
   _sosPings=(_sosPings||[]).filter(p=>p.id!==id);
-  try{_drawSosPins();_updateSosFab();}catch(e){}
-  if(document.getElementById('sosModal'))openSosRequest();
+  _sosRefreshAll();
   toast('✅ 접수 종료 — 링크 비활성화됨');
 }
 function openSosRequest(){
@@ -10954,10 +11018,11 @@ function openSosRequest(){
       </div>`:''}
       <div style="display:flex;gap:5px;margin-bottom:6px;">
         <input readonly value="${url}" onclick="this.select()" style="flex:1;min-width:0;background:#060d1a;border:1px solid rgba(79,168,208,.3);color:#7dd3fa;border-radius:7px;padding:8px;font-size:11px;font-family:monospace;">
-        <button onclick="_sosCopyUrl('${p.id}')" style="flex-shrink:0;background:#1a4a6e;color:#fff;border:none;border-radius:7px;padding:0 11px;font-size:12px;font-weight:700;cursor:pointer;">복사</button>
+        <button onclick="_sosCopyUrl('${p.id}',this)" style="flex-shrink:0;background:#1a4a6e;color:#fff;border:none;border-radius:7px;padding:0 13px;font-size:12px;font-weight:700;cursor:pointer;transition:background .15s;">복사</button>
       </div>
       <div style="display:flex;gap:5px;">
         ${navigator.share?`<button onclick="_sosShareUrl('${p.id}')" style="flex:1;background:rgba(39,174,96,.12);color:#27ae60;border:1px solid rgba(39,174,96,.35);border-radius:7px;padding:8px;font-size:12px;font-weight:700;cursor:pointer;">📤 보내기</button>`:`<button onclick="_sosSms('${p.id}')" style="flex:1;background:rgba(79,168,208,.1);color:#4fa8d0;border:1px solid rgba(79,168,208,.3);border-radius:7px;padding:8px;font-size:12px;font-weight:700;cursor:pointer;">✉️ 문자</button>`}
+        <button onclick="_sosSendMsg('${p.id}')" style="flex:1;background:rgba(125,211,250,.1);color:#7dd3fa;border:1px solid rgba(125,211,250,.3);border-radius:7px;padding:8px;font-size:12px;font-weight:700;cursor:pointer;">💬 메시지${p.teamMsg?' ✓':''}</button>
         ${has?`<button onclick="sosToRescue('${p.id}')" style="flex:1;background:rgba(231,76,60,.15);color:#ff6b5e;border:1px solid rgba(231,76,60,.4);border-radius:7px;padding:8px;font-size:12px;font-weight:700;cursor:pointer;">🚨 구조등록</button>`:''}
         <button onclick="_sosCloseToken('${p.id}')" style="flex-shrink:0;background:rgba(192,57,43,.1);color:#c0392b;border:1px solid rgba(192,57,43,.3);border-radius:7px;padding:8px 11px;font-size:12px;font-weight:700;cursor:pointer;">종료</button>
       </div>
@@ -10996,8 +11061,8 @@ function deleteSosPing(id,silent){
   _fdb.collection('sos').doc(id).delete().catch(()=>{});
   _sosPings=(_sosPings||[]).filter(p=>p.id!==id);
   try{if(window._sosSeen)delete window._sosSeen[id];}catch(e){}
-  try{_drawSosPins();}catch(e){}try{_updateSosFab();}catch(e){}
-  if(!silent){toast('🗑️ 위치 삭제됨');if(document.getElementById('sosModal'))openSosRequest();}
+  if(silent){try{_drawSosPins();}catch(e){}try{_updateSosFab();}catch(e){}}
+  else{_sosRefreshAll();toast('🗑️ 위치 삭제됨');}
 }
 function clearAllSos(){
   const all=(_sosPings||[]).slice();
@@ -11042,12 +11107,26 @@ function _sosPinPopup(id){
       <button onclick="_sosFocus('${p.id}')" style="flex:1;background:rgba(79,168,208,.12);color:#4fa8d0;border:1px solid rgba(79,168,208,.35);border-radius:8px;padding:11px;font-size:13px;font-weight:700;cursor:pointer;">🗺️ 위치로 이동</button>
       <button onclick="sosToRescue('${p.id}')" style="flex:1;background:linear-gradient(180deg,#e74c3c,#c0392b);color:#fff;border:none;border-radius:8px;padding:11px;font-size:13px;font-weight:800;cursor:pointer;">🚨 구조 사고로 등록</button>
     </div>
+    <button onclick="_sosSendMsg('${p.id}')" style="width:100%;margin-top:7px;background:rgba(125,211,250,.1);color:#7dd3fa;border:1px solid rgba(125,211,250,.3);border-radius:8px;padding:10px;font-size:12px;font-weight:700;cursor:pointer;">💬 조난자에게 메시지 보내기${p.teamMsg?' (보낸 메시지 있음)':''}</button>
     <button onclick="_sosCloseModal();_sosCloseToken('${p.id}')" style="width:100%;margin-top:7px;background:rgba(192,57,43,.1);color:#c0392b;border:1px solid rgba(192,57,43,.3);border-radius:8px;padding:10px;font-size:12px;font-weight:700;cursor:pointer;">🔚 접수 종료 (링크 비활성화)</button>`;
   _sosModal('🆘 조난자 위치',html);
 }
-function _sosCopyUrl(tok){const u=_sosVictimUrl(tok);if(navigator.clipboard)navigator.clipboard.writeText(u).then(()=>toast('📋 1회용 링크 복사됨')).catch(()=>_fallbackCopy(u));else _fallbackCopy(u);}
+function _sosCopyBtnOk(btn){if(!btn)return;const o=btn.textContent;btn.textContent='✓ 복사됨';btn.style.background='#27ae60';setTimeout(function(){try{btn.textContent=o;btn.style.background='#1a4a6e';}catch(e){}},1600);}
+function _sosCopyUrl(tok,btn){const u=_sosVictimUrl(tok);if(navigator.clipboard)navigator.clipboard.writeText(u).then(function(){toast('📋 링크 복사됨 — 조난·사고자에게 보내세요');_sosCopyBtnOk(btn);}).catch(function(){_fallbackCopy(u);_sosCopyBtnOk(btn);});else{_fallbackCopy(u);_sosCopyBtnOk(btn);}}
 function _sosShareUrl(tok){const u=_sosVictimUrl(tok);if(navigator.share)navigator.share({title:'설악산 구조대 위치전송',text:'[설악산 구조대] 아래 1회용 링크를 열면 위치가 구조대에 전송됩니다(로그인 불필요).\n'+u}).catch(()=>{});}
 function _sosSms(tok){const u=_sosVictimUrl(tok);location.href='sms:?body='+encodeURIComponent('[설악산 구조대] 아래 1회용 링크를 열어 위치를 보내주세요(로그인 불필요): '+u);}
+// 구조대 → 조난·사고자에게 메시지 전송 (그 사람 화면 하단에 즉시 표시 · 비우면 삭제)
+function _sosSendMsg(id){
+  const p=(_sosPings||[]).find(x=>x.id===id);
+  const prev=(p&&p.teamMsg)||'';
+  const m=prompt('조난·사고자에게 보낼 메시지\n(상대방 화면 하단에 바로 표시됩니다. 비우면 삭제)',prev);
+  if(m==null)return;
+  const t=String(m).slice(0,200);
+  if(p)p.teamMsg=t; // 로컬 즉시 반영
+  if(_fdb)_fdb.collection('sos').doc(id).set({teamMsg:t,teamMsgAt:Date.now()},{merge:true})
+    .then(function(){toast(t?'📤 메시지를 보냈습니다':'메시지를 삭제했습니다');})
+    .catch(function(e){toast('전송 실패: '+(e&&(e.code||e.message)||''));});
+}
 function _sosFocus(id){
   const p=(_sosPings||[]).find(x=>x.id===id);if(!p)return;
   _sosCloseModal();
@@ -11101,7 +11180,7 @@ function sosToRescue(id){
 // 앱 자체 업데이트 (OTA · Capgo 자체호스팅) — APK 전용. 웹/PWA는 서비스워커가 자동 갱신.
 // 번들(www)의 새 버전을 ota.json으로 알리면, 설치된 앱이 받아서 그 자리에서 교체(재빌드 불필요).
 // ══════════════════════════════════════════
-const OTA_VER='2026.06.28.1';                         // ← 현재 번들 버전 (릴리스마다 올림 · build-ota.sh가 ota.json에 반영)
+const OTA_VER='2026.06.29.1';                         // ← 현재 번들 버전 (릴리스마다 올림 · build-ota.sh가 ota.json에 반영)
 const OTA_MANIFEST='https://109yoon.github.io/seoraksan/ota.json';
 let _otaInfo=null;
 function _otaPlugin(){try{return (window.Capacitor&&window.Capacitor.Plugins&&window.Capacitor.Plugins.CapacitorUpdater)||null;}catch(e){return null;}}

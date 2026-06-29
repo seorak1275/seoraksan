@@ -489,7 +489,7 @@ button{-webkit-tap-highlight-color:transparent;touch-action:manipulation;}
 .navi.on .navi-lbl{color:#4fa8d0;}
 
 /* ─── 토스트·기타 ─── */
-.toast{position:absolute;bottom:80px;left:50%;transform:translateX(-50%);background:#0b1c30;color:#e0edf8;padding:10px 18px;border-radius:24px;font-size:13px;font-weight:600;border:1px solid rgba(79,168,208,.35);box-shadow:0 4px 16px rgba(0,0,0,.6);z-index:100;opacity:0;transition:opacity .28s;white-space:nowrap;pointer-events:none;max-width:90%;overflow:hidden;text-overflow:ellipsis;}
+.toast{position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:#0b1c30;color:#e0edf8;padding:10px 18px;border-radius:24px;font-size:13px;font-weight:600;border:1px solid rgba(79,168,208,.35);box-shadow:0 4px 16px rgba(0,0,0,.6);z-index:100000;opacity:0;transition:opacity .28s;white-space:nowrap;pointer-events:none;max-width:90%;overflow:hidden;text-overflow:ellipsis;}
 .toast.on{opacity:1;}
 .empty{text-align:center;padding:40px 16px;margin:8px 4px;border-radius:12px;background:rgba(79,168,208,.05);border:1px dashed rgba(79,168,208,.18);color:#88acc4;}
 .empty-ico{font-size:38px;margin-bottom:9px;opacity:.85;}.empty-txt{font-size:13px;line-height:1.6;font-weight:500;}
