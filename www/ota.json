@@ -1,1 +1,1 @@
-{"version":"2026.06.29.5","url":"https://109yoon.github.io/seoraksan/bundle.zip","notes":"앱 업데이트 알림을 가운데 팝업으로(업데이트/나중에 하기, 5초 후 자동 업데이트)"}
+{"version":"2026.06.29.6","url":"https://109yoon.github.io/seoraksan/bundle.zip","notes":"코드 6개 파일로 분리(동작 동일·합치면 원본과 1:1) + OTA 팝업 적용"}

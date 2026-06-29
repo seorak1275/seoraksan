@@ -4,10 +4,10 @@
 // - PWA 오프라인 캐싱 (app shell)
 // - FCM 백그라운드 메시지 수신 → 시스템 알림 표시
 // ──────────────────────────────────────────────
-const _CACHE = 'seoraksan-v30';
+const _CACHE = 'seoraksan-v31';
 // 프로젝트 경로(/seoraksan/) 배포이므로 반드시 상대 경로 사용
 // v10: 단일 index.html → index.html + style.css + app.js 분리에 따라 셸 캐시에 추가
-const _SHELL = ['./', './index.html', './style.css', './app.js', './manifest.json', './icons/icon-192.png', './icons/icon-512.png'];
+const _SHELL = ['./', './index.html', './style.css', './app.core.js', './app.map.js', './app.rescue.js', './app.report.js', './app.ops.js', './app.js', './manifest.json', './icons/icon-192.png', './icons/icon-512.png'];
 
 // Firebase Messaging SDK (SW 컨텍스트용)
 importScripts('https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js');
