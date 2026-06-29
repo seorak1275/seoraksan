@@ -29,17 +29,27 @@ var KAKAO_KEY='4ba2cd810d516a4f336d4dee5fa5eba5';
 if(window.Kakao&&!Kakao.isInitialized()) Kakao.init(KAKAO_KEY);
 (function(){
   // SDK 로드 재시도(네트워크 블립·느린 회선 대비). https 명시(일부 인앱 브라우저는 // 프로토콜상대 경로에서 실패).
-  var tries=0;
+  var tries=0,_attemptTimer=null;
   function loadSDK(){
     tries++;
+    var done=false;
     var s=document.createElement('script');
     s.src='https://dapi.kakao.com/v2/maps/sdk.js?appkey='+KAKAO_KEY+'&libraries=services&autoload=false';
     s.onload=function(){
+      done=true;clearTimeout(_attemptTimer);
       try{ kakao.maps.load(function(){window._KR=true;if(window._KCB)window._KCB();}); }
       catch(e){window._KMapsErr='로드콜백 오류: '+e.message;}
     };
-    s.onerror=function(){ window._KMapsErr='SDK 로드 실패('+tries+'회)'; if(tries<3)setTimeout(loadSDK,1500*tries); };
+    s.onerror=function(){ done=true;clearTimeout(_attemptTimer); window._KMapsErr='SDK 로드 실패('+tries+'회)'; if(tries<4)setTimeout(loadSDK,1200*tries); };
     document.head.appendChild(s);
+    // 시도별 타임아웃: onload/onerror 둘 다 안 울리고 조용히 멈추는 경우(무응답) 강제 재시도
+    clearTimeout(_attemptTimer);
+    _attemptTimer=setTimeout(function(){
+      if(done||window._KR)return;
+      window._KMapsErr='무응답 재시도('+tries+'회)';
+      try{s.onerror=s.onload=null;}catch(e){}
+      if(tries<4)loadSDK();
+    },7000);
   }
   loadSDK();
   window._retryKakao=function(){ if(window._KR){if(typeof toast==='function')toast('✅ 지도 정상');return;} tries=0; window._KMapsErr=''; loadSDK(); if(typeof toast==='function')toast('🔄 지도 다시 불러오는 중...'); };
