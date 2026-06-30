@@ -114,12 +114,20 @@ function submitNBoFromForm(){
     victimChange: '변화없음',
     update: '',
   };
-  // 전보와 차이 자동 요약
+  // 전보와 차이 자동 요약 + 정형 항목 변경 이력 기록(최신값은 화면에 뜨고, 바뀐 내역은 '변경 이력'으로)
   const prev=res[idx].reports.length>0?res[idx].reports[res[idx].reports.length-1]:res[idx];
-  const diffs=[];
-  if(phaseData.severity&&phaseData.severity!==prev.severity)diffs.push(`중증도 ${prev.severity||'-'}→${phaseData.severity}`);
-  if(phaseData.hospital!==prev.hospital)diffs.push(`후송: ${phaseData.hospital}`);
-  if(phaseData.situation&&phaseData.situation!==prev.situation)diffs.push(phaseData.situation.slice(0,40));
+  const _BLANK2=['','-','미정','해당없음','알수없음','없음','미상','모르겠음'];
+  const _cv=v=>Array.isArray(v)?v.filter(Boolean).join(', '):(v==null?'':String(v).trim());
+  const changes=[];
+  [['사고유형','type'],['중증도','severity'],['위치','location'],['장소구분','loctype'],['사고자','vName'],['전화','vTel'],['성별','vGender'],['부상부위','injuryParts'],['부상유형','injuryTypes'],['원인','cause'],['구조방법','rescueMethod'],['음주','alcohol'],['병원후송','hospital']].forEach(([label,key])=>{
+    const a=_cv(prev[key]),b=_cv(phaseData[key]);
+    if(!b||_BLANK2.includes(b))return;          // 새 값이 비면 '이어받기'라 변경 아님
+    if(a===b)return;                             // 동일 → 변경 아님
+    changes.push({label,from:_BLANK2.includes(a)?'(없음)':a,to:b});
+  });
+  phaseData.changes=changes;
+  const diffs=changes.map(c=>`${c.label} ${c.from}→${c.to}`);
+  if(phaseData.situation&&phaseData.situation!==prev.situation)diffs.push('경위 갱신');
   if(_ttInlineEntries.length)diffs.push(`타임라인 ${_ttInlineEntries.length}건 추가`);
   phaseData.update=diffs.join(' · ')||'상태 유지';
   // 타임라인 저장
@@ -1291,6 +1299,9 @@ function renderTimeline(r,viewMode,outId){
     // 추가내용 (1차/2차…) — 있을 때만 칸 생성
     const updates=(r.reports||[]).map((p,i)=>({p,ci:i+1})).filter(({p})=>p.update||(p.victimChange&&p.victimChange!=='변화없음')||p.addMem||p.extra);
     const updHtml=updates.length?`<div style="background:#0b1c30;border-radius:10px;padding:11px 12px;border:.5px solid rgba(79,168,208,.14);margin-bottom:8px;"><div style="font-size:10px;color:#4fa8d0;font-weight:800;margin-bottom:5px;">📌 추가 내용</div>${updates.map(({p,ci})=>{const pts=[];if(p.update)pts.push(_esc(p.update));if(p.victimChange&&p.victimChange!=='변화없음')pts.push('부상자 '+_esc(p.victimChange));if(p.addMem)pts.push('추가대원 '+_esc(p.addMem));if(p.extra)pts.push(_esc(p.extra));return `<div style="padding:6px 0;border-bottom:.5px solid rgba(255,255,255,.05);"><div style="font-size:11px;color:#7dd3fa;font-weight:700;">${ci}차 추가내용 <span style="color:#5a7e98;font-weight:400;font-size:9px;">${p.repTime||''}${p.author?' · '+_esc(p.author):''}</span></div><div style="font-size:11px;color:#b8d4e8;line-height:1.5;margin-top:2px;">${pts.join(' / ')}</div></div>`;}).join('')}</div>`:'';
+    // 변경 이력 — 추가보고에서 정형 항목이 바뀐 내역(최신값은 위에 떴고, 여기엔 '무엇이 어떻게 바뀌었는지')
+    const changeLog=[];(r.reports||[]).forEach((p,i)=>{(p.changes||[]).forEach(c=>changeLog.push({ci:i+1,at:p.repTime,by:p.author,...c}));});
+    const changeHtml=changeLog.length?`<div style="background:#0b1c30;border-radius:10px;padding:11px 12px;border:.5px solid rgba(230,126,34,.2);margin-bottom:8px;"><div style="font-size:10px;color:#e8943a;font-weight:800;margin-bottom:5px;">🔄 변경 이력</div>${changeLog.map(c=>`<div style="font-size:11px;color:#b8d4e8;line-height:1.6;padding:3px 0;border-bottom:.5px solid rgba(255,255,255,.04);"><span style="color:#7dd3fa;font-weight:700;">${c.ci}차</span> ${_esc(c.label)}: <span style="color:#9c8060;">${_esc(c.from)}</span> → <b style="color:#e0edf8;">${_esc(c.to)}</b> <span style="color:#5a7e98;font-size:9px;">${c.at||''}${c.by?' · '+_esc(c.by):''}</span></div>`).join('')}</div>`:'';
     const logHtml=_buildLogHtml(r);
     // 한 장 보고서처럼 하나의 카드에 우선순위대로 쭉: 부상 → 위치 → 인적 → 신고자 → 접수내용 → 나머지
     const reportSheet=`<div style="background:#0b1c30;border:1px solid rgba(231,76,60,.18);border-radius:12px;padding:13px 14px;margin-bottom:9px;">
@@ -1304,6 +1315,7 @@ function renderTimeline(r,viewMode,outId){
     w.innerHTML=tabHdr+`
       ${reportSheet}
       ${updHtml}
+      ${changeHtml}
       ${_scenePhotosHtml(r)}
 
       <div style="background:#0b1c30;border-radius:10px;padding:12px;border:.5px solid rgba(255,255,255,.07);margin-top:10px;">
