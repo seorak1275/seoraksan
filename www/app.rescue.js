@@ -242,8 +242,9 @@ var _joinerAlertInited=false;
 function _checkNewJoinerAlert(){
   var pend=_pendingNotApproved();
   if(!isAdminUser()){_updateAdminBadge(0);return;}
-  // 자동 승인 모드면 관리자 기기에서 대기자를 즉시 일괄 승인(본인 기기 부재 대비 이중 안전장치)
-  if(_isAutoApprove()&&pend.length){try{if(_autoApproveSweep()>0){pend=_pendingNotApproved();try{renderAdmMembers();}catch(e){}}}catch(e){}}
+  // 자동 승인 모드: 관리자 기기에서 '로그인만 한' 사람까지 전원 일괄 승인.
+  // (pend는 pendingUsers만이라 로그인이력만 있는 사용자를 못 잡음 → pend.length 조건 제거)
+  if(_isAutoApprove()){try{if(_autoApproveSweep()>0){pend=_pendingNotApproved();try{renderAdmMembers();}catch(e){}}}catch(e){}}
   _updateAdminBadge(pend.length);
   var alerted={};try{alerted=JSON.parse(localStorage.getItem('_joinerAlerted')||'{}');}catch(e){}
   var fresh=pend.filter(function(u){return!alerted[String(u.id)];});

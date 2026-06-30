@@ -232,13 +232,20 @@ function _toggleFPSec(id){
 function _initFPDrag(hId,pId,closeFn){
   const h=document.getElementById(hId),p=document.getElementById(pId);
   if(!h||!p||h._fpBound)return;h._fpBound=true;
-  let y0=0;
+  let y0=0,t0=0;
   const mv=e=>{const y=(e.touches?e.touches[0]:e).clientY;p.style.transform=`translateY(${Math.max(0,y-y0)}px)`;};
-  const up=e=>{const y=(e.changedTouches?e.changedTouches[0]:e).clientY;p.style.transition='transform .22s cubic-bezier(.4,0,.2,1)';if(y-y0>60)closeFn();else p.style.transform='translateY(0)';document.removeEventListener('mousemove',mv);document.removeEventListener('mouseup',up);};
-  h.addEventListener('touchstart',e=>{y0=e.touches[0].clientY;p.style.transition='none';},{passive:true});
+  const up=e=>{
+    const y=(e.changedTouches?e.changedTouches[0]:e).clientY;
+    const dist=y-y0,dt=Date.now()-t0,vel=dt>0?dist/dt:0;
+    p.style.transition='transform .22s cubic-bezier(.4,0,.2,1)';
+    // 둔감하던 닫기 개선: 임계 60→40px, 또는 아래로 빠르게 튕기면(속도) 바로 닫힘
+    if(dist>40||(dist>12&&vel>0.4))closeFn();else p.style.transform='translateY(0)';
+    document.removeEventListener('mousemove',mv);document.removeEventListener('mouseup',up);
+  };
+  h.addEventListener('touchstart',e=>{y0=e.touches[0].clientY;t0=Date.now();p.style.transition='none';},{passive:true});
   h.addEventListener('touchmove',mv,{passive:true});
   h.addEventListener('touchend',up);
-  h.addEventListener('mousedown',e=>{y0=e.clientY;p.style.transition='none';document.addEventListener('mousemove',mv);document.addEventListener('mouseup',up);e.preventDefault();});
+  h.addEventListener('mousedown',e=>{y0=e.clientY;t0=Date.now();p.style.transition='none';document.addEventListener('mousemove',mv);document.addEventListener('mouseup',up);e.preventDefault();});
 }
 function toggleInspFilter(){
   const p=document.getElementById('inspFilterPanel');
@@ -1742,6 +1749,8 @@ function admDelRes(id){
     });
 }
 function renderAdmMembers(){
+  // 자동 승인 ON이면 목록을 그리기 직전에 로그인 이력까지 전원 멤버로 일괄 처리(승인버튼 잔존 방지)
+  if(typeof isAdminUser==='function'&&isAdminUser()&&_isAutoApprove()){try{_autoApproveSweep();}catch(e){}}
   const pending=DB.g('pendingUsers')||[];
   const loginLog=(DB.g('loginLog')||[]).slice().sort((a,b)=>(b.at||0)-(a.at||0));
   const acl=_getAcl();

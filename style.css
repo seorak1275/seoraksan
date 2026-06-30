@@ -167,7 +167,7 @@ button{-webkit-tap-highlight-color:transparent;touch-action:manipulation;}
 .map-cluster.fac{background:rgba(26,74,110,.94);border-color:rgba(125,211,250,.9);}
 .map-cluster.active{background:rgba(231,76,60,.96);border-color:#fff;box-shadow:0 0 0 3px rgba(231,76,60,.4),0 2px 10px rgba(0,0,0,.55);animation:actClusPulse 1.6s ease-in-out infinite;}
 @keyframes actClusPulse{0%,100%{box-shadow:0 0 0 3px rgba(231,76,60,.4),0 2px 10px rgba(0,0,0,.55);}50%{box-shadow:0 0 0 7px rgba(231,76,60,.12),0 2px 14px rgba(231,76,60,.5);}}
-.sheet-handle{width:30px;height:3px;background:rgba(255,255,255,.18);border-radius:9px;margin:0 auto;}
+.sheet-handle{width:46px;height:5px;background:rgba(255,255,255,.3);border-radius:9px;margin:2px auto;}
 .mpin-shelter{border-color:#27ae60;}
 .p-ok{border-color:#27ae60;}.p-warn{border-color:#e67e22;}.p-bad{border-color:#c0392b;}
 .p-acc{border-color:#c0392b;background:#c0392b;color:#fff;}.p-rock{border-color:#7d3c98;background:#7d3c98;color:#fff;}
