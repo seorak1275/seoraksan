@@ -1,1 +1,1 @@
-{"version":"2026.06.29.19","url":"https://109yoon.github.io/seoraksan/bundle.zip","notes":"관리자 권한 _acl 기준으로 일원화(강등 즉시 반영), 보호대상=개발자(나)만(devKakaoId)"}
+{"version":"2026.06.29.20","url":"https://109yoon.github.io/seoraksan/bundle.zip","notes":"개발자 카카오ID 하드코딩(4896979764) — 재등록 불필요, 그 계정만 특혜"}

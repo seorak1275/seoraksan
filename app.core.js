@@ -29,6 +29,8 @@ function _uploadErr(msg){
 }
 // 카카오 프로필 사진 URL은 http:// 로 오는데, 앱이 https://localhost 출처라 혼합콘텐츠로 차단됨 → https로 승격
 function _imgHttps(u){return String(u||'').replace(/^http:\/\//i,'https://');}
+// 개발자(나) 카카오ID — 항상 관리자·삭제/역할변경 불가·전체초기화 권한. (재등록 불필요)
+const _DEV_KAKAO_ID='4896979764';
 window.addEventListener('error',e=>{_logErr((e.message||'오류')+' @'+(e.filename||'').split('/').pop()+':'+(e.lineno||''));});
 window.addEventListener('unhandledrejection',e=>{_logErr('Promise: '+((e.reason&&e.reason.message)||e.reason||'거부'));});
 

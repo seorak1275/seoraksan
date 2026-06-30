@@ -98,8 +98,8 @@ function isAdminUser(){
   if(u.kakaoId){
     // 카카오 사용자: 관리자 판정을 _acl(동기화)로만 — 강등되면 즉시 반영(옛 비번/토큰 플래그 무시)
     var kid=String(u.kakaoId),acl=_getAcl();
+    if(_isDeveloper(kid))return true; // 개발자(나)는 항상 관리자
     if(acl.admins.indexOf(kid)>=0)return true;
-    if(String(DB.g('devKakaoId')||'')===kid)return true; // 개발자 본인
     return false;
   }
   // 카카오ID 없는(비밀번호 전용) 환경: 기존 플래그 인정
@@ -107,14 +107,18 @@ function isAdminUser(){
       || localStorage.getItem('_tokenAdmin')==='1'
       || _authRole==='admin';
 }
-// 개발자: 마스터 비밀번호 인증 or devKakaoId 본인. 전체 초기화·본인 삭제방지 등에 사용
+// 개발자: 하드코딩된 개발자 카카오ID 본인 or 마스터 비밀번호 인증. 전체 초기화·본인 삭제방지 등에 사용
 function _isMasterAdmin(){
-  if(localStorage.getItem('_masterAuthed')==='1')return true;
-  var u=DB.g('currentUser')||{},dev=DB.g('devKakaoId');
-  return !!(u.kakaoId&&dev&&String(u.kakaoId)===String(dev));
+  var u=DB.g('currentUser')||{};
+  if(u.kakaoId&&_isDeveloper(u.kakaoId))return true;
+  return localStorage.getItem('_masterAuthed')==='1';
 }
-// 대상 kakaoId가 '개발자(나)'인가 — 직원목록에서 역할변경·삭제 버튼 숨김용(나만 보호)
-function _isDeveloper(kakaoId){var dev=DB.g('devKakaoId');return !!(dev&&String(kakaoId)===String(dev));}
+// 대상 kakaoId가 '개발자(나)'인가 — 직원목록에서 역할변경·삭제 버튼 숨김용(나만 보호).
+// 하드코딩 ID(재등록 불필요) 또는 마스터로 지정한 devKakaoId.
+function _isDeveloper(kakaoId){
+  if(String(kakaoId)===_DEV_KAKAO_ID)return true;
+  var dev=DB.g('devKakaoId');return !!(dev&&String(kakaoId)===String(dev));
+}
 // ── 멤버십(접근권한) 판정 — _acl 단일 기준 ──
 // 멤버/관리자만 앱 사용 가능. 외부기관은 별도 경로(자체 제한)라 통과시킨다.
 function _isMember(){
