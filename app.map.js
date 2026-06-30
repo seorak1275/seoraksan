@@ -62,11 +62,40 @@ function _clusterByPixels(map,items,cellPx,onClick,cls){
     let lat=0,lng=0;group.forEach(it=>{lat+=it.lat;lng+=it.lng;});lat/=group.length;lng/=group.length;
     const el=document.createElement('div');
     el.className='map-cluster'+(cls?' '+cls:'');el.textContent=group.length;
-    el.addEventListener('click',e=>{e.stopPropagation();onClick&&onClick(lat,lng);});
+    el.addEventListener('click',e=>{e.stopPropagation();onClick&&onClick(lat,lng,group);});
     const ov=new kakao.maps.CustomOverlay({position:new kakao.maps.LatLng(lat,lng),content:el,clickable:true,zIndex:6});
     ov.setMap(map);out.push(ov);
   });
   return out;
+}
+// 클러스터 멤버가 사실상 같은 지점(확대해도 안 풀림)인지
+function _clusterTooTight(group){
+  if(!group||group.length<2)return false;
+  var maxD=0;
+  for(var i=0;i<group.length;i++)for(var j=i+1;j<group.length;j++){
+    var d=_haversine(group[i].lat,group[i].lng,group[j].lat,group[j].lng);
+    if(d>maxD)maxD=d;
+  }
+  return maxD<25; // 25m 이내 → 줌으로 분리 불가 → 목록 선택
+}
+// 같은 자리에 겹친 사고/위험 목록 팝업 (확대로 못 풀 때)
+function _showClusterList(group){
+  var items=(group||[]).map(function(g){return g.ov&&g.ov._ev;}).filter(Boolean);
+  if(!items.length)return;
+  if(items.length===1){try{openResPopup(items[0].id,items[0].type);}catch(e){}return;}
+  var m=document.getElementById('clusListModal');
+  if(!m){m=document.createElement('div');m.id='clusListModal';document.body.appendChild(m);}
+  m.style.cssText='position:fixed;inset:0;z-index:9500;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;padding:24px;';
+  var rows=items.map(function(it){
+    var og=it.status==='ongoing';
+    var ico=it.type==='hazard'?'⚠️':(og?'🔴':'✅');
+    var tag=it.type==='hazard'?'위험':(og?'진행중':'종료');
+    return '<div onclick="(function(){var e=document.getElementById(\'clusListModal\');if(e)e.remove();openResPopup(\''+_escq(String(it.id))+'\',\''+it.type+'\');})()" style="display:flex;align-items:center;gap:8px;padding:11px;border-radius:9px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.08);margin-bottom:6px;cursor:pointer;"><span style="font-size:16px;">'+ico+'</span><span style="font-size:12px;color:#e0edf8;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+_esc(it.title||'(제목없음)')+'</span><span style="font-size:10px;font-weight:700;color:'+(og?'#ff6b5e':(it.type==='hazard'?'#e67e22':'#7a9cb8'))+';flex-shrink:0;">'+tag+'</span></div>';
+  }).join('');
+  m.innerHTML='<div style="background:#0a1828;border:1px solid rgba(79,168,208,.25);border-radius:14px;max-width:340px;width:100%;max-height:70vh;overflow-y:auto;padding:14px;">'
+    +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;"><span style="font-size:14px;font-weight:800;color:#e0edf8;">📍 같은 위치 '+items.length+'건</span><button onclick="var e=document.getElementById(\'clusListModal\');if(e)e.remove();" style="background:none;border:none;color:rgba(255,255,255,.5);font-size:22px;cursor:pointer;line-height:1;">×</button></div>'
+    +rows+'</div>';
+  m.onclick=function(e){if(e.target===m)m.remove();};
 }
 function _clusterZoom(map,lat,lng){
   try{map.setLevel(Math.max(1,map.getLevel()-2),{anchor:new kakao.maps.LatLng(lat,lng)});}
@@ -82,7 +111,12 @@ function _reclusterRescue(){
   // 너무 크게 뭉치지 않도록 셀을 작게(줌인일수록 더 잘게) — 가까운 것만 묶임
   let lv=9;try{lv=mapR.getLevel();}catch(e){}
   const cell=lv>=10?48:lv>=8?36:lv>=6?28:22;
-  _rClusterOvs=_clusterByPixels(mapR,others,cell,(la,ln)=>_clusterZoom(mapR,la,ln),'');
+  _rClusterOvs=_clusterByPixels(mapR,others,cell,function(la,ln,group){
+    // 더 확대해도 안 풀리는 경우(거의 최대 줌이거나 같은 지점에 겹침) → 목록 선택 팝업
+    var curLv=9;try{curLv=mapR.getLevel();}catch(e){}
+    if(curLv<=2||_clusterTooTight(group))_showClusterList(group);
+    else _clusterZoom(mapR,la,ln);
+  },'');
   _rEvItems.filter(it=>it.noClus).forEach(it=>{try{it.ov.setMap(mapR);}catch(e){}});
 }
 // 시설물 점검 지도: 시설물 핀 클러스터

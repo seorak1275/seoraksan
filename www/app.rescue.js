@@ -549,7 +549,7 @@ function renderRescueMap(){
     el.addEventListener('click',e=>{e.stopPropagation();
       if(isOg&&r.teams&&r.teams.length)enterFocusMode(r.id);else openResPopup(r.id,'rescue');});
     const ov=new kakao.maps.CustomOverlay({position:new kakao.maps.LatLng(r.lat,r.lng),content:el,clickable:true,zIndex:isOg?8:3});
-    ov._lat=r.lat;ov._lng=r.lng;ov._noClus=isOg; // 진행중 구조는 클러스터 제외 + 최상단
+    ov._lat=r.lat;ov._lng=r.lng;ov._noClus=isOg;ov._ev={id:r.id,type:'rescue',title:r.title||'구조',status:r.status}; // 진행중 구조는 클러스터 제외 + 최상단
     ov.setMap(mapR);_rEvOvs.push(ov);_rEvEls.push(el);
   });
   // 위험상황 핀
@@ -564,7 +564,7 @@ function renderRescueMap(){
     el.addEventListener('touchend',e=>{if(!_ts)return;const dx=e.changedTouches[0].clientX-_ts.x,dy=e.changedTouches[0].clientY-_ts.y;_ts=null;if(Math.abs(dx)<8&&Math.abs(dy)<8){e.stopPropagation();e.preventDefault();openResPopup(h.id,'hazard');}});
     el.addEventListener('click',e=>{e.stopPropagation();openResPopup(h.id,'hazard');});
     const ov=new kakao.maps.CustomOverlay({position:new kakao.maps.LatLng(h.lat,h.lng),content:el,clickable:true});
-    ov._lat=h.lat;ov._lng=h.lng;
+    ov._lat=h.lat;ov._lng=h.lng;ov._ev={id:h.id,type:'hazard',title:h.title||h.hazType||'위험상황',status:h.hazStatus};
     ov.setMap(mapR);_rEvOvs.push(ov);_rEvEls.push(el);
   });
   // 사고/위험 상황 핀 클러스터링 (밀집 시 개수 버블로 묶음 — 시설물은 제외)
@@ -1521,7 +1521,7 @@ function downloadStatsExcel(tab){
 // ══════════════════════════════════════════
 function _popRow(ico,val){return val?`<div style="display:flex;gap:5px;margin-bottom:3px;"><span style="color:#4a7090;flex-shrink:0;">${ico}</span><span style="color:#c0d8ec;font-size:11px;">${_esc(val)}</span></div>`:'';}
 function openResPopup(id,type='rescue'){
-  const data=type==='rescue'?(DB.g('rescues')||[]).find(x=>x.id===id):(DB.g('hazards')||[]).find(x=>x.id===id);if(!data)return;
+  const data=type==='rescue'?(DB.g('rescues')||[]).find(x=>String(x.id)===String(id)):(DB.g('hazards')||[]).find(x=>String(x.id)===String(id));if(!data)return;
   selResId=id;
   if(type==='rescue'){
     const isOg=data.status==='ongoing';const ti=RES_TYPES[data.type]||RES_TYPES['기타'];
