@@ -371,20 +371,17 @@ async function sendCustomPush(){
   const title=(document.getElementById('pushTitleInp')?.value||'설악산 현장관리').trim()||'설악산 현장관리';
   const body=(document.getElementById('pushBodyInp')?.value||'').trim();
   if(!body){toast('⚠️ 보낼 내용을 입력하세요');document.getElementById('pushBodyInp')?.focus();return;}
-  // 받는 대상: all / dept:소속 / kid:카카오ID
-  const tgt=(document.getElementById('pushTargetSel')?.value)||'all';
-  let tgtLabel='전체';
-  if(tgt.startsWith('dept:'))tgtLabel='소속 · '+tgt.slice(5);
-  else if(tgt.startsWith('kid:')){const _p=[].concat(DB.g('loginLog')||[],DB.g('pendingUsers')||[]).find(e=>String(e.kakaoId||e.id||'')===tgt.slice(4));tgtLabel='개별 · '+((_p&&(_p.realName||_p.name))||tgt.slice(4));}
+  // 받는 대상: '전체' 체크 또는 아무 소속도 안 고르면 전체, 아니면 선택한 소속들
+  const allChk=document.getElementById('pushAll')&&document.getElementById('pushAll').checked;
+  const depts=[].slice.call(document.querySelectorAll('.pushDept:checked')).map(c=>c.value);
+  let tgtLabel,filterTok;
+  if(allChk||!depts.length){tgtLabel='전체';filterTok=function(){return true;};}
+  else{tgtLabel='소속 · '+depts.join(', ');const set=new Set(depts);filterTok=function(v){return set.has(v.dept||'');};}
   if(!confirm('['+tgtLabel+']에게 푸시를 발송합니다.\n\n제목: '+title+'\n내용: '+body+'\n\n발송할까요?'))return;
   toast('📨 푸시 발송 중…');
   try{
     const snap=await _fdb.collection('fcmTokens').get();
-    const tokens=[];snap.forEach(d=>{const v=d.data()||{};if(!v.token)return;
-      if(tgt==='all')tokens.push(v.token);
-      else if(tgt.startsWith('dept:')){if((v.dept||'')===tgt.slice(5))tokens.push(v.token);}
-      else if(tgt.startsWith('kid:')){if(String(v.kakaoId||'')===tgt.slice(4))tokens.push(v.token);}
-    });
+    const tokens=[];snap.forEach(d=>{const v=d.data()||{};if(!v.token)return;if(filterTok(v))tokens.push(v.token);});
     if(!tokens.length){toast('⚠️ 대상 기기가 없습니다 (해당 직원이 아직 앱에서 알림을 켜지 않았을 수 있음)');return;}
     const res=await fetch(url,{method:'POST',headers:{'content-type':'text/plain;charset=utf-8'},
       body:JSON.stringify({secret:_FCM_PUSH_SECRET||(DB.g('fcmPushSecret')||''),title,body,data:{app:'home'},tokens})});

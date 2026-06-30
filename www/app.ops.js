@@ -1841,7 +1841,7 @@ function renderAdmMembers(){
             </select>`}
             <button onclick="_toggleAdmMemberEdit('${_escq(editId)}')" style="background:rgba(79,168,208,.12);color:#4fa8d0;border:1px solid rgba(79,168,208,.25);border-radius:6px;padding:4px 7px;font-size:10px;cursor:pointer;">수정</button>
             ${u.puId&&u.approvalStatus!=='approved'&&!_isDeveloper(u.kakaoId)?`<button onclick="approveUser('${_escq(u.puId)}')" style="background:rgba(39,174,96,.15);color:#7ec8a0;border:1px solid rgba(39,174,96,.3);border-radius:6px;padding:4px 7px;font-size:10px;cursor:pointer;">승인</button>`:''}
-            ${u.puId&&!_isDeveloper(u.kakaoId)?`<button onclick="deleteUser('${_escq(u.puId)}')" style="background:rgba(192,57,43,.15);color:#ff8a80;border:1px solid rgba(192,57,43,.25);border-radius:6px;padding:4px 7px;font-size:10px;cursor:pointer;">삭제</button>`:''}
+            ${!_isDeveloper(u.kakaoId)?`<button onclick="removeStaff('${_escq(u.kakaoId)}')" style="background:rgba(192,57,43,.15);color:#ff8a80;border:1px solid rgba(192,57,43,.25);border-radius:6px;padding:4px 7px;font-size:10px;cursor:pointer;">삭제</button>`:''}
           </div>
         </div>
         <div id="admMemberEdit_${editId}" style="display:none;margin-top:8px;background:rgba(0,0,0,.25);border-radius:9px;padding:10px;">
@@ -1982,8 +1982,35 @@ function renderAdmSheets(){
       <div class="fg"><span class="fl">Apps Script 배포 URL</span><input type="text" id="sheetsUrlIn" class="fi" placeholder="https://script.google.com/macros/s/..." value="${url}"></div>
       <button onclick="saveSheetsUrl()" style="width:100%;background:${url?'#0c4838':'#1a4a6e'};color:#fff;border:none;padding:10px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;">${url?'✅ 저장됨 (재입력하여 변경)':'저장'}</button>
     </div>
-    <div class="scard"><div class="stitle">📌 Google Sheets 설정 방법</div>
+    <div class="scard" style="margin-bottom:8px;"><div class="stitle">📌 Google Sheets 설정 방법</div>
       <div style="font-size:11px;color:#7a9cb8;line-height:1.8;">1. Google Sheets 열기<br>2. 확장 프로그램 → Apps Script<br>3. 코드 작성 → 배포 → 웹앱으로 배포<br>4. 생성된 URL을 위에 입력</div>
+    </div>
+    <div class="scard" style="margin-bottom:8px;">
+      <div class="stitle">🚒 외부기관 관리</div>
+      <div style="font-size:11px;color:#7a9cb8;margin-bottom:8px;">119·산악구조대·특수대응단 등 기관별로 추가하세요. 각 기관에 코드를 전달하면 해당 기관명으로 접수됩니다 (접수·조회·댓글만 가능).</div>
+      <div id="extAgencyListWrap">${_extAgencyRowsHtml()}</div>
+      <div style="display:flex;gap:6px;margin-top:8px;">
+        <button onclick="addExtAgencyRow()" style="flex:1;background:rgba(255,255,255,.05);color:#9bbdd4;border:1px dashed rgba(255,120,30,.3);padding:9px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;">＋ 기관 추가</button>
+        <button onclick="saveExtAgencies()" style="flex:1;background:#7a3010;color:#fff;border:none;padding:9px;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;">💾 전체 저장</button>
+      </div>
+    </div>
+    <div class="scard" style="margin-bottom:8px;">
+      <div class="stitle">🤖 AI 출동지령서 스캔 키</div>
+      <div style="font-size:11px;color:#7a9cb8;margin-bottom:8px;">Google Gemini API 키 (무료) — <a href="https://aistudio.google.com/app/apikey" target="_blank" style="color:#c4b5fd;">aistudio.google.com</a>에서 발급</div>
+      <div style="display:flex;gap:6px;">
+        <input id="geminiKeyInp" type="password" class="fi" value="${DB.g('geminiApiKey')||''}" placeholder="AIza..." style="flex:1;font-family:monospace;font-size:13px;">
+        <button onclick="saveGeminiKey()" style="background:#1a3a20;color:#86efac;border:1px solid rgba(74,222,128,.3);padding:8px 14px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;">저장</button>
+      </div>
+      <div style="font-size:10px;color:#3a4a6a;margin-top:7px;">무료 티어: 1일 1,500회 · 분당 100만 토큰 · 결제 불필요</div>
+    </div>
+    <div class="scard">
+      <div class="stitle">🌦️ 기상청 프록시 주소</div>
+      <div style="font-size:11px;color:#7a9cb8;margin-bottom:8px;">실제 기상청 데이터를 안정적으로 받기 위한 본인 소유 프록시(Cloudflare Worker) 주소. 비우면 공개 프록시로 동작. 설정법: 저장소 <b>cloudflare-worker/README.md</b></div>
+      <div style="display:flex;gap:6px;">
+        <input id="kmaProxyInp" type="text" class="fi" value="${_esc(DB.g('kmaProxyUrl')||'')}" placeholder="https://seoraksan-kma.xxx.workers.dev" style="flex:1;font-family:monospace;font-size:11px;">
+        <button onclick="saveKmaProxy()" style="background:#1a3a20;color:#86efac;border:1px solid rgba(74,222,128,.3);padding:8px 14px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;">저장</button>
+      </div>
+      <div style="font-size:10px;color:#3a4a6a;margin-top:7px;">Cloudflare Workers 무료: 1일 10만 요청 · 설정 후 날씨 상세 출처가 '기상청'으로 표시</div>
     </div>`;
 }
 function saveSheetsUrl(){const url=document.getElementById('sheetsUrlIn')?.value?.trim();if(!url){toast('⚠️ URL 입력');return;}DB.s('sheetsUrl',url);toast('✅ URL 저장');renderAdmSheets();}
@@ -2215,42 +2242,18 @@ function renderAdmSys(){
       <div id="allErrLogs" style="max-height:220px;overflow-y:auto;"><div style="font-size:11px;color:rgba(255,255,255,.25);">‘불러오기’를 누르면 모든 기기의 오류를 모아 봅니다(관리자 전용)</div></div>
     </div>
     <div class="scard" style="margin-bottom:8px;">
-      <div class="stitle">🚒 외부기관 관리</div>
-      <div style="font-size:11px;color:#7a9cb8;margin-bottom:8px;">119·산악구조대·특수대응단 등 기관별로 추가하세요. 각 기관에 코드를 전달하면 해당 기관명으로 접수됩니다 (접수·조회·댓글만 가능).</div>
-      <div id="extAgencyListWrap">${_extAgencyRowsHtml()}</div>
-      <div style="display:flex;gap:6px;margin-top:8px;">
-        <button onclick="addExtAgencyRow()" style="flex:1;background:rgba(255,255,255,.05);color:#9bbdd4;border:1px dashed rgba(255,120,30,.3);padding:9px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;">＋ 기관 추가</button>
-        <button onclick="saveExtAgencies()" style="flex:1;background:#7a3010;color:#fff;border:none;padding:9px;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;">💾 전체 저장</button>
-      </div>
-    </div>
-    <div class="scard" style="margin-bottom:8px;">
-      <div class="stitle">🤖 AI 출동지령서 스캔 키</div>
-      <div style="font-size:11px;color:#7a9cb8;margin-bottom:8px;">Google Gemini API 키 (무료) — <a href="https://aistudio.google.com/app/apikey" target="_blank" style="color:#c4b5fd;">aistudio.google.com</a>에서 발급</div>
-      <div style="display:flex;gap:6px;">
-        <input id="geminiKeyInp" type="password" class="fi" value="${DB.g('geminiApiKey')||''}" placeholder="AIza..." style="flex:1;font-family:monospace;font-size:13px;">
-        <button onclick="saveGeminiKey()" style="background:#1a3a20;color:#86efac;border:1px solid rgba(74,222,128,.3);padding:8px 14px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;">저장</button>
-      </div>
-      <div style="font-size:10px;color:#3a4a6a;margin-top:7px;">무료 티어: 1일 1,500회 · 분당 100만 토큰 · 결제 불필요</div>
-    </div>
-    <div class="scard" style="margin-bottom:8px;">
-      <div class="stitle">🌦️ 기상청 프록시 주소</div>
-      <div style="font-size:11px;color:#7a9cb8;margin-bottom:8px;">실제 기상청 데이터를 안정적으로 받기 위한 본인 소유 프록시(Cloudflare Worker) 주소. 비우면 공개 프록시로 동작. 설정법: 저장소 <b>cloudflare-worker/README.md</b></div>
-      <div style="display:flex;gap:6px;">
-        <input id="kmaProxyInp" type="text" class="fi" value="${_esc(DB.g('kmaProxyUrl')||'')}" placeholder="https://seoraksan-kma.xxx.workers.dev" style="flex:1;font-family:monospace;font-size:11px;">
-        <button onclick="saveKmaProxy()" style="background:#1a3a20;color:#86efac;border:1px solid rgba(74,222,128,.3);padding:8px 14px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;">저장</button>
-      </div>
-      <div style="font-size:10px;color:#3a4a6a;margin-top:7px;">Cloudflare Workers 무료: 1일 10만 요청 · 설정 후 날씨 상세 출처가 '기상청'으로 표시</div>
-    </div>
-    <div class="scard" style="margin-bottom:8px;">
       <div class="stitle">📲 푸시 알림 (꺼진 폰까지)</div>
       <div style="font-size:11px;color:#7a9cb8;margin-bottom:8px;">구조 1보·위험상황 발생 시 자동 발송됩니다. 아래에서 <b style="color:#5dbf8a;">받는 대상을 골라</b> 직접 작성해 푸시할 수 있습니다.</div>
-      <div class="fg"><span class="fl">받는 대상</span>
+      <div class="fg"><span class="fl">받는 대상 <span style="color:#5a7e98;font-weight:400;">(소속 선택 · 복수 가능, 비우면 전체)</span></span>
         ${(()=>{
-          const seen={},people=[],depts=new Set();
-          [].concat(DB.g('loginLog')||[],DB.g('pendingUsers')||[]).forEach(e=>{const kid=String(e.kakaoId||e.id||'');if(!kid||seen[kid])return;seen[kid]=1;const nm=e.realName||e.name||'',dp=e.dept||'';people.push({kid,nm,dp});if(dp)depts.add(dp);});
-          const dOpts=[...depts].sort().map(d=>`<option value="dept:${_esc(d)}">소속 · ${_esc(d)}</option>`).join('');
-          const pOpts=people.filter(p=>p.nm).sort((a,b)=>a.nm.localeCompare(b.nm)).map(p=>`<option value="kid:${_esc(p.kid)}">개별 · ${_esc(p.nm)}${p.dp?' ('+_esc(p.dp)+')':''}</option>`).join('');
-          return `<select id="pushTargetSel" class="fsel" style="font-size:13px;"><option value="all">📢 전체 (전 직원)</option>${dOpts}${pOpts}</select>`;
+          const depts=new Set();
+          [].concat(DB.g('loginLog')||[],DB.g('pendingUsers')||[]).forEach(e=>{if(e&&e.dept)depts.add(e.dept);});
+          const lbl='display:inline-flex;align-items:center;gap:5px;background:#0b1c30;border:1px solid rgba(79,168,208,.25);border-radius:18px;padding:7px 12px;font-size:12px;color:#cfe2f2;cursor:pointer;';
+          const chips=[...depts].sort().map(d=>`<label style="${lbl}"><input type="checkbox" class="pushDept" value="${_esc(d)}" onchange="_pushDeptChanged()" style="width:15px;height:15px;">${_esc(d)}</label>`).join('');
+          return `<div id="pushTargetChips" style="display:flex;flex-wrap:wrap;gap:7px;">
+            <label style="${lbl}background:rgba(79,168,208,.12);"><input type="checkbox" id="pushAll" checked onchange="_pushToggleAll(this)" style="width:15px;height:15px;">📢 전체</label>
+            ${chips}
+          </div>`;
         })()}
       </div>
       <div class="fg"><span class="fl">제목</span>
@@ -2268,18 +2271,6 @@ function renderAdmSys(){
           +log.slice(0,8).map(p=>`<div style="font-size:10px;color:#9bbdd4;padding:4px 0;border-bottom:1px solid rgba(255,255,255,.04);"><span style="color:#7dd3fa;font-weight:700;">${_esc(p.target||'전체')}</span> · ${_esc(p.body||'')}<br><span style="color:#5a7e98;font-size:9px;">${p.by?_esc(p.by)+' · ':''}${p.at?new Date(p.at).toLocaleString('ko-KR',{month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'}):''}${p.sent!=null?' · '+p.sent+'대 발송':''}</span></div>`).join('')
           +`</div>`;
       })()}
-      <div id="fcmAdvWrap" style="margin-top:8px;">
-        <div onclick="var e=document.getElementById('fcmAdv');e.style.display=e.style.display==='none'?'block':'none';" style="font-size:10px;color:#3a6a8a;cursor:pointer;">⚙️ 고급: 발송기 직접 지정 (선택)</div>
-        <div id="fcmAdv" style="display:none;margin-top:6px;">
-          <div class="fg"><span class="fl">Apps Script 발송 URL (비우면 내장값 사용)</span>
-            <input id="fcmUrlInp" class="fi" type="text" placeholder="내장값 사용 중" value="${DB.g('fcmPushUrl')||''}" style="font-family:monospace;font-size:11px;">
-          </div>
-          <div class="fg"><span class="fl">공유 비밀번호</span>
-            <input id="fcmSecInp" class="fi" type="text" placeholder="내장값 사용 중" value="${DB.g('fcmPushSecret')||''}" style="font-family:monospace;font-size:12px;">
-          </div>
-          <button onclick="saveFcmCfg()" style="width:100%;background:#1a4a6e;color:#fff;border:none;padding:8px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;">💾 저장</button>
-        </div>
-      </div>
       <div id="fcmStatus" style="font-size:10px;color:#3a6a8a;margin-top:8px;line-height:1.7;">등록된 기기 확인 중…</div>
     </div>
     <div class="scard" style="margin-bottom:8px;"><div class="stitle">📊 데이터 현황</div>
@@ -2312,6 +2303,25 @@ function renderAdmSys(){
       </div>
     </div>`;
   setTimeout(_refreshFcmStatus,100);
+}
+// 푸시 받는 대상(소속 체크박스) 토글
+function _pushToggleAll(el){if(el&&el.checked){document.querySelectorAll('.pushDept').forEach(c=>{c.checked=false;});}else if(el&&![...document.querySelectorAll('.pushDept')].some(c=>c.checked)){el.checked=true;}}
+function _pushDeptChanged(){const any=[...document.querySelectorAll('.pushDept')].some(c=>c.checked);const all=document.getElementById('pushAll');if(all)all.checked=!any;}
+// 카카오ID 기준 직원 삭제 — 가입신청(pendingUsers) 없이 로그인 이력만 있는 사람도 삭제 가능
+function removeStaff(kakaoId){
+  if(!isAdminUser()){toast('⚠️ 관리자만 가능');return;}
+  kakaoId=String(kakaoId||'');if(!kakaoId)return;
+  if(_isDeveloper(kakaoId)){toast('⚠️ 개발자는 삭제할 수 없습니다');return;}
+  const pu=(DB.g('pendingUsers')||[]).find(p=>String(p.kakaoId||p.id)===kakaoId);
+  const ll=(DB.g('loginLog')||[]).find(e=>String(e.kakaoId)===kakaoId);
+  const nm=(pu&&(pu.realName||pu.name))||(ll&&ll.name)||'이 사용자';
+  if(!confirm(nm+'을(를) 삭제하시겠습니까?\n(작성한 데이터는 유지 · 재로그인 시 재승인 필요)'))return;
+  const del=DB.g('deletedKakaoIds')||[];if(!del.includes(kakaoId)){del.push(kakaoId);DB.s('deletedKakaoIds',del);}
+  DB.s('pendingUsers',(DB.g('pendingUsers')||[]).filter(p=>String(p.kakaoId||p.id)!==kakaoId));
+  DB.s('loginLog',(DB.g('loginLog')||[]).filter(e=>String(e.kakaoId)!==kakaoId));
+  const acl=_getAcl();acl.members=acl.members.filter(x=>x!==kakaoId);acl.admins=acl.admins.filter(x=>x!==kakaoId);DB.s('_acl',acl);
+  renderAdmMembers();try{renderAdmSys();}catch(e){}
+  toast('🗑️ 삭제 완료');
 }
 function deleteUser(id){
   if(!isAdminUser()){toast('⚠️ 관리자만 가능');return;}
