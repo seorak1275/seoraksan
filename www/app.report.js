@@ -1132,6 +1132,24 @@ function _buildLogHtml(r){
     ${legend}${rows}
   </div>`;
 }
+// 추가보고(N보)에 들어온 새 정보를 최초접수 위에 최신값으로 병합 — 팝업·보고서에 '다 뜨게'
+// (각 보고는 빈값이면 직전값을 이어받으므로, 비어있지 않은 최신값이 이김. 메타·증분 필드는 제외)
+function _mergedRescue(r){
+  if(!r||!r.reports||!r.reports.length)return r;
+  const SKIP={id:1,rid:1,repTime:1,date:1,status:1,title:1,reports:1,author:1,update:1,victimChange:1,addMem:1,comments:1,reception:1,initTemp:1,sosId:1};
+  const BLANK=['','-','미정','해당없음','알수없음','없음','미상','모르겠음'];
+  const m=Object.assign({},r);
+  r.reports.forEach(p=>{
+    if(!p)return;
+    Object.keys(p).forEach(k=>{
+      if(SKIP[k])return;
+      const v=p[k];
+      if(v===undefined||v===null||(Array.isArray(v)&&!v.length)||BLANK.includes(v))return;
+      m[k]=v; // 최신 보고의 값으로 갱신
+    });
+  });
+  return m;
+}
 // 보고서 공유/복사/인쇄 — 헤더 우측 '📄 보고서' 버튼
 function openReportShare(rid){
   let m=document.getElementById('repShareModal');
@@ -1229,7 +1247,8 @@ function renderTimeline(r,viewMode,outId){
       `;
     if(_tlTeams.some(t=>t.wps.some(w=>w.lat&&w.lng)))setTimeout(()=>_initTlMiniMap((_tlTeams.find(t=>t.wps.some(w=>w.lat&&w.lng))||{wps:[]}).wps),150);
   } else {
-    // 통합 보고서 mode
+    // 통합 보고서 mode — 추가보고(N보)의 최신 정보를 병합해 '다 뜨게'(reports·date·작성자 등 메타는 보존)
+    r=_mergedRescue(r);
     const _ok=v=>{if(!v&&v!==0)return false;const s=String(v).trim();return s&&s!=='-'&&!['미상','없음','모르겠음','알수없음','미정','해당없음','기타'].includes(s);};
     const _okA=v=>(Array.isArray(v)?v:[]).filter(x=>_ok(x));
     const _row=(k,v)=>v?`<div style="display:flex;gap:8px;padding:5px 0;border-bottom:.5px solid rgba(255,255,255,.04);align-items:flex-start;"><span style="font-size:11px;color:#4a7090;font-weight:600;flex-shrink:0;min-width:46px;">${k}</span><span style="font-size:11px;color:#b8d4e8;line-height:1.55;flex:1;">${v}</span></div>`:'';

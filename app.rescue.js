@@ -1547,7 +1547,7 @@ function openResPopup(id,type='rescue'){
     // 빈값/미상 필터 헬퍼
     const _skip=v=>{if(!v)return true;const s=String(v).trim();return !s||s==='-'||['미상','없음','모르겠음','알수없음','미정','해당없음','기타'].includes(s);};
     const _arr=v=>(Array.isArray(v)?v:typeof v==='string'?[v]:[]).filter(x=>!_skip(x));
-    const d=data;
+    const d=(typeof _mergedRescue==='function')?_mergedRescue(data):data; // 추가보고 최신 정보 병합해 다 뜨게
     // 우선순위: ① 부상 ② 위치 ③ 인적(전화·위치요청) ④ 신고자 ⑤ 접수내용 — 중요한 것만(컴팩트)
     const _injStr=(()=>{const il=(Array.isArray(d.injuries)?d.injuries:[]).filter(i=>i&&(i.part||i.type));if(il.length)return il.map(i=>((i.side&&i.side!=='해당없음'?i.side+' ':'')+(i.part||'')+' '+(i.type||'')).trim()).filter(Boolean).join(', ');const ip=_arr(d.injuryParts),it=_arr(d.injuryTypes);return (ip.join(', ')+(it.length?' / '+it.join(', '):'')).trim();})();
     const _vLine=[!_skip(d.vName)?_esc(d.vName):'미상',(!_skip(d.vBirth)?_ageFromBirth(d.vBirth)+'세':(!_skip(d.vAge)?_esc(d.vAge)+'세':'')),(!_skip(d.vGender)&&d.vGender!=='알수없음'?_esc(d.vGender):''),(!_skip(d.vTel)?_esc(d.vTel):'')].filter(Boolean).join(' · ');
@@ -1565,9 +1565,10 @@ function openResPopup(id,type='rescue'){
       ${(!_skip(d.repName)||!_skip(d.repTel))?`<div style="display:flex;align-items:center;flex-wrap:wrap;gap:5px;margin-bottom:6px;"><span style="font-size:10px;color:#4a7090;font-weight:700;">신고자</span><span style="font-size:12px;color:#cfe2f2;">${[!_skip(d.repName)?_esc(d.repName):'',!_skip(d.repTel)?_esc(d.repTel):''].filter(Boolean).join(' · ')}</span>${!_skip(d.repTel)?_telBtnsHtml(d.repTel):''}</div>`:''}
       ${!_skip(d.reception)?`<div style="font-size:11px;color:#b8d4e8;line-height:1.5;background:#0b1c30;border-radius:8px;padding:8px 10px;"><span style="font-size:9px;color:#4a7090;font-weight:700;">📝 접수내용</span><br>${_esc(d.reception)}</div>`:''}`;
     document.getElementById('btnViewRep').style.display='block';
-    document.getElementById('btnViewTl').style.display='none'; // 지도 팝업에선 출동(타임라인) 버튼 숨김
+    document.getElementById('btnViewTl').style.display=type==='rescue'?'block':'none';
+    // 출동 거점·좌표복사(라우트) 블록 제거 — 팝업에 불필요
     const rEl=document.getElementById('resPopRoutes');
-    if(rEl){const rh=_buildResRouteHtml(data);rEl.innerHTML=rh;rEl.style.display=rh?'block':'none';}
+    if(rEl){rEl.innerHTML='';rEl.style.display='none';}
   } else {
     document.getElementById('resPopTitle').textContent='⚠️ '+data.hazType+' 위험상황';
     const _skip=v=>{if(!v)return true;const s=String(v).trim();return !s||s==='-'||['미상','없음','알수없음','미정'].includes(s);};
