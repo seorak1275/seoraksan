@@ -2242,6 +2242,20 @@ function renderAdmSys(){
       <div id="allErrLogs" style="max-height:220px;overflow-y:auto;"><div style="font-size:11px;color:rgba(255,255,255,.25);">‘불러오기’를 누르면 모든 기기의 오류를 모아 봅니다(관리자 전용)</div></div>
     </div>
     <div class="scard" style="margin-bottom:8px;">
+      <div class="stitle">📢 알림 기본 정책</div>
+      <div style="font-size:11px;color:#7a9cb8;margin-bottom:10px;">대상별 <b style="color:#cfe2f2;">기본 알림 수준</b>입니다. 직원이 [내 설정 → 알림]에서 직접 바꾸면 그 사람은 개인 설정이 우선됩니다.</div>
+      ${['전원','관리자','멤버'].map(grp=>{
+        const cur=_getNotiPolicy()[grp];
+        return `<div style="margin-bottom:9px;">
+          <div style="font-size:12px;font-weight:800;color:#cfe2f2;margin-bottom:5px;">${grp==='전원'?'👥 전원':grp==='관리자'?'🔑 관리자':'🙋 멤버'}</div>
+          <div style="display:flex;gap:6px;">
+            ${_NOTI_LEVELS.map(lv=>`<button onclick="setNotiPolicy('${grp}','${lv.v}')" style="flex:1;padding:8px 0;border-radius:9px;border:1px solid ${cur===lv.v?'#4fa8d0':'rgba(255,255,255,.12)'};background:${cur===lv.v?'rgba(79,168,208,.18)':'rgba(255,255,255,.03)'};color:${cur===lv.v?'#7dd3fa':'#9bbdd4'};font-size:12px;font-weight:${cur===lv.v?'800':'600'};cursor:pointer;line-height:1.3;">${lv.l}<br><span style="font-size:9px;font-weight:400;opacity:.85;">${lv.d}</span></button>`).join('')}
+          </div>
+        </div>`;
+      }).join('')}
+      <div style="font-size:10px;color:#5a7e98;margin-top:2px;line-height:1.6;">전체=모든 알림 · 추천=중요 위주(기본값) · 최소=생명·안전 핵심만<br>※ 소속별 세부 지정은 다음 업데이트 예정</div>
+    </div>
+    <div class="scard" style="margin-bottom:8px;">
       <div class="stitle">📲 푸시 알림 (꺼진 폰까지)</div>
       <div style="font-size:11px;color:#7a9cb8;margin-bottom:8px;">구조 1보·위험상황 발생 시 자동 발송됩니다. 아래에서 <b style="color:#5dbf8a;">받는 대상을 골라</b> 직접 작성해 푸시할 수 있습니다.</div>
       <div class="fg"><span class="fl">받는 대상 <span style="color:#5a7e98;font-weight:400;">(소속 선택 · 복수 가능, 비우면 전체)</span></span>
@@ -2303,6 +2317,14 @@ function renderAdmSys(){
       </div>
     </div>`;
   setTimeout(_refreshFcmStatus,100);
+}
+// 관리자: 대상별 기본 알림 정책 설정(공유)
+function setNotiPolicy(grp,lv){
+  if(!isAdminUser()){toast('⚠️ 관리자만 가능');return;}
+  const p=DB.g('notiPolicy')||{};p[grp]=lv;DB.s('notiPolicy',p);
+  try{_updateFcmTokenSettings();}catch(e){}
+  try{renderAdmSys();}catch(e){}
+  toast('📢 '+grp+' 기본 알림 = '+({all:'전체',recommended:'추천',min:'최소'}[lv]||lv));
 }
 // 푸시 받는 대상(소속 체크박스) 토글
 function _pushToggleAll(el){if(el&&el.checked){document.querySelectorAll('.pushDept').forEach(c=>{c.checked=false;});}else if(el&&![...document.querySelectorAll('.pushDept')].some(c=>c.checked)){el.checked=true;}}

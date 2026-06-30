@@ -99,7 +99,7 @@ const _FB_CFG={
 // history: 점검이력은 무제한으로 계속 쌓이는 로그성 데이터라 단일문서 그대로 두면 매 점검마다 전체가 전원에게 재전송됨 → 건별 문서로 전환
 const _SHARED_COLL=['rescues','hazards','facilities','history'];
 // _SHARED_DOC: 단일 문서에 JSON 배열 저장 (관리자 전용, 동시 쓰기 없음)
-const _SHARED_DOC=['alertOps','staff','catFac','catFacMeta','pendingUsers','approvedUsers','deletedKakaoIds','adminOwnerKakaoId','adminApprovalCode','extAgencies','extAgencyCode','extAgencyDisplayName','geminiApiKey','kmaProxyUrl','_acl','loginLog','trailStatus','crisisLevel','weatherBrief','weatherLog','trailLog','sosBlocked','autoApprove','pushLog','devKakaoId'];
+const _SHARED_DOC=['alertOps','staff','catFac','catFacMeta','pendingUsers','approvedUsers','deletedKakaoIds','adminOwnerKakaoId','adminApprovalCode','extAgencies','extAgencyCode','extAgencyDisplayName','geminiApiKey','kmaProxyUrl','_acl','loginLog','trailStatus','crisisLevel','weatherBrief','weatherLog','trailLog','sosBlocked','autoApprove','pushLog','devKakaoId','notiPolicy'];
 // 시설물 레거시(단일문서) 폴백/시드 동기화 상태
 let _legacyFacBackup=null; // appData/facilities(구버전)의 백업 — 컬렉션 비었을 때 화면 폴백
 let _facSeedReady=false;   // 시설물 첫 스냅샷·레거시 백업 확인 완료(시드 레이스 방지)
@@ -1047,16 +1047,30 @@ const NOTI_GROUPS=[
   ]},
 ];
 const NOTI_PUSH=(()=>{const m={};NOTI_GROUPS.forEach(g=>g.items.forEach(it=>{m[it.k]=it.push;}));return m;})();
-// 신규 카테고리를 기존 사용자 설정에 기본값으로 보강
-function _ensureNotiDefaults(){
-  const s=DB.g('notiSetting')||{};let ch=false;
-  NOTI_GROUPS.forEach(g=>g.items.forEach(it=>{if(s[it.k]===undefined){s[it.k]=it.def;ch=true;}}));
-  if(ch)DB.s('notiSetting',s);
-  return s;
+const _NOTI_DEF=(()=>{const m={};NOTI_GROUPS.forEach(g=>g.items.forEach(it=>{m[it.k]=it.def;}));return m;})();
+// 알림 수준: 'all'(전체) / 'recommended'(추천=내가 준 기본값) / 'min'(최소·생명안전 위주)
+const _NOTI_MIN=new Set(['안전사고','낙석','위험수목','화재','기타','rescue_mobilize','crisis','op_kma','trail']);
+const _NOTI_LEVELS=[{v:'all',l:'전체',d:'모든 알림 받기'},{v:'recommended',l:'추천',d:'중요 알림 위주(기본)'},{v:'min',l:'최소',d:'생명·안전 핵심만'}];
+// 관리자가 정한 기본 정책(전원/관리자/멤버/소속별) — 개인이 직접 끈/켠 항목은 개인설정이 우선
+function _getNotiPolicy(){const p=DB.g('notiPolicy')||{};return{전원:p['전원']||'recommended',관리자:p['관리자']||'recommended',멤버:p['멤버']||'recommended',depts:p.depts||{}};}
+function _myNotiLevel(){
+  const p=_getNotiPolicy(),u=DB.g('currentUser')||{};
+  let lv=p['전원'];
+  if(typeof isAdminUser==='function'&&isAdminUser())lv=p['관리자'];else lv=p['멤버'];
+  if(u.dept&&p.depts[u.dept])lv=p.depts[u.dept]; // 소속 지정이 있으면 최우선
+  return lv||'recommended';
 }
+function _notiDefaultOn(k){const lv=_myNotiLevel();if(lv==='all')return true;if(lv==='min')return _NOTI_MIN.has(k);return _NOTI_DEF[k]!==false;}
+// 이 알림(k)이 나에게 켜져 있는가: 개인설정에 명시값 있으면 그것, 없으면 정책 기본값
+function _notiOn(k){const s=DB.g('notiSetting')||{};if(s[k]!==undefined)return s[k]!==false;return _notiDefaultOn(k);}
+// 서버 푸시 필터용: 정책+개인설정을 합친 실효 설정(전 항목 bool)
+function _effectiveNotiSettings(){const m={};NOTI_GROUPS.forEach(g=>g.items.forEach(it=>{m[it.k]=_notiOn(it.k);}));return m;}
+// 신규 카테고리를 기존 사용자 설정에 기본값으로 보강
+// 더 이상 기본값을 강제 저장하지 않음(정책 기본값이 적용되도록). 명시적으로 켠/끈 것만 notiSetting에 남김.
+function _ensureNotiDefaults(){return DB.g('notiSetting')||{};}
 function pushNoti(msg,ico,type='info',link=null,pushCat=null,opts){
   const adminOnly=!!(opts&&opts.adminOnly); // 관리자에게만 보낼 알림(권한 요청 등)
-  const s=DB.g('notiSetting')||{};if(type!=='info'&&s[type]===false)return;
+  if(type!=='info'&&!_notiOn(type))return; // 개인설정·관리자정책 기준으로 꺼져 있으면 표시 안 함
   // pushCat 미지정 시: 카테고리 정의에 push:false면 OS 푸시 끔(앱 내 종만)
   if(pushCat===null)pushCat=(NOTI_PUSH[type]===false)?'info':type;
   const id=Date.now();
@@ -1162,7 +1176,7 @@ function _saveFcmToken(token,platform){
   const u=DB.g('currentUser')||{};
   _fdb.collection('fcmTokens').doc(_MY_DEVICE_ID).set({
     token,userId:u.id||'',name:u.name||'',dept:u.dept||'',kakaoId:String(u.kakaoId||''),
-    notiSetting:DB.g('notiSetting')||{},platform:_fcmTokenCache.platform,updatedAt:Date.now()
+    notiSetting:_effectiveNotiSettings(),platform:_fcmTokenCache.platform,updatedAt:Date.now()
   },{merge:true}).catch(()=>{});
 }
 function _flushFcmToken(){if(_fcmTokenCache)_saveFcmToken(_fcmTokenCache.token,_fcmTokenCache.platform);}
@@ -1170,7 +1184,7 @@ function _flushFcmToken(){if(_fcmTokenCache)_saveFcmToken(_fcmTokenCache.token,_
 function _updateFcmTokenSettings(){
   if(!_fdb)return;
   _fdb.collection('fcmTokens').doc(_MY_DEVICE_ID).set(
-    {notiSetting:DB.g('notiSetting')||{},updatedAt:Date.now()},{merge:true}
+    {notiSetting:_effectiveNotiSettings(),updatedAt:Date.now()},{merge:true}
   ).catch(()=>{});
 }
 // 중요 알림을 꺼진 폰까지 발송 (Apps Script 경유). cat=알림설정 키, 'info'면 발송 안 함.

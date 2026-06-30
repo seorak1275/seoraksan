@@ -39,7 +39,9 @@ function renderSettings(){
       </a>`;
   } else {
     const s=_ensureNotiDefaults();
-    const allOn=NOTI_GROUPS.every(g=>g.items.every(it=>s[it.k]!==false));
+    const allOn=NOTI_GROUPS.every(g=>g.items.every(it=>_notiOn(it.k)));
+    const _myLv=(typeof _myNotiLevel==='function')?_myNotiLevel():'recommended';
+    const _lvLbl={all:'전체',recommended:'추천(기본)',min:'최소'}[_myLv]||'추천(기본)';
     const _vibe=DB.g('notiVibrate')!==false;
     const _notiPerm=('Notification' in window)?Notification.permission:'unsupported';
     document.getElementById('settingsNotiWrap').innerHTML=`
@@ -52,15 +54,15 @@ function renderSettings(){
         <div class="stitle" style="display:flex;align-items:center;justify-content:space-between;">🔔 알림 설정
           <button onclick="togNotiAll(${allOn?'false':'true'})" style="font-size:10px;font-weight:700;background:rgba(79,168,208,.12);color:#4fa8d0;border:1px solid rgba(79,168,208,.3);border-radius:7px;padding:4px 9px;cursor:pointer;">${allOn?'전체 끄기':'전체 켜기'}</button>
         </div>
-        <div class="tog-sub" style="margin:-4px 0 10px;color:#5a7e98;">📵 끈 항목은 앱 알림·OS 푸시 모두 차단됩니다. '(앱 내만)' 항목은 끄지 않아도 OS 푸시는 가지 않습니다.</div>
+        <div class="tog-sub" style="margin:-4px 0 8px;color:#5a7e98;">관리자 기본 정책: <b style="color:#7dd3fa;">${_lvLbl}</b> · 아래에서 항목별로 직접 켜고 끌 수 있습니다(개인 설정 우선).</div>
         ${NOTI_GROUPS.map(g=>`
           <div style="font-size:11px;font-weight:800;color:#6a94b0;letter-spacing:.4px;margin:14px 0 4px;border-top:1px solid rgba(255,255,255,.05);padding-top:10px;">${g.title}</div>
-          ${g.items.map(it=>`<div class="tog-row"><div><div class="tog-lbl">${it.l}${it.push===false?' <span style="font-size:9px;color:#4a7090;font-weight:600;">(앱 내만)</span>':''}</div><div class="tog-sub">${it.sub}</div></div><div class="toggle ${s[it.k]!==false?'on':'off'}" onclick="togNotiSet('${it.k}',this)"></div></div>`).join('')}
+          ${g.items.map(it=>`<div class="tog-row"><div><div class="tog-lbl">${it.l}${it.push===false?' <span style="font-size:9px;color:#4a7090;font-weight:600;">(앱 내만)</span>':''}</div><div class="tog-sub">${it.sub}</div></div><div class="toggle ${_notiOn(it.k)?'on':'off'}" onclick="togNotiSet('${it.k}',this)"></div></div>`).join('')}
         `).join('')}
       </div>`;
   }
 }
-function togNotiSet(k,el){const s=DB.g('notiSetting')||{};const cur=s[k]!==false;s[k]=!cur;DB.s('notiSetting',s);el.className='toggle '+(!cur?'on':'off');_updateFcmTokenSettings();toast(!cur?'✅ 알림 켜짐':'🔕 꺼짐');}
+function togNotiSet(k,el){const s=DB.g('notiSetting')||{};const cur=_notiOn(k);s[k]=!cur;DB.s('notiSetting',s);el.className='toggle '+(!cur?'on':'off');_updateFcmTokenSettings();toast(!cur?'✅ 알림 켜짐':'🔕 꺼짐');}
 function togVibrate(el){const cur=DB.g('notiVibrate')!==false;DB.s('notiVibrate',!cur);el.className='toggle '+(!cur?'on':'off');try{if(!cur&&navigator.vibrate)navigator.vibrate(120);}catch(e){}toast(!cur?'📳 진동 켜짐':'📴 진동 꺼짐');}
 function togNotiAll(on){const s=DB.g('notiSetting')||{};NOTI_GROUPS.forEach(g=>g.items.forEach(it=>{s[it.k]=on;}));DB.s('notiSetting',s);_updateFcmTokenSettings();renderSettings();toast(on?'✅ 전체 알림 켜짐':'🔕 전체 알림 꺼짐');}
 
@@ -2474,7 +2476,7 @@ function sosToRescue(id){
 // 앱 자체 업데이트 (OTA · Capgo 자체호스팅) — APK 전용. 웹/PWA는 서비스워커가 자동 갱신.
 // 번들(www)의 새 버전을 ota.json으로 알리면, 설치된 앱이 받아서 그 자리에서 교체(재빌드 불필요).
 // ══════════════════════════════════════════
-const OTA_VER='2026.06.29.23';                         // ← 현재 번들 버전 (릴리스마다 올림 · build-ota.sh가 ota.json에 반영)
+const OTA_VER='2026.06.29.24';                         // ← 현재 번들 버전 (릴리스마다 올림 · build-ota.sh가 ota.json에 반영)
 const OTA_MANIFEST='https://109yoon.github.io/seoraksan/ota.json';
 let _otaInfo=null;
 function _otaPlugin(){try{return (window.Capacitor&&window.Capacitor.Plugins&&window.Capacitor.Plugins.CapacitorUpdater)||null;}catch(e){return null;}}
