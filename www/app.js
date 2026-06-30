@@ -2461,7 +2461,7 @@ function sosToRescue(id){
 // 앱 자체 업데이트 (OTA · Capgo 자체호스팅) — APK 전용. 웹/PWA는 서비스워커가 자동 갱신.
 // 번들(www)의 새 버전을 ota.json으로 알리면, 설치된 앱이 받아서 그 자리에서 교체(재빌드 불필요).
 // ══════════════════════════════════════════
-const OTA_VER='2026.06.29.15';                         // ← 현재 번들 버전 (릴리스마다 올림 · build-ota.sh가 ota.json에 반영)
+const OTA_VER='2026.06.29.16';                         // ← 현재 번들 버전 (릴리스마다 올림 · build-ota.sh가 ota.json에 반영)
 const OTA_MANIFEST='https://109yoon.github.io/seoraksan/ota.json';
 let _otaInfo=null;
 function _otaPlugin(){try{return (window.Capacitor&&window.Capacitor.Plugins&&window.Capacitor.Plugins.CapacitorUpdater)||null;}catch(e){return null;}}
@@ -2738,7 +2738,7 @@ window.onload=function(){
     navigator.serviceWorker.register('sw.js').then(function(reg){
       _swReg=reg;
       if('Notification' in window&&Notification.permission==='granted') _initFCM();
-      try{reg.update();}catch(e){} // 새 버전 즉시 확인
+      try{var _up=reg.update();if(_up&&_up.catch)_up.catch(function(){});}catch(e){} // 새 버전 즉시 확인(업데이트 실패 시 조용히 — iOS 'sw.js load failed' 미처리거부 방지)
     }).catch(function(){});
     // 새 서비스워커가 활성화(업데이트)되면 자동 새로고침 → '며칠 전 버전에 멈춤' 방지(자가치유)
     navigator.serviceWorker.addEventListener('controllerchange',function(){

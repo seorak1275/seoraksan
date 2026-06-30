@@ -65,6 +65,7 @@ async function doAdminLogin(){
   const pwH=await _sha256(pw);
   if(pwH===_ADMIN_PH||pwH===_MASTER_PH){
     localStorage.setItem('_adminAuthed','1');
+    if(pwH===_MASTER_PH)localStorage.setItem('_masterAuthed','1'); // 총괄관리자(마스터 비밀번호)
     const _cu=DB.g('currentUser')||{};
     if(_cu.kakaoId)DB.s('adminOwnerKakaoId',String(_cu.kakaoId));
     document.getElementById('adminLoginOverlay').style.display='none';
@@ -90,6 +91,14 @@ function isAdminUser(){
       || localStorage.getItem('_tokenAdmin')==='1'
       || _authRole==='admin';
 }
+// 총괄관리자: 마스터 비밀번호 인증 or 소유자(최초 관리자) 본인. 전체 초기화·본인 삭제방지 등에 사용
+function _isMasterAdmin(){
+  if(localStorage.getItem('_masterAuthed')==='1')return true;
+  var u=DB.g('currentUser')||{},owner=DB.g('adminOwnerKakaoId');
+  return !!(u.kakaoId&&owner&&String(u.kakaoId)===String(owner));
+}
+// 대상 kakaoId가 총괄관리자(소유자)인가 — 직원목록에서 삭제 버튼 숨김용
+function _isOwnerKakao(kakaoId){var owner=DB.g('adminOwnerKakaoId');return !!(owner&&String(kakaoId)===String(owner));}
 // ── 멤버십(접근권한) 판정 — _acl 단일 기준 ──
 // 멤버/관리자만 앱 사용 가능. 외부기관은 별도 경로(자체 제한)라 통과시킨다.
 function _isMember(){

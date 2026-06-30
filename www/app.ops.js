@@ -1839,7 +1839,7 @@ function renderAdmMembers(){
             </select>
             <button onclick="_toggleAdmMemberEdit('${_escq(editId)}')" style="background:rgba(79,168,208,.12);color:#4fa8d0;border:1px solid rgba(79,168,208,.25);border-radius:6px;padding:4px 7px;font-size:10px;cursor:pointer;">수정</button>
             ${u.puId&&u.approvalStatus!=='approved'?`<button onclick="approveUser('${_escq(u.puId)}')" style="background:rgba(39,174,96,.15);color:#7ec8a0;border:1px solid rgba(39,174,96,.3);border-radius:6px;padding:4px 7px;font-size:10px;cursor:pointer;">승인</button>`:''}
-            ${u.puId?`<button onclick="deleteUser('${_escq(u.puId)}')" style="background:rgba(192,57,43,.15);color:#ff8a80;border:1px solid rgba(192,57,43,.25);border-radius:6px;padding:4px 7px;font-size:10px;cursor:pointer;">삭제</button>`:''}
+            ${u.puId&&!_isOwnerKakao(u.kakaoId)?`<button onclick="deleteUser('${_escq(u.puId)}')" style="background:rgba(192,57,43,.15);color:#ff8a80;border:1px solid rgba(192,57,43,.25);border-radius:6px;padding:4px 7px;font-size:10px;cursor:pointer;">삭제</button>`:(_isOwnerKakao(u.kakaoId)?`<span style="font-size:9px;color:#5dbf8a;font-weight:700;">👑총괄</span>`:'')}
           </div>
         </div>
         <div id="admMemberEdit_${editId}" style="display:none;margin-top:8px;background:rgba(0,0,0,.25);border-radius:9px;padding:10px;">
@@ -2193,14 +2193,6 @@ function renderAdmSys(){
       </div>
     </div>
     <div class="scard" style="margin-bottom:8px;">
-      <div class="stitle">📊 과거 안전사고 데이터 (2020~2026)</div>
-      <div style="font-size:11px;color:#7a9cb8;margin-bottom:8px;">엑셀 통계자료 약 1,312건을 가져옵니다. 통계·사고다발구간 히트맵에 반영됩니다. (이미 가져온 건 건너뜀, 동기화는 백그라운드 진행 — 최근 1년 외는 자동 보관)</div>
-      <div style="display:flex;gap:6px;">
-        <button onclick="importAccidentSeed()" style="flex:1;background:rgba(79,168,208,.12);color:#4fa8d0;border:1px solid rgba(79,168,208,.35);padding:9px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;">📥 데이터 가져오기</button>
-        <button onclick="removeImportedAccidents()" style="flex:none;background:rgba(192,57,43,.08);color:#c0392b;border:1px solid rgba(192,57,43,.28);padding:9px 12px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;">가져온 것 삭제</button>
-      </div>
-    </div>
-    <div class="scard" style="margin-bottom:8px;">
       <div class="stitle">🔄 앱 업데이트</div>
       <div style="font-size:11px;color:#7a9cb8;margin-bottom:8px;">현재 버전 <b style="color:#cfe2f2;">${OTA_VER}</b> · 앱(APK)은 재설치 없이 최신 코드로 자체 업데이트됩니다. (웹은 새로고침 시 자동)</div>
       <button onclick="_otaCheck(true)" style="width:100%;padding:11px;border-radius:8px;border:1px solid rgba(79,168,208,.4);background:rgba(79,168,208,.12);color:#4fa8d0;font-size:13px;font-weight:700;cursor:pointer;">🔄 업데이트 확인 / 적용</button>
@@ -2292,13 +2284,14 @@ function renderAdmSys(){
           <input type="file" accept=".json" style="display:none;" onchange="importAllData(this)">
         </label>
         <button onclick="forceSyncFirestore()" style="width:100%;background:rgba(255,165,0,.1);color:#f0a020;border:1px solid rgba(255,165,0,.28);padding:10px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;">🔄 Firebase 강제 동기화</button>
-        <button onclick="updateSignCoords()" style="width:100%;background:rgba(93,191,138,.12);color:#5dbf8a;border:1px solid rgba(93,191,138,.3);padding:10px;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;">🪧 표지판 좌표 최신화 (엑셀 기준 일괄 적용)</button>
-        <button onclick="fixMisclassifiedTemples()" style="width:100%;background:rgba(79,168,208,.1);color:#4fa8d0;border:1px solid rgba(79,168,208,.28);padding:10px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;">🪧 암지형 오분류 복구 (귀면암 등)</button>
       </div>
     </div>
     <div class="scard"><div class="stitle" style="color:#c0392b;">⚠️ 위험 작업</div>
       <div style="display:flex;flex-direction:column;gap:7px;">
-        <button onclick="resetAll()" style="width:100%;background:rgba(192,57,43,.1);color:#c0392b;border:1px solid rgba(192,57,43,.28);padding:10px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;">전체 데이터 초기화</button>
+        ${_isMasterAdmin()
+          ?`<button onclick="resetAll()" style="width:100%;background:rgba(192,57,43,.1);color:#c0392b;border:1px solid rgba(192,57,43,.28);padding:10px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;">전체 데이터 초기화 (총괄관리자)</button>`
+            +(()=>{const b=_resetBackupInfo();return b?`<button onclick="restoreReset()" style="width:100%;background:rgba(39,174,96,.12);color:#5dbf8a;border:1px solid rgba(39,174,96,.35);padding:10px;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;">↩ 초기화 복구 (${b})</button>`:'';})()
+          :`<div style="font-size:11px;color:#9c8060;padding:9px 10px;border:1px dashed rgba(192,57,43,.25);border-radius:8px;line-height:1.6;">🔒 전체 데이터 초기화는 <b style="color:#cfe2f2;">총괄관리자</b>만 할 수 있습니다.</div>`}
         <button onclick="clearNotisOnly()" style="width:100%;background:rgba(255,255,255,.05);color:#b8d4e8;border:none;padding:10px;border-radius:8px;font-size:12px;cursor:pointer;">알림 이력만 삭제</button>
       </div>
     </div>`;
@@ -2309,6 +2302,7 @@ function deleteUser(id){
   const list=DB.g('pendingUsers')||[];
   const u=list.find(function(p){return p.id===id;});
   if(!u)return;
+  if(u.kakaoId&&_isOwnerKakao(u.kakaoId)){toast('⚠️ 총괄관리자는 삭제할 수 없습니다');return;}
   if(!confirm((u.realName||u.name||'이 사용자')+'을(를) 삭제하시겠습니까?\n(작성한 데이터는 유지됩니다)'))return;
   if(u.kakaoId){
     const deleted=DB.g('deletedKakaoIds')||[];
@@ -2361,7 +2355,35 @@ function _checkDeletedUser(){
   updateUserUI();
   toast('⚠️ 계정이 관리자에 의해 삭제되었습니다');
 }
-function resetAll(){if(!isAdminUser()){toast('⚠️ 관리자만 가능');return;}if(!confirm('모든 데이터 초기화. 되돌릴 수 없습니다.'))return;['members','catFac','facilities','rescues','hazards','history','alertOps','notis','notiSetting','currentUser','sheetsUrl'].forEach(k=>DB.d(k));initDB();toast('✅ 초기화');renderAdmSys();updateSummary();}
+// 전체 초기화: 총괄관리자만, 2단계 확인, 24시간 복구 백업 보관
+const _RESET_BACKUP_KEYS=['members','catFac','catFacMeta','facilities','rescues','hazards','history','alertOps','pendingUsers','approvedUsers','deletedKakaoIds','loginLog','_acl','extAgencies'];
+function _resetBackupInfo(){
+  try{const b=JSON.parse(localStorage.getItem('_resetBackup')||'null');if(!b||!b.at)return null;
+    const dh=Date.now()-b.at;if(dh>24*3600000)return null;
+    const h=Math.floor(dh/3600000),m=Math.floor((dh%3600000)/60000);
+    return (h>0?h+'시간 ':'')+m+'분 전 · 24시간 내 복구가능';
+  }catch(e){return null;}
+}
+function resetAll(){
+  if(!_isMasterAdmin()){toast('⚠️ 전체 초기화는 총괄관리자만 가능합니다');return;}
+  if(!confirm('⚠️ 전체 데이터 초기화\n구조·위험·시설·점검·직원·기록이 모두 삭제됩니다.\n\n정말 하시겠습니까?'))return;
+  if(!confirm('마지막 확인입니다.\n정말로 전체 데이터를 초기화할까요?\n(초기화 후 24시간 안에는 복구할 수 있습니다)'))return;
+  // 복구용 백업(기기 로컬에 보관 — 복구 시 Firestore로 되돌림)
+  try{const snap={};_RESET_BACKUP_KEYS.forEach(k=>{snap[k]=DB.g(k);});localStorage.setItem('_resetBackup',JSON.stringify({at:Date.now(),data:snap}));}catch(e){}
+  ['members','catFac','facilities','rescues','hazards','history','alertOps','notis','notiSetting','currentUser','sheetsUrl'].forEach(k=>DB.d(k));
+  initDB();toast('✅ 초기화 완료 — 24시간 내 복구 가능',6000);renderAdmSys();updateSummary();
+}
+function restoreReset(){
+  if(!_isMasterAdmin()){toast('⚠️ 총괄관리자만 가능합니다');return;}
+  let b;try{b=JSON.parse(localStorage.getItem('_resetBackup')||'null');}catch(e){}
+  if(!b||!b.data){toast('복구할 백업이 없습니다');return;}
+  if(Date.now()-b.at>24*3600000){toast('⚠️ 복구 가능 시간(24시간)이 지났습니다');localStorage.removeItem('_resetBackup');return;}
+  if(!confirm('초기화 직전 상태로 되돌릴까요?\n현재 데이터는 백업 시점으로 덮어쓰여집니다.'))return;
+  Object.keys(b.data).forEach(k=>{if(b.data[k]!=null)DB.s(k,b.data[k]);});
+  localStorage.removeItem('_resetBackup');
+  toast('↩ 복구 완료',5000);renderAdmSys();updateSummary();
+  try{renderRescueMap();}catch(e){}try{renderResList();}catch(e){}
+}
 function clearNotisOnly(){DB.s('notis',[]);updateBell();toast('🗑️ 알림 이력 삭제');renderAdmSys();}
 
 // (구버전 exportAllData/importAllData 중복 정의 제거 — 권한 데이터 누락·복원버튼 버그 유발.

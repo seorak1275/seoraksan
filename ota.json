@@ -1,1 +1,1 @@
-{"version":"2026.06.29.15","url":"https://109yoon.github.io/seoraksan/bundle.zip","notes":"자동승인 로그인이력자까지 일괄승인(렌더직전 sweep), 하단 필터시트 내려 닫기 민감도 개선"}
+{"version":"2026.06.29.16","url":"https://109yoon.github.io/seoraksan/bundle.zip","notes":"sw.js 오류 무처리거부 수정, 과거데이터/표지판/암지형 버튼 제거, 전체초기화 총괄전용+2단계+24h복구, 총괄 삭제방지"}
