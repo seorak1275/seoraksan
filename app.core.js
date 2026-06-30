@@ -1082,12 +1082,16 @@ function _cleanOldSharedNotis(){
   _fdb.collection('sharedNotis').where('at','<',cutoff).limit(100).get()
     .then(snap=>snap.docs.forEach(d=>d.ref.delete())).catch(()=>{});
 }
+function _vibeOn(){return DB.g('notiVibrate')!==false;} // 진동 설정(기본 켜짐)
 function _showSystemNoti(body,ico){
-  if(document.visibilityState==='visible')return; // 앱 보이는 중이면 불필요
+  // 새 알림이 오면 진동(설정 켜져 있고 기기 지원 시) — 앱이 켜져 있어도 울림
+  try{if(_vibeOn()&&navigator.vibrate)navigator.vibrate([200,100,200]);}catch(e){}
+  if(document.visibilityState==='visible')return; // 화면 보이는 중엔 OS 배너는 생략(진동은 위에서 함)
   if(typeof Notification==='undefined'||Notification.permission!=='granted')return; // 인앱 브라우저 등 Notification 미지원 환경 보호
   const title='설악산 현장관리 '+(ico||'🔔');
+  const _vib=_vibeOn()?[200,100,200]:[];
   if(_swReg){
-    _swReg.showNotification(title,{body,icon:'icons/icon-192.png',vibrate:[200,100,200]});
+    _swReg.showNotification(title,{body,icon:'icons/icon-192.png',vibrate:_vib});
   }else if('Notification' in window){
     try{new Notification(title,{body});}catch(e){}
   }
