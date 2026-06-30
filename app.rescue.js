@@ -204,14 +204,14 @@ function requestProfileFix(){
   const msg=prompt('수정이 필요한 내용을 적어주세요.\n관리자에게 정정 요청이 전달됩니다.\n\n(현재 등록: '+cur+')','');
   if(msg==null)return;
   const t=String(msg).trim();if(!t){toast('내용을 입력하세요');return;}
-  try{pushNoti('✏️ 정보 정정 요청 — '+(u.realName||u.name||'')+(u.kakaoId?' ('+u.kakaoId+')':'')+': '+t,'✏️','info',{app:'admin'});}catch(e){}
+  try{pushNoti('✏️ 정보 정정 요청 — '+(u.realName||u.name||'')+(u.kakaoId?' ('+u.kakaoId+')':'')+': '+t,'✏️','info',{app:'admin'},null,{adminOnly:true});}catch(e){}
   toast('✅ 관리자에게 정정 요청을 보냈습니다');
 }
 // 직원 → 관리자: 관리자 권한 요청 (관리자 페이지 권한 없음 화면에서)
 function requestAdminAccess(){
   const u=DB.g('currentUser')||{};
   if(!u.kakaoId){toast('카카오 로그인 후 요청하세요');return;}
-  try{pushNoti('🔐 관리자 권한 요청 — '+(u.realName||u.name||'')+' ('+u.kakaoId+')','🔐','info',{app:'admin'});}catch(e){}
+  try{pushNoti('🔐 관리자 권한 요청 — '+(u.realName||u.name||'')+' ('+u.kakaoId+')','🔐','info',{app:'admin'},null,{adminOnly:true});}catch(e){}
   toast('✅ 관리자에게 권한 요청을 보냈습니다');
   const e=document.getElementById('adminDeniedOverlay');if(e)e.remove();
   try{goHome();}catch(_e){}

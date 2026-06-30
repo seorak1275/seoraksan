@@ -592,6 +592,7 @@ function initFirebase(onReady){
           if((d.at||0)<=_maxSharedNotiAt)return;
           if(d.deviceId===_MY_DEVICE_ID)return; // 내가 보낸 것
           _maxSharedNotiAt=Math.max(_maxSharedNotiAt,d.at||0);
+          if(d.adminOnly&&!(typeof isAdminUser==='function'&&isAdminUser()))return; // 관리자 전용 알림은 관리자만 수신
           // 앱 내 벨 알림 추가
           const ns=DB.g('notis')||[];
           ns.unshift({id:d.id||Date.now(),msg:d.msg,ico:d.ico,time:d.timeStr||now(),read:false,link:d.link||null});
@@ -1053,19 +1054,23 @@ function _ensureNotiDefaults(){
   if(ch)DB.s('notiSetting',s);
   return s;
 }
-function pushNoti(msg,ico,type='info',link=null,pushCat=null){
+function pushNoti(msg,ico,type='info',link=null,pushCat=null,opts){
+  const adminOnly=!!(opts&&opts.adminOnly); // 관리자에게만 보낼 알림(권한 요청 등)
   const s=DB.g('notiSetting')||{};if(type!=='info'&&s[type]===false)return;
   // pushCat 미지정 시: 카테고리 정의에 push:false면 OS 푸시 끔(앱 내 종만)
   if(pushCat===null)pushCat=(NOTI_PUSH[type]===false)?'info':type;
   const id=Date.now();
-  const ns=DB.g('notis')||[];ns.unshift({id,msg,ico,time:now(),read:false,link});
-  if(ns.length>80)ns.splice(80);DB.s('notis',ns);updateBell();
-  // 꺼진 폰까지 OS 푸시 (중요 알림만, 받는 사람별 알림설정 적용)
-  _sendFcmPush('설악산 현장관리',msg,pushCat||type,link);
-  // 기기 간 Firestore 브로드캐스트
+  // 내 벨에 추가 — 관리자 전용 알림인데 내가 관리자가 아니면(요청자 본인) 추가 안 함
+  if(!adminOnly||(typeof isAdminUser==='function'&&isAdminUser())){
+    const ns=DB.g('notis')||[];ns.unshift({id,msg,ico,time:now(),read:false,link});
+    if(ns.length>80)ns.splice(80);DB.s('notis',ns);updateBell();
+  }
+  // 꺼진 폰까지 OS 푸시 — 관리자 전용은 전체 OS푸시를 보내지 않음(앱 내 벨로만, 전원 진동 방지)
+  if(!adminOnly)_sendFcmPush('설악산 현장관리',msg,pushCat||type,link);
+  // 기기 간 Firestore 브로드캐스트 (adminOnly면 수신측에서 관리자만 표시)
   if(_fdb){
     _fdb.collection('sharedNotis').doc(String(id)).set({
-      id,msg,ico,type:type||'info',link:link||null,
+      id,msg,ico,type:type||'info',link:link||null,adminOnly:adminOnly,
       at:id,timeStr:now(),deviceId:_MY_DEVICE_ID
     }).catch(()=>{});
   }
