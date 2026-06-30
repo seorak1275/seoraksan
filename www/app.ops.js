@@ -1832,14 +1832,16 @@ function renderAdmMembers(){
             ${u.reg?`<div style="font-size:9px;color:#3a5a6a;margin-top:1px;">📅 등록 ${new Date(u.reg).toLocaleString('ko-KR',{year:'2-digit',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'})}</div>`:''}
           </div>
           <div style="display:flex;align-items:center;gap:4px;flex-shrink:0;">
-            <select onchange="_aclSetRole('${_escq(u.kakaoId)}',this.value)" style="background:#0a1626;color:#cfe2f2;border:1px solid rgba(79,168,208,.25);border-radius:7px;padding:4px 5px;font-size:10px;cursor:pointer;">
+            ${_isOwnerKakao(u.kakaoId)
+              ?`<span style="font-size:10px;color:#5dbf8a;font-weight:800;background:rgba(39,174,96,.12);border:1px solid rgba(39,174,96,.3);border-radius:7px;padding:4px 8px;">👨‍💻 개발자</span>`
+              :`<select onchange="_aclSetRole('${_escq(u.kakaoId)}',this.value)" style="background:#0a1626;color:#cfe2f2;border:1px solid rgba(79,168,208,.25);border-radius:7px;padding:4px 5px;font-size:10px;cursor:pointer;">
               <option value="none"${role==='none'?' selected':''}>미등록</option>
               <option value="member"${role==='member'?' selected':''}>멤버</option>
               <option value="admin"${role==='admin'?' selected':''}>관리자</option>
-            </select>
+            </select>`}
             <button onclick="_toggleAdmMemberEdit('${_escq(editId)}')" style="background:rgba(79,168,208,.12);color:#4fa8d0;border:1px solid rgba(79,168,208,.25);border-radius:6px;padding:4px 7px;font-size:10px;cursor:pointer;">수정</button>
-            ${u.puId&&u.approvalStatus!=='approved'?`<button onclick="approveUser('${_escq(u.puId)}')" style="background:rgba(39,174,96,.15);color:#7ec8a0;border:1px solid rgba(39,174,96,.3);border-radius:6px;padding:4px 7px;font-size:10px;cursor:pointer;">승인</button>`:''}
-            ${u.puId&&!_isOwnerKakao(u.kakaoId)?`<button onclick="deleteUser('${_escq(u.puId)}')" style="background:rgba(192,57,43,.15);color:#ff8a80;border:1px solid rgba(192,57,43,.25);border-radius:6px;padding:4px 7px;font-size:10px;cursor:pointer;">삭제</button>`:(_isOwnerKakao(u.kakaoId)?`<span style="font-size:9px;color:#5dbf8a;font-weight:700;">👑총괄</span>`:'')}
+            ${u.puId&&u.approvalStatus!=='approved'&&!_isOwnerKakao(u.kakaoId)?`<button onclick="approveUser('${_escq(u.puId)}')" style="background:rgba(39,174,96,.15);color:#7ec8a0;border:1px solid rgba(39,174,96,.3);border-radius:6px;padding:4px 7px;font-size:10px;cursor:pointer;">승인</button>`:''}
+            ${u.puId&&!_isOwnerKakao(u.kakaoId)?`<button onclick="deleteUser('${_escq(u.puId)}')" style="background:rgba(192,57,43,.15);color:#ff8a80;border:1px solid rgba(192,57,43,.25);border-radius:6px;padding:4px 7px;font-size:10px;cursor:pointer;">삭제</button>`:''}
           </div>
         </div>
         <div id="admMemberEdit_${editId}" style="display:none;margin-top:8px;background:rgba(0,0,0,.25);border-radius:9px;padding:10px;">
@@ -2192,7 +2194,7 @@ function renderAdmSys(){
         <input type="file" id="restoreFileInp" accept=".json" style="display:none;" onchange="importAllData(this)">
       </div>
     </div>
-    <div class="scard" style="margin-bottom:8px;">
+    <div class="scard" style="margin-bottom:8px;display:none;">
       <div class="stitle">🔄 앱 업데이트</div>
       <div style="font-size:11px;color:#7a9cb8;margin-bottom:8px;">현재 버전 <b style="color:#cfe2f2;">${OTA_VER}</b> · 앱(APK)은 재설치 없이 최신 코드로 자체 업데이트됩니다. (웹은 새로고침 시 자동)</div>
       <button onclick="_otaCheck(true)" style="width:100%;padding:11px;border-radius:8px;border:1px solid rgba(79,168,208,.4);background:rgba(79,168,208,.12);color:#4fa8d0;font-size:13px;font-weight:700;cursor:pointer;">🔄 업데이트 확인 / 적용</button>
@@ -2241,7 +2243,16 @@ function renderAdmSys(){
     </div>
     <div class="scard" style="margin-bottom:8px;">
       <div class="stitle">📲 푸시 알림 (꺼진 폰까지)</div>
-      <div style="font-size:11px;color:#7a9cb8;margin-bottom:8px;">구조 1보·위험상황 발생 시 자동 발송됩니다. 아래에서 <b style="color:#5dbf8a;">원하는 내용을 직접 작성해 전 직원에게</b> 푸시할 수도 있습니다.</div>
+      <div style="font-size:11px;color:#7a9cb8;margin-bottom:8px;">구조 1보·위험상황 발생 시 자동 발송됩니다. 아래에서 <b style="color:#5dbf8a;">받는 대상을 골라</b> 직접 작성해 푸시할 수 있습니다.</div>
+      <div class="fg"><span class="fl">받는 대상</span>
+        ${(()=>{
+          const seen={},people=[],depts=new Set();
+          [].concat(DB.g('loginLog')||[],DB.g('pendingUsers')||[]).forEach(e=>{const kid=String(e.kakaoId||e.id||'');if(!kid||seen[kid])return;seen[kid]=1;const nm=e.realName||e.name||'',dp=e.dept||'';people.push({kid,nm,dp});if(dp)depts.add(dp);});
+          const dOpts=[...depts].sort().map(d=>`<option value="dept:${_esc(d)}">소속 · ${_esc(d)}</option>`).join('');
+          const pOpts=people.filter(p=>p.nm).sort((a,b)=>a.nm.localeCompare(b.nm)).map(p=>`<option value="kid:${_esc(p.kid)}">개별 · ${_esc(p.nm)}${p.dp?' ('+_esc(p.dp)+')':''}</option>`).join('');
+          return `<select id="pushTargetSel" class="fsel" style="font-size:13px;"><option value="all">📢 전체 (전 직원)</option>${dOpts}${pOpts}</select>`;
+        })()}
+      </div>
       <div class="fg"><span class="fl">제목</span>
         <input id="pushTitleInp" class="fi" type="text" value="설악산 현장관리" maxlength="40" style="font-size:13px;">
       </div>
@@ -2249,9 +2260,14 @@ function renderAdmSys(){
         <textarea id="pushBodyInp" class="fi" rows="2" placeholder="보낼 메시지를 입력하세요" maxlength="200" style="font-size:13px;resize:vertical;"></textarea>
       </div>
       <div style="display:flex;gap:6px;margin-top:4px;">
-        <button onclick="sendCustomPush()" style="flex:2;background:#1a4a6e;color:#fff;border:none;padding:10px;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;">📨 전 직원에게 발송</button>
+        <button onclick="sendCustomPush()" style="flex:2;background:#1a4a6e;color:#fff;border:none;padding:10px;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;">📨 발송</button>
         <button onclick="renderAdmSys()" style="background:rgba(255,255,255,.05);color:#7a9cb8;border:1px solid rgba(255,255,255,.1);padding:10px 12px;border-radius:8px;font-size:12px;cursor:pointer;">↻ 새로고침</button>
       </div>
+      ${(()=>{const log=DB.g('pushLog')||[];if(!log.length)return '';
+        return `<div style="margin-top:11px;"><div style="font-size:10px;color:#5a8aaa;font-weight:700;margin-bottom:4px;">🕘 보낸 내역</div>`
+          +log.slice(0,8).map(p=>`<div style="font-size:10px;color:#9bbdd4;padding:4px 0;border-bottom:1px solid rgba(255,255,255,.04);"><span style="color:#7dd3fa;font-weight:700;">${_esc(p.target||'전체')}</span> · ${_esc(p.body||'')}<br><span style="color:#5a7e98;font-size:9px;">${p.by?_esc(p.by)+' · ':''}${p.at?new Date(p.at).toLocaleString('ko-KR',{month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'}):''}${p.sent!=null?' · '+p.sent+'대 발송':''}</span></div>`).join('')
+          +`</div>`;
+      })()}
       <div id="fcmAdvWrap" style="margin-top:8px;">
         <div onclick="var e=document.getElementById('fcmAdv');e.style.display=e.style.display==='none'?'block':'none';" style="font-size:10px;color:#3a6a8a;cursor:pointer;">⚙️ 고급: 발송기 직접 지정 (선택)</div>
         <div id="fcmAdv" style="display:none;margin-top:6px;">
@@ -2289,9 +2305,9 @@ function renderAdmSys(){
     <div class="scard"><div class="stitle" style="color:#c0392b;">⚠️ 위험 작업</div>
       <div style="display:flex;flex-direction:column;gap:7px;">
         ${_isMasterAdmin()
-          ?`<button onclick="resetAll()" style="width:100%;background:rgba(192,57,43,.1);color:#c0392b;border:1px solid rgba(192,57,43,.28);padding:10px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;">전체 데이터 초기화 (총괄관리자)</button>`
+          ?`<button onclick="resetAll()" style="width:100%;background:rgba(192,57,43,.1);color:#c0392b;border:1px solid rgba(192,57,43,.28);padding:10px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;">전체 데이터 초기화 (개발자)</button>`
             +(()=>{const b=_resetBackupInfo();return b?`<button onclick="restoreReset()" style="width:100%;background:rgba(39,174,96,.12);color:#5dbf8a;border:1px solid rgba(39,174,96,.35);padding:10px;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;">↩ 초기화 복구 (${b})</button>`:'';})()
-          :`<div style="font-size:11px;color:#9c8060;padding:9px 10px;border:1px dashed rgba(192,57,43,.25);border-radius:8px;line-height:1.6;">🔒 전체 데이터 초기화는 <b style="color:#cfe2f2;">총괄관리자</b>만 할 수 있습니다.</div>`}
+          :`<div style="font-size:11px;color:#9c8060;padding:9px 10px;border:1px dashed rgba(192,57,43,.25);border-radius:8px;line-height:1.6;">🔒 전체 데이터 초기화는 <b style="color:#cfe2f2;">개발자</b>만 할 수 있습니다.</div>`}
         <button onclick="clearNotisOnly()" style="width:100%;background:rgba(255,255,255,.05);color:#b8d4e8;border:none;padding:10px;border-radius:8px;font-size:12px;cursor:pointer;">알림 이력만 삭제</button>
       </div>
     </div>`;
@@ -2302,7 +2318,7 @@ function deleteUser(id){
   const list=DB.g('pendingUsers')||[];
   const u=list.find(function(p){return p.id===id;});
   if(!u)return;
-  if(u.kakaoId&&_isOwnerKakao(u.kakaoId)){toast('⚠️ 총괄관리자는 삭제할 수 없습니다');return;}
+  if(u.kakaoId&&_isOwnerKakao(u.kakaoId)){toast('⚠️ 개발자는 삭제할 수 없습니다');return;}
   if(!confirm((u.realName||u.name||'이 사용자')+'을(를) 삭제하시겠습니까?\n(작성한 데이터는 유지됩니다)'))return;
   if(u.kakaoId){
     const deleted=DB.g('deletedKakaoIds')||[];
@@ -2355,7 +2371,7 @@ function _checkDeletedUser(){
   updateUserUI();
   toast('⚠️ 계정이 관리자에 의해 삭제되었습니다');
 }
-// 전체 초기화: 총괄관리자만, 2단계 확인, 24시간 복구 백업 보관
+// 전체 초기화: 개발자만, 2단계 확인, 24시간 복구 백업 보관
 const _RESET_BACKUP_KEYS=['members','catFac','catFacMeta','facilities','rescues','hazards','history','alertOps','pendingUsers','approvedUsers','deletedKakaoIds','loginLog','_acl','extAgencies'];
 function _resetBackupInfo(){
   try{const b=JSON.parse(localStorage.getItem('_resetBackup')||'null');if(!b||!b.at)return null;
@@ -2365,7 +2381,7 @@ function _resetBackupInfo(){
   }catch(e){return null;}
 }
 function resetAll(){
-  if(!_isMasterAdmin()){toast('⚠️ 전체 초기화는 총괄관리자만 가능합니다');return;}
+  if(!_isMasterAdmin()){toast('⚠️ 전체 초기화는 개발자만 가능합니다');return;}
   if(!confirm('⚠️ 전체 데이터 초기화\n구조·위험·시설·점검·직원·기록이 모두 삭제됩니다.\n\n정말 하시겠습니까?'))return;
   if(!confirm('마지막 확인입니다.\n정말로 전체 데이터를 초기화할까요?\n(초기화 후 24시간 안에는 복구할 수 있습니다)'))return;
   // 복구용 백업(기기 로컬에 보관 — 복구 시 Firestore로 되돌림)
@@ -2374,7 +2390,7 @@ function resetAll(){
   initDB();toast('✅ 초기화 완료 — 24시간 내 복구 가능',6000);renderAdmSys();updateSummary();
 }
 function restoreReset(){
-  if(!_isMasterAdmin()){toast('⚠️ 총괄관리자만 가능합니다');return;}
+  if(!_isMasterAdmin()){toast('⚠️ 개발자만 가능합니다');return;}
   let b;try{b=JSON.parse(localStorage.getItem('_resetBackup')||'null');}catch(e){}
   if(!b||!b.data){toast('복구할 백업이 없습니다');return;}
   if(Date.now()-b.at>24*3600000){toast('⚠️ 복구 가능 시간(24시간)이 지났습니다');localStorage.removeItem('_resetBackup');return;}
