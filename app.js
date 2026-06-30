@@ -1889,12 +1889,16 @@ function autoGenTitle(returnOnly=false){
     const ip=getSelPills('injParts')[0]||'',it=getSelPills('injTypes')[0]||'';
     injStr=(ip+' '+it).trim();
   }
+  // 위치: 표지판 코드(NN-NN)만 추출해 'NN-NN 인근'으로 짧게(세부 위치는 제외 — 제목 깔끔하게)
+  const _m=loc.match(/\d{1,2}-\d{1,3}/);
+  const locShort=_m?_m[0]+' 인근':(loc?loc.slice(0,10)+(loc.length>10?'…':''):'');
+  // 우선순위: ① 어디가 어떻게 다쳤는지(부상) ② 위치 ③ 나머지(중증도·유형·외국인)
   const parts=[];
-  if(loc)     parts.push(loc.slice(0,12)+(loc.length>12?'...':''));
-  if(type!=='안전사고') parts.push(type);
   if(injStr)  parts.push(injStr);
   else if(cause&&cause!=='실족') parts.push(cause);
+  if(locShort)parts.push(locShort);
   if(sev)     parts.push('KTAS'+sev.replace('KTAS ','').split('(')[0].trim());
+  if(type!=='안전사고') parts.push(type);
   if(nation==='외국인'){
     const gLabel=(gender&&gender!=='알수없음')?'('+gender+')':'';
     parts.push('외국인'+gLabel);
@@ -2424,6 +2428,18 @@ function _sosCopyBtnOk(btn){if(!btn)return;const o=btn.textContent;btn.textConte
 function _sosCopyUrl(tok,btn){const u=_sosVictimUrl(tok);if(navigator.clipboard)navigator.clipboard.writeText(u).then(function(){toast('📋 링크 복사됨 — 조난·사고자에게 보내세요');_sosCopyBtnOk(btn);}).catch(function(){_fallbackCopy(u);_sosCopyBtnOk(btn);});else{_fallbackCopy(u);_sosCopyBtnOk(btn);}}
 function _sosShareUrl(tok){const u=_sosVictimUrl(tok);if(navigator.share)navigator.share({title:'설악산 구조대 위치전송',text:'[설악산 구조대] 아래 1회용 링크를 열면 위치가 구조대에 전송됩니다(로그인 불필요).\n'+u}).catch(()=>{});}
 function _sosSms(tok){const u=_sosVictimUrl(tok);location.href='sms:?body='+encodeURIComponent('[설악산 구조대] 아래 1회용 링크를 열어 위치를 보내주세요(로그인 불필요): '+u);}
+// 보고서 상세: 전화번호 탭 → 전화 / 위치요청(1회용 SOS 링크 만들어 그 번호로 문자)
+function _callTel(tel){tel=String(tel||'').replace(/[^0-9+]/g,'');if(!tel){toast('전화번호 없음');return;}if(confirm(tel+' 로 전화하겠습니까?'))location.href='tel:'+tel;}
+function _smsSosTo(tel){
+  tel=String(tel||'').replace(/[^0-9+]/g,'');if(!tel){toast('전화번호 없음');return;}
+  if(!_fdb){toast('연결 준비 중 — 잠시 후 다시');return;}
+  const tok=Math.random().toString(36).slice(2,7);
+  const by=(typeof getAuthor==='function')?getAuthor():'구조대';
+  toast('🆘 위치요청 링크 생성 중…');
+  _fdb.collection('sos').doc(tok).set({id:tok,active:true,issuedAt:Date.now(),by:by},{merge:true})
+    .then(function(){const u=_sosVictimUrl(tok);location.href='sms:'+tel+'?&body='+encodeURIComponent('[설악산 구조대] 아래 링크를 열면 현재 위치가 구조대에 전송됩니다(로그인 불필요): '+u);})
+    .catch(function(){toast('링크 생성 실패 — 다시 시도');});
+}
 // 구조대 → 조난·사고자에게 메시지 전송 (그 사람 화면 하단에 즉시 표시 · 비우면 삭제)
 // 카드의 '💬 대화' 버튼 → 채팅 팝업 열기
 function _sosSendMsg(id){_sosPinPopup(id);}
@@ -2480,7 +2496,7 @@ function sosToRescue(id){
 // 앱 자체 업데이트 (OTA · Capgo 자체호스팅) — APK 전용. 웹/PWA는 서비스워커가 자동 갱신.
 // 번들(www)의 새 버전을 ota.json으로 알리면, 설치된 앱이 받아서 그 자리에서 교체(재빌드 불필요).
 // ══════════════════════════════════════════
-const OTA_VER='2026.06.29.26';                         // ← 현재 번들 버전 (릴리스마다 올림 · build-ota.sh가 ota.json에 반영)
+const OTA_VER='2026.06.29.27';                         // ← 현재 번들 버전 (릴리스마다 올림 · build-ota.sh가 ota.json에 반영)
 const OTA_MANIFEST='https://109yoon.github.io/seoraksan/ota.json';
 let _otaInfo=null;
 function _otaPlugin(){try{return (window.Capacitor&&window.Capacitor.Plugins&&window.Capacitor.Plugins.CapacitorUpdater)||null;}catch(e){return null;}}
