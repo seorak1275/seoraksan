@@ -97,7 +97,7 @@ const _FB_CFG={
 // history: 점검이력은 무제한으로 계속 쌓이는 로그성 데이터라 단일문서 그대로 두면 매 점검마다 전체가 전원에게 재전송됨 → 건별 문서로 전환
 const _SHARED_COLL=['rescues','hazards','facilities','history'];
 // _SHARED_DOC: 단일 문서에 JSON 배열 저장 (관리자 전용, 동시 쓰기 없음)
-const _SHARED_DOC=['alertOps','staff','catFac','catFacMeta','pendingUsers','approvedUsers','deletedKakaoIds','adminOwnerKakaoId','adminApprovalCode','extAgencies','extAgencyCode','extAgencyDisplayName','geminiApiKey','kmaProxyUrl','_acl','loginLog','trailStatus','crisisLevel','weatherBrief','weatherLog','trailLog','sosBlocked','autoApprove','pushLog'];
+const _SHARED_DOC=['alertOps','staff','catFac','catFacMeta','pendingUsers','approvedUsers','deletedKakaoIds','adminOwnerKakaoId','adminApprovalCode','extAgencies','extAgencyCode','extAgencyDisplayName','geminiApiKey','kmaProxyUrl','_acl','loginLog','trailStatus','crisisLevel','weatherBrief','weatherLog','trailLog','sosBlocked','autoApprove','pushLog','devKakaoId'];
 // 시설물 레거시(단일문서) 폴백/시드 동기화 상태
 let _legacyFacBackup=null; // appData/facilities(구버전)의 백업 — 컬렉션 비었을 때 화면 폴백
 let _facSeedReady=false;   // 시설물 첫 스냅샷·레거시 백업 확인 완료(시드 레이스 방지)
@@ -482,6 +482,15 @@ function initFirebase(onReady){
     function _checkReady(){if(loaded.size===totalKeys){onReady&&onReady();onReady=null;}}
     function _onRemoteUpdate(){
       _checkDeletedUser();updateSummary();
+      // 관리자에서 강등(_acl)되면 즉시 반영 — 옛 플래그 정리 + 관리자 화면이면 홈으로
+      try{
+        if(typeof isAdminUser==='function'&&!isAdminUser()){
+          if(localStorage.getItem('_adminAuthed')==='1'||localStorage.getItem('_tokenAdmin')==='1'){
+            localStorage.removeItem('_adminAuthed');localStorage.removeItem('_tokenAdmin');
+            if(window.curApp==='admin'){try{toast('관리자 권한이 해제되었습니다');}catch(e){}try{goHome();}catch(e){}}
+          }
+        }
+      }catch(e){}
       try{_checkNewJoinerAlert();}catch(e){}
       // 새 기기 첫 로그인: 동기화 전이라 프로필을 못 찾아 입력창이 떴어도, pendingUsers가 도착하면
       // 서버 기록에서 자동 복원하고 입력창을 닫음(개인정보 재입력 방지)

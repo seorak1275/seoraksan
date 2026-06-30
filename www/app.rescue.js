@@ -65,9 +65,15 @@ async function doAdminLogin(){
   const pwH=await _sha256(pw);
   if(pwH===_ADMIN_PH||pwH===_MASTER_PH){
     localStorage.setItem('_adminAuthed','1');
-    if(pwH===_MASTER_PH)localStorage.setItem('_masterAuthed','1'); // 총괄관리자(마스터 비밀번호)
     const _cu=DB.g('currentUser')||{};
-    if(_cu.kakaoId)DB.s('adminOwnerKakaoId',String(_cu.kakaoId));
+    if(pwH===_MASTER_PH){ // 개발자(마스터 비밀번호) — 이 카카오 계정을 '개발자'로 고정 등록(전 기기 공유)
+      localStorage.setItem('_masterAuthed','1');
+      if(_cu.kakaoId){
+        DB.s('devKakaoId',String(_cu.kakaoId));
+        try{var _acl=_getAcl();if(_acl.admins.indexOf(String(_cu.kakaoId))<0){_acl.admins.push(String(_cu.kakaoId));DB.s('_acl',_acl);}}catch(e){} // 개발자를 정식 _acl 관리자로도 등록
+      }
+    }
+    if(_cu.kakaoId&&!DB.g('adminOwnerKakaoId'))DB.s('adminOwnerKakaoId',String(_cu.kakaoId));
     document.getElementById('adminLoginOverlay').style.display='none';
     document.getElementById('adminLoginPw').value='';
     var _g=document.getElementById('approvalGate');if(_g)_g.style.display='none'; // 관리자는 게이트 통과
@@ -86,19 +92,29 @@ function adminLogout(){
   toast('관리자 로그아웃');
 }
 function isAdminUser(){
-  // 토큰 admin 클레임(허용목록 기반) 또는 기존 비밀번호 인증(전환기 폴백) 둘 다 인정
+  // 개발자(마스터)는 항상 관리자
+  if(localStorage.getItem('_masterAuthed')==='1')return true;
+  var u=DB.g('currentUser')||{};
+  if(u.kakaoId){
+    // 카카오 사용자: 관리자 판정을 _acl(동기화)로만 — 강등되면 즉시 반영(옛 비번/토큰 플래그 무시)
+    var kid=String(u.kakaoId),acl=_getAcl();
+    if(acl.admins.indexOf(kid)>=0)return true;
+    if(String(DB.g('devKakaoId')||'')===kid)return true; // 개발자 본인
+    return false;
+  }
+  // 카카오ID 없는(비밀번호 전용) 환경: 기존 플래그 인정
   return localStorage.getItem('_adminAuthed')==='1'
       || localStorage.getItem('_tokenAdmin')==='1'
       || _authRole==='admin';
 }
-// 총괄관리자: 마스터 비밀번호 인증 or 소유자(최초 관리자) 본인. 전체 초기화·본인 삭제방지 등에 사용
+// 개발자: 마스터 비밀번호 인증 or devKakaoId 본인. 전체 초기화·본인 삭제방지 등에 사용
 function _isMasterAdmin(){
   if(localStorage.getItem('_masterAuthed')==='1')return true;
-  var u=DB.g('currentUser')||{},owner=DB.g('adminOwnerKakaoId');
-  return !!(u.kakaoId&&owner&&String(u.kakaoId)===String(owner));
+  var u=DB.g('currentUser')||{},dev=DB.g('devKakaoId');
+  return !!(u.kakaoId&&dev&&String(u.kakaoId)===String(dev));
 }
-// 대상 kakaoId가 총괄관리자(소유자)인가 — 직원목록에서 삭제 버튼 숨김용
-function _isOwnerKakao(kakaoId){var owner=DB.g('adminOwnerKakaoId');return !!(owner&&String(kakaoId)===String(owner));}
+// 대상 kakaoId가 '개발자(나)'인가 — 직원목록에서 역할변경·삭제 버튼 숨김용(나만 보호)
+function _isDeveloper(kakaoId){var dev=DB.g('devKakaoId');return !!(dev&&String(kakaoId)===String(dev));}
 // ── 멤버십(접근권한) 판정 — _acl 단일 기준 ──
 // 멤버/관리자만 앱 사용 가능. 외부기관은 별도 경로(자체 제한)라 통과시킨다.
 function _isMember(){

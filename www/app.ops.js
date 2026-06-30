@@ -1832,7 +1832,7 @@ function renderAdmMembers(){
             ${u.reg?`<div style="font-size:9px;color:#3a5a6a;margin-top:1px;">📅 등록 ${new Date(u.reg).toLocaleString('ko-KR',{year:'2-digit',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'})}</div>`:''}
           </div>
           <div style="display:flex;align-items:center;gap:4px;flex-shrink:0;">
-            ${_isOwnerKakao(u.kakaoId)
+            ${_isDeveloper(u.kakaoId)
               ?`<span style="font-size:10px;color:#5dbf8a;font-weight:800;background:rgba(39,174,96,.12);border:1px solid rgba(39,174,96,.3);border-radius:7px;padding:4px 8px;">👨‍💻 개발자</span>`
               :`<select onchange="_aclSetRole('${_escq(u.kakaoId)}',this.value)" style="background:#0a1626;color:#cfe2f2;border:1px solid rgba(79,168,208,.25);border-radius:7px;padding:4px 5px;font-size:10px;cursor:pointer;">
               <option value="none"${role==='none'?' selected':''}>미등록</option>
@@ -1840,8 +1840,8 @@ function renderAdmMembers(){
               <option value="admin"${role==='admin'?' selected':''}>관리자</option>
             </select>`}
             <button onclick="_toggleAdmMemberEdit('${_escq(editId)}')" style="background:rgba(79,168,208,.12);color:#4fa8d0;border:1px solid rgba(79,168,208,.25);border-radius:6px;padding:4px 7px;font-size:10px;cursor:pointer;">수정</button>
-            ${u.puId&&u.approvalStatus!=='approved'&&!_isOwnerKakao(u.kakaoId)?`<button onclick="approveUser('${_escq(u.puId)}')" style="background:rgba(39,174,96,.15);color:#7ec8a0;border:1px solid rgba(39,174,96,.3);border-radius:6px;padding:4px 7px;font-size:10px;cursor:pointer;">승인</button>`:''}
-            ${u.puId&&!_isOwnerKakao(u.kakaoId)?`<button onclick="deleteUser('${_escq(u.puId)}')" style="background:rgba(192,57,43,.15);color:#ff8a80;border:1px solid rgba(192,57,43,.25);border-radius:6px;padding:4px 7px;font-size:10px;cursor:pointer;">삭제</button>`:''}
+            ${u.puId&&u.approvalStatus!=='approved'&&!_isDeveloper(u.kakaoId)?`<button onclick="approveUser('${_escq(u.puId)}')" style="background:rgba(39,174,96,.15);color:#7ec8a0;border:1px solid rgba(39,174,96,.3);border-radius:6px;padding:4px 7px;font-size:10px;cursor:pointer;">승인</button>`:''}
+            ${u.puId&&!_isDeveloper(u.kakaoId)?`<button onclick="deleteUser('${_escq(u.puId)}')" style="background:rgba(192,57,43,.15);color:#ff8a80;border:1px solid rgba(192,57,43,.25);border-radius:6px;padding:4px 7px;font-size:10px;cursor:pointer;">삭제</button>`:''}
           </div>
         </div>
         <div id="admMemberEdit_${editId}" style="display:none;margin-top:8px;background:rgba(0,0,0,.25);border-radius:9px;padding:10px;">
@@ -2318,7 +2318,7 @@ function deleteUser(id){
   const list=DB.g('pendingUsers')||[];
   const u=list.find(function(p){return p.id===id;});
   if(!u)return;
-  if(u.kakaoId&&_isOwnerKakao(u.kakaoId)){toast('⚠️ 개발자는 삭제할 수 없습니다');return;}
+  if(u.kakaoId&&_isDeveloper(u.kakaoId)){toast('⚠️ 개발자는 삭제할 수 없습니다');return;}
   if(!confirm((u.realName||u.name||'이 사용자')+'을(를) 삭제하시겠습니까?\n(작성한 데이터는 유지됩니다)'))return;
   if(u.kakaoId){
     const deleted=DB.g('deletedKakaoIds')||[];
