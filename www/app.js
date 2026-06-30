@@ -40,7 +40,14 @@ function renderSettings(){
   } else {
     const s=_ensureNotiDefaults();
     const allOn=NOTI_GROUPS.every(g=>g.items.every(it=>s[it.k]!==false));
+    const _vibe=DB.g('notiVibrate')!==false;
+    const _notiPerm=('Notification' in window)?Notification.permission:'unsupported';
     document.getElementById('settingsNotiWrap').innerHTML=`
+      <div class="scard" style="margin-bottom:8px;">
+        <div class="stitle">📳 알림 동작</div>
+        ${_notiPerm==='granted'?'':`<div onclick="_reqPerm&&_reqPerm('noti')" style="cursor:pointer;background:rgba(241,196,15,.08);border:1px solid rgba(241,196,15,.3);border-radius:8px;padding:9px 11px;margin-bottom:8px;font-size:11px;color:#e8c84a;line-height:1.5;">🔔 휴대폰 알림이 꺼져 있습니다. <b>탭하여 권한 허용</b> → 꺼진 폰에도 알림이 옵니다.</div>`}
+        <div class="tog-row"><div><div class="tog-lbl">📳 진동</div><div class="tog-sub">알림이 오면 휴대폰을 진동시킵니다</div></div><div class="toggle ${_vibe?'on':'off'}" onclick="togVibrate(this)"></div></div>
+      </div>
       <div class="scard">
         <div class="stitle" style="display:flex;align-items:center;justify-content:space-between;">🔔 알림 설정
           <button onclick="togNotiAll(${allOn?'false':'true'})" style="font-size:10px;font-weight:700;background:rgba(79,168,208,.12);color:#4fa8d0;border:1px solid rgba(79,168,208,.3);border-radius:7px;padding:4px 9px;cursor:pointer;">${allOn?'전체 끄기':'전체 켜기'}</button>
@@ -54,6 +61,7 @@ function renderSettings(){
   }
 }
 function togNotiSet(k,el){const s=DB.g('notiSetting')||{};const cur=s[k]!==false;s[k]=!cur;DB.s('notiSetting',s);el.className='toggle '+(!cur?'on':'off');_updateFcmTokenSettings();toast(!cur?'✅ 알림 켜짐':'🔕 꺼짐');}
+function togVibrate(el){const cur=DB.g('notiVibrate')!==false;DB.s('notiVibrate',!cur);el.className='toggle '+(!cur?'on':'off');try{if(!cur&&navigator.vibrate)navigator.vibrate(120);}catch(e){}toast(!cur?'📳 진동 켜짐':'📴 진동 꺼짐');}
 function togNotiAll(on){const s=DB.g('notiSetting')||{};NOTI_GROUPS.forEach(g=>g.items.forEach(it=>{s[it.k]=on;}));DB.s('notiSetting',s);_updateFcmTokenSettings();renderSettings();toast(on?'✅ 전체 알림 켜짐':'🔕 전체 알림 꺼짐');}
 
 // ══════════════════════════════════════════
@@ -2466,7 +2474,7 @@ function sosToRescue(id){
 // 앱 자체 업데이트 (OTA · Capgo 자체호스팅) — APK 전용. 웹/PWA는 서비스워커가 자동 갱신.
 // 번들(www)의 새 버전을 ota.json으로 알리면, 설치된 앱이 받아서 그 자리에서 교체(재빌드 불필요).
 // ══════════════════════════════════════════
-const OTA_VER='2026.06.29.22';                         // ← 현재 번들 버전 (릴리스마다 올림 · build-ota.sh가 ota.json에 반영)
+const OTA_VER='2026.06.29.23';                         // ← 현재 번들 버전 (릴리스마다 올림 · build-ota.sh가 ota.json에 반영)
 const OTA_MANIFEST='https://109yoon.github.io/seoraksan/ota.json';
 let _otaInfo=null;
 function _otaPlugin(){try{return (window.Capacitor&&window.Capacitor.Plugins&&window.Capacitor.Plugins.CapacitorUpdater)||null;}catch(e){return null;}}
