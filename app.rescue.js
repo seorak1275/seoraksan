@@ -1537,35 +1537,56 @@ function downloadStatsExcel(tab){
 // 팝업 & 상황 종료
 // ══════════════════════════════════════════
 function _popRow(ico,val){return val?`<div style="display:flex;gap:5px;margin-bottom:3px;"><span style="color:#4a7090;flex-shrink:0;">${ico}</span><span style="color:#c0d8ec;font-size:11px;">${_esc(val)}</span></div>`:'';}
+// 구조 팝업 본문(우선순위·추가보고 병합) — 지도 팝업·목록/홈 오버레이가 공용으로 사용
+function _resPopMetaHtml(data){
+  const isOg=data.status==='ongoing';
+  const _skip=v=>{if(!v)return true;const s=String(v).trim();return !s||s==='-'||['미상','없음','모르겠음','알수없음','미정','해당없음','기타'].includes(s);};
+  const _arr=v=>(Array.isArray(v)?v:typeof v==='string'?[v]:[]).filter(x=>!_skip(x));
+  const d=(typeof _mergedRescue==='function')?_mergedRescue(data):data; // 추가보고 최신 정보 병합
+  const _injStr=(()=>{const il=(Array.isArray(d.injuries)?d.injuries:[]).filter(i=>i&&(i.part||i.type));if(il.length)return il.map(i=>((i.side&&i.side!=='해당없음'?i.side+' ':'')+(i.part||'')+' '+(i.type||'')).trim()).filter(Boolean).join(', ');const ip=_arr(d.injuryParts),it=_arr(d.injuryTypes);return (ip.join(', ')+(it.length?' / '+it.join(', '):'')).trim();})();
+  const _vLine=[!_skip(d.vName)?_esc(d.vName):'미상',(!_skip(d.vBirth)?_ageFromBirth(d.vBirth)+'세':(!_skip(d.vAge)?_esc(d.vAge)+'세':'')),(!_skip(d.vGender)&&d.vGender!=='알수없음'?_esc(d.vGender):''),(!_skip(d.vTel)?_esc(d.vTel):'')].filter(Boolean).join(' · ');
+  return `
+    <div style="display:flex;gap:5px;margin-bottom:7px;align-items:center;">
+      <span style="font-size:10px;padding:2px 7px;border-radius:9px;font-weight:700;background:${isOg?'rgba(192,57,43,.2)':'rgba(39,174,96,.15)'};color:${isOg?'#e05050':'#27ae60'};">${isOg?'진행중':'종료'}</span>
+      <span style="font-size:10px;color:#3a6a8a;">${_esc(d.type)}</span>
+    </div>
+    <div style="background:rgba(231,76,60,.08);border:1px solid rgba(231,76,60,.3);border-radius:9px;padding:9px 11px;margin-bottom:6px;">
+      <div style="font-size:9px;color:#ff8a73;font-weight:800;margin-bottom:2px;">🤕 부상 정도</div>
+      <div style="font-size:14px;font-weight:800;color:#ffd9d0;line-height:1.35;">${_injStr||'<span style="font-size:12px;color:#9c7a72;font-weight:600;">미입력</span>'}${!_skip(d.severity)?` <span style="font-size:10px;color:#fff;background:#c0392b;border-radius:5px;padding:1px 6px;vertical-align:middle;">${_esc(d.severity)}</span>`:''}</div>
+    </div>
+    ${!_skip(d.location)?`<div style="font-size:12px;color:#cfe2f2;margin-bottom:6px;">📍 ${_esc(d.location)}${!_skip(d.loctype)?` <span style="color:#7a9cb8;font-size:10px;">· ${_esc(d.loctype)}</span>`:''}</div>`:''}
+    <div style="display:flex;align-items:center;flex-wrap:wrap;gap:5px;margin-bottom:6px;"><span style="font-size:10px;color:#4a7090;font-weight:700;">사고자</span><span style="font-size:12px;color:#e0edf8;font-weight:600;">${_vLine}</span>${!_skip(d.vTel)?_telBtnsHtml(d.vTel):''}${(d.victims2&&d.victims2.length)?`<span style="font-size:10px;color:#e9897e;font-weight:700;">외 ${d.victims2.length}명</span>`:''}</div>
+    ${(!_skip(d.repName)||!_skip(d.repTel))?`<div style="display:flex;align-items:center;flex-wrap:wrap;gap:5px;margin-bottom:6px;"><span style="font-size:10px;color:#4a7090;font-weight:700;">신고자</span><span style="font-size:12px;color:#cfe2f2;">${[!_skip(d.repName)?_esc(d.repName):'',!_skip(d.repTel)?_esc(d.repTel):''].filter(Boolean).join(' · ')}</span>${!_skip(d.repTel)?_telBtnsHtml(d.repTel):''}</div>`:''}
+    ${!_skip(d.reception)?`<div style="font-size:11px;color:#b8d4e8;line-height:1.5;background:#0b1c30;border-radius:8px;padding:8px 10px;"><span style="font-size:9px;color:#4a7090;font-weight:700;">📝 접수내용</span><br>${_esc(d.reception)}</div>`:''}`;
+}
+// 목록·홈에서 탭 → 전역 오버레이(지도 화면이 아니어도 뜸)로 동일 팝업 표시
+function openRescueOverlay(id){
+  const data=(DB.g('rescues')||[]).find(x=>String(x.id)===String(id));if(!data)return;
+  selResId=id;curResId=id;
+  const ti=RES_TYPES[data.type]||RES_TYPES['기타'];
+  let m=document.getElementById('resOverlay');
+  if(!m){m=document.createElement('div');m.id='resOverlay';document.body.appendChild(m);}
+  m.style.cssText='position:fixed;inset:0;z-index:9000;background:rgba(0,0,0,.6);display:flex;align-items:flex-end;justify-content:center;';
+  m.innerHTML=`<div style="background:#0a1828;width:100%;max-width:480px;max-height:85vh;overflow-y:auto;border-radius:14px 14px 0 0;padding:16px 16px calc(20px + env(safe-area-inset-bottom));box-shadow:0 -4px 20px rgba(0,0,0,.7);">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;gap:8px;"><span style="font-size:15px;font-weight:800;color:#e0edf8;line-height:1.3;">${ti.ico} ${_esc(data.title)}</span><button onclick="var e=document.getElementById('resOverlay');if(e)e.remove();" style="background:none;border:none;color:rgba(255,255,255,.5);font-size:24px;cursor:pointer;line-height:1;flex-shrink:0;">×</button></div>
+    ${_resPopMetaHtml(data)}
+    <div style="display:flex;gap:8px;margin-top:12px;">
+      <button onclick="var e=document.getElementById('resOverlay');if(e)e.remove();selResId=${id};curResId=${id};viewReport();" style="flex:1;padding:11px;border-radius:9px;border:1px solid rgba(79,168,208,.35);background:rgba(79,168,208,.1);color:#4fa8d0;font-size:13px;font-weight:700;cursor:pointer;">📄 보고서</button>
+      <button onclick="var e=document.getElementById('resOverlay');if(e)e.remove();selResId=${id};curResId=${id};viewTimeline();" style="flex:1;padding:11px;border-radius:9px;border:1px solid rgba(79,168,208,.35);background:rgba(79,168,208,.1);color:#4fa8d0;font-size:13px;font-weight:700;cursor:pointer;">📍 타임라인</button>
+      ${data.lat&&data.lng?`<button onclick="var e=document.getElementById('resOverlay');if(e)e.remove();viewOnMap(${data.lat},${data.lng})" style="flex:none;padding:11px 13px;border-radius:9px;border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.04);color:#b8d4e8;font-size:13px;font-weight:700;cursor:pointer;">🗺️</button>`:''}
+    </div>
+  </div>`;
+  m.onclick=function(e){if(e.target===m)m.remove();};
+}
 function openResPopup(id,type='rescue'){
   const data=type==='rescue'?(DB.g('rescues')||[]).find(x=>String(x.id)===String(id)):(DB.g('hazards')||[]).find(x=>String(x.id)===String(id));if(!data)return;
   selResId=id;
   if(type==='rescue'){
-    const isOg=data.status==='ongoing';const ti=RES_TYPES[data.type]||RES_TYPES['기타'];
-    const totalPh=(data.reports||[]).length+1;
+    const ti=RES_TYPES[data.type]||RES_TYPES['기타'];
     document.getElementById('resPopTitle').textContent=ti.ico+' '+data.title;
-    // 빈값/미상 필터 헬퍼
-    const _skip=v=>{if(!v)return true;const s=String(v).trim();return !s||s==='-'||['미상','없음','모르겠음','알수없음','미정','해당없음','기타'].includes(s);};
-    const _arr=v=>(Array.isArray(v)?v:typeof v==='string'?[v]:[]).filter(x=>!_skip(x));
-    const d=(typeof _mergedRescue==='function')?_mergedRescue(data):data; // 추가보고 최신 정보 병합해 다 뜨게
-    // 우선순위: ① 부상 ② 위치 ③ 인적(전화·위치요청) ④ 신고자 ⑤ 접수내용 — 중요한 것만(컴팩트)
-    const _injStr=(()=>{const il=(Array.isArray(d.injuries)?d.injuries:[]).filter(i=>i&&(i.part||i.type));if(il.length)return il.map(i=>((i.side&&i.side!=='해당없음'?i.side+' ':'')+(i.part||'')+' '+(i.type||'')).trim()).filter(Boolean).join(', ');const ip=_arr(d.injuryParts),it=_arr(d.injuryTypes);return (ip.join(', ')+(it.length?' / '+it.join(', '):'')).trim();})();
-    const _vLine=[!_skip(d.vName)?_esc(d.vName):'미상',(!_skip(d.vBirth)?_ageFromBirth(d.vBirth)+'세':(!_skip(d.vAge)?_esc(d.vAge)+'세':'')),(!_skip(d.vGender)&&d.vGender!=='알수없음'?_esc(d.vGender):''),(!_skip(d.vTel)?_esc(d.vTel):'')].filter(Boolean).join(' · ');
-    document.getElementById('resPopMeta').innerHTML=`
-      <div style="display:flex;gap:5px;margin-bottom:7px;align-items:center;">
-        <span style="font-size:10px;padding:2px 7px;border-radius:9px;font-weight:700;background:${isOg?'rgba(192,57,43,.2)':'rgba(39,174,96,.15)'};color:${isOg?'#e05050':'#27ae60'};">${isOg?'진행중':'종료'}</span>
-        <span style="font-size:10px;color:#3a6a8a;">${_esc(d.type)}</span>
-      </div>
-      <div style="background:rgba(231,76,60,.08);border:1px solid rgba(231,76,60,.3);border-radius:9px;padding:9px 11px;margin-bottom:6px;">
-        <div style="font-size:9px;color:#ff8a73;font-weight:800;margin-bottom:2px;">🤕 부상 정도</div>
-        <div style="font-size:14px;font-weight:800;color:#ffd9d0;line-height:1.35;">${_injStr||'<span style="font-size:12px;color:#9c7a72;font-weight:600;">미입력</span>'}${!_skip(d.severity)?` <span style="font-size:10px;color:#fff;background:#c0392b;border-radius:5px;padding:1px 6px;vertical-align:middle;">${_esc(d.severity)}</span>`:''}</div>
-      </div>
-      ${!_skip(d.location)?`<div style="font-size:12px;color:#cfe2f2;margin-bottom:6px;">📍 ${_esc(d.location)}${!_skip(d.loctype)?` <span style="color:#7a9cb8;font-size:10px;">· ${_esc(d.loctype)}</span>`:''}</div>`:''}
-      <div style="display:flex;align-items:center;flex-wrap:wrap;gap:5px;margin-bottom:6px;"><span style="font-size:10px;color:#4a7090;font-weight:700;">사고자</span><span style="font-size:12px;color:#e0edf8;font-weight:600;">${_vLine}</span>${!_skip(d.vTel)?_telBtnsHtml(d.vTel):''}${(d.victims2&&d.victims2.length)?`<span style="font-size:10px;color:#e9897e;font-weight:700;">외 ${d.victims2.length}명</span>`:''}</div>
-      ${(!_skip(d.repName)||!_skip(d.repTel))?`<div style="display:flex;align-items:center;flex-wrap:wrap;gap:5px;margin-bottom:6px;"><span style="font-size:10px;color:#4a7090;font-weight:700;">신고자</span><span style="font-size:12px;color:#cfe2f2;">${[!_skip(d.repName)?_esc(d.repName):'',!_skip(d.repTel)?_esc(d.repTel):''].filter(Boolean).join(' · ')}</span>${!_skip(d.repTel)?_telBtnsHtml(d.repTel):''}</div>`:''}
-      ${!_skip(d.reception)?`<div style="font-size:11px;color:#b8d4e8;line-height:1.5;background:#0b1c30;border-radius:8px;padding:8px 10px;"><span style="font-size:9px;color:#4a7090;font-weight:700;">📝 접수내용</span><br>${_esc(d.reception)}</div>`:''}`;
+    document.getElementById('resPopMeta').innerHTML=_resPopMetaHtml(data);
     document.getElementById('btnViewRep').style.display='block';
-    document.getElementById('btnViewTl').style.display=type==='rescue'?'block':'none';
+    document.getElementById('btnViewTl').style.display='block';
     // 출동 거점·좌표복사(라우트) 블록 제거 — 팝업에 불필요
     const rEl=document.getElementById('resPopRoutes');
     if(rEl){rEl.innerHTML='';rEl.style.display='none';}

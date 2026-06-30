@@ -1141,7 +1141,7 @@ function renderFullStats(){
 // 목록·홈 주의현황에서 탭 → 지도 팝업과 동일한 우선순위·병합 정보로 표시
 // (예전의 '1보/2보 선택 모달' 대신. 더 자세히는 팝업의 📄 보고서 버튼으로)
 function openResListDetail(id){
-  try{openResPopup(id,'rescue');}catch(e){}
+  try{openRescueOverlay(id);}catch(e){}
 }
 function viewSinglePhase(resId,phaseIdx){
   const res=DB.g('rescues')||[];const r=res.find(x=>x.id===resId);if(!r)return;
@@ -2480,7 +2480,7 @@ function sosToRescue(id){
 // 앱 자체 업데이트 (OTA · Capgo 자체호스팅) — APK 전용. 웹/PWA는 서비스워커가 자동 갱신.
 // 번들(www)의 새 버전을 ota.json으로 알리면, 설치된 앱이 받아서 그 자리에서 교체(재빌드 불필요).
 // ══════════════════════════════════════════
-const OTA_VER='2026.06.29.30';                         // ← 현재 번들 버전 (릴리스마다 올림 · build-ota.sh가 ota.json에 반영)
+const OTA_VER='2026.06.29.31';                         // ← 현재 번들 버전 (릴리스마다 올림 · build-ota.sh가 ota.json에 반영)
 const OTA_MANIFEST='https://109yoon.github.io/seoraksan/ota.json';
 let _otaInfo=null;
 function _otaPlugin(){try{return (window.Capacitor&&window.Capacitor.Plugins&&window.Capacitor.Plugins.CapacitorUpdater)||null;}catch(e){return null;}}
