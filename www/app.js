@@ -2255,10 +2255,20 @@ function openSosRequest(){
     const status=has
       ? `<span style="color:#3ad17a;font-weight:800;">🟢 위치 수신 ±${p.acc||'?'}m</span> <span style="color:#8ab4cc;font-size:10px;">${mm}분 전</span>`
       : `<span style="color:#ffd24d;font-weight:700;">⚪ 전송 대기 중</span>`;
+    // 48시간 자동만료까지 남은 시간
+    const _iss=p.issuedAt||p.ts||0;
+    const _remMs=48*3600000-(Date.now()-_iss);
+    const _rh=Math.floor(_remMs/3600000),_rm=Math.floor((_remMs%3600000)/60000);
+    const _remStr=_remMs<=0?'만료됨':(_rh>0?_rh+'시간 '+_rm+'분':_rm+'분')+' 남음';
+    const _remCol=_remMs<=0?'#e05050':(_remMs<6*3600000?'#ffd24d':'#7ee0a0');
     return `<div style="background:#0b1c30;border:1px solid ${has?'rgba(231,76,60,.4)':'rgba(255,255,255,.12)'};border-radius:11px;padding:11px 12px;margin-bottom:8px;">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;gap:6px;flex-wrap:wrap;">
         <span style="font-size:12px;">${status}</span>
         <span style="font-size:9px;color:#5a7e98;font-family:monospace;">🔗 1회용 · ${p.id}</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:7px;flex-wrap:wrap;">
+        <span style="font-size:11px;color:${_remCol};font-weight:700;">⏱ 자동만료까지 ${_remStr}</span>
+        <button onclick="_sosExtend('${p.id}')" style="flex-shrink:0;background:rgba(241,196,15,.13);color:#f0c040;border:1px solid rgba(241,196,15,.4);border-radius:14px;padding:5px 12px;font-size:11px;font-weight:800;cursor:pointer;">⏱ 48시간 연장</button>
       </div>
       ${has?`<div onclick="_sosFocus('${p.id}')" style="cursor:pointer;margin-bottom:7px;">
         <div style="font-size:13px;font-weight:800;color:#ff8a73;">🆘 ${_esc(p.name||'익명')}</div>
@@ -2286,6 +2296,14 @@ function openSosRequest(){
     <button onclick="_sosNewLink()" style="width:100%;padding:14px;border-radius:11px;border:none;background:linear-gradient(180deg,#e74c3c,#c0392b);color:#fff;font-size:15px;font-weight:800;cursor:pointer;box-shadow:0 3px 10px rgba(192,57,43,.4);margin-bottom:12px;">➕ 새 1회용 링크 만들기</button>
     ${toks.length?cards:'<div style="font-size:12px;color:rgba(255,255,255,.35);padding:6px 0;text-align:center;">발급된 링크가 없습니다. 위 버튼으로 새 링크를 만드세요.</div>'}`;
   _sosModal('🆘 조난·사고자 위치요청 (1회용 링크)',html);
+}
+// 1회용 링크 48시간 자동만료 연장(발급시각을 지금으로 리셋 → 다시 48시간)
+function _sosExtend(id){
+  const nowMs=Date.now();
+  const p=(_sosPings||[]).find(x=>x.id===id);if(p)p.issuedAt=nowMs;
+  if(_fdb)_fdb.collection('sos').doc(id).set({issuedAt:nowMs},{merge:true}).catch(()=>{});
+  _sosRefreshAll();
+  toast('⏱️ 48시간 연장됨 (지금부터 다시 48시간)');
 }
 function _sosModal(title,html){
   let m=document.getElementById('sosModal');
@@ -2443,7 +2461,7 @@ function sosToRescue(id){
 // 앱 자체 업데이트 (OTA · Capgo 자체호스팅) — APK 전용. 웹/PWA는 서비스워커가 자동 갱신.
 // 번들(www)의 새 버전을 ota.json으로 알리면, 설치된 앱이 받아서 그 자리에서 교체(재빌드 불필요).
 // ══════════════════════════════════════════
-const OTA_VER='2026.06.29.13';                         // ← 현재 번들 버전 (릴리스마다 올림 · build-ota.sh가 ota.json에 반영)
+const OTA_VER='2026.06.29.14';                         // ← 현재 번들 버전 (릴리스마다 올림 · build-ota.sh가 ota.json에 반영)
 const OTA_MANIFEST='https://109yoon.github.io/seoraksan/ota.json';
 let _otaInfo=null;
 function _otaPlugin(){try{return (window.Capacitor&&window.Capacitor.Plugins&&window.Capacitor.Plugins.CapacitorUpdater)||null;}catch(e){return null;}}
