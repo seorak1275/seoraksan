@@ -1,12 +1,16 @@
 'use strict';
 // ── 전역 오류 기록: 현장에서 "삐걱거림" 원인 추적용 (관리자 → 시스템 탭) ──
+// 알려진 무해한 잡음(브라우저/파이어베이스 내부) — 로그에 안 남김
+const _ERR_IGNORE=/in-progress transaction|IndexedDB|transaction (is|was|has been) (inactive|finished|aborted)|ResizeObserver loop|^Script error\.?\s*@?:?\s*$|cross-origin|Load failed$/i;
 function _logErr(msg){
+  const sm=String(msg);
+  if(_ERR_IGNORE.test(sm))return; // 무해한 잡음 무시
   try{
     const log=JSON.parse(localStorage.getItem('_errLog')||'[]');
-    log.unshift({t:new Date().toISOString().slice(5,16).replace('T',' '),m:String(msg).slice(0,180)});
+    log.unshift({t:new Date().toISOString().slice(5,16).replace('T',' '),m:sm.slice(0,180)});
     localStorage.setItem('_errLog',JSON.stringify(log.slice(0,30)));
   }catch(e){}
-  try{_uploadErr(msg);}catch(e){} // 관리자가 모든 기기 오류를 모아볼 수 있도록 서버에도 기록(웹/앱·작성자 포함)
+  try{_uploadErr(sm);}catch(e){} // 관리자가 모든 기기 오류를 모아볼 수 있도록 서버에도 기록(웹/앱·작성자 포함)
 }
 // 오류를 Firestore(errLogs)에 업로드 — 폭주 방지(같은 오류 세션당 1회 + 최소 3초 간격)
 var _errUpLast=0,_errUpSeen={};
@@ -1060,7 +1064,8 @@ function _myNotiLevel(){
   if(u.dept&&p.depts[u.dept])lv=p.depts[u.dept]; // 소속 지정이 있으면 최우선
   return lv||'recommended';
 }
-function _notiDefaultOn(k){const lv=_myNotiLevel();if(lv==='all')return true;if(lv==='min')return _NOTI_MIN.has(k);return _NOTI_DEF[k]!==false;}
+// 기본은 '모두에게'(내가 준 def 그대로). 개인이 끄면 그 사람만 안 받음.
+function _notiDefaultOn(k){return _NOTI_DEF[k]!==false;}
 // 이 알림(k)이 나에게 켜져 있는가: 개인설정에 명시값 있으면 그것, 없으면 정책 기본값
 function _notiOn(k){const s=DB.g('notiSetting')||{};if(s[k]!==undefined)return s[k]!==false;return _notiDefaultOn(k);}
 // 서버 푸시 필터용: 정책+개인설정을 합친 실효 설정(전 항목 bool)

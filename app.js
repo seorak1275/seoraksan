@@ -40,8 +40,6 @@ function renderSettings(){
   } else {
     const s=_ensureNotiDefaults();
     const allOn=NOTI_GROUPS.every(g=>g.items.every(it=>_notiOn(it.k)));
-    const _myLv=(typeof _myNotiLevel==='function')?_myNotiLevel():'recommended';
-    const _lvLbl={all:'전체',recommended:'추천(기본)',min:'최소'}[_myLv]||'추천(기본)';
     const _vibe=DB.g('notiVibrate')!==false;
     const _notiPerm=('Notification' in window)?Notification.permission:'unsupported';
     document.getElementById('settingsNotiWrap').innerHTML=`
@@ -54,7 +52,7 @@ function renderSettings(){
         <div class="stitle" style="display:flex;align-items:center;justify-content:space-between;">🔔 알림 설정
           <button onclick="togNotiAll(${allOn?'false':'true'})" style="font-size:10px;font-weight:700;background:rgba(79,168,208,.12);color:#4fa8d0;border:1px solid rgba(79,168,208,.3);border-radius:7px;padding:4px 9px;cursor:pointer;">${allOn?'전체 끄기':'전체 켜기'}</button>
         </div>
-        <div class="tog-sub" style="margin:-4px 0 8px;color:#5a7e98;">관리자 기본 정책: <b style="color:#7dd3fa;">${_lvLbl}</b> · 아래에서 항목별로 직접 켜고 끌 수 있습니다(개인 설정 우선).</div>
+        <div class="tog-sub" style="margin:-4px 0 8px;color:#5a7e98;">기본은 <b style="color:#5dbf8a;">모두에게</b> 옵니다. 아래에서 내가 받을 알림을 직접 켜고 끄세요. ('(앱 내만)'은 OS 푸시 없이 앱 벨로만)</div>
         ${NOTI_GROUPS.map(g=>`
           <div style="font-size:11px;font-weight:800;color:#6a94b0;letter-spacing:.4px;margin:14px 0 4px;border-top:1px solid rgba(255,255,255,.05);padding-top:10px;">${g.title}</div>
           ${g.items.map(it=>`<div class="tog-row"><div><div class="tog-lbl">${it.l}${it.push===false?' <span style="font-size:9px;color:#4a7090;font-weight:600;">(앱 내만)</span>':''}</div><div class="tog-sub">${it.sub}</div></div><div class="toggle ${_notiOn(it.k)?'on':'off'}" onclick="togNotiSet('${it.k}',this)"></div></div>`).join('')}
@@ -2476,7 +2474,7 @@ function sosToRescue(id){
 // 앱 자체 업데이트 (OTA · Capgo 자체호스팅) — APK 전용. 웹/PWA는 서비스워커가 자동 갱신.
 // 번들(www)의 새 버전을 ota.json으로 알리면, 설치된 앱이 받아서 그 자리에서 교체(재빌드 불필요).
 // ══════════════════════════════════════════
-const OTA_VER='2026.06.29.24';                         // ← 현재 번들 버전 (릴리스마다 올림 · build-ota.sh가 ota.json에 반영)
+const OTA_VER='2026.06.29.25';                         // ← 현재 번들 버전 (릴리스마다 올림 · build-ota.sh가 ota.json에 반영)
 const OTA_MANIFEST='https://109yoon.github.io/seoraksan/ota.json';
 let _otaInfo=null;
 function _otaPlugin(){try{return (window.Capacitor&&window.Capacitor.Plugins&&window.Capacitor.Plugins.CapacitorUpdater)||null;}catch(e){return null;}}

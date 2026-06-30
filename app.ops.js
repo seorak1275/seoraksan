@@ -1840,7 +1840,7 @@ function renderAdmMembers(){
               <option value="admin"${role==='admin'?' selected':''}>관리자</option>
             </select>`}
             <button onclick="_toggleAdmMemberEdit('${_escq(editId)}')" style="background:rgba(79,168,208,.12);color:#4fa8d0;border:1px solid rgba(79,168,208,.25);border-radius:6px;padding:4px 7px;font-size:10px;cursor:pointer;">수정</button>
-            ${u.puId&&u.approvalStatus!=='approved'&&!_isDeveloper(u.kakaoId)?`<button onclick="approveUser('${_escq(u.puId)}')" style="background:rgba(39,174,96,.15);color:#7ec8a0;border:1px solid rgba(39,174,96,.3);border-radius:6px;padding:4px 7px;font-size:10px;cursor:pointer;">승인</button>`:''}
+            ${role==='none'&&!_isDeveloper(u.kakaoId)?`<button onclick="grantMember('${_escq(u.kakaoId)}')" style="background:rgba(39,174,96,.15);color:#7ec8a0;border:1px solid rgba(39,174,96,.3);border-radius:6px;padding:4px 7px;font-size:10px;cursor:pointer;">승인</button>`:''}
             ${!_isDeveloper(u.kakaoId)?`<button onclick="removeStaff('${_escq(u.kakaoId)}')" style="background:rgba(192,57,43,.15);color:#ff8a80;border:1px solid rgba(192,57,43,.25);border-radius:6px;padding:4px 7px;font-size:10px;cursor:pointer;">삭제</button>`:''}
           </div>
         </div>
@@ -2166,6 +2166,11 @@ function _aclSelfApprove(kakaoId){
   kakaoId=String(kakaoId||'');if(!kakaoId)return false;
   const acl=_getAcl();
   if(acl.members.indexOf(kakaoId)<0&&acl.admins.indexOf(kakaoId)<0){acl.members.push(kakaoId);DB.s('_acl',acl);}
+  // pendingUsers 상태도 approved로 — 자동승인으로 들어왔는데 관리자 화면에 '승인' 버튼이 남던 문제 방지
+  try{
+    const list=DB.g('pendingUsers')||[];const i=list.findIndex(p=>String(p.kakaoId||p.id)===kakaoId);
+    if(i>=0&&list[i].approvalStatus!=='approved'){list[i]=Object.assign({},list[i],{approvalStatus:'approved',seen:true});DB.s('pendingUsers',list);}
+  }catch(e){}
   _markMemberOk();
   return true;
 }
@@ -2188,6 +2193,20 @@ function _startApprovalPoll(){
 }
 function _stopApprovalPoll(){if(_approvalPollTimer){clearInterval(_approvalPollTimer);_approvalPollTimer=null;}}
 // 전체 기기 오류 모아보기 (관리자 전용) — errLogs 컬렉션에서 최근순
+// 전체 기기 오류 기록 삭제(관리자) — 최근 분량 일괄 삭제
+function _clearAllErrLogs(){
+  if(!isAdminUser()){toast('⚠️ 관리자만 가능');return;}
+  if(!_fdb){toast('서버 미연결');return;}
+  if(!confirm('전체 기기의 오류 기록을 모두 삭제할까요?'))return;
+  const el=document.getElementById('allErrLogs');if(el)el.innerHTML='<div style="font-size:11px;color:#5a8aaa;">삭제 중…</div>';
+  _fdb.collection('errLogs').limit(400).get().then(function(snap){
+    let n=0;const ps=[];snap.docs.forEach(function(d){n++;ps.push(d.ref.delete().catch(function(){}));});
+    Promise.all(ps).then(function(){
+      if(el)el.innerHTML='<div style="font-size:11px;color:rgba(255,255,255,.25);">기록 없음 ✅</div>';
+      toast('🗑️ 오류 기록 '+n+'건 삭제됨'+(n>=400?' (많아서 더 있으면 한 번 더 눌러주세요)':''));
+    });
+  }).catch(function(){toast('삭제 실패');if(el)el.innerHTML='';});
+}
 function _loadAllErrLogs(){
   const el=document.getElementById('allErrLogs');
   if(!_fdb){if(el)el.innerHTML='<div style="font-size:11px;color:#e05050;">서버 미연결</div>';return;}
@@ -2237,23 +2256,24 @@ function renderAdmSys(){
       ${(()=>{try{const log=JSON.parse(localStorage.getItem('_errLog')||'[]');return log.length?log.slice(0,8).map(e=>`<div style="font-size:10px;color:#b8856a;font-family:monospace;padding:2px 0;border-bottom:1px solid rgba(255,255,255,.04);">${e.t} ${_esc(e.m)}</div>`).join(''):'<div style="font-size:11px;color:rgba(255,255,255,.25);">기록된 오류 없음 ✅</div>';}catch(e){return'';}})()}
       <div style="display:flex;justify-content:space-between;align-items:center;margin:9px 0 3px;">
         <span style="font-size:10px;color:#5a8aaa;font-weight:700;">🌐 전체 기기 (누가·웹/앱)</span>
-        <button onclick="_loadAllErrLogs()" style="background:rgba(79,168,208,.12);color:#4fa8d0;border:1px solid rgba(79,168,208,.28);border-radius:14px;padding:3px 10px;font-size:10px;font-weight:700;cursor:pointer;">불러오기 ↻</button>
+        <span style="display:flex;gap:5px;">
+          <button onclick="_loadAllErrLogs()" style="background:rgba(79,168,208,.12);color:#4fa8d0;border:1px solid rgba(79,168,208,.28);border-radius:14px;padding:3px 10px;font-size:10px;font-weight:700;cursor:pointer;">불러오기 ↻</button>
+          <button onclick="_clearAllErrLogs()" style="background:rgba(192,57,43,.1);color:#e0857a;border:1px solid rgba(192,57,43,.28);border-radius:14px;padding:3px 10px;font-size:10px;font-weight:700;cursor:pointer;">전체 비우기</button>
+        </span>
       </div>
       <div id="allErrLogs" style="max-height:220px;overflow-y:auto;"><div style="font-size:11px;color:rgba(255,255,255,.25);">‘불러오기’를 누르면 모든 기기의 오류를 모아 봅니다(관리자 전용)</div></div>
     </div>
     <div class="scard" style="margin-bottom:8px;">
-      <div class="stitle">📢 알림 기본 정책</div>
-      <div style="font-size:11px;color:#7a9cb8;margin-bottom:10px;">대상별 <b style="color:#cfe2f2;">기본 알림 수준</b>입니다. 직원이 [내 설정 → 알림]에서 직접 바꾸면 그 사람은 개인 설정이 우선됩니다.</div>
-      ${['전원','관리자','멤버'].map(grp=>{
-        const cur=_getNotiPolicy()[grp];
-        return `<div style="margin-bottom:9px;">
-          <div style="font-size:12px;font-weight:800;color:#cfe2f2;margin-bottom:5px;">${grp==='전원'?'👥 전원':grp==='관리자'?'🔑 관리자':'🙋 멤버'}</div>
-          <div style="display:flex;gap:6px;">
-            ${_NOTI_LEVELS.map(lv=>`<button onclick="setNotiPolicy('${grp}','${lv.v}')" style="flex:1;padding:8px 0;border-radius:9px;border:1px solid ${cur===lv.v?'#4fa8d0':'rgba(255,255,255,.12)'};background:${cur===lv.v?'rgba(79,168,208,.18)':'rgba(255,255,255,.03)'};color:${cur===lv.v?'#7dd3fa':'#9bbdd4'};font-size:12px;font-weight:${cur===lv.v?'800':'600'};cursor:pointer;line-height:1.3;">${lv.l}<br><span style="font-size:9px;font-weight:400;opacity:.85;">${lv.d}</span></button>`).join('')}
-          </div>
-        </div>`;
-      }).join('')}
-      <div style="font-size:10px;color:#5a7e98;margin-top:2px;line-height:1.6;">전체=모든 알림 · 추천=중요 위주(기본값) · 최소=생명·안전 핵심만<br>※ 소속별 세부 지정은 다음 업데이트 예정</div>
+      <div class="stitle">🔔 알림 받는 대상 안내</div>
+      <div style="font-size:11px;color:#7a9cb8;margin-bottom:10px;">기본적으로 <b style="color:#5dbf8a;">모든 직원</b>이 받습니다. 아래 일부만 <b style="color:#7dd3fa;">관리자 전용</b>입니다. (각자 [내 설정 → 알림]에서 자기 알림을 끄고 켤 수 있어요)</div>
+      <div style="background:rgba(39,174,96,.06);border:1px solid rgba(39,174,96,.25);border-radius:9px;padding:10px 11px;margin-bottom:8px;">
+        <div style="font-size:12px;font-weight:800;color:#5dbf8a;margin-bottom:5px;">👥 모두에게</div>
+        <div style="font-size:11px;color:#b8d4e8;line-height:1.85;">안전사고·낙석·위험수목·화재 등 현장 위험상황 · 응소 요청 · 진행중 경과/상황 종료 · 위험 시설물 · 기상특보·재난위기경보·탐방로 통제·기상 브리핑</div>
+      </div>
+      <div style="background:rgba(79,168,208,.06);border:1px solid rgba(79,168,208,.25);border-radius:9px;padding:10px 11px;">
+        <div style="font-size:12px;font-weight:800;color:#7dd3fa;margin-bottom:5px;">🔑 관리자에게만</div>
+        <div style="font-size:11px;color:#b8d4e8;line-height:1.85;">새 직원 가입 승인 요청 · 관리자 권한 요청 · 정보 정정 요청</div>
+      </div>
     </div>
     <div class="scard" style="margin-bottom:8px;">
       <div class="stitle">📲 푸시 알림 (꺼진 폰까지)</div>
