@@ -351,12 +351,21 @@ async function sendCustomPush(){
   const title=(document.getElementById('pushTitleInp')?.value||'설악산 현장관리').trim()||'설악산 현장관리';
   const body=(document.getElementById('pushBodyInp')?.value||'').trim();
   if(!body){toast('⚠️ 보낼 내용을 입력하세요');document.getElementById('pushBodyInp')?.focus();return;}
-  if(!confirm('전 직원에게 푸시를 발송합니다.\n\n제목: '+title+'\n내용: '+body+'\n\n발송할까요?'))return;
+  // 받는 대상: all / dept:소속 / kid:카카오ID
+  const tgt=(document.getElementById('pushTargetSel')?.value)||'all';
+  let tgtLabel='전체';
+  if(tgt.startsWith('dept:'))tgtLabel='소속 · '+tgt.slice(5);
+  else if(tgt.startsWith('kid:')){const _p=[].concat(DB.g('loginLog')||[],DB.g('pendingUsers')||[]).find(e=>String(e.kakaoId||e.id||'')===tgt.slice(4));tgtLabel='개별 · '+((_p&&(_p.realName||_p.name))||tgt.slice(4));}
+  if(!confirm('['+tgtLabel+']에게 푸시를 발송합니다.\n\n제목: '+title+'\n내용: '+body+'\n\n발송할까요?'))return;
   toast('📨 푸시 발송 중…');
   try{
     const snap=await _fdb.collection('fcmTokens').get();
-    const tokens=[];snap.forEach(d=>{const v=d.data()||{};if(v.token)tokens.push(v.token);});
-    if(!tokens.length){toast('⚠️ 등록된 기기가 없습니다');return;}
+    const tokens=[];snap.forEach(d=>{const v=d.data()||{};if(!v.token)return;
+      if(tgt==='all')tokens.push(v.token);
+      else if(tgt.startsWith('dept:')){if((v.dept||'')===tgt.slice(5))tokens.push(v.token);}
+      else if(tgt.startsWith('kid:')){if(String(v.kakaoId||'')===tgt.slice(4))tokens.push(v.token);}
+    });
+    if(!tokens.length){toast('⚠️ 대상 기기가 없습니다 (해당 직원이 아직 앱에서 알림을 켜지 않았을 수 있음)');return;}
     const res=await fetch(url,{method:'POST',headers:{'content-type':'text/plain;charset=utf-8'},
       body:JSON.stringify({secret:_FCM_PUSH_SECRET||(DB.g('fcmPushSecret')||''),title,body,data:{app:'home'},tokens})});
     const out=await res.json().catch(()=>({}));
@@ -364,6 +373,9 @@ async function sendCustomPush(){
     else{
       toast(`✅ ${out.sent||0}대 발송 완료${out.invalid&&out.invalid.length?` · 무효 ${out.invalid.length}`:''}`);
       const b=document.getElementById('pushBodyInp');if(b)b.value='';
+      // 보낸 내역 기록
+      try{const me=DB.g('currentUser')||{};const log=DB.g('pushLog')||[];log.unshift({title,body,target:tgtLabel,by:(me.realName||me.name||'관리자'),at:Date.now(),sent:out.sent||0});DB.s('pushLog',log.slice(0,30));}catch(e){}
+      try{renderAdmSys();}catch(e){}
     }
   }catch(e){toast('❌ 발송 실패: '+e.message);}
 }
