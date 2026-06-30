@@ -752,19 +752,12 @@ function openApp(mode){
     _alertTab=1; // 진입 시 항상 목록 탭부터
     bn.style.display='none';showV('v-alert');history.pushState({view:mode},'','');renderAlertView();
   } else if(mode==='admin'){
-    // 관리자 카카오 계정은 비밀번호 생략: ①소유자 ②허용목록(_acl) 관리자 ③토큰 admin 클레임
-    const _au=DB.g('currentUser')||{};
-    const _owner=DB.g('adminOwnerKakaoId');
-    const _aclAdmin=!!(_au.kakaoId&&_getAcl().admins.indexOf(String(_au.kakaoId))>=0);
-    if((_au.kakaoId&&_owner&&String(_au.kakaoId)===String(_owner))||_aclAdmin||isAdminUser()){
-      localStorage.setItem('_adminAuthed','1');
-    }
-    if(localStorage.getItem('_adminAuthed')!=='1'){
-      _showAdminDenied(); // 권한 없음 안내(예전처럼 비번 로그인창을 바로 띄우지 않음)
+    // 관리자 판정은 isAdminUser() 단일 기준(개발자 마스터 OR _acl.admins OR devKakaoId).
+    // 강등(_acl)되면 즉시 막히고, 멤버/일반은 권한없음 안내. (옛 소유자 자동승격 제거)
+    if(!isAdminUser()){
+      _showAdminDenied();
       return;
     }
-    // 이미 인증된 기기에서 소유자 미등록이면 현재 카카오 계정을 소유자로 등록
-    if(_au.kakaoId&&!_owner)DB.s('adminOwnerKakaoId',String(_au.kakaoId));
     document.getElementById('topTitle').textContent='관리자 전용';
     bn.style.display='none';showV('v-admin');history.pushState({view:mode},'','');admTab('ctrl',document.querySelector('.adm-tab'));
   } else if(mode==='settings'){
