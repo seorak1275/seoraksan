@@ -1871,21 +1871,15 @@ function autoGenTitle(returnOnly=false){
     const ip=getSelPills('injParts')[0]||'',it=getSelPills('injTypes')[0]||'';
     injStr=(ip+' '+it).trim();
   }
-  // 위치: 표지판 코드(NN-NN)만 추출해 'NN-NN 인근'으로 짧게(세부 위치는 제외 — 제목 깔끔하게)
+  // 제목 형식: 「부상 NN-NN지점」 (예: 발목골절 09-11지점). 이름·세부위치 제외 — 깔끔하게
   const _m=loc.match(/\d{1,2}-\d{1,3}/);
-  const locShort=_m?_m[0]+' 인근':(loc?loc.slice(0,10)+(loc.length>10?'…':''):'');
-  // 우선순위: ① 어디가 어떻게 다쳤는지(부상) ② 위치 ③ 나머지(중증도·유형·외국인)
+  const locShort=_m?_m[0]+'지점':(loc?loc.slice(0,8):'');
   const parts=[];
-  if(injStr)  parts.push(injStr);
+  if(injStr)  parts.push(injStr);                                                 // ① 부상(어디·어떻게)
   else if(cause&&cause!=='실족') parts.push(cause);
-  if(locShort)parts.push(locShort);
-  if(sev)     parts.push('KTAS'+sev.replace('KTAS ','').split('(')[0].trim());
-  if(type!=='안전사고') parts.push(type);
-  if(nation==='외국인'){
-    const gLabel=(gender&&gender!=='알수없음')?'('+gender+')':'';
-    parts.push('외국인'+gLabel);
-  }
-  const title=parts.join(' · ')||today()+' '+type;
+  if(nation==='외국인') parts.push('외국인'+((gender&&gender!=='알수없음')?'('+gender+')':'')); // 외국인 표기
+  if(locShort)parts.push(locShort);                                               // ② 위치(NN-NN지점)
+  const title=parts.join(' ')||today()+' '+type;
   if(returnOnly) return title;
   const el=document.getElementById('r_title');
   if(el&&(!el.dataset.userEdited)){
@@ -2480,7 +2474,7 @@ function sosToRescue(id){
 // 앱 자체 업데이트 (OTA · Capgo 자체호스팅) — APK 전용. 웹/PWA는 서비스워커가 자동 갱신.
 // 번들(www)의 새 버전을 ota.json으로 알리면, 설치된 앱이 받아서 그 자리에서 교체(재빌드 불필요).
 // ══════════════════════════════════════════
-const OTA_VER='2026.06.29.32';                         // ← 현재 번들 버전 (릴리스마다 올림 · build-ota.sh가 ota.json에 반영)
+const OTA_VER='2026.06.29.33';                         // ← 현재 번들 버전 (릴리스마다 올림 · build-ota.sh가 ota.json에 반영)
 const OTA_MANIFEST='https://109yoon.github.io/seoraksan/ota.json';
 let _otaInfo=null;
 function _otaPlugin(){try{return (window.Capacitor&&window.Capacitor.Plugins&&window.Capacitor.Plugins.CapacitorUpdater)||null;}catch(e){return null;}}
