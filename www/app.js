@@ -1871,9 +1871,9 @@ function autoGenTitle(returnOnly=false){
     const ip=getSelPills('injParts')[0]||'',it=getSelPills('injTypes')[0]||'';
     injStr=(ip+' '+it).trim();
   }
-  // 제목 형식: 「부상 NN-NN지점」 (예: 발목골절 09-11지점). 이름·세부위치 제외 — 깔끔하게
+  // 제목 형식: 「부상 NN-NN 인근」 (예: 발목골절 09-11 인근). 이름·세부위치 제외 — 깔끔하게
   const _m=loc.match(/\d{1,2}-\d{1,3}/);
-  const locShort=_m?_m[0]+'지점':(loc?loc.slice(0,8):'');
+  const locShort=_m?_m[0]+' 인근':(loc?loc.slice(0,8):'');
   const parts=[];
   if(injStr)  parts.push(injStr);                                                 // ① 부상(어디·어떻게)
   else if(cause&&cause!=='실족') parts.push(cause);
@@ -2474,7 +2474,7 @@ function sosToRescue(id){
 // 앱 자체 업데이트 (OTA · Capgo 자체호스팅) — APK 전용. 웹/PWA는 서비스워커가 자동 갱신.
 // 번들(www)의 새 버전을 ota.json으로 알리면, 설치된 앱이 받아서 그 자리에서 교체(재빌드 불필요).
 // ══════════════════════════════════════════
-const OTA_VER='2026.06.29.33';                         // ← 현재 번들 버전 (릴리스마다 올림 · build-ota.sh가 ota.json에 반영)
+const OTA_VER='2026.06.29.34';                         // ← 현재 번들 버전 (릴리스마다 올림 · build-ota.sh가 ota.json에 반영)
 const OTA_MANIFEST='https://109yoon.github.io/seoraksan/ota.json';
 let _otaInfo=null;
 function _otaPlugin(){try{return (window.Capacitor&&window.Capacitor.Plugins&&window.Capacitor.Plugins.CapacitorUpdater)||null;}catch(e){return null;}}
