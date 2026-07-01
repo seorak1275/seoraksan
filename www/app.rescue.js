@@ -597,6 +597,11 @@ function renderRescueMap(){
   if(_rFocusResId){
     _applyFocusDim();
     _drawFocusRoutes(_rFocusResId);
+  }else if(window._popupDimOn){
+    // 팝업 집중 상태 유지: 마커 재생성 후에도 흐림 재적용
+    const rp=document.getElementById('resPopup');
+    if(rp&&rp.classList.contains('on')&&selResId!=null){window._popupDimOn=false;_popupFocusDim(selResId);}
+    else window._popupDimOn=false;
   }
   updateSummary();
 }
@@ -739,6 +744,24 @@ function _applyFocusDim(){
 }
 
 function _clearFocusDim(){
+  _rEvEls.forEach(el=>{el.style.opacity='';});
+  _rTeamEls.forEach(el=>{el.style.opacity='';});
+  _rFacPool.forEach(entry=>{entry.el.style.opacity='';});
+}
+
+// 팝업 집중: 사고 하나를 탭하면 나머지 사고·시설 마커 불투명도↓ → 여러 사고 동시 상황에서 시인성 확보
+// (전용 focus 모드보다 가벼움 · 팝업 닫으면 _clearPopupDim 으로 원복)
+function _popupFocusDim(rid){
+  if(_rFocusResId)return; // 정식 포커스 모드 중이면 그대로 둠
+  const f=String(rid);
+  _rEvEls.forEach(el=>{el.style.transition='opacity .2s';el.style.opacity=(el.dataset&&el.dataset.rid===f)?'1':'0.28';});
+  _rTeamEls.forEach(el=>{el.style.transition='opacity .2s';el.style.opacity=(el.dataset&&el.dataset.rid===f)?'1':'0.28';});
+  _rFacPool.forEach(entry=>{entry.el.style.transition='opacity .2s';entry.el.style.opacity='0.28';});
+  window._popupDimOn=true;
+}
+function _clearPopupDim(){
+  if(!window._popupDimOn||_rFocusResId)return;
+  window._popupDimOn=false;
   _rEvEls.forEach(el=>{el.style.opacity='';});
   _rTeamEls.forEach(el=>{el.style.opacity='';});
   _rFacPool.forEach(entry=>{entry.el.style.opacity='';});
@@ -1555,9 +1578,25 @@ function _resPopMetaHtml(data){
       <div style="font-size:14px;font-weight:800;color:#ffd9d0;line-height:1.35;">${_injStr||'<span style="font-size:12px;color:#9c7a72;font-weight:600;">미입력</span>'}${!_skip(d.severity)?` <span style="font-size:10px;color:#fff;background:#c0392b;border-radius:5px;padding:1px 6px;vertical-align:middle;">${_esc(d.severity)}</span>`:''}</div>
     </div>
     ${!_skip(d.location)?`<div style="font-size:12px;color:#cfe2f2;margin-bottom:6px;">📍 ${_esc(d.location)}${!_skip(d.loctype)?` <span style="color:#7a9cb8;font-size:10px;">· ${_esc(d.loctype)}</span>`:''}</div>`:''}
-    <div style="display:flex;align-items:center;flex-wrap:wrap;gap:5px;margin-bottom:6px;"><span style="font-size:10px;color:#4a7090;font-weight:700;">사고자</span><span style="font-size:12px;color:#e0edf8;font-weight:600;">${_vLine}</span>${!_skip(d.vTel)?_telBtnsHtml(d.vTel):''}${(d.victims2&&d.victims2.length)?`<span style="font-size:10px;color:#e9897e;font-weight:700;">외 ${d.victims2.length}명</span>`:''}</div>
-    ${(!_skip(d.repName)||!_skip(d.repTel))?`<div style="display:flex;align-items:center;flex-wrap:wrap;gap:5px;margin-bottom:6px;"><span style="font-size:10px;color:#4a7090;font-weight:700;">신고자</span><span style="font-size:12px;color:#cfe2f2;">${[!_skip(d.repName)?_esc(d.repName):'',!_skip(d.repTel)?_esc(d.repTel):''].filter(Boolean).join(' · ')}</span>${!_skip(d.repTel)?_telBtnsHtml(d.repTel):''}</div>`:''}
+    <div style="display:flex;align-items:center;flex-wrap:wrap;gap:5px;margin-bottom:6px;"><span style="font-size:10px;color:#4a7090;font-weight:700;">사고자</span><span style="font-size:12px;color:#e0edf8;font-weight:600;">${_vLine}</span>${!_skip(d.vTel)?_telBtnsHtml(d.vTel,data.id):''}${(d.victims2&&d.victims2.length)?`<span style="font-size:10px;color:#e9897e;font-weight:700;">외 ${d.victims2.length}명</span>`:''}</div>
+    ${(!_skip(d.repName)||!_skip(d.repTel))?`<div style="display:flex;align-items:center;flex-wrap:wrap;gap:5px;margin-bottom:6px;"><span style="font-size:10px;color:#4a7090;font-weight:700;">신고자</span><span style="font-size:12px;color:#cfe2f2;">${[!_skip(d.repName)?_esc(d.repName):'',!_skip(d.repTel)?_esc(d.repTel):''].filter(Boolean).join(' · ')}</span>${!_skip(d.repTel)?_telBtnsHtml(d.repTel,data.id):''}</div>`:''}
+    ${_sosLiveLineHtml(data)}
     ${!_skip(d.reception)?`<div style="font-size:11px;color:#b8d4e8;line-height:1.5;background:#0b1c30;border-radius:8px;padding:8px 10px;"><span style="font-size:9px;color:#4a7090;font-weight:700;">📝 접수내용</span><br>${_esc(d.reception)}</div>`:''}`;
+}
+// 사고자 실시간 위치(연결된 SOS 링크) 안내줄 + '채택' 버튼 — 최초접수와 별개. 없으면 빈 문자열
+function _sosLiveLineHtml(data){
+  const p=(typeof _linkedSosPing==='function')?_linkedSosPing(data):null;
+  if(!p)return '';
+  const dist=(data.lat&&data.lng&&typeof _haversineKm==='function')?Math.round(_haversineKm(data.lat,data.lng,p.lat,p.lng)*1000):null;
+  const mm=p.ts?Math.round((Date.now()-(p.ts||0))/60000):null;
+  const far=dist!=null&&dist>=30;
+  return `<div style="display:flex;align-items:center;flex-wrap:wrap;gap:6px;margin-bottom:6px;background:rgba(20,184,166,.08);border:1px solid rgba(20,184,166,.32);border-radius:8px;padding:7px 9px;">
+    <span style="font-size:10px;color:#2dd4bf;font-weight:800;">🆘 실시간</span>
+    <span style="font-size:11px;color:#a7f3e4;font-family:monospace;">${(+p.lat).toFixed(5)}, ${(+p.lng).toFixed(5)}</span>
+    ${mm!=null?`<span style="font-size:10px;color:#5a9e94;">${mm}분 전</span>`:''}
+    ${dist!=null?`<span style="font-size:10px;font-weight:700;color:${far?'#ffb454':'#5a9e94'};">최초접수와 ${dist}m</span>`:''}
+    <button onclick="event.stopPropagation();adoptSosLoc('${data.id}')" style="margin-left:auto;background:rgba(20,184,166,.18);color:#2dd4bf;border:1px solid rgba(20,184,166,.4);border-radius:6px;padding:3px 9px;font-size:11px;font-weight:700;cursor:pointer;">📍 위치 채택</button>
+  </div>`;
 }
 // 목록·홈에서 탭 → 전역 오버레이(지도 화면이 아니어도 뜸)로 동일 팝업 표시
 function openRescueOverlay(id){
@@ -1608,6 +1647,8 @@ function openResPopup(id,type='rescue'){
   }
   document.getElementById('facPopup').classList.remove('on');
   document.getElementById('resPopup').classList.add('on');
+  // 지도에서 이 사고에 집중: 나머지 마커 흐리게 (여러 사고 동시 발생 시 시인성)
+  try{if(mapR){const mv=document.getElementById('v-rescue-map');if(mv&&mv.classList.contains('on'))_popupFocusDim(id);}}catch(e){}
 }
 
 function openHazDetail(id){

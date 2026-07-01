@@ -194,6 +194,8 @@ button{-webkit-tap-highlight-color:transparent;touch-action:manipulation;}
 .sos-pin{display:flex;flex-direction:column;align-items:center;cursor:pointer;user-select:none;-webkit-user-select:none;}
 .sos-pin .sos-dot{width:20px;height:20px;border-radius:50%;background:#c0392b;border:2px solid #ffe14d;display:flex;align-items:center;justify-content:center;font-size:10px;box-shadow:0 0 0 2px rgba(231,76,60,.45),0 2px 6px rgba(0,0,0,.6);animation:blink 1s infinite;}
 .sos-pin .sos-lbl{margin-top:2px;background:rgba(10,22,38,.92);border:1px solid #ffe14d;color:#fff;border-radius:7px;padding:1px 6px;font-size:10px;font-weight:800;white-space:nowrap;box-shadow:0 1px 4px rgba(0,0,0,.5);}
+.sos-pin.sos-live .sos-dot{background:#0d9488;border-color:#5eead4;box-shadow:0 0 0 2px rgba(20,184,166,.5),0 2px 6px rgba(0,0,0,.6);}
+.sos-pin.sos-live .sos-lbl{border-color:#5eead4;color:#a7f3e4;}
 #focusModePanel{position:absolute;bottom:-60vh;left:0;right:0;z-index:16;background:#09172a;border-radius:14px 14px 0 0;border-top:1.5px solid rgba(79,168,208,.22);box-shadow:0 -5px 28px rgba(0,0,0,.85);transition:bottom .3s cubic-bezier(.4,0,.2,1);max-height:56vh;overflow:hidden;display:flex;flex-direction:column;}
 #focusModePanel.on{bottom:62px;}
 .dbcard{position:absolute;bottom:-420px;left:9px;right:9px;background:#0b1c30;border-radius:14px;padding:13px;border:1px solid rgba(79,168,208,.14);box-shadow:0 -4px 20px rgba(0,0,0,.7);transition:bottom .25s cubic-bezier(.4,0,.2,1);z-index:15;max-height:60vh;overflow-y:auto;}

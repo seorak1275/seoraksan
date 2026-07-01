@@ -778,7 +778,7 @@ function _undoToast(msg,onUndo,onCommit,dur=5000){
   };
   _undoTimer=setTimeout(()=>{close();_undoCommit=null;try{onCommit&&onCommit();}catch(e){}},dur);
 }
-function closeDB(){document.querySelectorAll('.dbcard').forEach(c=>c.classList.remove('on'));}
+function closeDB(){document.querySelectorAll('.dbcard').forEach(c=>c.classList.remove('on'));try{if(typeof _clearPopupDim==='function')_clearPopupDim();}catch(e){}}
 function closeM(id){document.getElementById(id).classList.remove('on');}
 // 모달 배경(backdrop) 클릭 시 닫기
 document.querySelectorAll('.modal').forEach(m=>{

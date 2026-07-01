@@ -2343,20 +2343,41 @@ let _sosOvs=[];
 function _drawSosPins(){
   _sosOvs.forEach(o=>{try{o.setMap(null);}catch(e){}});_sosOvs=[];
   if(!mapR)return;
+  // 사고에 연결된 실시간 핑 → 그 사고(최초접수 좌표)와 잇는 정보
+  const _rescues=(typeof DB!=='undefined')?(DB.g('rescues')||[]):[];
+  const _linkOf={};_rescues.forEach(r=>{if(r&&r.sosId&&r.lat&&r.lng)_linkOf[r.sosId]=r;});
   _sosLocated().forEach(p=>{
     const pos=new kakao.maps.LatLng(p.lat,p.lng);
+    const linked=_linkOf[p.id]||null;   // 이 실시간 위치가 특정 사고의 사고자인지
+    const col=linked?'#14b8a6':'#ff3b30'; // 연결됨=청록(실시간) / 미연결=빨강(일반 조난)
     // 정확도 원(±오차반경) — 위치가 '이 범위 안'임을 시각화
     const acc=Math.max(parseInt(p.acc)||0,15);
     try{
-      const circ=new kakao.maps.Circle({center:pos,radius:acc,strokeWeight:1.5,strokeColor:'#ff3b30',strokeOpacity:.85,strokeStyle:'shortdash',fillColor:'#ff3b30',fillOpacity:.13});
+      const circ=new kakao.maps.Circle({center:pos,radius:acc,strokeWeight:1.5,strokeColor:col,strokeOpacity:.85,strokeStyle:'shortdash',fillColor:col,fillOpacity:.13});
       circ.setMap(mapR);_sosOvs.push(circ);
     }catch(e){}
-    // 작은 도트 + 이름(정확도 표기)
+    // 연결된 사고: 최초접수 좌표 ↔ 실시간 위치 점선 + 거리 라벨(둘이 떨어져 있을 때만 의미)
+    if(linked){
+      const dist=(typeof _haversineKm==='function')?Math.round(_haversineKm(linked.lat,linked.lng,p.lat,p.lng)*1000):0;
+      if(dist>=15){
+        try{
+          const line=new kakao.maps.Polyline({path:[new kakao.maps.LatLng(linked.lat,linked.lng),pos],strokeWeight:2.5,strokeColor:'#ffffff',strokeOpacity:.8,strokeStyle:'shortdash',zIndex:9});
+          line.setMap(mapR);_sosOvs.push(line);
+          const ml=new kakao.maps.LatLng((linked.lat+p.lat)/2,(linked.lng+p.lng)/2);
+          const lbl=document.createElement('div');
+          lbl.style.cssText='background:rgba(4,10,22,.85);color:#a7f3e4;border:1px solid rgba(20,184,166,.5);border-radius:7px;padding:1px 7px;font-size:10px;font-weight:800;white-space:nowrap;transform:translateY(-1px);';
+          lbl.textContent='최초접수↔실시간 '+dist+'m';
+          const lov=new kakao.maps.CustomOverlay({position:ml,content:lbl,zIndex:11});
+          lov.setMap(mapR);_sosOvs.push(lov);
+        }catch(e){}
+      }
+    }
+    // 작은 도트 + 이름(정확도 표기) — 연결 사고면 청록 강조
     const el=document.createElement('div');
-    el.className='sos-pin';
-    el.innerHTML=`<span class="sos-dot">🆘</span><span class="sos-lbl">${_esc((p.name||'조난자').slice(0,8))} ±${acc}m</span>`;
+    el.className='sos-pin'+(linked?' sos-live':'');
+    el.innerHTML=`<span class="sos-dot">🆘</span><span class="sos-lbl">${_esc((p.name||(linked?'사고자':'조난자')).slice(0,8))} ±${acc}m</span>`;
     el.addEventListener('click',e=>{e.stopPropagation();_sosPinPopup(p.id);});
-    const ov=new kakao.maps.CustomOverlay({position:pos,content:el,clickable:true,yAnchor:1.15,zIndex:10});
+    const ov=new kakao.maps.CustomOverlay({position:pos,content:el,clickable:true,yAnchor:1.15,zIndex:12});
     ov.setMap(mapR);_sosOvs.push(ov);
   });
 }
@@ -2405,18 +2426,47 @@ function _sosCopyUrl(tok,btn){const u=_sosVictimUrl(tok);if(navigator.clipboard)
 function _sosShareUrl(tok){const u=_sosVictimUrl(tok);if(navigator.share)navigator.share({title:'설악산 구조대 위치전송',text:'[설악산 구조대] 아래 1회용 링크를 열면 위치가 구조대에 전송됩니다(로그인 불필요).\n'+u}).catch(()=>{});}
 function _sosSms(tok){const u=_sosVictimUrl(tok);location.href='sms:?body='+encodeURIComponent('[설악산 구조대] 아래 1회용 링크를 열어 위치를 보내주세요(로그인 불필요): '+u);}
 // 전화/위치요청 버튼 HTML (사고자·신고자 전화번호 옆)
-function _telBtnsHtml(tel){const t=String(tel||'').replace(/[^0-9+]/g,'');if(!t)return '';return ` <span style="display:inline-flex;gap:4px;"><button onclick="_callTel('${t}')" style="background:rgba(39,174,96,.15);color:#5dbf8a;border:1px solid rgba(39,174,96,.35);border-radius:6px;padding:2px 8px;font-size:11px;font-weight:700;cursor:pointer;">📞 전화</button><button onclick="_smsSosTo('${t}')" style="background:rgba(79,168,208,.15);color:#7dd3fa;border:1px solid rgba(79,168,208,.35);border-radius:6px;padding:2px 8px;font-size:11px;font-weight:700;cursor:pointer;">🆘 위치요청</button></span>`;}
+function _telBtnsHtml(tel,resId){const t=String(tel||'').replace(/[^0-9+]/g,'');if(!t)return '';const _r=(resId!==undefined&&resId!==null&&resId!=='')?","+resId:'';return ` <span style="display:inline-flex;gap:4px;"><button onclick="_callTel('${t}')" style="background:rgba(39,174,96,.15);color:#5dbf8a;border:1px solid rgba(39,174,96,.35);border-radius:6px;padding:2px 8px;font-size:11px;font-weight:700;cursor:pointer;">📞 전화</button><button onclick="_smsSosTo('${t}'${_r})" style="background:rgba(79,168,208,.15);color:#7dd3fa;border:1px solid rgba(79,168,208,.35);border-radius:6px;padding:2px 8px;font-size:11px;font-weight:700;cursor:pointer;">🆘 위치요청</button></span>`;}
 // 보고서 상세: 전화번호 탭 → 전화 / 위치요청(1회용 SOS 링크 만들어 그 번호로 문자)
 function _callTel(tel){tel=String(tel||'').replace(/[^0-9+]/g,'');if(!tel){toast('전화번호 없음');return;}if(confirm(tel+' 로 전화하겠습니까?'))location.href='tel:'+tel;}
-function _smsSosTo(tel){
+// resId 를 함께 주면: 발급 토큰을 그 사고에 연결(r.sosId) → 사고자 실시간 위치가 최초접수와 별개로 지도·보고서에 표시
+function _smsSosTo(tel,resId){
   tel=String(tel||'').replace(/[^0-9+]/g,'');if(!tel){toast('전화번호 없음');return;}
   if(!_fdb){toast('연결 준비 중 — 잠시 후 다시');return;}
   const tok=Math.random().toString(36).slice(2,7);
   const by=(typeof getAuthor==='function')?getAuthor():'구조대';
   toast('🆘 위치요청 링크 생성 중…');
   _fdb.collection('sos').doc(tok).set({id:tok,active:true,issuedAt:Date.now(),by:by},{merge:true})
-    .then(function(){const u=_sosVictimUrl(tok);location.href='sms:'+tel+'?&body='+encodeURIComponent('[설악산 구조대] 아래 링크를 열면 현재 위치가 구조대에 전송됩니다(로그인 불필요): '+u);})
+    .then(function(){
+      if(resId!==undefined&&resId!==null&&resId!==''){
+        try{const res=DB.g('rescues')||[];const i=res.findIndex(x=>String(x.id)===String(resId));if(i>=0){res[i].sosId=tok;DB.s('rescues',res);}}catch(e){}
+      }
+      const u=_sosVictimUrl(tok);location.href='sms:'+tel+'?&body='+encodeURIComponent('[설악산 구조대] 아래 링크를 열면 현재 위치가 구조대에 전송됩니다(로그인 불필요): '+u);
+    })
     .catch(function(){toast('링크 생성 실패 — 다시 시도');});
+}
+// 사고에 연결된 실시간 SOS 위치(핑) 반환 — 없으면 null
+function _linkedSosPing(r){
+  if(!r||!r.sosId)return null;
+  const p=(_sosPings||[]).find(x=>x.id===r.sosId);
+  return (p&&p.lat&&p.lng)?p:null;
+}
+// 사고자 실시간 위치를 최초접수 좌표로 '채택'(수동) — r.lat/lng 갱신 + 변경 이력 기록. 최초접수는 원본 보존(origLat/origLng)
+function adoptSosLoc(resId){
+  const res=DB.g('rescues')||[];const i=res.findIndex(x=>String(x.id)===String(resId));if(i<0)return;
+  const r=res[i];const p=_linkedSosPing(r);
+  if(!p){toast('실시간 위치 없음');return;}
+  const dist=(typeof _haversineKm==='function')?Math.round(_haversineKm(r.lat,r.lng,p.lat,p.lng)*1000):0;
+  if(!confirm('사고 위치를 사고자 실시간 위치로 이동합니까?\n(최초접수 좌표는 기록에 보존됩니다'+(dist?' · 거리 '+dist+'m':'')+')'))return;
+  if(r.origLat==null){r.origLat=r.lat;r.origLng=r.lng;} // 최초접수 원본 1회 보존
+  const by=(typeof getAuthor==='function')?getAuthor():'구조대';
+  r.locLog=(r.locLog||[]).concat([{from:{lat:r.lat,lng:r.lng},to:{lat:+p.lat,lng:+p.lng},at:(typeof now==='function')?now():'',by:by,dist:dist}]);
+  r.lat=+(+p.lat).toFixed(6);r.lng=+(+p.lng).toFixed(6);
+  DB.s('rescues',res);
+  toast('📍 사고 위치를 실시간 위치로 이동');
+  try{if(window.curApp==='rescue'){renderRescueMap();renderResList();}}catch(e){}
+  try{const rp=document.getElementById('resPopup');if(rp&&rp.classList.contains('on'))openResPopup(resId,'rescue');}catch(e){}
+  try{const ov=document.getElementById('resOverlay');if(ov)openRescueOverlay(resId);}catch(e){}
 }
 // 구조대 → 조난·사고자에게 메시지 전송 (그 사람 화면 하단에 즉시 표시 · 비우면 삭제)
 // 카드의 '💬 대화' 버튼 → 채팅 팝업 열기
@@ -2474,7 +2524,7 @@ function sosToRescue(id){
 // 앱 자체 업데이트 (OTA · Capgo 자체호스팅) — APK 전용. 웹/PWA는 서비스워커가 자동 갱신.
 // 번들(www)의 새 버전을 ota.json으로 알리면, 설치된 앱이 받아서 그 자리에서 교체(재빌드 불필요).
 // ══════════════════════════════════════════
-const OTA_VER='2026.06.29.34';                         // ← 현재 번들 버전 (릴리스마다 올림 · build-ota.sh가 ota.json에 반영)
+const OTA_VER='2026.06.29.35';                         // ← 현재 번들 버전 (릴리스마다 올림 · build-ota.sh가 ota.json에 반영)
 const OTA_MANIFEST='https://109yoon.github.io/seoraksan/ota.json';
 let _otaInfo=null;
 function _otaPlugin(){try{return (window.Capacitor&&window.Capacitor.Plugins&&window.Capacitor.Plugins.CapacitorUpdater)||null;}catch(e){return null;}}

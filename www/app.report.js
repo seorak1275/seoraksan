@@ -1277,9 +1277,10 @@ function renderTimeline(r,viewMode,outId){
     const locSect=_ok(r.location)?`<div style="font-size:12px;color:#cfe2f2;line-height:1.5;">📍 ${_esc(r.location)}${_ok(r.loctype)?` <span style="color:#7a9cb8;font-size:10px;">· ${_esc(r.loctype)}</span>`:''}</div>`:'';
     const _vAge=_ok(r.vBirth)?_ageFromBirth(r.vBirth)+'세':(_ok(r.vAge)?_esc(r.vAge)+'세':'');
     const _vLine=[_ok(r.vName)?_esc(r.vName):'미상',_vAge,_ok(r.vGender)&&r.vGender!=='알수없음'?_esc(r.vGender):'',_ok(r.vNation)&&r.vNation==='외국인'?'외국인':'',_ok(r.vTel)?_esc(r.vTel):''].filter(Boolean).join(' · ');
-    let personSect=`<div style="display:flex;align-items:center;flex-wrap:wrap;gap:5px;"><span style="font-size:10px;color:#4a7090;font-weight:700;min-width:40px;">사고자</span><span style="font-size:12px;color:#e0edf8;font-weight:600;">${_vLine}</span>${_ok(r.vTel)?_telBtnsHtml(r.vTel):''}${(r.victims2&&r.victims2.length)?`<span style="font-size:10px;color:#e9897e;font-weight:700;">외 ${r.victims2.length}명</span>`:''}</div>`;
+    let personSect=`<div style="display:flex;align-items:center;flex-wrap:wrap;gap:5px;"><span style="font-size:10px;color:#4a7090;font-weight:700;min-width:40px;">사고자</span><span style="font-size:12px;color:#e0edf8;font-weight:600;">${_vLine}</span>${_ok(r.vTel)?_telBtnsHtml(r.vTel,r.id):''}${(r.victims2&&r.victims2.length)?`<span style="font-size:10px;color:#e9897e;font-weight:700;">외 ${r.victims2.length}명</span>`:''}</div>`;
     if(r.victims2&&r.victims2.length)personSect+=`<div style="font-size:11px;color:#b8d4e8;margin-top:4px;">${r.victims2.map(v=>[_esc(v.name||'미상'),v.age?_esc(v.age)+'세':'',v.gender&&v.gender!=='알수없음'?_esc(v.gender):''].filter(Boolean).join(' ')).join(', ')}</div>`;
-    if(_ok(r.repName)||_ok(r.repTel))personSect+=`<div style="display:flex;align-items:center;flex-wrap:wrap;gap:5px;margin-top:6px;"><span style="font-size:10px;color:#4a7090;font-weight:700;min-width:40px;">신고자</span><span style="font-size:12px;color:#cfe2f2;">${[_ok(r.repName)?_esc(r.repName):'',_ok(r.repTel)?_esc(r.repTel):''].filter(Boolean).join(' · ')}</span>${_ok(r.repTel)?_telBtnsHtml(r.repTel):''}</div>`;
+    if(_ok(r.repName)||_ok(r.repTel))personSect+=`<div style="display:flex;align-items:center;flex-wrap:wrap;gap:5px;margin-top:6px;"><span style="font-size:10px;color:#4a7090;font-weight:700;min-width:40px;">신고자</span><span style="font-size:12px;color:#cfe2f2;">${[_ok(r.repName)?_esc(r.repName):'',_ok(r.repTel)?_esc(r.repTel):''].filter(Boolean).join(' · ')}</span>${_ok(r.repTel)?_telBtnsHtml(r.repTel,r.id):''}</div>`;
+    if(typeof _sosLiveLineHtml==='function'){const _sl=_sosLiveLineHtml(r);if(_sl)personSect+='<div style="margin-top:6px;">'+_sl+'</div>';}
     const recvSect=_ok(r.reception)?`<div><span style="font-size:10px;color:#4a7090;font-weight:700;">📝 접수내용</span><div style="font-size:12px;color:#cfe2f2;line-height:1.55;margin-top:2px;">${_esc(r.reception)}</div></div>`:'';
     // 나머지(컴팩트)
     const rows=[];
@@ -1302,6 +1303,9 @@ function renderTimeline(r,viewMode,outId){
     // 변경 이력 — 추가보고에서 정형 항목이 바뀐 내역(최신값은 위에 떴고, 여기엔 '무엇이 어떻게 바뀌었는지')
     const changeLog=[];(r.reports||[]).forEach((p,i)=>{(p.changes||[]).forEach(c=>changeLog.push({ci:i+1,at:p.repTime,by:p.author,...c}));});
     const changeHtml=changeLog.length?`<div style="background:#0b1c30;border-radius:10px;padding:11px 12px;border:.5px solid rgba(230,126,34,.2);margin-bottom:8px;"><div style="font-size:10px;color:#e8943a;font-weight:800;margin-bottom:5px;">🔄 변경 이력</div>${changeLog.map(c=>`<div style="font-size:11px;color:#b8d4e8;line-height:1.6;padding:3px 0;border-bottom:.5px solid rgba(255,255,255,.04);"><span style="color:#7dd3fa;font-weight:700;">${c.ci}차</span> ${_esc(c.label)}: <span style="color:#9c8060;">${_esc(c.from)}</span> → <b style="color:#e0edf8;">${_esc(c.to)}</b> <span style="color:#5a7e98;font-size:9px;">${c.at||''}${c.by?' · '+_esc(c.by):''}</span></div>`).join('')}</div>`:'';
+    // 위치 채택 이력 — 사고자 실시간 위치로 최초접수 좌표를 옮긴 기록(최초접수 원본은 origLat/origLng 보존)
+    const locLog=(r.locLog||[]);
+    const locChgHtml=locLog.length?`<div style="background:#0b1c30;border-radius:10px;padding:11px 12px;border:.5px solid rgba(20,184,166,.22);margin-bottom:8px;"><div style="font-size:10px;color:#2dd4bf;font-weight:800;margin-bottom:5px;">📍 위치 변경 이력 <span style="color:#5a7e98;font-weight:400;font-size:9px;">최초접수 ${r.origLat!=null?(+r.origLat).toFixed(5)+', '+(+r.origLng).toFixed(5):''}</span></div>${locLog.map(l=>`<div style="font-size:11px;color:#b8d4e8;line-height:1.6;padding:3px 0;border-bottom:.5px solid rgba(255,255,255,.04);">실시간 위치 채택 <span style="color:#9c8060;">${(+l.from.lat).toFixed(5)}, ${(+l.from.lng).toFixed(5)}</span> → <b style="color:#a7f3e4;">${(+l.to.lat).toFixed(5)}, ${(+l.to.lng).toFixed(5)}</b>${l.dist?' <span style="color:#5a9e94;">('+l.dist+'m)</span>':''} <span style="color:#5a7e98;font-size:9px;">${l.at||''}${l.by?' · '+_esc(l.by):''}</span></div>`).join('')}</div>`:'';
     const logHtml=_buildLogHtml(r);
     // 한 장 보고서처럼 하나의 카드에 우선순위대로 쭉: 부상 → 위치 → 인적 → 신고자 → 접수내용 → 나머지
     const reportSheet=`<div style="background:#0b1c30;border:1px solid rgba(231,76,60,.18);border-radius:12px;padding:13px 14px;margin-bottom:9px;">
@@ -1316,6 +1320,7 @@ function renderTimeline(r,viewMode,outId){
       ${reportSheet}
       ${updHtml}
       ${changeHtml}
+      ${locChgHtml}
       ${_scenePhotosHtml(r)}
 
       <div style="background:#0b1c30;border-radius:10px;padding:12px;border:.5px solid rgba(255,255,255,.07);margin-top:10px;">
