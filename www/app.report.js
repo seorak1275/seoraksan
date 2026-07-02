@@ -2,18 +2,9 @@
 // ══════════════════════════════════════════
 // 구조 보고서 (1보 ~ n보 타임라인)
 // ══════════════════════════════════════════
-function updateRescueCross(){
-  const el=document.getElementById('rescueCross');if(!el)return;
-  const bnavEl=document.getElementById('bnav');
-  const bnavH=(bnavEl&&bnavEl.style.display!=='none')?bnavEl.offsetHeight:0;
-  el.style.top='calc(50% - '+Math.round(bnavH/2)+'px)';
-}
-function updateInspectCross(){
-  const el=document.getElementById('inspectCross');if(!el)return;
-  const bnavEl=document.getElementById('bnav');
-  const bnavH=(bnavEl&&bnavEl.style.display!=='none')?bnavEl.offsetHeight:0;
-  el.style.top='calc(50% - '+Math.round(bnavH/2)+'px)';
-}
+// 십자선 위치 보정은 CSS 변수(--map-voff, _applyMapVOff)로 일원화 — 인라인 top 지정 중복 제거
+function updateRescueCross(){try{if(typeof _applyMapVOff==='function')_applyMapVOff();}catch(e){}}
+function updateInspectCross(){try{if(typeof _applyMapVOff==='function')_applyMapVOff();}catch(e){}}
 function openNewRescue(){
   curResId=null;
   // 마지막으로 저장된 십자선 중앙 좌표 우선 사용
@@ -1299,13 +1290,13 @@ function renderTimeline(r,viewMode,outId){
       </div>
       ${_vit0?`<div style="font-size:10px;color:#9bbdd4;margin-top:6px;">활력: ${_vit0}</div>`:''}`;
     const _div='<div style="height:1px;background:rgba(255,255,255,.06);margin:9px 0;"></div>';
-    const locSect=_ok(r.location)?`<div style="font-size:12px;color:#cfe2f2;line-height:1.5;">📍 ${_esc(r.location)}${_ok(r.loctype)?` <span style="color:#7a9cb8;font-size:10px;">· ${_esc(r.loctype)}</span>`:''}</div>`:'';
+    const locSect=_ok(r.location)?`<div style="font-size:12px;color:#cfe2f2;line-height:1.5;">📍 ${_esc(r.location)}${(typeof _elevStr==='function'&&r.lat&&r.lng)?` <span style="color:#a7f3e4;font-size:10px;">${_elevStr(r.lat,r.lng,r.alt)}</span>`:''}${_ok(r.loctype)?` <span style="color:#7a9cb8;font-size:10px;">· ${_esc(r.loctype)}</span>`:''}</div>`:'';
     const _vAge=_ok(r.vBirth)?_ageFromBirth(r.vBirth)+'세':(_ok(r.vAge)?_esc(r.vAge)+'세':'');
     const _vLine=[_ok(r.vName)?_esc(r.vName):'미상',_vAge,_ok(r.vGender)&&r.vGender!=='알수없음'?_esc(r.vGender):'',_ok(r.vNation)&&r.vNation==='외국인'?'외국인':'',_ok(r.vTel)?_esc(r.vTel):''].filter(Boolean).join(' · ');
-    let personSect=`<div style="display:flex;align-items:center;flex-wrap:wrap;gap:5px;"><span style="font-size:10px;color:#4a7090;font-weight:700;min-width:40px;">사고자</span><span style="font-size:12px;color:#e0edf8;font-weight:600;">${_vLine}</span>${_ok(r.vTel)?_telBtnsHtml(r.vTel,r.id):''}${(r.victims2&&r.victims2.length)?`<span style="font-size:10px;color:#e9897e;font-weight:700;">외 ${r.victims2.length}명</span>`:''}</div>`;
-    if(r.victims2&&r.victims2.length)personSect+=`<div style="font-size:11px;color:#b8d4e8;margin-top:4px;">${r.victims2.map(v=>[_esc(v.name||'미상'),v.age?_esc(v.age)+'세':'',v.gender&&v.gender!=='알수없음'?_esc(v.gender):''].filter(Boolean).join(' ')).join(', ')}</div>`;
-    if(_ok(r.repName)||_ok(r.repTel))personSect+=`<div style="display:flex;align-items:center;flex-wrap:wrap;gap:5px;margin-top:6px;"><span style="font-size:10px;color:#4a7090;font-weight:700;min-width:40px;">신고자</span><span style="font-size:12px;color:#cfe2f2;">${[_ok(r.repName)?_esc(r.repName):'',_ok(r.repTel)?_esc(r.repTel):''].filter(Boolean).join(' · ')}</span>${_ok(r.repRel)?`<span style="font-size:10px;color:#e8b34a;background:rgba(232,179,74,.1);border:1px solid rgba(232,179,74,.3);border-radius:5px;padding:1px 6px;font-weight:700;">${_esc(r.repRel)}</span>`:''}${_ok(r.repTel)?_telBtnsHtml(r.repTel,r.id):''}</div>`;
-    if(r.companions&&r.companions.length)personSect+=r.companions.map((c,ci)=>`<div style="display:flex;align-items:center;flex-wrap:wrap;gap:5px;margin-top:6px;"><span style="font-size:10px;color:#4a7090;font-weight:700;min-width:40px;">동반자${r.companions.length>1?ci+1:''}</span><span style="font-size:12px;color:#cfe2f2;">${_esc((c.name||'미상')+(c.tel?' '+c.tel:''))}</span>${c.tel?_telBtnsHtml(c.tel,r.id):''}</div>`).join('');
+    let personSect=`<div style="display:flex;align-items:center;flex-wrap:wrap;gap:5px;"><span style="font-size:10px;color:#4a7090;font-weight:700;min-width:40px;">사고자</span><span style="font-size:12px;color:#e0edf8;font-weight:600;">${_vLine}</span>${_ok(r.vTel)?_telBtnsHtml(r.vTel,r.id,'사고자',r.vName):''}</div>`;
+    if(r.victims2&&r.victims2.length)personSect+=r.victims2.map((v,vi)=>`<div style="display:flex;align-items:center;flex-wrap:wrap;gap:5px;margin-top:6px;"><span style="font-size:10px;color:#e9897e;font-weight:700;min-width:40px;">추가${r.victims2.length>1?vi+1:''}</span><span style="font-size:12px;color:#f0d9d4;">${_esc([v.name||'미상',v.age?v.age+'세':'',(v.gender&&v.gender!=='알수없음')?v.gender:'',v.tel||''].filter(Boolean).join(' · '))}</span>${v.tel?_telBtnsHtml(v.tel,r.id,'추가 사고자',v.name):''}</div>`).join('');
+    if(_ok(r.repName)||_ok(r.repTel))personSect+=`<div style="display:flex;align-items:center;flex-wrap:wrap;gap:5px;margin-top:6px;"><span style="font-size:10px;color:#4a7090;font-weight:700;min-width:40px;">신고자</span><span style="font-size:12px;color:#cfe2f2;">${[_ok(r.repName)?_esc(r.repName):'',_ok(r.repTel)?_esc(r.repTel):''].filter(Boolean).join(' · ')}</span>${_ok(r.repRel)?`<span style="font-size:10px;color:#e8b34a;background:rgba(232,179,74,.1);border:1px solid rgba(232,179,74,.3);border-radius:5px;padding:1px 6px;font-weight:700;">${_esc(r.repRel)}</span>`:''}${_ok(r.repTel)?_telBtnsHtml(r.repTel,r.id,'신고자',r.repName):''}</div>`;
+    if(r.companions&&r.companions.length)personSect+=r.companions.map((c,ci)=>`<div style="display:flex;align-items:center;flex-wrap:wrap;gap:5px;margin-top:6px;"><span style="font-size:10px;color:#4a7090;font-weight:700;min-width:40px;">동반자${r.companions.length>1?ci+1:''}</span><span style="font-size:12px;color:#cfe2f2;">${_esc((c.name||'미상')+(c.tel?' '+c.tel:''))}</span>${c.tel?_telBtnsHtml(c.tel,r.id,'동반자',c.name):''}</div>`).join('');
     if(typeof _sosLiveLineHtml==='function'){const _sl=_sosLiveLineHtml(r);if(_sl)personSect+='<div style="margin-top:6px;">'+_sl+'</div>';}
     const recvSect=_ok(r.reception)?`<div><span style="font-size:10px;color:#4a7090;font-weight:700;">📝 접수내용</span><div style="font-size:12px;color:#cfe2f2;line-height:1.55;margin-top:2px;">${_esc(r.reception)}</div></div>`:'';
     // 나머지(컴팩트)
@@ -1562,7 +1553,8 @@ async function aiScanDispatch(input){
   "severity": "중증도 (경증/중증/중경증/사망/알수없음)",
   "situation": "사고 경위 및 상황 요약 (2-3문장)",
   "reception": "최초 신고 내용 요약",
-  "weather": "기상 정보 (있으면)"
+  "weather": "기상 정보 (있으면)",
+  "injuries": [{"type":"부상 유형 — 외상이면 골절/탈구/염좌/열상/타박상/두부손상/절단/화상 중, 내상·질환이면 저혈당/심정지/저체온증/열사병/탈진·탈수/호흡곤란/흉통/복통/경련/의식저하/익수 중, 없으면 원문 그대로","part":"부상 부위 — 머리/목/어깨/팔꿈치/손목/손/흉부/복부/허리/골반/무릎/발목/발 중 하나, 전신·질환이면 null","side":"좌/우/양쪽 중 하나, 불명확하면 null"}]
 }`;
   try{
     const resp=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${encodeURIComponent(apiKey)}`,{
@@ -1625,6 +1617,16 @@ function _applyAiScanResult(d){
   }
   if(d.situation)_set('r_sit',d.situation);
   if(d.reception)_set('r_recv',d.reception);
+  // 부상 내역 → 부상 목록에 자동 추가 (외상/내상 자동 분류)
+  if(Array.isArray(d.injuries)&&d.injuries.length&&typeof _injuries!=='undefined'){
+    d.injuries.forEach(it=>{
+      if(!it||!it.type)return;
+      const isInternal=(typeof _INJ_TYPES!=='undefined'&&(_INJ_TYPES['내상']||[]).includes(it.type))||!it.part||it.part==='전신';
+      const side=(it.side==='좌'||it.side==='우'||it.side==='양쪽')?it.side:'';
+      _injuries.push({type:it.type,part:isInternal?'전신':it.part,side:isInternal?'':side,cat:isInternal?'내상':'외상'});
+    });
+    try{renderInjuries();}catch(e){}
+  }
   if(d.weather){
     const w=String(d.weather);
     document.querySelectorAll('#weatherPills .pill').forEach(p=>{if(w.includes(p.textContent.trim())&&!p.classList.contains('on'))p.click();});
@@ -1874,7 +1876,9 @@ function _snapshotRescueForm(){
     if(!pc.id)return;
     pc.querySelectorAll('.pill.on').forEach(p=>pills.push(pc.id+'::'+p.textContent.trim()));
   });
-  return {fields,pills,at:Date.now()};
+  // 부상 목록도 스냅샷 (＋부상 추가로 쌓은 배열 — 입력칸이 아니라 별도 저장 필요)
+  const injuries=(typeof _injuries!=='undefined'&&_injuries.length)?_injuries.slice():[];
+  return {fields,pills,injuries,author:(typeof getAuthor==='function')?getAuthor():'',at:Date.now()};
 }
 function _restoreRescueForm(snap){
   if(!snap)return;
@@ -1903,6 +1907,12 @@ function _restoreRescueForm(snap){
     if(hc&&hc.value==='y'){const cw=document.getElementById('companionWrap');if(cw)cw.style.display='block';}
     const tp=document.getElementById('r_type');
     if(tp&&tp.value==='기타'){const c=document.getElementById('r_typeCustom');if(c)c.style.display='block';}
+    // 부상 목록 복원
+    if(Array.isArray(snap.injuries)&&snap.injuries.length&&typeof _injuries!=='undefined'){
+      _injuries=snap.injuries.slice();
+      try{renderInjuries();}catch(e){}
+      try{autoGenTitle();}catch(e){}
+    }
   }catch(e){}
   try{if(typeof _updateTabDots==='function')_updateTabDots();}catch(e){}
 }
@@ -1918,14 +1928,27 @@ function _startDraftAutosave(){
     _saveDraftNow();
   },30000); // 30초마다 임시저장
 }
+// 임시저장 안내: 차단형 confirm 대신 폼 상단 작은 배너 — [불러오기]/[삭제] 선택 전까지 방해 없음
 function _maybeOfferDraftRestore(){
   let snap=null;try{snap=JSON.parse(localStorage.getItem(_DRAFT_KEY)||'null');}catch(e){}
   if(!snap||!snap.at)return;
   if(Date.now()-snap.at>24*3600000){_clearRescueDraft();return;} // 24시간 지난 초안은 폐기
+  const w=document.getElementById('repContent');if(!w)return;
+  const old=document.getElementById('draftBanner');if(old)old.remove();
   const mins=Math.max(1,Math.round((Date.now()-snap.at)/60000));
-  if(confirm('작성하다 중단한 임시저장 내용이 있습니다 ('+mins+'분 전).\n불러올까요?')){
-    _restoreRescueForm(snap);toast('📄 임시저장 내용 불러옴');
-  }else{_clearRescueDraft();}
+  const when=mins<60?mins+'분 전':Math.round(mins/60)+'시간 전';
+  const b=document.createElement('div');
+  b.id='draftBanner';
+  b.style.cssText='display:flex;align-items:center;gap:8px;margin:0 -12px;padding:8px 13px;background:rgba(240,192,64,.08);border-bottom:1px solid rgba(240,192,64,.3);font-size:11px;color:#f0c040;';
+  b.innerHTML=`<span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">📄 임시저장 ${when}${snap.author?' · '+_esc(snap.author):''}</span>
+    <button id="draftLoadBtn" style="flex-shrink:0;background:rgba(240,192,64,.15);color:#f0c040;border:1px solid rgba(240,192,64,.4);border-radius:6px;padding:4px 11px;font-size:11px;font-weight:700;cursor:pointer;">불러오기</button>
+    <button id="draftDelBtn" style="flex-shrink:0;background:rgba(255,255,255,.05);color:rgba(255,255,255,.45);border:1px solid rgba(255,255,255,.14);border-radius:6px;padding:4px 11px;font-size:11px;font-weight:700;cursor:pointer;">🗑 삭제</button>`;
+  // 스티키 탭 바로 아래에 삽입
+  const tabsEl=w.firstElementChild;
+  if(tabsEl&&tabsEl.nextSibling)w.insertBefore(b,tabsEl.nextSibling);else w.appendChild(b);
+  const _snap=snap;
+  b.querySelector('#draftLoadBtn').onclick=function(){_restoreRescueForm(_snap);b.remove();toast('📄 임시저장 내용 불러옴');};
+  b.querySelector('#draftDelBtn').onclick=function(){_clearRescueDraft();b.remove();toast('🗑 임시저장 삭제됨');};
 }
 function render1BoForm(prefill=null){
   const ms=getTeamMembers();
@@ -2160,7 +2183,7 @@ function render1BoForm(prefill=null){
           <div class="fg"><span class="fl">성명</span><input type="text" id="r_vName" class="fi" value="${p.vName||''}"></div>
           <div class="fg"><span class="fl">연락처</span><input type="tel" id="r_vTel" class="fi" value="${p.vTel||''}"></div>
         </div>
-        ${isNbo&&p.vTel?`<div style="margin:-2px 0 8px;">${(typeof _telBtnsHtml==='function')?_telBtnsHtml(p.vTel,curResId):''}</div>`:''}
+        ${isNbo&&p.vTel?`<div style="margin:-2px 0 8px;">${(typeof _telBtnsHtml==='function')?_telBtnsHtml(p.vTel,curResId,'사고자',p.vName):''}</div>`:''}
         <div class="fg"><span class="fl">성별</span>
           <div style="display:flex;gap:6px;" id="genderBtns">
             ${['남','여','알수없음'].map(o=>`<button class="tog-btn${(p.vGender||'알수없음')===o?' on':''}" data-val="${o}" style="flex:1;" onclick="selGender('${o}')">${o==='남'?'👨 남':o==='여'?'👩 여':'알수없음'}</button>`).join('')}
@@ -2204,7 +2227,7 @@ function render1BoForm(prefill=null){
             <div class="fg"><span class="fl">성명</span><input type="text" id="r_repName" class="fi" value="${p.repName||''}"></div>
             <div class="fg"><span class="fl">연락처</span><input type="tel" id="r_repTel" class="fi" value="${p.repTel||''}"></div>
           </div>
-          ${isNbo&&p.repTel?`<div style="margin:-2px 0 8px;">${(typeof _telBtnsHtml==='function')?_telBtnsHtml(p.repTel,curResId):''}</div>`:''}
+          ${isNbo&&p.repTel?`<div style="margin:-2px 0 8px;">${(typeof _telBtnsHtml==='function')?_telBtnsHtml(p.repTel,curResId,'신고자',p.repName):''}</div>`:''}
         </div>
       </div>
       <div class="rsec"><div class="rsec-t">👥 동반자</div>
@@ -2377,6 +2400,7 @@ function submit1Bo(){
     weatherAlert:getWeatherAlertStr()||'',
     alertOpId:((DB.g('alertOps')||[]).find(o=>!o.closedAt)||{}).id||null,
     lat, lng,
+    alt:(window._formGpsAlt!=null)?window._formGpsAlt:null, // GPS 수신 시 고도(m) — 지도 선택이면 null(표지판 기반 추정 표시)
     location:document.getElementById('r_loc')?.value||'',
     loctype:document.getElementById('r_loctype')?.value||'',
     fine:document.getElementById('fineWrap')?.style.display!=='none'?(document.getElementById('r_fine')?.value||''):'',

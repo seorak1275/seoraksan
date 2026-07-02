@@ -103,7 +103,7 @@ const _FB_CFG={
 // history: 점검이력은 무제한으로 계속 쌓이는 로그성 데이터라 단일문서 그대로 두면 매 점검마다 전체가 전원에게 재전송됨 → 건별 문서로 전환
 const _SHARED_COLL=['rescues','hazards','facilities','history'];
 // _SHARED_DOC: 단일 문서에 JSON 배열 저장 (관리자 전용, 동시 쓰기 없음)
-const _SHARED_DOC=['alertOps','staff','catFac','catFacMeta','pendingUsers','approvedUsers','deletedKakaoIds','adminOwnerKakaoId','adminApprovalCode','extAgencies','extAgencyCode','extAgencyDisplayName','geminiApiKey','kmaProxyUrl','_acl','loginLog','trailStatus','crisisLevel','weatherBrief','weatherLog','trailLog','sosBlocked','autoApprove','pushLog','devKakaoId','notiPolicy'];
+const _SHARED_DOC=['alertOps','staff','catFac','catFacMeta','pendingUsers','approvedUsers','deletedKakaoIds','adminOwnerKakaoId','adminApprovalCode','extAgencies','extAgencyCode','extAgencyDisplayName','geminiApiKey','kmaProxyUrl','_acl','loginLog','trailStatus','crisisLevel','weatherBrief','weatherLog','trailLog','sosBlocked','autoApprove','pushLog','devKakaoId','notiPolicy','customResTypes'];
 // 시설물 레거시(단일문서) 폴백/시드 동기화 상태
 let _legacyFacBackup=null; // appData/facilities(구버전)의 백업 — 컬렉션 비었을 때 화면 폴백
 let _facSeedReady=false;   // 시설물 첫 스냅샷·레거시 백업 확인 완료(시드 레이스 방지)
@@ -642,6 +642,16 @@ const RES_TYPES={
   '':    {ico:'🌊',pc:'p-haz', color:'#1a6090'},
   '기타':    {ico:'⚠️',pc:'p-etc', color:'#5d6d7e'},
 };
+// 관리자가 등록한 커스텀 사고유형 아이콘(공유 customResTypes)을 RES_TYPES에 병합
+// — '기타'로 직접 입력한 유형(예: 낙빙)에 전용 아이콘을 줄 수 있음
+function _mergeCustomResTypes(){
+  try{
+    (DB.g('customResTypes')||[]).forEach(t=>{
+      if(!t||!t.name)return;
+      RES_TYPES[t.name]={ico:t.ico||'⚠️',pc:'p-etc',color:t.color||'#5d6d7e',custom:true};
+    });
+  }catch(e){}
+}
 
 function _ensureSignSeed(){
   var _facs=DB.g('facilities')||[];
@@ -992,6 +1002,7 @@ function _victim2CardHtml(v){
   return `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;"><span style="font-size:11px;color:#e9897e;font-weight:700;">🧑 추가 사고자</span><button onclick="this.closest('.victim2-item').remove()" style="background:rgba(192,57,43,.15);color:#c0392b;border:none;border-radius:5px;padding:3px 8px;font-size:10px;cursor:pointer;">삭제</button></div>
   <div class="frow"><div class="fg"><span class="fl">성명</span><input type="text" class="fi v2-name" placeholder="이름" value="${(v.name||'').replace(/"/g,'&quot;')}"></div><div class="fg"><span class="fl">성별</span><select class="fsel v2-gender">${genOpts}</select></div></div>
   <div class="frow"><div class="fg"><span class="fl">나이</span><input type="number" inputmode="numeric" class="fi v2-age" placeholder="세" value="${v.age||''}"></div><div class="fg"><span class="fl">중증도</span><select class="fsel v2-sev">${sevOpts}</select></div></div>
+  <div class="fg"><span class="fl">연락처</span><input type="tel" class="fi v2-tel" placeholder="010-0000-0000" value="${(v.tel||'').replace(/"/g,'&quot;')}"></div>
   <div class="fg"><span class="fl">부상/상태</span><input type="text" class="fi v2-note" placeholder="예: 우측 발목 골절, 의식 명료" value="${(v.note||'').replace(/"/g,'&quot;')}"></div>`;
 }
 function addVictim2(){
@@ -1008,8 +1019,9 @@ function getVictims2(){
     gender:el.querySelector('.v2-gender')?.value||'',
     age:el.querySelector('.v2-age')?.value||'',
     severity:el.querySelector('.v2-sev')?.value||'',
+    tel:el.querySelector('.v2-tel')?.value||'',
     note:el.querySelector('.v2-note')?.value||''
-  })).filter(v=>v.name||v.note||v.age);
+  })).filter(v=>v.name||v.note||v.age||v.tel);
 }
 function _victims2Str(arr){
   return (arr||[]).map(v=>[v.name||'미상',v.gender&&v.gender!=='알수없음'?v.gender:'',v.age?v.age+'세':'',v.severity,v.note].filter(Boolean).join(' · ')).join(' / ');

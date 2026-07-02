@@ -2004,6 +2004,19 @@ function renderAdmSheets(){
       </div>
       <div style="font-size:10px;color:#3a4a6a;margin-top:7px;">무료 티어: 1일 1,500회 · 분당 100만 토큰 · 결제 불필요</div>
     </div>
+    <div class="scard" style="margin-bottom:8px;">
+      <div class="stitle">🎯 커스텀 사고유형 아이콘</div>
+      <div style="font-size:11px;color:#7a9cb8;margin-bottom:8px;">'기타'로 직접 입력해 쓰는 사고유형(예: 낙석, 화재)에 전용 지도 아이콘을 지정. 등록하면 전 기기에 공유됩니다.</div>
+      <div id="customTypeList">${(DB.g('customResTypes')||[]).map((t,i)=>`<div style="display:flex;align-items:center;gap:8px;padding:6px 10px;background:#0b1c30;border-radius:7px;margin-bottom:4px;border:1px solid rgba(255,255,255,.07);">
+        <span style="font-size:16px;">${_esc(t.ico||'⚠️')}</span><span style="flex:1;font-size:12px;color:#e0edf8;font-weight:600;">${_esc(t.name||'')}</span>
+        <button onclick="delCustomResType(${i})" style="background:rgba(192,57,43,.15);color:#c0392b;border:none;border-radius:5px;padding:3px 9px;font-size:11px;cursor:pointer;">삭제</button>
+      </div>`).join('')||'<div style="font-size:11px;color:#3a4a6a;padding:4px 2px;">등록된 커스텀 유형 없음</div>'}</div>
+      <div style="display:flex;gap:6px;margin-top:8px;">
+        <input id="ctypeName" type="text" class="fi" placeholder="유형 이름 (예: 낙석)" style="flex:2;">
+        <input id="ctypeIco" type="text" class="fi" placeholder="이모지" maxlength="4" style="flex:1;text-align:center;">
+        <button onclick="addCustomResType()" style="background:#1a3a20;color:#86efac;border:1px solid rgba(74,222,128,.3);padding:8px 14px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;">추가</button>
+      </div>
+    </div>
     <div class="scard">
       <div class="stitle">🌦️ 기상청 프록시 주소</div>
       <div style="font-size:11px;color:#7a9cb8;margin-bottom:8px;">실제 기상청 데이터를 안정적으로 받기 위한 본인 소유 프록시(Cloudflare Worker) 주소. 비우면 공개 프록시로 동작. 설정법: 저장소 <b>cloudflare-worker/README.md</b></div>
@@ -2013,6 +2026,33 @@ function renderAdmSheets(){
       </div>
       <div style="font-size:10px;color:#3a4a6a;margin-top:7px;">Cloudflare Workers 무료: 1일 10만 요청 · 설정 후 날씨 상세 출처가 '기상청'으로 표시</div>
     </div>`;
+}
+// 커스텀 사고유형 아이콘 등록/삭제 (공유 customResTypes → RES_TYPES 병합)
+function addCustomResType(){
+  if(!isAdminUser()){toast('⚠️ 관리자만 가능');return;}
+  const name=(document.getElementById('ctypeName')?.value||'').trim();
+  const ico=(document.getElementById('ctypeIco')?.value||'').trim();
+  if(!name){toast('유형 이름을 입력하세요');return;}
+  if(!ico){toast('이모지를 입력하세요');return;}
+  const list=(DB.g('customResTypes')||[]).filter(t=>t&&t.name!==name);
+  list.push({name:name.slice(0,12),ico:ico.slice(0,4)});
+  DB.s('customResTypes',list);
+  try{_mergeCustomResTypes();}catch(e){}
+  toast('✅ 커스텀 유형 등록: '+ico+' '+name);
+  try{renderAdmSheets();}catch(e){}
+  try{renderRescueMap();}catch(e){}
+}
+function delCustomResType(i){
+  if(!isAdminUser()){toast('⚠️ 관리자만 가능');return;}
+  const list=DB.g('customResTypes')||[];
+  const t=list[i];if(!t)return;
+  if(!confirm("'"+(t.ico||'')+' '+(t.name||'')+"' 커스텀 유형을 삭제할까요? (기존 기록은 기타 아이콘으로 표시)"))return;
+  list.splice(i,1);
+  DB.s('customResTypes',list);
+  try{delete RES_TYPES[t.name];}catch(e){}
+  toast('🗑 삭제됨');
+  try{renderAdmSheets();}catch(e){}
+  try{renderRescueMap();}catch(e){}
 }
 function saveSheetsUrl(){const url=document.getElementById('sheetsUrlIn')?.value?.trim();if(!url){toast('⚠️ URL 입력');return;}DB.s('sheetsUrl',url);toast('✅ URL 저장');renderAdmSheets();}
 // ── 전체 데이터 백업/복원 (JSON) ──

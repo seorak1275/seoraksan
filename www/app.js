@@ -2063,11 +2063,13 @@ function _sosRequest(){
 }
 function _sosOnPos(pos){
   const lat=pos.coords.latitude,lng=pos.coords.longitude,acc=Math.round(pos.coords.accuracy||0);
-  _sosLast={lat,lng,acc};
+  // GPS 고도(지원 기기에서만 값이 옴) — 구조대 화면에 '⛰고도' 표시용
+  const alt=(pos.coords.altitude!=null&&isFinite(pos.coords.altitude))?Math.round(pos.coords.altitude):null;
+  _sosLast={lat,lng,acc,alt};
   const btn=document.getElementById('sosStartBtn');if(btn)btn.style.display='none';
   _sosSet('✅',_st('recv'),'#7ee0a0');
   const c=document.getElementById('sosCoords');
-  if(c)c.innerHTML=`${lat.toFixed(6)}, ${lng.toFixed(6)}<br>±${acc}m`;
+  if(c)c.innerHTML=`${lat.toFixed(6)}, ${lng.toFixed(6)}<br>±${acc}m${alt!=null?' · ⛰'+alt+'m':''}`;
   _sosWrite();
 }
 function _sosOnErr(e){
@@ -2090,6 +2092,7 @@ function _sosWrite(force){
   const msg=String((document.getElementById('sosMsg')||{}).value||'').slice(0,250);
   const country=String((document.getElementById('sosCountry')||{}).value||'').slice(0,30);
   const rec={id:_sosId,lat:+_sosLast.lat.toFixed(5),lng:+_sosLast.lng.toFixed(5),acc:Math.round(_sosLast.acc),ts:nowMs};
+  if(_sosLast.alt!=null)rec.alt=_sosLast.alt; // GPS 고도(m)
   if(name)rec.name=name;
   if(msg)rec.msg=msg;
   if(_sosLang!=='ko'){rec.lang=_sosLang;rec.country=country||'';} // 외국어 → 언어 계열 전달
@@ -2346,21 +2349,27 @@ let _sosOvs=[];
 function _drawSosPins(){
   _sosOvs.forEach(o=>{try{o.setMap(null);}catch(e){}});_sosOvs=[];
   if(!mapR)return;
-  // 사고에 연결된 실시간 핑 → 그 사고(최초접수 좌표)와 잇는 정보
+  // 사고에 연결된 실시간 핑(역할 포함) → 그 사고(최초접수 좌표)와 잇는 정보
   const _rescues=(typeof DB!=='undefined')?(DB.g('rescues')||[]):[];
-  const _linkOf={};_rescues.forEach(r=>{if(r&&r.sosId&&r.lat&&r.lng)_linkOf[r.sosId]=r;});
+  const _linkOf={}; // tok → {r, role, name}
+  _rescues.forEach(r=>{
+    if(!r||!r.lat||!r.lng)return;
+    (typeof _rescueSosLinks==='function'?_rescueSosLinks(r):[]).forEach(l=>{_linkOf[l.id]={r:r,role:l.role||'사고자',name:l.name||''};});
+  });
   _sosLocated().forEach(p=>{
     const pos=new kakao.maps.LatLng(p.lat,p.lng);
-    const linked=_linkOf[p.id]||null;   // 이 실시간 위치가 특정 사고의 사고자인지
-    const col=linked?'#14b8a6':'#ff3b30'; // 연결됨=청록(실시간) / 미연결=빨강(일반 조난)
+    const link=_linkOf[p.id]||null;      // 이 실시간 위치가 어느 사고의 누구인지
+    const isVictim=link&&link.role==='사고자';
+    const col=link?'#14b8a6':'#ff3b30';  // 연결됨=청록(실시간) / 미연결=빨강(일반 조난)
     // 정확도 원(±오차반경) — 위치가 '이 범위 안'임을 시각화
     const acc=Math.max(parseInt(p.acc)||0,15);
     try{
       const circ=new kakao.maps.Circle({center:pos,radius:acc,strokeWeight:1.5,strokeColor:col,strokeOpacity:.85,strokeStyle:'shortdash',fillColor:col,fillOpacity:.13});
       circ.setMap(mapR);_sosOvs.push(circ);
     }catch(e){}
-    // 연결된 사고: 최초접수 좌표 ↔ 실시간 위치 점선 + 거리 라벨(둘이 떨어져 있을 때만 의미)
-    if(linked){
+    // 사고자 역할만: 최초접수 좌표 ↔ 실시간 위치 점선 + 거리 라벨(동반자 등은 선 없이 라벨로 구분 — 지도 어지러움 방지)
+    if(isVictim){
+      const linked=link.r;
       const dist=(typeof _haversineKm==='function')?Math.round(_haversineKm(linked.lat,linked.lng,p.lat,p.lng)*1000):0;
       if(dist>=15){
         try{
@@ -2375,10 +2384,14 @@ function _drawSosPins(){
         }catch(e){}
       }
     }
-    // 작은 도트 + 이름(정확도 표기) — 연결 사고면 청록 강조
+    // 작은 도트 + 라벨: 역할(사고자/동반자/신고자…) + 이름 + 정확도 + ⛰고도(GPS 수신 시)
+    const who=link
+      ?(link.role+((link.name||p.name)?' '+String(link.name||p.name).slice(0,6):''))
+      :String(p.name||'조난자').slice(0,8);
+    const altStr=(p.alt!=null&&p.alt!=='')?' ⛰'+p.alt+'m':'';
     const el=document.createElement('div');
-    el.className='sos-pin'+(linked?' sos-live':'');
-    el.innerHTML=`<span class="sos-dot">🆘</span><span class="sos-lbl">${_esc((p.name||(linked?'사고자':'조난자')).slice(0,8))} ±${acc}m</span>`;
+    el.className='sos-pin'+(link?' sos-live':'');
+    el.innerHTML=`<span class="sos-dot">🆘</span><span class="sos-lbl">${_esc(who)} ±${acc}m${altStr}</span>`;
     el.addEventListener('click',e=>{e.stopPropagation();_sosPinPopup(p.id);});
     const ov=new kakao.maps.CustomOverlay({position:pos,content:el,clickable:true,yAnchor:1.15,zIndex:12});
     ov.setMap(mapR);_sosOvs.push(ov);
@@ -2394,7 +2407,7 @@ function _sosPinPopup(id){
       <div style="font-size:16px;font-weight:800;color:#ff8a73;">🆘 ${_esc(p.name||'익명 조난자')}</div>
       ${_sosForeignBadge(p)?`<div style="margin-top:5px;">${_sosForeignBadge(p)}</div>`:''}
       ${p.msg?`<div style="font-size:13px;color:#e0edf8;margin-top:6px;line-height:1.5;">${_esc(p.msg)}</div>`:''}
-      ${has?`<div style="font-size:11px;color:#8ab4cc;margin-top:8px;font-family:monospace;">📍 ${(+p.lat).toFixed(6)}, ${(+p.lng).toFixed(6)}<br>정확도 ±${p.acc||'?'}m · ${mm}분 전 수신 · ${_sosAtStr(p)}</div>`:`<div style="font-size:11px;color:#ffd24d;margin-top:8px;">⚪ 아직 위치 미수신 — 대화는 가능합니다</div>`}
+      ${has?`<div style="font-size:11px;color:#8ab4cc;margin-top:8px;font-family:monospace;">📍 ${(+p.lat).toFixed(6)}, ${(+p.lng).toFixed(6)}${(typeof _elevStr==='function')?' <span style="color:#a7f3e4;">'+_elevStr(p.lat,p.lng,p.alt)+'</span>':''}<br>정확도 ±${p.acc||'?'}m · ${mm}분 전 수신 · ${_sosAtStr(p)}</div>`:`<div style="font-size:11px;color:#ffd24d;margin-top:8px;">⚪ 아직 위치 미수신 — 대화는 가능합니다</div>`}
     </div>
     ${has?`<div style="display:flex;gap:6px;">
       <button onclick="_sosFocus('${p.id}')" style="flex:1;background:rgba(79,168,208,.12);color:#4fa8d0;border:1px solid rgba(79,168,208,.35);border-radius:8px;padding:11px;font-size:13px;font-weight:700;cursor:pointer;">🗺️ 위치로 이동</button>
@@ -2429,11 +2442,16 @@ function _sosCopyUrl(tok,btn){const u=_sosVictimUrl(tok);if(navigator.clipboard)
 function _sosShareUrl(tok){const u=_sosVictimUrl(tok);if(navigator.share)navigator.share({title:'설악산 구조대 위치전송',text:'[설악산 구조대] 아래 1회용 링크를 열면 위치가 구조대에 전송됩니다(로그인 불필요).\n'+u}).catch(()=>{});}
 function _sosSms(tok){const u=_sosVictimUrl(tok);location.href='sms:?body='+encodeURIComponent('[설악산 구조대] 아래 1회용 링크를 열어 위치를 보내주세요(로그인 불필요): '+u);}
 // 전화/위치요청 버튼 HTML (사고자·신고자 전화번호 옆)
-function _telBtnsHtml(tel,resId){const t=String(tel||'').replace(/[^0-9+]/g,'');if(!t)return '';const _r=(resId!==undefined&&resId!==null&&resId!=='')?","+resId:'';return ` <span style="display:inline-flex;gap:4px;"><button onclick="_callTel('${t}')" style="background:rgba(39,174,96,.15);color:#5dbf8a;border:1px solid rgba(39,174,96,.35);border-radius:6px;padding:2px 8px;font-size:11px;font-weight:700;cursor:pointer;">📞 전화</button><button onclick="_smsSosTo('${t}'${_r})" style="background:rgba(79,168,208,.15);color:#7dd3fa;border:1px solid rgba(79,168,208,.35);border-radius:6px;padding:2px 8px;font-size:11px;font-weight:700;cursor:pointer;">🆘 위치요청</button></span>`;}
+function _telBtnsHtml(tel,resId,role,name){
+  const t=String(tel||'').replace(/[^0-9+]/g,'');if(!t)return '';
+  const _q=s=>String(s||'').replace(/[\\']/g,'').slice(0,20);
+  const _r=(resId!==undefined&&resId!==null&&resId!=='')?","+resId+",'"+_q(role||'사고자')+"','"+_q(name)+"'":'';
+  return ` <span style="display:inline-flex;gap:4px;"><button onclick="_callTel('${t}')" style="background:rgba(39,174,96,.15);color:#5dbf8a;border:1px solid rgba(39,174,96,.35);border-radius:6px;padding:2px 8px;font-size:11px;font-weight:700;cursor:pointer;">📞 전화</button><button onclick="_smsSosTo('${t}'${_r})" style="background:rgba(79,168,208,.15);color:#7dd3fa;border:1px solid rgba(79,168,208,.35);border-radius:6px;padding:2px 8px;font-size:11px;font-weight:700;cursor:pointer;">🆘 위치요청</button></span>`;}
 // 보고서 상세: 전화번호 탭 → 전화 / 위치요청(1회용 SOS 링크 만들어 그 번호로 문자)
 function _callTel(tel){tel=String(tel||'').replace(/[^0-9+]/g,'');if(!tel){toast('전화번호 없음');return;}if(confirm(tel+' 로 전화하겠습니까?'))location.href='tel:'+tel;}
-// resId 를 함께 주면: 발급 토큰을 그 사고에 연결(r.sosId) → 사고자 실시간 위치가 최초접수와 별개로 지도·보고서에 표시
-function _smsSosTo(tel,resId){
+// resId 를 함께 주면: 발급 토큰을 그 사고에 역할(사고자/동반자/신고자/추가 사고자)과 함께 연결(r.sosLinks)
+// → 실시간 위치가 지도·보고서에 '누구인지' 표시. 사고자 역할 토큰은 r.sosId(대표)로도 유지(채택·거리 기준)
+function _smsSosTo(tel,resId,role,name){
   tel=String(tel||'').replace(/[^0-9+]/g,'');if(!tel){toast('전화번호 없음');return;}
   if(!_fdb){toast('연결 준비 중 — 잠시 후 다시');return;}
   const tok=Math.random().toString(36).slice(2,7);
@@ -2443,7 +2461,15 @@ function _smsSosTo(tel,resId){
     .then(function(){
       let foreign=false;
       if(resId!==undefined&&resId!==null&&resId!==''){
-        try{const res=DB.g('rescues')||[];const i=res.findIndex(x=>String(x.id)===String(resId));if(i>=0){res[i].sosId=tok;DB.s('rescues',res);foreign=res[i].vNation==='외국인';}}catch(e){}
+        try{
+          const res=DB.g('rescues')||[];const i=res.findIndex(x=>String(x.id)===String(resId));
+          if(i>=0){
+            const rl=role||'사고자';
+            res[i].sosLinks=(res[i].sosLinks||[]).concat([{id:tok,role:rl,name:(name||'').slice(0,20)}]);
+            if(rl==='사고자')res[i].sosId=tok;
+            DB.s('rescues',res);foreign=res[i].vNation==='외국인';
+          }
+        }catch(e){}
       }
       const u=_sosVictimUrl(tok);
       // 외국인 사고자면 한국어 아래 영어 병기
@@ -2454,17 +2480,35 @@ function _smsSosTo(tel,resId){
     })
     .catch(function(){toast('링크 생성 실패 — 다시 시도');});
 }
-// 사고에 연결된 실시간 SOS 위치(핑) 반환 — 없으면 null
+// 사고의 SOS 링크 전체(신형 sosLinks + 구형 sosId) — [{id,role,name}]
+function _rescueSosLinks(r){
+  if(!r)return [];
+  const links=(r.sosLinks||[]).slice();
+  if(r.sosId&&!links.some(l=>l.id===r.sosId))links.unshift({id:r.sosId,role:'사고자',name:r.vName||''});
+  return links;
+}
+// 사고에 연결된 실시간 위치 전체 — 위치 수신된 것만 [{ping,role,name}]
+function _linkedSosAll(r){
+  const out=[];
+  _rescueSosLinks(r).forEach(l=>{
+    const p=(_sosPings||[]).find(x=>x.id===l.id);
+    if(p&&p.lat&&p.lng)out.push({ping:p,role:l.role||'사고자',name:l.name||''});
+  });
+  return out;
+}
+// 대표(사고자) 실시간 핑 — 채택·거리 기준. 없으면 null
 function _linkedSosPing(r){
   if(!r||!r.sosId)return null;
   const p=(_sosPings||[]).find(x=>x.id===r.sosId);
   return (p&&p.lat&&p.lng)?p:null;
 }
-// 사고 종료 시 연계된 SOS 링크(토큰)도 함께 비활성화 — 종료된 사고의 실시간 추적 잔존 방지
+// 사고 종료 시 연계된 SOS 링크(토큰) 전부 비활성화 — 종료된 사고의 실시간 추적 잔존 방지
 function _closeLinkedSos(r){
-  if(!r||!r.sosId)return;
-  try{if(_fdb)_fdb.collection('sos').doc(r.sosId).set({active:false,closedAt:Date.now()},{merge:true}).catch(()=>{});}catch(e){}
-  _sosPings=(_sosPings||[]).filter(x=>x.id!==r.sosId);
+  const links=_rescueSosLinks(r);
+  if(!links.length)return;
+  const ids=links.map(l=>l.id);
+  try{if(_fdb)ids.forEach(id=>_fdb.collection('sos').doc(id).set({active:false,closedAt:Date.now()},{merge:true}).catch(()=>{}));}catch(e){}
+  _sosPings=(_sosPings||[]).filter(x=>!ids.includes(x.id));
   try{_drawSosPins();_updateSosFab();}catch(e){}
 }
 // 사고자 실시간 위치를 최초접수 좌표로 '채택'(수동) — r.lat/lng 갱신 + 변경 이력 기록. 최초접수는 원본 보존(origLat/origLng)
@@ -2540,7 +2584,7 @@ function sosToRescue(id){
 // 앱 자체 업데이트 (OTA · Capgo 자체호스팅) — APK 전용. 웹/PWA는 서비스워커가 자동 갱신.
 // 번들(www)의 새 버전을 ota.json으로 알리면, 설치된 앱이 받아서 그 자리에서 교체(재빌드 불필요).
 // ══════════════════════════════════════════
-const OTA_VER='2026.06.29.41';                         // ← 현재 번들 버전 (릴리스마다 올림 · build-ota.sh가 ota.json에 반영)
+const OTA_VER='2026.06.29.42';                         // ← 현재 번들 버전 (릴리스마다 올림 · build-ota.sh가 ota.json에 반영)
 const OTA_MANIFEST='https://109yoon.github.io/seoraksan/ota.json';
 let _otaInfo=null;
 function _otaPlugin(){try{return (window.Capacitor&&window.Capacitor.Plugins&&window.Capacitor.Plugins.CapacitorUpdater)||null;}catch(e){return null;}}

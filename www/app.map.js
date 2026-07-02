@@ -207,7 +207,8 @@ function initMaps(){
         clearTimeout(_saveMapCenterTimer);
         _saveMapCenterTimer=setTimeout(function(){
           const _s=_nearestSign(lat,lng);
-          if(cd)cd.innerHTML=lat.toFixed(5)+', '+lng.toFixed(5)+(_s?'<br><span style="color:#f0c040;font-size:9.5px;">📍 '+_s+'</span>':'');
+          const _e=(typeof _elevStr==='function')?_elevStr(lat,lng):'';
+          if(cd)cd.innerHTML=lat.toFixed(5)+', '+lng.toFixed(5)+(_e?' <span style="color:#a7f3e4;">'+_e+'</span>':'')+(_s?'<br><span style="color:#f0c040;font-size:9.5px;">📍 '+_s+'</span>':'');
           _updateZoneBadge(lat,lng,'rescueZoneBadge');
         },300);
       }catch(e){}
@@ -293,7 +294,8 @@ function gpsTo(mode){
     const el=document.createElement('div');
     el.style.cssText='width:18px;height:18px;border-radius:50%;background:#4fa8d0;border:3px solid #fff;box-shadow:0 0 10px rgba(79,168,208,.8),0 2px 6px rgba(0,0,0,.5);';
     myOv=new kakao.maps.CustomOverlay({position:ll,content:el});myOv.setMap(m);
-    toast('✅ 내 위치');
+    const _alt=(p.coords.altitude!=null&&isFinite(p.coords.altitude))?Math.round(p.coords.altitude):null;
+    toast('✅ 내 위치'+(_alt!=null?' · ⛰'+_alt+'m':''));
   },()=>toast('⚠️ GPS 실패. 위치 권한 확인'),{enableHighAccuracy:true,timeout:15000,maximumAge:10000});
 }
 function gpsFromMap(id,mode){
@@ -932,7 +934,17 @@ function _nearestSignFull(lat,lng){
   if(!best||bestD>5000)return null;
   var code=(best.name.match(/^\d{2}-\d{2,3}/)||[best.name.slice(0,6)])[0];
   var zm=code.match(/^(\d{2})-/);
-  return{code:code,name:best.name,dist:Math.round(bestD),zoneName:zm?ZONE_NAMES[zm[1]]||'':''};
+  return{code:code,name:best.name,dist:Math.round(bestD),zoneName:zm?ZONE_NAMES[zm[1]]||'':'',elev:best.elev||0};
+}
+// 좌표의 고도 문자열: GPS 고도가 있으면 '⛰1234m'(실측), 없으면 1km 내 표지판 고도로 '⛰약858m' 추정. 불가하면 ''
+function _elevStr(lat,lng,gpsAlt){
+  if(gpsAlt!=null&&gpsAlt!==''&&isFinite(+gpsAlt))return '⛰'+Math.round(+gpsAlt)+'m';
+  if(!(lat&&lng))return '';
+  try{
+    const s=_nearestSignFull(lat,lng);
+    if(s&&s.elev>0&&s.dist<=1000)return '⛰약'+s.elev+'m';
+  }catch(e){}
+  return '';
 }
 
 
@@ -1246,11 +1258,14 @@ function _updateFormMiniMap(lat,lng){
       let _ft=null;
       kakao.maps.event.addListener(_formMap,'center_changed',function(){
         const c=_formMap.getCenter(),la=c.getLat(),ln=c.getLng();
+        window._formGpsAlt=null; // 지도 드래그로 좌표 변경 → GPS 고도 무효(표지판 기반 추정으로 대체)
         const cd=document.getElementById('r_minimap_coords');if(cd)cd.textContent=la.toFixed(5)+', '+ln.toFixed(5);
         clearTimeout(_ft);
         _ft=setTimeout(function(){
           const g=document.getElementById('r_gps');if(g)g.value=la.toFixed(5)+', '+ln.toFixed(5);
           _autoFillLoc(la,ln);
+          const _e=(typeof _elevStr==='function')?_elevStr(la,ln):'';
+          if(cd&&_e)cd.textContent=la.toFixed(5)+', '+ln.toFixed(5)+' '+_e;
           const st=document.getElementById('r_gps_status');if(st)st.textContent='✅ 지도 중심으로 위치 지정됨';
         },280);
       });
@@ -1292,9 +1307,12 @@ function gpsToFormMap(){
   if(st)st.textContent='GPS 신호 수신 중...';
   navigator.geolocation.getCurrentPosition(pos=>{
     const lat=pos.coords.latitude,lng=pos.coords.longitude,acc=pos.coords.accuracy;
+    // GPS 고도(m) — 사고 기록에 저장. 이후 지도를 드래그하면 무효화(좌표가 바뀌므로)
+    window._formGpsAlt=(pos.coords.altitude!=null&&isFinite(pos.coords.altitude))?Math.round(pos.coords.altitude):null;
     const v=lat.toFixed(5)+', '+lng.toFixed(5);
     const gpsEl=document.getElementById('r_gps');if(gpsEl)gpsEl.value=v;
-    const cd=document.getElementById('r_minimap_coords');if(cd)cd.textContent=v;
+    const _e=(typeof _elevStr==='function')?_elevStr(lat,lng,window._formGpsAlt):'';
+    const cd=document.getElementById('r_minimap_coords');if(cd)cd.textContent=v+(_e?' '+_e:'');
     if(btn)btn.textContent='📡 GPS';
     if(st)st.textContent='✅ 현재 위치'+(acc<50?' (±'+Math.round(acc)+'m)':'')+ ' — 🗺 지도에서 조정 가능';
     _autoFillLoc(lat,lng);
