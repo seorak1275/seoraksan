@@ -2201,17 +2201,15 @@ function render1BoForm(prefill=null){
       </div>
     </div>
 
-    <!-- ══ 섹터4: 기타 ══ -->
+    <!-- ══ 섹터4: 기타 (순서: 응소 → 접수내용 → 제목·작성 → 동원장비) ══ -->
     <div id="repSec5" class="rep-sec" style="display:none;padding:12px;overflow-y:auto;">
-      <div class="rsec"><div class="rsec-t">🛠️ 동원 장비</div>
-        <div class="fg"><span class="fl">구조 방법 (복수)</span>
-          <div class="pills" id="rescMeth">${['들것','부축','헬기','차량','자력하산','로프구조','기타'].map(o=>`<div class="pill${(p.rescueMethod||[]).includes(o)?' on':''}" onclick="tPill(this)">${o}</div>`).join('')}</div>
+      ${!isNbo?`<div class="rsec" style="border:1px solid ${_offHrs?'rgba(231,76,60,.3)':'rgba(79,168,208,.18)'};border-radius:10px;background:${_offHrs?'rgba(231,76,60,.08)':'rgba(79,168,208,.05)'};padding:10px 12px;">
+        <div class="rsec-t" style="color:${_offHrs?'#e74c3c':'#4fa8d0'};">${_offHrs?'🌙 야간 출동(18~09시) — 응소 여부 선택':'🚨 응소 여부 (해당 시 선택)'}</div>
+        <div class="pills" id="mobilizePills">
+          ${['특구대','재난과','전직원응소'].map(o=>`<div class="pill${(p.mobilize||[]).includes(o)?' on':''}" onclick="tPill(this)">${o}</div>`).join('')}
         </div>
-        <div class="fg"><span class="fl">동원 장비</span>
-          <textarea id="r_equip" class="fta" rows="2" placeholder="들것, 로프, AED, 헬기 등">${p.equipment||''}</textarea>
-        </div>
-      </div>
-      <div class="rsec" style="margin-top:12px;"><div class="rsec-t">📝 사고접수 내용 (자유작성)</div>
+      </div>`:''}
+      <div class="rsec" style="margin-top:${isNbo?'0':'12px'};"><div class="rsec-t">📝 사고접수 내용 (자유작성)</div>
         <textarea id="r_recv" class="fta" rows="4" placeholder="사고 접수 당시 상황을 자유롭게 적어주세요 (신고 내용, 현장 상황, 인지 경위 등)">${p.reception||''}</textarea>
       </div>
       <div class="rsec" style="margin-top:12px;"><div class="rsec-t">📋 사고 제목 및 작성 정보</div>
@@ -2226,12 +2224,14 @@ function render1BoForm(prefill=null){
           <textarea id="r_extra" class="fta" rows="3">${p.extra||''}</textarea>
         </div>
       </div>
-      ${!isNbo?`<div class="rsec" style="margin-top:12px;border:1px solid ${_offHrs?'rgba(231,76,60,.3)':'rgba(79,168,208,.18)'};border-radius:10px;background:${_offHrs?'rgba(231,76,60,.08)':'rgba(79,168,208,.05)'};padding:10px 12px;">
-        <div class="rsec-t" style="color:${_offHrs?'#e74c3c':'#4fa8d0'};">${_offHrs?'🌙 야간 출동(18~09시) — 응소 여부 선택':'🚨 응소 여부 (해당 시 선택)'}</div>
-        <div class="pills" id="mobilizePills">
-          ${['특구대','재난과','전직원응소'].map(o=>`<div class="pill${(p.mobilize||[]).includes(o)?' on':''}" onclick="tPill(this)">${o}</div>`).join('')}
+      <div class="rsec" style="margin-top:12px;"><div class="rsec-t">🛠️ 동원 장비</div>
+        <div class="fg"><span class="fl">구조 방법 (복수)</span>
+          <div class="pills" id="rescMeth">${['들것','부축','헬기','차량','자력하산','로프구조','기타'].map(o=>`<div class="pill${(p.rescueMethod||[]).includes(o)?' on':''}" onclick="tPill(this)">${o}</div>`).join('')}</div>
         </div>
-      </div>`:''}
+        <div class="fg"><span class="fl">동원 장비</span>
+          <textarea id="r_equip" class="fta" rows="2" placeholder="들것, 로프, AED, 헬기 등">${p.equipment||''}</textarea>
+        </div>
+      </div>
     </div>
   `;
 
