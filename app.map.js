@@ -1359,11 +1359,14 @@ function selGender(v){
   document.querySelectorAll('#genderBtns .tog-btn').forEach(b=>b.classList.toggle('on',b.dataset.val===v));
   autoGenTitle();
 }
-// 내/외국인 버튼 (select → 버튼식) — 외국인 선택 시 국적칸 노출
+// 내/외국인 버튼 (select → 버튼식) — 외국인이면 거주지 칸이 '국적(국가명)' 입력칸으로 전환(별도 국적칸 없음)
 function selNation(v){
   document.getElementById('r_vNat').value=v;
   document.querySelectorAll('#nationBtns .tog-btn').forEach(b=>b.classList.toggle('on',b.dataset.val===v));
-  const w=document.getElementById('r_vNatWrap_extra');if(w)w.style.display=v==='외국인'?'block':'none';
+  const lbl=document.getElementById('vAddrLabel');
+  const addr=document.getElementById('r_vAddr');
+  if(lbl)lbl.textContent=v==='외국인'?'국적 (국가명)':'거주지';
+  if(addr)addr.placeholder=v==='외국인'?'예: 미국, 중국':'시/도';
   autoGenTitle();
 }
 // 신고자-사고자 관계 (같은 버튼 다시 누르면 해제) — '동반자' 선택 시 동반자1 정보 자동 채움(빈칸일 때만)
@@ -1383,28 +1386,64 @@ function selRepRel(v){
 
 // 부상 현황
 let _injuries=[];
-let _injType='',_injPart='',_injSide='';
+let _injType='',_injPart='',_injSide='',_injCat='외상';
 const _BILATERAL_PARTS=['어깨','팔꿈치','손목','손','무릎','발목','발'];
-// 부위 선택 불필요한 전신 상태
-const _SYSTEMIC_TYPES=['심정지','저체온증','익수','탈진/탈수','기타(전신)'];
+// 외상(부위 필요) / 내상·질환(전신 — 부위 불필요) 유형 목록. '기타'는 직접 입력
+const _INJ_TYPES={
+  '외상':['골절','탈구','염좌','열상','타박상','두부손상','절단','화상','기타'],
+  '내상':['저혈당','심정지','저체온증','열사병','탈진/탈수','호흡곤란','흉통','복통','경련','의식저하','익수','기타'],
+};
+// 부상 표기 통일: 좌→왼쪽·우→오른쪽 자연어. 좌우 없으면 '팔목골절'처럼 압축, 전신(내상)은 유형만
+function _injLabel(i){
+  if(!i)return '';
+  const type=i.type||'';
+  const part=(i.part&&i.part!=='전신')?i.part:'';
+  const sideMap={'좌':'왼쪽','우':'오른쪽','양쪽':'양쪽'};
+  const side=(i.side&&i.side!=='해당없음')?(sideMap[i.side]||i.side):'';
+  if(!part)return type;                        // 전신(내상) → '저혈당'
+  if(side)return side+' '+part+' '+type;       // '왼쪽 팔목 골절'
+  return part+type;                            // '팔목골절'
+}
 function initInjuries(prefill){
   _injuries=(prefill&&prefill.injuries)||[];
-  _injType='';_injPart='';_injSide='';
+  _injType='';_injPart='';_injSide='';_injCat='외상';
+  renderInjTypePills();
   renderInjuries();
+}
+// 외상/내상 카테고리 전환 → 유형 pill 목록 다시 그림
+function selInjCat(cat){
+  _injCat=cat;_injType='';_injPart='';_injSide='';
+  document.querySelectorAll('#injCatBtns .tog-btn').forEach(b=>b.classList.toggle('on',b.dataset.val===cat));
+  renderInjTypePills();
+  const partWrap=document.getElementById('injPartWrap');
+  if(partWrap)partWrap.style.display=cat==='내상'?'none':'block';
+  const sw=document.getElementById('injSideWrap');if(sw)sw.style.display='none';
+  const cw=document.getElementById('injTypeCustomWrap');if(cw)cw.style.display='none';
+  document.querySelectorAll('#injPartPills .pill').forEach(p=>p.classList.remove('on'));
+}
+function renderInjTypePills(){
+  const el=document.getElementById('injTypePills');if(!el)return;
+  el.innerHTML=(_INJ_TYPES[_injCat]||[]).map(t=>`<div class="pill" onclick="selInjType(this,'${t}')" style="font-size:11px;cursor:pointer;">${t}</div>`).join('');
 }
 function selInjType(el,type){
   document.querySelectorAll('#injTypePills .pill').forEach(p=>p.classList.remove('on'));
   el.classList.add('on');_injType=type;
-  // 전신 상태면 부위/좌우 숨김
+  // 내상은 전신 — 부위/좌우 숨김. '기타'는 직접 입력칸 노출
   const partWrap=document.getElementById('injPartWrap');
   const sw=document.getElementById('injSideWrap');
-  const isSys=_SYSTEMIC_TYPES.includes(type);
+  const cw=document.getElementById('injTypeCustomWrap');
+  const isSys=_injCat==='내상';
   if(partWrap) partWrap.style.display=isSys?'none':'block';
   if(sw) sw.style.display='none';
+  if(cw){cw.style.display=type==='기타'?'block':'none';if(type==='기타')setTimeout(()=>{try{document.getElementById('injTypeCustom').focus();}catch(e){}},50);}
   if(isSys){_injPart='전신';_injSide='';}
   else{_injPart='';_injSide='';document.querySelectorAll('#injPartPills .pill').forEach(p=>p.classList.remove('on'));}
 }
 function selInjPart(el,part){
+  // 같은 부위 다시 누르면 해제
+  if(_injPart===part){el.classList.remove('on');_injPart='';_injSide='';
+    document.querySelectorAll('#injSidePills .pill').forEach(p=>p.classList.remove('on'));
+    const sw0=document.getElementById('injSideWrap');if(sw0)sw0.style.display='none';return;}
   document.querySelectorAll('#injPartPills .pill').forEach(p=>p.classList.remove('on'));
   el.classList.add('on');_injPart=part;_injSide='';
   document.querySelectorAll('#injSidePills .pill').forEach(p=>p.classList.remove('on'));
@@ -1412,27 +1451,39 @@ function selInjPart(el,part){
   if(sw) sw.style.display=_BILATERAL_PARTS.includes(part)?'block':'none';
 }
 function selInjSide(el,side){
+  // 같은 좌/우 다시 누르면 해제 (좌우 생략 = '팔목골절'처럼 압축 표기)
+  if(_injSide===side){el.classList.remove('on');_injSide='';return;}
   document.querySelectorAll('#injSidePills .pill').forEach(p=>p.classList.remove('on'));
   el.classList.add('on');_injSide=side;
 }
 function addInjury(){
   if(!_injType){toast('부상 유형을 선택하세요');return;}
-  if(!_injPart){toast('부상 부위를 선택하세요');return;}
-  _injuries.push({type:_injType,part:_injPart,side:_injSide});
+  let type=_injType;
+  if(type==='기타'){
+    const c=(document.getElementById('injTypeCustom')?.value||'').trim();
+    if(!c){toast('기타 부상 내용을 입력하세요');return;}
+    type=c;
+  }
+  if(_injCat!=='내상'&&!_injPart){toast('부상 부위를 선택하세요');return;}
+  _injuries.push({type:type,part:_injCat==='내상'?'전신':_injPart,side:_injSide,cat:_injCat});
   _injType='';_injPart='';_injSide='';
+  const ci=document.getElementById('injTypeCustom');if(ci)ci.value='';
+  const cw=document.getElementById('injTypeCustomWrap');if(cw)cw.style.display='none';
   document.querySelectorAll('#injTypePills .pill,#injPartPills .pill,#injSidePills .pill').forEach(p=>p.classList.remove('on'));
-  const pw=document.getElementById('injPartWrap');if(pw)pw.style.display='block';
+  const pw=document.getElementById('injPartWrap');if(pw)pw.style.display=_injCat==='내상'?'none':'block';
   const sw=document.getElementById('injSideWrap');if(sw)sw.style.display='none';
   renderInjuries();
+  try{autoGenTitle();}catch(e){}
 }
-function removeInjury(i){_injuries.splice(i,1);renderInjuries();}
+function removeInjury(i){_injuries.splice(i,1);renderInjuries();try{autoGenTitle();}catch(e){}}
 function renderInjuries(){
   const el=document.getElementById('injuryList');
   if(!el) return;
   if(!_injuries.length){el.innerHTML='';return;}
   el.innerHTML=_injuries.map((a,i)=>`
     <div style="display:flex;align-items:center;gap:6px;padding:6px 10px;background:#0b1c30;border-radius:7px;margin-bottom:4px;border:1px solid rgba(79,168,208,.1);">
-      <span style="font-size:12px;flex:1;color:#e0edf8;font-weight:600;">${a.type}${a.part&&a.part!=='전신'?' '+a.part:''}${a.side?' '+a.side:''}</span>
+      <span style="font-size:10px;color:${a.cat==='내상'?'#c4b5fd':'#7dd3fa'};font-weight:700;flex-shrink:0;">${a.cat==='내상'?'💊':'🩹'}</span>
+      <span style="font-size:12px;flex:1;color:#e0edf8;font-weight:600;">${_injLabel(a)}</span>
       <button onclick="removeInjury(${i})" style="background:none;border:none;color:#c0392b;font-size:15px;cursor:pointer;padding:0 2px;">×</button>
     </div>`).join('');
 }
