@@ -1554,7 +1554,7 @@ async function aiScanDispatch(input){
   "arrival": "공단 출동 또는 현장 도착 시각 (HH:MM)",
   "location": "사고 발생 장소 (표지판 번호 포함, 예: 12-03 부근)",
   "loctype": "장소 구분 — 법정탐방로/비법정탐방로/암벽/빙벽 중 하나만",
-  "type": "사고 유형 — 실족추락/심장마비/탈진/길잃음/뇌졸중/기타 중 가장 가까운 것",
+  "type": "사고 유형 — 안전사고/조난/고립/실종 중 가장 가까운 것 (부상·질환·추락 등은 안전사고, 길잃음은 조난)",
   "vName": "사고자(피해자) 이름",
   "vBirth": "사고자 생년월일 (YYYY-MM-DD, 나이만 있으면 추정 생년 계산)",
   "vGender": "성별 (남/여/알수없음)",
@@ -1594,31 +1594,43 @@ async function aiScanDispatch(input){
   }
 }
 function _applyAiScanResult(d){
+  // ※ 현재 폼의 실제 요소에 매핑 (r_sit/r_recv/r_arr, 성별·유형·중증도는 버튼/필 클릭)
   const _set=(id,v)=>{if(v===null||v===undefined)return;const el=document.getElementById(id);if(el){el.value=v;el.dispatchEvent(new Event('input'));}};
-  if(d.date)_set('r_date',d.date.slice(0,16));
+  if(d.date)_set('r_accdt',d.date.slice(0,16));           // (N보 폼에만 존재 — 없으면 무시)
   if(d.dispatch)_set('r_disp',d.dispatch);
-  if(d.arrival)_set('r_arrival',d.arrival);
+  if(d.arrival)_set('r_arr',d.arrival);
   if(d.location){_set('r_loc',d.location);}
   if(d.loctype&&['법정탐방로','비법정탐방로','암벽','빙벽'].includes(d.loctype)){
-    selLoctype(d.loctype);
-    const hi=document.getElementById('r_loctype');if(hi)hi.value=d.loctype;
+    try{selLoctype(d.loctype);}catch(e){}
   }
   if(d.type){
-    const tEl=document.getElementById('r_type');if(tEl)tEl.value=d.type;
+    const base=['안전사고','조난','고립','실종'];
+    // 구 유형 표기 → 새 체계 매핑
+    const map={'실족추락':'안전사고','심장마비':'안전사고','탈진':'안전사고','뇌졸중':'안전사고','길잃음':'조난'};
+    const t=base.includes(d.type)?d.type:(map[d.type]||null);
+    try{
+      if(t)selAccType(t);
+      else{selAccType('기타');const c=document.getElementById('r_typeCustom');if(c&&d.type!=='기타'){c.value=d.type;}}
+    }catch(e){}
   }
   if(d.vName)_set('r_vName',d.vName);
   if(d.vBirth)_set('r_vBirth',d.vBirth);
-  if(d.vGender&&d.vGender!=='알수없음'){
-    document.querySelectorAll('#genderPills .pill').forEach(p=>{if(p.textContent.trim()===d.vGender)p.click();});
-  }
+  if(d.vGender&&(d.vGender==='남'||d.vGender==='여')){try{selGender(d.vGender);}catch(e){}}
   if(d.vTel)_set('r_vTel',d.vTel);
   if(d.severity){
-    const sEl=document.getElementById('r_severity');if(sEl)sEl.value=d.severity;
+    // 경증/중증 표기 → KTAS 필 매핑
+    const sm={'사망':'KTAS 1 (소생)','중증':'KTAS 2 (긴급)','중경증':'KTAS 3 (응급)','경증':'KTAS 4 (준응급)'};
+    const target=sm[d.severity]||null;
+    if(target)document.querySelectorAll('#sevPills .pill').forEach(p=>{if(p.textContent.trim()===target&&!p.classList.contains('on'))p.click();});
   }
-  if(d.situation)_set('r_situation',d.situation);
-  if(d.reception)_set('r_reception',d.reception);
-  if(d.weather)_set('r_weather',d.weather);
+  if(d.situation)_set('r_sit',d.situation);
+  if(d.reception)_set('r_recv',d.reception);
+  if(d.weather){
+    const w=String(d.weather);
+    document.querySelectorAll('#weatherPills .pill').forEach(p=>{if(w.includes(p.textContent.trim())&&!p.classList.contains('on'))p.click();});
+  }
   try{autoGenTitle();}catch(e){}
+  try{if(typeof _updateTabDots==='function')_updateTabDots();}catch(e){}
   toast('📋 출동지령서 자동 입력됨');
 }
 function openNpsResponse(resId){
@@ -1878,7 +1890,21 @@ function _restoreRescueForm(snap){
       const pc=document.getElementById(pid);if(!pc)return;
       pc.querySelectorAll('.pill').forEach(p=>{if(p.textContent.trim()===txt)p.classList.add('on');});
     });
+    // 버튼 그룹(성별·내외국인·장소구분·관계·신고자/동반자 유무)은 hidden 값으로 시각 상태 동기화
+    const _syncBtns=(hidId,grpId)=>{const h=document.getElementById(hidId);if(!h||!h.value)return h;document.querySelectorAll('#'+grpId+' .tog-btn').forEach(b=>b.classList.toggle('on',b.dataset.val===h.value));return h;};
+    _syncBtns('r_vGender','genderBtns');
+    const n=_syncBtns('r_vNat','nationBtns');
+    if(n&&n.value==='외국인'){const lbl=document.getElementById('vAddrLabel');if(lbl)lbl.textContent='국적 (국가명)';}
+    _syncBtns('r_loctype','loctypeBtns');
+    _syncBtns('r_repRel','repRelBtns');
+    const hr=_syncBtns('r_hasRep','hasRepBtns');
+    if(hr&&hr.value==='y'){const rw=document.getElementById('reporterWrap');if(rw)rw.style.display='block';}
+    const hc=_syncBtns('r_hasComp','hasCompBtns');
+    if(hc&&hc.value==='y'){const cw=document.getElementById('companionWrap');if(cw)cw.style.display='block';}
+    const tp=document.getElementById('r_type');
+    if(tp&&tp.value==='기타'){const c=document.getElementById('r_typeCustom');if(c)c.style.display='block';}
   }catch(e){}
+  try{if(typeof _updateTabDots==='function')_updateTabDots();}catch(e){}
 }
 function _saveDraftNow(){
   if(window._reportMode!=='form'||!_formDirty||window._reportIsNbo)return;
@@ -2303,7 +2329,7 @@ function _updateTabDots(){
     repSec1:_v('r_gps')||_v('r_loc'),
     repSec2:(typeof _injuries!=='undefined'&&_injuries.length)||getSelPills('sevPills').length||_v('r_sit'),
     repSec3:_v('r_vName')||_v('r_vTel'),
-    repSec5:_v('r_recv')||_v('r_extra')||getSelPills('rescMeth').length,
+    repSec5:_v('r_recv')||_v('r_extra')||getSelPills('rescMeth').length||getSelPills('mobilizePills').length,
   };
   Object.entries(filled).forEach(([sec,ok])=>{
     const d=document.getElementById('dot_'+sec);
