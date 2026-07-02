@@ -68,7 +68,7 @@ function submitNBoFromForm(){
   const phaseData={
     rid: 'r'+Date.now().toString(36)+Math.random().toString(36).slice(2,6), // 보고 고유 id(동시편집 병합 키)
     repTime: now(),
-    type: document.getElementById('r_type')?.value||res[idx].type,
+    type: (typeof _resolvedAccType==='function'&&document.getElementById('r_type'))?_resolvedAccType():(res[idx].type),
     date: document.getElementById('r_accdt')?.value?.replace('T',' ')||now(),
     weather: getSelPills('weatherPills')[0]||res[idx].weather||'',
     weatherAlert: getWeatherAlertStr(),
@@ -77,7 +77,7 @@ function submitNBoFromForm(){
     vName: document.getElementById('r_vName')?.value||res[idx].vName,
     vTel: document.getElementById('r_vTel')?.value||res[idx].vTel||'',
     vNation: document.getElementById('r_vNat')?.value||res[idx].vNation,
-    vNationality: document.getElementById('r_vNationality')?.value||res[idx].vNationality||'',
+    vNationality: (document.getElementById('r_vNat')?.value==='외국인')?(document.getElementById('r_vAddr')?.value||res[idx].vNationality||''):(res[idx].vNationality||''),
     companions: getCompanions().length?getCompanions():res[idx].companions||[],
     victims2: getVictims2().length?getVictims2():res[idx].victims2||[],
     vGender: document.getElementById('r_vGender')?.value||res[idx].vGender,
@@ -1288,7 +1288,7 @@ function renderTimeline(r,viewMode,outId){
     // ── 우선순위: ① 부상 ② 위치 ③ 인적사항 ④ 나머지 ⑤ 추가내용 ──
     const _injList=(Array.isArray(r.injuries)?r.injuries:[]).filter(i=>i&&(i.part||i.type));
     const _injMain=_injList.length
-      ? _injList.map(i=>((i.side&&i.side!=='해당없음'?i.side+' ':'')+(i.part||'')+' '+(i.type||'')).trim()).filter(Boolean).join(', ')
+      ? _injList.map(i=>(typeof _injLabel==='function')?_injLabel(i):((i.part||'')+(i.type||''))).filter(Boolean).join(', ')
       : (()=>{const ip=_okA(r.injuryParts),it=_okA(r.injuryTypes);return (ip.join(', ')+(it.length?' / '+it.join(', '):'')).trim();})();
     const _vit0=(r.vitals&&_vitalsStr(r.vitals))?_vitalsStr(r.vitals):'';
     const injurySect=`<div style="font-size:10px;color:#ff8a73;font-weight:800;letter-spacing:.5px;margin-bottom:4px;">🤕 부상 정도 (가장 중요)</div>
@@ -1305,7 +1305,7 @@ function renderTimeline(r,viewMode,outId){
     let personSect=`<div style="display:flex;align-items:center;flex-wrap:wrap;gap:5px;"><span style="font-size:10px;color:#4a7090;font-weight:700;min-width:40px;">사고자</span><span style="font-size:12px;color:#e0edf8;font-weight:600;">${_vLine}</span>${_ok(r.vTel)?_telBtnsHtml(r.vTel,r.id):''}${(r.victims2&&r.victims2.length)?`<span style="font-size:10px;color:#e9897e;font-weight:700;">외 ${r.victims2.length}명</span>`:''}</div>`;
     if(r.victims2&&r.victims2.length)personSect+=`<div style="font-size:11px;color:#b8d4e8;margin-top:4px;">${r.victims2.map(v=>[_esc(v.name||'미상'),v.age?_esc(v.age)+'세':'',v.gender&&v.gender!=='알수없음'?_esc(v.gender):''].filter(Boolean).join(' ')).join(', ')}</div>`;
     if(_ok(r.repName)||_ok(r.repTel))personSect+=`<div style="display:flex;align-items:center;flex-wrap:wrap;gap:5px;margin-top:6px;"><span style="font-size:10px;color:#4a7090;font-weight:700;min-width:40px;">신고자</span><span style="font-size:12px;color:#cfe2f2;">${[_ok(r.repName)?_esc(r.repName):'',_ok(r.repTel)?_esc(r.repTel):''].filter(Boolean).join(' · ')}</span>${_ok(r.repRel)?`<span style="font-size:10px;color:#e8b34a;background:rgba(232,179,74,.1);border:1px solid rgba(232,179,74,.3);border-radius:5px;padding:1px 6px;font-weight:700;">${_esc(r.repRel)}</span>`:''}${_ok(r.repTel)?_telBtnsHtml(r.repTel,r.id):''}</div>`;
-    if(r.companions&&r.companions.length)personSect+=`<div style="display:flex;align-items:center;flex-wrap:wrap;gap:5px;margin-top:6px;"><span style="font-size:10px;color:#4a7090;font-weight:700;min-width:40px;">동반자</span><span style="font-size:12px;color:#cfe2f2;">${r.companions.map(c=>_esc((c.name||'미상')+(c.tel?' '+c.tel:''))).join(', ')}</span></div>`;
+    if(r.companions&&r.companions.length)personSect+=r.companions.map((c,ci)=>`<div style="display:flex;align-items:center;flex-wrap:wrap;gap:5px;margin-top:6px;"><span style="font-size:10px;color:#4a7090;font-weight:700;min-width:40px;">동반자${r.companions.length>1?ci+1:''}</span><span style="font-size:12px;color:#cfe2f2;">${_esc((c.name||'미상')+(c.tel?' '+c.tel:''))}</span>${c.tel?_telBtnsHtml(c.tel,r.id):''}</div>`).join('');
     if(typeof _sosLiveLineHtml==='function'){const _sl=_sosLiveLineHtml(r);if(_sl)personSect+='<div style="margin-top:6px;">'+_sl+'</div>';}
     const recvSect=_ok(r.reception)?`<div><span style="font-size:10px;color:#4a7090;font-weight:700;">📝 접수내용</span><div style="font-size:12px;color:#cfe2f2;line-height:1.55;margin-top:2px;">${_esc(r.reception)}</div></div>`:'';
     // 나머지(컴팩트)
@@ -1926,7 +1926,7 @@ function render1BoForm(prefill=null){
         style="flex:1;min-width:52px;padding:8px 3px;text-align:center;font-size:10px;cursor:pointer;
         border-bottom:2px solid ${i===0?'#4fa8d0':'transparent'};
         color:${i===0?'#4fa8d0':'rgba(255,255,255,.3)'};white-space:nowrap;">
-        ${t.icon}<br>${t.label}</div>`).join('')}
+        ${t.icon}<br>${t.label}<span id="dot_${t.id}" style="display:inline-block;width:5px;height:5px;border-radius:50%;background:rgba(255,255,255,.14);vertical-align:middle;margin-left:3px;"></span></div>`).join('')}
     </div>
     ${isNbo?`<div id="nboBanner" style="background:rgba(79,168,208,.1);border:1px solid rgba(79,168,208,.25);border-radius:0;margin:0 -12px;padding:9px 13px;font-size:11px;color:#4fa8d0;display:flex;align-items:center;justify-content:space-between;">
       <span>📋 <b>${p._phaseNum||2}보 작성중</b> — 변경사항만 수정</span>
@@ -1957,9 +1957,10 @@ function render1BoForm(prefill=null){
       </div>
       <div class="rsec"><div class="rsec-t">🚨 사고 유형</div>
         <div class="pills" id="typePills">
-          ${['안전사고','조난','고립','실종','낙석','위험수목','화재','기타'].map(o=>`<div class="pill${(p.type||'안전사고')===o?' on':''}" onclick="selAccType('${o}')">${o}</div>`).join('')}
+          ${(()=>{const base=['안전사고','조난','고립','실종','기타'];const cur=p.type||'안전사고';const isCustom=!base.includes(cur);return base.map(o=>`<div class="pill${(isCustom?o==='기타':cur===o)?' on':''}" onclick="selAccType('${o}')">${o}</div>`).join('');})()}
         </div>
-        <input type="hidden" id="r_type" value="${p.type||'안전사고'}">
+        <input type="text" id="r_typeCustom" class="fi" placeholder="사고 유형 직접 입력 (예: 낙석, 화재)" style="display:${(p.type&&!['안전사고','조난','고립','실종','기타'].includes(p.type))?'block':'none'};margin-top:6px;" value="${(p.type&&!['안전사고','조난','고립','실종','기타'].includes(p.type))?_esc(p.type):''}" oninput="autoGenTitle()">
+        <input type="hidden" id="r_type" value="${(p.type&&!['안전사고','조난','고립','실종','기타'].includes(p.type))?'기타':(p.type||'안전사고')}">
       </div>
       <div class="rsec"><div class="rsec-t">📍 사고 위치</div>
         <div class="fg">
@@ -2034,10 +2035,16 @@ function render1BoForm(prefill=null){
       <!-- 1. 부상 현황 -->
       <div class="rsec"><div class="rsec-t">🩺 부상 현황</div>
         <div style="background:#060d1a;border-radius:8px;border:1px solid rgba(255,255,255,.07);padding:10px;margin-bottom:8px;">
-          <!-- ① 부상 유형 먼저 -->
-          <div style="font-size:10px;color:#7a9cb8;font-weight:700;margin-bottom:5px;">① 부상 유형 <span style="font-weight:400;color:#5a7a92;">※ 전신상태는 부위 불필요</span></div>
-          <div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:8px;" id="injTypePills">
-            ${['골절','탈구','염좌','열상','타박상','두부손상','심정지','저체온증','탈진/탈수','익수','기타(부위)','기타(전신)'].map(t=>`<div class="pill" onclick="selInjType(this,'${t}')" style="font-size:11px;cursor:pointer;">${t}</div>`).join('')}
+          <!-- 외상/내상 구분 (기본: 외상) -->
+          <div style="display:flex;gap:6px;margin-bottom:8px;" id="injCatBtns">
+            <button class="tog-btn on" data-val="외상" style="flex:1;padding:7px 4px;min-height:34px;font-size:12px;" onclick="selInjCat('외상')">🩹 외상</button>
+            <button class="tog-btn" data-val="내상" style="flex:1;padding:7px 4px;min-height:34px;font-size:12px;" onclick="selInjCat('내상')">💊 내상·질환</button>
+          </div>
+          <!-- ① 부상 유형 (카테고리별 목록 — JS가 렌더) -->
+          <div style="font-size:10px;color:#7a9cb8;font-weight:700;margin-bottom:5px;">① 부상 유형 <span style="font-weight:400;color:#5a7a92;">※ 내상·질환은 부위 불필요</span></div>
+          <div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:8px;" id="injTypePills"></div>
+          <div id="injTypeCustomWrap" style="display:none;margin-bottom:8px;">
+            <input type="text" id="injTypeCustom" class="fi" placeholder="부상·질환 직접 입력 (예: 안구 손상, 알레르기 쇼크)">
           </div>
           <!-- ② 부상 부위 -->
           <div id="injPartWrap" style="margin-bottom:8px;">
@@ -2140,12 +2147,9 @@ function render1BoForm(prefill=null){
           </div>
           <input type="hidden" id="r_vNat" value="${p.vNation||'알수없음'}">
         </div>
-        <div id="r_vNatWrap_extra" style="display:${p.vNation==='외국인'?'block':'none'};" class="fg">
-          <span class="fl">국적</span><input type="text" id="r_vNationality" class="fi" placeholder="예: 미국, 중국" value="${p.vNationality||''}">
-        </div>
         <div class="frow">
           <div class="fg"><span class="fl">생년월일</span><input type="text" inputmode="numeric" id="r_vBirth" class="fi" placeholder="19901231" maxlength="10" value="${p.vBirth||''}" oninput="_fmtBirth(this)"></div>
-          <div class="fg"><span class="fl">거주지</span><input type="text" id="r_vAddr" class="fi" placeholder="시/도" value="${p.vAddr||''}"></div>
+          <div class="fg"><span class="fl" id="vAddrLabel">${p.vNation==='외국인'?'국적 (국가명)':'거주지'}</span><input type="text" id="r_vAddr" class="fi" placeholder="${p.vNation==='외국인'?'예: 미국, 중국':'시/도'}" value="${p.vAddr||((p.vNation==='외국인'&&p.vNationality)?p.vNationality:'')}"></div>
         </div>
         <div class="fg"><span class="fl">기저질환</span><input type="text" id="r_vDis" class="fi" placeholder="없음 또는 해당 질환" value="${p.vDisease||''}"></div>
         <div class="fg"><span class="fl">알레르기</span><input type="text" id="r_vAll" class="fi" placeholder="없음 또는 항목" value="${p.vAllergy||''}"></div>
@@ -2254,10 +2258,11 @@ function render1BoForm(prefill=null){
   _formDirty=false;
   if(!_draftListenerBound){
     const wc=document.getElementById('repContent');
-    if(wc){wc.addEventListener('input',()=>{if(window._reportMode==='form')_formDirty=true;});
-           wc.addEventListener('change',()=>{if(window._reportMode==='form')_formDirty=true;});
+    if(wc){wc.addEventListener('input',()=>{if(window._reportMode==='form'){_formDirty=true;try{_updateTabDots();}catch(e){}}});
+           wc.addEventListener('change',()=>{if(window._reportMode==='form'){_formDirty=true;try{_updateTabDots();}catch(e){}}});
            _draftListenerBound=true;}
   }
+  setTimeout(()=>{try{_updateTabDots();}catch(e){}},250); // 초기(프리필) 상태 점 반영
   if(!isNbo)_startDraftAutosave(); // 신규 1보만 임시저장
 }
 
@@ -2289,6 +2294,21 @@ function switchRepTab(secId,el){
   });
   if(el){el.style.color='#4fa8d0';el.style.borderBottomColor='#4fa8d0';el.classList.add('rep-tab-on');}
   if(secId==='repSec0') _renderFormTl();
+  try{_updateTabDots();}catch(e){}
+}
+// 섹터 탭 입력완료 점: 그 섹터의 핵심 항목이 채워졌으면 초록 점 — 뭘 안 썼는지 한눈에
+function _updateTabDots(){
+  const _v=id=>{const e=document.getElementById(id);return e&&String(e.value||'').trim()?1:0;};
+  const filled={
+    repSec1:_v('r_gps')||_v('r_loc'),
+    repSec2:(typeof _injuries!=='undefined'&&_injuries.length)||getSelPills('sevPills').length||_v('r_sit'),
+    repSec3:_v('r_vName')||_v('r_vTel'),
+    repSec5:_v('r_recv')||_v('r_extra')||getSelPills('rescMeth').length,
+  };
+  Object.entries(filled).forEach(([sec,ok])=>{
+    const d=document.getElementById('dot_'+sec);
+    if(d)d.style.background=ok?'#27ae60':'rgba(255,255,255,.14)';
+  });
 }
 
 
@@ -2302,6 +2322,10 @@ function submit1Bo(){
   if(_btn){_btn.disabled=true;_btn.style.opacity='.5';}
   try{
   autoGenTitle();
+  // 야간(18~09시) 등록인데 응소 미선택 → 실수 방지 확인 한 번
+  if(typeof _isOffHours==='function'&&_isOffHours()&&!getSelPills('mobilizePills').length){
+    if(!confirm('🌙 야간 출동(18~09시)입니다.\n응소 선택 없이 등록할까요?\n(응소 선택은 기타 탭 맨 아래)'))return;
+  }
   const title=document.getElementById('r_title').value.trim()||autoGenTitle(true);
   const gps=(document.getElementById('r_gps')?.value||'').split(',');
   // 좌표 검증: 범위 밖(위경도 뒤바뀜 포함)·NaN이면 좌표 없이 저장(지도 오표시 방지)
@@ -2319,7 +2343,7 @@ function submit1Bo(){
   const nowStr=now();
   const r={
     id:Date.now(), title,
-    type:document.getElementById('r_type')?.value||'안전사고',
+    type:(typeof _resolvedAccType==='function')?_resolvedAccType():(document.getElementById('r_type')?.value||'안전사고'),
     date:nowStr,
     reception:document.getElementById('r_recv')?.value||'',
     weather:getSelPills('weatherPills')[0]||'',
@@ -2333,7 +2357,8 @@ function submit1Bo(){
     vName:document.getElementById('r_vName')?.value||'',
     vTel:document.getElementById('r_vTel')?.value||'',
     vNation:document.getElementById('r_vNat')?.value||'알수없음',
-    vNationality:document.getElementById('r_vNationality')?.value||'',
+    vNationality:(document.getElementById('r_vNat')?.value==='외국인')?(document.getElementById('r_vAddr')?.value||''):'', // 외국인이면 거주지칸=국적
+
     vGender:document.getElementById('r_vGender')?.value||'알수없음',
     vBirth:document.getElementById('r_vBirth')?.value||'',
     vAddr:document.getElementById('r_vAddr')?.value||'',

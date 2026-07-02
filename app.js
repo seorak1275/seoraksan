@@ -1851,40 +1851,43 @@ function confirmMapPicker(){
 function selAccType(t){
   const h=document.getElementById('r_type');if(h)h.value=t;
   document.querySelectorAll('#typePills .pill').forEach(p=>p.classList.toggle('on',p.textContent.trim()===t));
+  const c=document.getElementById('r_typeCustom');
+  if(c){c.style.display=t==='기타'?'block':'none';if(t==='기타')setTimeout(()=>{try{c.focus();}catch(e){}},50);}
   try{autoGenTitle();}catch(e){}
+}
+// 사고유형 최종값: '기타' + 직접입력이 있으면 그 텍스트 사용
+function _resolvedAccType(){
+  const t=document.getElementById('r_type')?.value||'안전사고';
+  if(t!=='기타')return t;
+  const c=(document.getElementById('r_typeCustom')?.value||'').trim();
+  return c||'기타';
 }
 function autoGenTitle(returnOnly=false){
   const loc   = (document.getElementById('r_loc')?.value||'').trim();
-  const sev   = getSelPills('sevPills')[0]||'';
-  const cause = document.getElementById('r_cause')?.value||'';
-  const type  = document.getElementById('r_type')?.value||'안전사고';
+  const type  = (typeof _resolvedAccType==='function')?_resolvedAccType():(document.getElementById('r_type')?.value||'안전사고');
   const nation= document.getElementById('r_vNat')?.value||'알수없음';
   const gender= document.getElementById('r_vGender')?.value||'';
-  // 부상 내역 요약: 부상현황 목록 → 부상부위/유형 필 순으로 탐색
+  // 부상 내역 요약: 자연어 표기('왼쪽 팔목 골절'·'팔목골절'·'저혈당')
   let injStr='';
   if(typeof _injuries!=='undefined'&&_injuries.length){
-    const i0=_injuries[0];
-    injStr=((i0.side&&i0.side!=='해당없음'?i0.side+' ':'')+(i0.part||'')+' '+(i0.type||'')).trim();
+    injStr=(typeof _injLabel==='function')?_injLabel(_injuries[0]):((_injuries[0].part||'')+(_injuries[0].type||''));
     if(_injuries.length>1)injStr+=' 외 '+(_injuries.length-1);
   }
-  if(!injStr){
-    const ip=getSelPills('injParts')[0]||'',it=getSelPills('injTypes')[0]||'';
-    injStr=(ip+' '+it).trim();
-  }
-  // 제목 형식: 「부상 NN-NN 인근」 (예: 발목골절 09-11 인근). 이름·세부위치 제외 — 깔끔하게
+  // 제목 형식: 부상이 있으면 「왼쪽 팔목 골절 NN-NN 인근」, 없으면 사고유형이 제목(조난·고립…). 원인(부주의 등)은 안 씀
   const _m=loc.match(/\d{1,2}-\d{1,3}/);
   const locShort=_m?_m[0]+' 인근':(loc?loc.slice(0,8):'');
   const parts=[];
-  if(injStr)  parts.push(injStr);                                                 // ① 부상(어디·어떻게)
-  else if(cause&&cause!=='실족') parts.push(cause);
+  if(injStr)parts.push(injStr);                                                   // ① 다친 곳·정도
+  else if(type)parts.push(type);                                                  // 부상 없음 → 사고유형(조난·고립 등)
   if(nation==='외국인') parts.push('외국인'+((gender&&gender!=='알수없음')?'('+gender+')':'')); // 외국인 표기
-  if(locShort)parts.push(locShort);                                               // ② 위치(NN-NN지점)
+  if(locShort)parts.push(locShort);                                               // ② 위치(NN-NN 인근)
   const title=parts.join(' ')||today()+' '+type;
   if(returnOnly) return title;
   const el=document.getElementById('r_title');
   if(el&&(!el.dataset.userEdited)){
     el.value=title;
   }
+  try{if(typeof _updateTabDots==='function')_updateTabDots();}catch(e){} // 필 선택류도 탭 점 갱신
   return title;
 }
 // 사용자가 직접 수정 시 자동생성 중단
@@ -2438,10 +2441,16 @@ function _smsSosTo(tel,resId){
   toast('🆘 위치요청 링크 생성 중…');
   _fdb.collection('sos').doc(tok).set({id:tok,active:true,issuedAt:Date.now(),by:by},{merge:true})
     .then(function(){
+      let foreign=false;
       if(resId!==undefined&&resId!==null&&resId!==''){
-        try{const res=DB.g('rescues')||[];const i=res.findIndex(x=>String(x.id)===String(resId));if(i>=0){res[i].sosId=tok;DB.s('rescues',res);}}catch(e){}
+        try{const res=DB.g('rescues')||[];const i=res.findIndex(x=>String(x.id)===String(resId));if(i>=0){res[i].sosId=tok;DB.s('rescues',res);foreign=res[i].vNation==='외국인';}}catch(e){}
       }
-      const u=_sosVictimUrl(tok);location.href='sms:'+tel+'?&body='+encodeURIComponent('[설악산 구조대] 아래 링크를 열면 현재 위치가 구조대에 전송됩니다(로그인 불필요): '+u);
+      const u=_sosVictimUrl(tok);
+      // 외국인 사고자면 한국어 아래 영어 병기
+      const body=foreign
+        ?'[설악산 구조대] 아래 링크를 열면 현재 위치가 구조대에 전송됩니다(로그인 불필요).\n[Seoraksan Rescue Team] Open the link below to send your current location to the rescue team (no login required):\n'+u
+        :'[설악산 구조대] 아래 링크를 열면 현재 위치가 구조대에 전송됩니다(로그인 불필요): '+u;
+      location.href='sms:'+tel+'?&body='+encodeURIComponent(body);
     })
     .catch(function(){toast('링크 생성 실패 — 다시 시도');});
 }
@@ -2531,7 +2540,7 @@ function sosToRescue(id){
 // 앱 자체 업데이트 (OTA · Capgo 자체호스팅) — APK 전용. 웹/PWA는 서비스워커가 자동 갱신.
 // 번들(www)의 새 버전을 ota.json으로 알리면, 설치된 앱이 받아서 그 자리에서 교체(재빌드 불필요).
 // ══════════════════════════════════════════
-const OTA_VER='2026.06.29.38';                         // ← 현재 번들 버전 (릴리스마다 올림 · build-ota.sh가 ota.json에 반영)
+const OTA_VER='2026.06.29.39';                         // ← 현재 번들 버전 (릴리스마다 올림 · build-ota.sh가 ota.json에 반영)
 const OTA_MANIFEST='https://109yoon.github.io/seoraksan/ota.json';
 let _otaInfo=null;
 function _otaPlugin(){try{return (window.Capacitor&&window.Capacitor.Plugins&&window.Capacitor.Plugins.CapacitorUpdater)||null;}catch(e){return null;}}
