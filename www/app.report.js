@@ -1361,15 +1361,19 @@ function _hwpxFill(entries,map){
     return {name:en.name,data:enc.encode(s)};
   });
 }
+async function _hwpxGenFromBuf(buf,map,fname){
+  const entries=await _zipRead(buf);
+  const blob=_zipWrite(_hwpxFill(entries,map));
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);a.download=fname;
+  document.body.appendChild(a);a.click();setTimeout(()=>a.remove(),2000);
+  toast('📄 한글파일(hwpx) 생성 완료 — 한글에서 열어 확인하세요',5000);
+}
 async function _hwpxGenerate(tpl,map,fname){
   const bin=atob(tpl.b64);
   const buf=new Uint8Array(bin.length);
   for(let i=0;i<bin.length;i++)buf[i]=bin.charCodeAt(i);
-  const entries=await _zipRead(buf.buffer);
-  const blob=_zipWrite(_hwpxFill(entries,map));
-  const a=document.createElement('a');
-  a.href=URL.createObjectURL(blob);a.download=fname;a.click();
-  toast('📄 한글 서식(hwpx) 생성 완료 — 한글에서 열어 확인하세요',5000);
+  await _hwpxGenFromBuf(buf.buffer,map,fname);
 }
 // ══════════════════════════════════════════
 // 관공서 양식 보고서 (한글용) — 등록된 hwpx 서식이 있으면 그걸로 진짜 한글파일 생성(우선),
@@ -1426,11 +1430,36 @@ async function govReport(rid,kind){
     '음주여부':nb(r.alcohol)==='없음'||!nb(r.alcohol)?'X':nb(r.alcohol)+(nb(r.alcAmount)?'('+r.alcAmount+')':''),
     '기상':wxStr,'작성자':(typeof getAuthor==='function')?getAuthor():'','오늘':now(),
   };
+  // 실제 서식(내장 tpl-status.hwpx)에 쓰인 자리표시자 별칭 — 서식 작성자가 쓴 이름 그대로 지원
+  const rrChk=[['119','119'],['사무소 전화','사무소전화접수'],['현장 접수','현장접수']].map(([k,l])=>((nb(r.recvRoute)||'119')===k?'■':'□')+l).join(' ');
+  Object.assign(dataMap,{
+    '접수경로':rrChk,                                   // 서식 칸엔 체크박스 문자열로
+    '조우시간':nb(r.arrival),                            // 도착(조우)시간
+    '신고자 이름':nb(r.repName),'신고자 연락처':nb(r.repTel),
+    '신고자 생년월일, 성별':'',                          // 미수집 항목 — 빈칸
+    '사고자 이름':nb(r.vName),'사고자 연락처':nb(r.vTel),
+    '사고자 생년월일, 성별':vAgeStr,
+    '사고자 관계':nb(r.repRel),
+    '병원이송':nb(r.hospital),
+    '사고장소':nb(r.location)+(signCode?' ('+signCode+')':''),
+    '좌표':coordStr+(elevS?' · 고도 '+elevS:''),
+  });
   try{
+    // 1) 관리자 업로드 서식(Firestore) 우선
     if(typeof _fdb!=='undefined'&&_fdb){
-      const tdoc=await _fdb.collection('tpl').doc(kind).get();
-      if(tdoc.exists&&tdoc.data()&&tdoc.data().b64){
-        await _hwpxGenerate(tdoc.data(),dataMap,(kind==='status'?'안전사고처리현황':'동향보고')+'_'+((r.date||'').slice(0,10)||'문서')+'.hwpx');
+      try{
+        const tdoc=await _fdb.collection('tpl').doc(kind).get();
+        if(tdoc.exists&&tdoc.data()&&tdoc.data().b64){
+          await _hwpxGenerate(tdoc.data(),dataMap,(kind==='status'?'안전사고처리현황':'동향보고')+'_'+((r.date||'').slice(0,10)||'문서')+'.hwpx');
+          return;
+        }
+      }catch(e){}
+    }
+    // 2) 앱 내장 서식 (처리현황 — 실제 결재 서식 원본)
+    if(kind==='status'){
+      const resp=await fetch('./tpl-status.hwpx');
+      if(resp.ok){
+        await _hwpxGenFromBuf(await resp.arrayBuffer(),dataMap,'안전사고처리현황_'+((r.date||'').slice(0,10)||'문서')+'.hwpx');
         return;
       }
     }
@@ -1529,7 +1558,7 @@ async function govReport(rid,kind){
   <body style="background:#fff;color:#000;font-family:'바탕','Batang','맑은 고딕','Malgun Gothic',serif;max-width:760px;margin:0 auto;padding:18px;">
   <div style="position:sticky;top:0;background:#f2f6fa;border:1px solid #c8d6e4;border-radius:8px;padding:10px;margin-bottom:14px;display:flex;gap:8px;" class="no-copy">
     <button onclick="var b=document.getElementById('govDoc');var rge=document.createRange();rge.selectNodeContents(b);var sel=getSelection();sel.removeAllRanges();sel.addRange(rge);document.execCommand('copy');sel.removeAllRanges();alert('복사됨 — 한글(HWP)에서 붙여넣기 하세요. 표가 그대로 들어갑니다.');" style="flex:1;padding:10px;font-size:14px;font-weight:700;cursor:pointer;background:#1a6e9e;color:#fff;border:none;border-radius:7px;">📋 한글용 전체 복사</button>
-    <button onclick="var h=document.documentElement.outerHTML;var bl=new Blob(['\\ufeff'+h],{type:'text/html;charset=utf-8'});var a=document.createElement('a');a.href=URL.createObjectURL(bl);a.download='${esc(title)}_${(r.date||'').slice(0,10)}.html';a.click();" style="flex:1;padding:10px;font-size:14px;font-weight:700;cursor:pointer;background:#2a7a4b;color:#fff;border:none;border-radius:7px;">💾 파일 저장 (한글에서 열기)</button>
+    <button onclick="var h=document.documentElement.outerHTML;var bl=new Blob(['\\ufeff'+h],{type:'text/html;charset=utf-8'});var a=document.createElement('a');a.href=URL.createObjectURL(bl);a.download='${esc(title)}_${(r.date||'').slice(0,10)}.html';document.body.appendChild(a);a.click();setTimeout(function(){a.remove();},1500);" style="flex:1;padding:10px;font-size:14px;font-weight:700;cursor:pointer;background:#2a7a4b;color:#fff;border:none;border-radius:7px;">💾 파일 저장 (한글에서 열기)</button>
   </div>
   <div id="govDoc">${body}</div></body></html>`;
   const win=window.open('','_blank');
