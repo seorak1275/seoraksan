@@ -237,7 +237,8 @@ let _tlBuilding=false;
 let _tlBuildType=null;     // 'nps'|'agency'
 let _tlBuildMembers=[];
 let _tlBuildOtherOpen=false;
-let _tlBuildAgencyType='소방';
+let _tlBuildAgencyType='소방(구조)';
+let _tlBuildRegion='';
 
 function _hideRepFooter(){const f=document.getElementById('rep1BoFooter');if(f)f.style.display='none';}
 
@@ -278,17 +279,10 @@ function _renderBuildPanelHtml(){
       </div>
     </div>`;
   } else {
-    // 유관기관 팀생성 — 특수구조대 제거, 환동해(소방) 분리, 산림청=헬기, 인원 입력
-    // 기관별 기본 인원: 소방구급 2, 환동해 5, 나머지 지정 없음
+    // 유관기관 팀생성 — 환동해/구조/구급(모두 소방)·소방항공·경찰·산림청·민간구조협력단·기타
+    // 유형 선택 → 소속 지역 칩(기본값) → 팀명 자동 생성(직접 수정 가능)
     const hw=getHwandonghaTeam();
-    const agTypes=[
-      {k:'소방',l:'🚒 소방',sub:'속초소방서',mem:0},
-      {k:'소방(구급)',l:'🚑 소방구급',sub:'구급대 기본 2명',mem:2},
-      {k:'소방(환동해)',l:'🔴 환동해',sub:`환동해특수대응단 기본 5명 (오늘 ${hw}팀)`,mem:5,hwTeam:hw},
-      {k:'경찰',l:'👮 경찰',sub:'속초경찰서·양양경찰서',mem:0},
-      {k:'산림청(헬기)',l:'🚁 산림청헬기',sub:'산림청 헬기 출동(드문 경우)',mem:0},
-      {k:'기타',l:'➕ 기타',sub:'타 기관',mem:0},
-    ];
+    const agTypes=_agTypeList(hw);
     const sel=agTypes.find(a=>a.k===_tlBuildAgencyType)||agTypes[0];
     function agChip(ag){
       const on=_tlBuildAgencyType===ag.k;
@@ -296,18 +290,23 @@ function _renderBuildPanelHtml(){
         style="cursor:pointer;background:${on?'rgba(126,200,163,.2)':'rgba(255,255,255,.04)'};
         color:${on?'#7ec8a0':'rgba(255,255,255,.45)'};
         border:1px solid ${on?'rgba(126,200,163,.4)':'rgba(255,255,255,.12)'};
-        border-radius:10px;font-size:11px;font-weight:700;padding:5px 9px;line-height:1.3;text-align:center;">
+        border-radius:10px;font-size:10.5px;font-weight:700;padding:6px 4px;line-height:1.3;text-align:center;">
         ${ag.l}${ag.hwTeam?`<br><span style="font-size:9px;opacity:.75;">현재 ${ag.hwTeam}팀</span>`:''}
       </div>`;
     }
     return `<div style="background:#0b1c30;border-radius:10px;padding:12px;border:.5px solid rgba(126,200,163,.3);margin-bottom:10px;">
       <div style="font-size:11px;color:#7ec8a0;font-weight:700;margin-bottom:10px;">🚒 유관기관 팀생성</div>
-      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:5px;margin-bottom:10px;">
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:5px;margin-bottom:10px;">
         ${agTypes.map(agChip).join('')}
       </div>
       ${sel.sub?`<div style="font-size:10px;color:#5a8aa0;margin-bottom:8px;">${_esc(sel.sub)}</div>`:''}
+      ${(sel.regions&&sel.regions.length)?`<div style="font-size:10px;color:#4a7090;font-weight:700;margin-bottom:5px;">소속 선택</div>
+      <div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:10px;" id="tlRegionChips">
+        ${sel.regions.map(rg=>`<div onclick="_selAgRegion('${rg.replace(/'/g,"\\'")}')" data-v="${_esc(rg)}"
+          style="cursor:pointer;background:${_tlBuildRegion===rg?'rgba(79,168,208,.18)':'rgba(255,255,255,.04)'};color:${_tlBuildRegion===rg?'#4fa8d0':'rgba(255,255,255,.5)'};border:1px solid ${_tlBuildRegion===rg?'rgba(79,168,208,.45)':'rgba(255,255,255,.12)'};border-radius:16px;font-size:11px;font-weight:700;padding:5px 12px;">${_esc(rg)}</div>`).join('')}
+      </div>`:''}
       <div style="display:flex;gap:7px;margin-bottom:10px;">
-        <div style="flex:2;"><input id="tlBuildNameInput" type="text" class="fi" value="${_esc(sel.l.replace(/[🚒🚑🔴👮🚁➕]/g,'').trim())}" placeholder="팀 이름" style="width:100%;box-sizing:border-box;"></div>
+        <div style="flex:2;"><input id="tlBuildNameInput" type="text" class="fi" value="${_esc(_agTeamName(sel.k,_tlBuildRegion,hw))}" placeholder="팀 이름 (직접 수정 가능)" style="width:100%;box-sizing:border-box;"></div>
         <div style="flex:1;"><input id="tlBuildMemCount" type="number" inputmode="numeric" class="fi" value="${sel.mem||''}" placeholder="인원 수" min="0" max="99" style="width:100%;box-sizing:border-box;"></div>
       </div>
       <div style="display:flex;gap:7px;">
@@ -317,16 +316,50 @@ function _renderBuildPanelHtml(){
     </div>`;
   }
 }
+// 유관기관 유형 목록 — 환동해·구조·구급은 모두 소방. 지역 기본값: 구조·구급=속초/양양/인제/설악,
+// 경찰=속초/양양/인제/광역, 소방항공=2항공대(양양)/1항공대(횡성), 민간구조협력단=외설악/내설악/용대
+function _agTypeList(hw){
+  return [
+    {k:'소방(환동해)',l:'🔴 환동해',sub:`환동해특수대응단 · 소방 (오늘 ${hw}팀) 기본 5명`,mem:5,hwTeam:hw},
+    {k:'소방(구조)',l:'🧗 구조',sub:'소방 구조대',mem:0,regions:['속초','양양','인제','설악']},
+    {k:'소방(구급)',l:'🚑 구급',sub:'소방 구급대 · 기본 2명',mem:2,regions:['속초','양양','인제','설악']},
+    {k:'소방(항공)',l:'🚁 소방항공',sub:'소방 항공대 (헬기)',mem:0,regions:['2항공대(양양)','1항공대(횡성)']},
+    {k:'경찰',l:'👮 경찰',sub:'경찰',mem:0,regions:['속초','양양','인제','광역']},
+    {k:'산림청(헬기)',l:'🌲 산림청',sub:'산림청 헬기 출동',mem:0},
+    {k:'민간구조협력단',l:'🤝 민간',sub:'민간구조협력단',mem:0,regions:['외설악','내설악','용대']},
+    {k:'기타',l:'➕ 기타',sub:'타 기관 — 이름 직접 입력',mem:0},
+  ];
+}
+// 유형+지역 → 팀명 자동 생성 (팀명 입력칸에서 자유 수정 가능)
+function _agTeamName(k,region,hw){
+  switch(k){
+    case '소방(환동해)':return '환동해 '+(hw||getHwandonghaTeam())+'팀';
+    case '소방(구조)':return region?region+' 구조대':'구조대';
+    case '소방(구급)':return region?region+' 구급대':'구급대';
+    case '소방(항공)':return region?'소방 '+region:'소방 항공대';
+    case '경찰':return region?region+' 경찰':'경찰';
+    case '민간구조협력단':return region?region+' 민간구조협력단':'민간구조협력단';
+    case '산림청(헬기)':return '산림청 헬기';
+    default:return '유관기관';
+  }
+}
 function _selAgType(k,defaultMem){
   _tlBuildAgencyType=k;
+  _tlBuildRegion=''; // 유형 바꾸면 지역 초기화
   const ba=document.getElementById('tlBuildArea');
   if(ba)ba.innerHTML=_renderBuildPanelHtml();
   setTimeout(()=>{const mc=document.getElementById('tlBuildMemCount');if(mc&&defaultMem)mc.value=defaultMem;},0);
 }
+// 지역 칩 선택 → 팀명 자동 갱신 (재탭 시 해제)
+function _selAgRegion(rg){
+  _tlBuildRegion=_tlBuildRegion===rg?'':rg;
+  const ba=document.getElementById('tlBuildArea');
+  if(ba)ba.innerHTML=_renderBuildPanelHtml();
+}
 
 function startTlBuild(type){
   _tlBuilding=true;_tlBuildType=type;_tlBuildMembers=[];_tlBuildOtherOpen=false;
-  _tlBuildAgencyType='소방';
+  _tlBuildAgencyType='소방(구조)';_tlBuildRegion='';
   const ba=document.getElementById('tlBuildArea');
   if(ba)ba.innerHTML=_renderBuildPanelHtml();
 }
@@ -373,17 +406,16 @@ function confirmTlBuild(){
     const memCount=parseInt(document.getElementById('tlBuildMemCount')?.value||'0')||0;
     // 환동해는 3교대 — 오늘 당직팀 번호를 팀명에 반영해 현장 혼선 방지
     const hw=getHwandonghaTeam();
-    const _defNames={'소방(환동해)':`환동해 ${hw}팀`,'소방(구급)':'소방 구급대','소방':'소방','경찰':'경찰','산림청(헬기)':'산림청 헬기','기타':'유관기관'};
-    const name=(nameEl&&nameEl.value.trim())||_defNames[_tlBuildAgencyType]||_tlBuildAgencyType;
-    // 산림청(헬기)·헬기 포함 시 헬기 경로 / 차량은 소방·경찰·구급·환동해
-    const isHeli=_tlBuildAgencyType.includes('헬기')||_tlBuildAgencyType.includes('산림청');
-    const isVehicle=!isHeli&&['소방','소방(구급)','소방(환동해)','경찰'].some(k=>_tlBuildAgencyType===k||_tlBuildAgencyType.startsWith(k));
+    const name=(nameEl&&nameEl.value.trim())||_agTeamName(_tlBuildAgencyType,_tlBuildRegion,hw);
+    // 헬기: 소방항공·산림청 / 차량: 구조·구급·환동해·경찰 / 도보: 민간구조협력단·기타
+    const isHeli=_tlBuildAgencyType==='소방(항공)'||_tlBuildAgencyType.includes('헬기')||_tlBuildAgencyType.includes('산림청');
+    const isVehicle=!isHeli&&['소방','경찰'].some(k=>_tlBuildAgencyType===k||_tlBuildAgencyType.startsWith(k));
     const type=isHeli?'heli':isVehicle?'vehicle':'foot';
     const route=isHeli
-      ?[{code:'',name:'헬기 기지',isBase:true,status:'active'},{code:'',name:r.location||'사고지점',lat:r.lat||null,lng:r.lng||null,isTarget:true,status:'pending'}]
+      ?[{code:'',name:_tlBuildAgencyType==='소방(항공)'?(_tlBuildRegion||'항공대 기지'):'헬기 기지',isBase:true,status:'active'},{code:'',name:r.location||'사고지점',lat:r.lat||null,lng:r.lng||null,isTarget:true,status:'pending'}]
       :_buildRoute(r,facs).map(w=>({...w,status:w.isBase?'active':'pending'}));
     // requestedAt=출동요청 시각(생성시점), arrivedAt=현장도착(별도 기록)
-    _tlTeams.push({id:'agency_'+Date.now(),name,type,agType:_tlBuildAgencyType,hwTeam:_tlBuildAgencyType==='소방(환동해)'?hw:null,memberCount:memCount,requestedAt:now(),arrivedAt:null,wpIdx:0,wps:route,collapsed:false,createdAt:new Date().toISOString()});
+    _tlTeams.push({id:'agency_'+Date.now(),name,type,agType:_tlBuildAgencyType,agRegion:_tlBuildRegion||'',hwTeam:_tlBuildAgencyType==='소방(환동해)'?hw:null,memberCount:memCount,requestedAt:now(),arrivedAt:null,wpIdx:0,wps:route,collapsed:false,createdAt:new Date().toISOString()});
   }
   const newIdx=_tlTeams.length-1;
   _tlSelTeam=newIdx;_tlWps=_tlTeams[newIdx].wps;_tlWpIdx=0;
@@ -597,7 +629,7 @@ function _regenTeamWpsIfEmpty(t,r,facs){
 function _initTlTeams(r){
   if(_tlWpResId===r.id&&(_tlTeams.length||_tlBuilding))return;
   _tlWpResId=r.id;_tlVehicle=false;_tlAnimating=false;_tlBuilding=false;
-  _tlBuildType=null;_tlBuildMembers=[];_tlBuildOtherOpen=false;_tlBuildAgencyType='소방';
+  _tlBuildType=null;_tlBuildMembers=[];_tlBuildOtherOpen=false;_tlBuildAgencyType='소방(구조)';_tlBuildRegion='';
   // Load persisted teams from rescue record
   if(r.teams&&r.teams.length){
     const facs=DB.g('facilities')||[];
