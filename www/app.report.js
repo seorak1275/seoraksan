@@ -141,6 +141,21 @@ function submitNBoFromForm(){
       changes.push({label:'활력·'+label,from:a||'(없음)',to:b});
     });
   }catch(e){}
+  // 좌표: N보 폼에서 좌표를 바꿨으면 사고 위치도 갱신(작성자의 명시적 수정 — 원본 보존 + 이력 기록)
+  try{
+    const gpsN=(document.getElementById('r_gps')?.value||'').split(',');
+    const nlat=parseFloat(gpsN[0]),nlng=parseFloat(gpsN[1]);
+    if(!isNaN(nlat)&&!isNaN(nlng)&&nlat>=-90&&nlat<=90&&nlng>=-180&&nlng<=180){
+      const moved=(res[idx].lat&&res[idx].lng)?_haversineKm(res[idx].lat,res[idx].lng,nlat,nlng)*1000:999999;
+      if(moved>5){ // 5m 초과 이동 시에만(반올림 오차 무시)
+        if(res[idx].origLat==null){res[idx].origLat=res[idx].lat;res[idx].origLng=res[idx].lng;} // 최초접수 원본 1회 보존
+        res[idx].locLog=(res[idx].locLog||[]).concat([{from:{lat:res[idx].lat||0,lng:res[idx].lng||0},to:{lat:+nlat.toFixed(6),lng:+nlng.toFixed(6)},at:now(),by:phaseData.author,dist:Math.round(moved),via:(phaseData._phaseNum||'추가')+'보'}]);
+        changes.push({label:'위치좌표',from:(res[idx].lat!=null?(+res[idx].lat).toFixed(5)+', '+(+res[idx].lng).toFixed(5):'(없음)'),to:nlat.toFixed(5)+', '+nlng.toFixed(5)});
+        res[idx].lat=+nlat.toFixed(6);res[idx].lng=+nlng.toFixed(6);
+        phaseData.lat=res[idx].lat;phaseData.lng=res[idx].lng;
+      }
+    }
+  }catch(e){}
   phaseData.changes=changes;
   const diffs=changes.map(c=>`${c.label} ${c.from}→${c.to}`);
   if(phaseData.situation&&phaseData.situation!==prev.situation)diffs.push('경위 갱신');
@@ -158,6 +173,7 @@ function submitNBoFromForm(){
   _ttInlineEntries=[];
   const phaseNum=res[idx].reports.length;
   pushNoti(`📋 추가 보고: ${res[idx].title}`,'📋','rescue_update',{app:'rescue',tab:2,id:res[idx].id});
+  try{renderRescueMap();}catch(e){}try{renderResList();}catch(e){} // 좌표 변경 즉시 지도 반영
   toast('✅ 추가 보고 저장 완료');
   try{document.getElementById('phaseBar').innerHTML='';}catch(e){}
   renderTimeline(res[idx],'brief');
@@ -1084,6 +1100,45 @@ function tlWarpTo(idx){
   _tlWpIdx=idx;_saveTeamState();_persistTeams();_rerenderTlFull();
 }
 
+// ── 타임라인 '📌 기록' 카드 (인라인): 누가(팀) · 무엇을(버튼/직접입력) · 언제(기본 지금, 과거 가능) ──
+let _tlRecTeam='',_tlRecStage='';
+function _tlRecSelTeam(el){
+  const v=el.dataset.v||'';
+  _tlRecTeam=_tlRecTeam===v?'':v; // 재탭 시 해제
+  document.querySelectorAll('#tlRecTeams .pill').forEach(p=>p.classList.toggle('on',p.dataset.v===_tlRecTeam&&_tlRecTeam!==''));
+}
+function _tlRecSelStage(el){
+  const v=el.dataset.v||'';
+  _tlRecStage=_tlRecStage===v?'':v; // 재탭 시 해제
+  document.querySelectorAll('#tlRecStages .pill').forEach(p=>p.classList.toggle('on',p.dataset.v===_tlRecStage&&_tlRecStage!==''));
+  const cw=document.getElementById('tlRecCustomWrap');
+  if(cw){cw.style.display=_tlRecStage==='__custom'?'block':'none';if(_tlRecStage==='__custom')setTimeout(()=>{try{document.getElementById('tlRecCustom').focus();}catch(e){}},50);}
+  const cpr=document.getElementById('tlRecCprWrap');
+  if(cpr)cpr.style.display=_tlRecStage==='심정지'?'block':'none';
+}
+function _tlRecSave(rid){
+  let stage=_tlRecStage;
+  if(stage==='__custom')stage=(document.getElementById('tlRecCustom')?.value||'').trim();
+  if(!stage){toast('무엇을 했는지 선택하거나 직접 입력하세요');return;}
+  const timeRaw=document.getElementById('tlRecTime')?.value||'';
+  const time=timeRaw?timeRaw.replace('T',' '):now();
+  const entry={stage,time,note:(document.getElementById('tlRecNote')?.value||'').trim(),by:getAuthor(),team:_tlRecTeam&&_tlRecTeam!=='본부'?_tlRecTeam:(_tlRecTeam==='본부'?'본부':'')};
+  if(_tlRecStage==='심정지'){
+    const cs=document.getElementById('tlRecCprStart')?.value||'';
+    const ce=document.getElementById('tlRecCprEnd')?.value||'';
+    if(cs)entry.cprStart=cs.replace('T',' ');
+    if(ce)entry.cprEnd=ce.replace('T',' ');
+    const aedY=document.getElementById('tlRecAedY');
+    entry.aed=(aedY&&aedY._v)?'사용':'미사용';
+  }
+  const res=DB.g('rescues')||[];const idx=res.findIndex(x=>x.id===rid);if(idx===-1)return;
+  if(!res[idx].timetable)res[idx].timetable=[];
+  res[idx].timetable.push(entry);
+  DB.s('rescues',res);
+  _tlRecTeam='';_tlRecStage='';
+  toast('📌 기록됨: '+stage);
+  renderTimeline(res[idx],'advanced');
+}
 function _buildLogHtml(r){
   const baseDate=(r.date||'').slice(0,10);
   const _tKey=t=>{const s=String(t||'').trim();if(/^\d{4}-\d{2}-\d{2}/.test(s))return s;return baseDate+' '+s;};
@@ -1100,7 +1155,9 @@ function _buildLogHtml(r){
       const cprDur=e.cprStart&&e.cprEnd?(()=>{try{const s=new Date(e.cprStart.replace(' ','T')),en=new Date(e.cprEnd.replace(' ','T'));const m=Math.round((en-s)/60000);return m>0?' ('+m+'분)':'';}catch(e){return ''}})():'';
       sub=(e.cprStart?'CPR '+String(e.cprStart).slice(11,16):'')+(e.cprEnd?'→'+String(e.cprEnd).slice(11,16)+cprDur:'')+(e.aed?' · AED '+e.aed:'')+(sub?' · '+sub:'');
     }
-    logEntries.push({k:_tKey(e.time),t:_tShow(e.time),ico:e.stage==='심정지'?'💔':isVictim?'🎯':'📌',label:e.stage,sub,type:isVictim?'victim':'team'});
+    // 누가 표기: 팀은 제목 앞에, 작성자는 서브에
+    if(e.by)sub=sub?sub+' — '+e.by:e.by;
+    logEntries.push({k:_tKey(e.time),t:_tShow(e.time),ico:e.stage==='심정지'?'💔':isVictim?'🎯':'📌',label:(e.team?e.team+' · ':'')+e.stage,sub,type:isVictim?'victim':'team'});
   });
   // 위치통과: "01-15 통과" (팀명은 서브)
   (r.wpLog||[]).forEach(l=>{
@@ -1223,29 +1280,62 @@ function renderTimeline(r,viewMode,outId){
       <button onclick="openReportShare(${r.id})" style="flex-shrink:0;background:rgba(79,168,208,.12);color:#4fa8d0;border:1px solid rgba(79,168,208,.32);border-radius:7px;padding:5px 9px;font-size:10px;font-weight:800;cursor:pointer;white-space:nowrap;">📄 보고서</button>
     </div>
     <div style="display:flex;gap:5px;margin-top:9px;">
-      <button onclick="${_isBoard?`_boardOpenDetail(${r.id},'advanced')`:`renderTimeline(getRes(${r.id}),'advanced')`}" style="flex:1;padding:6px;border-radius:7px;border:1px solid;font-size:11px;font-weight:600;cursor:pointer;background:${'advanced'===mode?'rgba(79,168,208,.15)':'transparent'};color:${'advanced'===mode?'#4fa8d0':'rgba(255,255,255,.35)'};border-color:${'advanced'===mode?'rgba(79,168,208,.5)':'rgba(255,255,255,.1)'};">📍 고도화 타임라인</button>
+      <button onclick="${_isBoard?`_boardOpenDetail(${r.id},'advanced')`:`renderTimeline(getRes(${r.id}),'advanced')`}" style="flex:1;padding:6px;border-radius:7px;border:1px solid;font-size:11px;font-weight:600;cursor:pointer;background:${'advanced'===mode?'rgba(79,168,208,.15)':'transparent'};color:${'advanced'===mode?'#4fa8d0':'rgba(255,255,255,.35)'};border-color:${'advanced'===mode?'rgba(79,168,208,.5)':'rgba(255,255,255,.1)'};">📍 타임라인</button>
       ${isExternal()?'':`<button onclick="${_isBoard?`_boardOpenDetail(${r.id},'write')`:`renderTimeline(getRes(${r.id}),'write')`}" style="flex:1;padding:6px;border-radius:7px;border:1px solid;font-size:11px;font-weight:600;cursor:pointer;background:${'write'===mode?'rgba(79,168,208,.15)':'transparent'};color:${'write'===mode?'#4fa8d0':'rgba(255,255,255,.35)'};border-color:${'write'===mode?'rgba(79,168,208,.5)':'rgba(255,255,255,.1)'};">📄 보고서</button>`}
     </div>
   </div>`;
 
   if(mode==='advanced'){
     _initTlTeams(r);
+    _tlRecTeam='';_tlRecStage='';
+    // 기록 단계 버튼(조우·특이사항) — 자주 쓰는 순. '직접입력'으로 자유 작성
+    const REC_STAGES=['요구조자 조우','응급처치','심정지','하산 시작','헬기 요청','헬기 도착','지점통과','휴식','기상 악화','작전 중단','작전 재개','대피소 숙박'];
+    const _teamNames=(r.teams||[]).map(t=>t.name).filter(Boolean);
     w.innerHTML=tabHdr+`
+      <!-- 📌 기록 (메인): 누가 · 무엇을 · 언제 — 과거 시간 입력 가능, 일지는 시간순 자동 정렬 -->
+      <div style="background:#0b1c30;border:1px solid rgba(79,168,208,.3);border-radius:12px;padding:12px 13px;margin-bottom:10px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+          <span style="font-size:12px;font-weight:800;color:#4fa8d0;">📌 기록 <span style="font-size:9px;color:#5a7e98;font-weight:400;">누가 · 무엇을 · 언제</span></span>
+          <button id="gpsAutoBtn" onclick="toggleGpsAuto()" style="padding:3px 9px;border-radius:12px;border:1px solid ${_gpsAutoOn?'rgba(39,174,96,.45)':'rgba(255,255,255,.14)'};background:${_gpsAutoOn?'rgba(39,174,96,.12)':'transparent'};color:${_gpsAutoOn?'#27ae60':'rgba(255,255,255,.4)'};font-size:10px;font-weight:700;cursor:pointer;">📡 자동통과 ${_gpsAutoOn?'ON':'OFF'}</button>
+        </div>
+        ${_teamNames.length?`<div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:7px;" id="tlRecTeams">
+          ${['본부',..._teamNames].map(n=>`<div class="pill" data-v="${_esc(n)}" onclick="_tlRecSelTeam(this)" style="font-size:11px;cursor:pointer;">${_esc(n)}</div>`).join('')}
+        </div>`:''}
+        <div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:7px;" id="tlRecStages">
+          ${REC_STAGES.map(s=>`<div class="pill" data-v="${s}" onclick="_tlRecSelStage(this)" style="font-size:11px;cursor:pointer;${(s==='요구조자 조우'||s==='심정지')?'border-color:rgba(231,76,60,.4);color:#e74c3c;':''}">${s}</div>`).join('')}
+          <div class="pill" data-v="__custom" onclick="_tlRecSelStage(this)" style="font-size:11px;cursor:pointer;border-style:dashed;">✏️ 직접입력</div>
+        </div>
+        <div id="tlRecCustomWrap" style="display:none;margin-bottom:7px;"><input type="text" id="tlRecCustom" class="fi" placeholder="무엇을 했는지 직접 입력 (예: 장비 보급, 대피소 직원 합류)"></div>
+        <div id="tlRecCprWrap" style="display:none;background:rgba(231,76,60,.07);border:1px solid rgba(231,76,60,.25);border-radius:9px;padding:9px 11px;margin-bottom:7px;">
+          <div style="font-size:10px;color:#e74c3c;font-weight:700;margin-bottom:6px;">🫀 CPR 기록</div>
+          <div style="display:flex;gap:6px;margin-bottom:6px;">
+            <input type="datetime-local" id="tlRecCprStart" class="fi" style="flex:1;" value="${new Date(Date.now()-new Date().getTimezoneOffset()*60000).toISOString().slice(0,16)}">
+            <input type="datetime-local" id="tlRecCprEnd" class="fi" style="flex:1;">
+          </div>
+          <div style="display:flex;gap:6px;">
+            <button id="tlRecAedY" onclick="this._v=1;this.style.background='rgba(231,76,60,.25)';this.style.color='#e74c3c';var n=document.getElementById('tlRecAedN');n.style.background='transparent';n.style.color='rgba(255,255,255,.4)';" style="flex:1;padding:6px;border-radius:7px;border:1px solid rgba(231,76,60,.3);background:transparent;color:rgba(255,255,255,.4);font-size:11px;font-weight:700;cursor:pointer;">AED 사용</button>
+            <button id="tlRecAedN" onclick="var y=document.getElementById('tlRecAedY');y._v=0;y.style.background='transparent';y.style.color='rgba(255,255,255,.4)';this.style.background='rgba(79,168,208,.15)';this.style.color='#4fa8d0';" style="flex:1;padding:6px;border-radius:7px;border:1px solid rgba(79,168,208,.25);background:rgba(79,168,208,.1);color:#4fa8d0;font-size:11px;font-weight:700;cursor:pointer;">미사용</button>
+          </div>
+        </div>
+        <div style="display:flex;gap:6px;margin-bottom:8px;">
+          <input type="datetime-local" id="tlRecTime" class="fi" style="flex:1.3;min-width:0;" value="${new Date(Date.now()-new Date().getTimezoneOffset()*60000).toISOString().slice(0,16)}">
+          <input type="text" id="tlRecNote" class="fi" style="flex:1;min-width:0;" placeholder="메모 (선택)">
+        </div>
+        <button onclick="_tlRecSave(${r.id})" style="width:100%;padding:10px;background:#1a4a6e;color:#fff;border:none;border-radius:9px;font-size:12px;font-weight:700;cursor:pointer;">＋ 기록 저장</button>
+        <div style="font-size:9px;color:#3a5a7a;margin-top:5px;">시간을 과거로 바꿔 늦은 입력 가능 — 상황일지는 시간순으로 자동 정렬됩니다</div>
+      </div>
+      <!-- 📜 상황일지 (기록 바로 아래) -->
+      ${_buildLogHtml(r)}
       <!-- 다목적위치표지판 미니맵 (팀 생성 후 표시) -->
-      <div id="tlMiniMapWrap" style="display:${_tlTeams.some(t=>t.wps.some(w=>w.lat&&w.lng))?'block':'none'};background:#0b1c30;border-radius:10px;border:.5px solid rgba(79,168,208,.15);margin-bottom:10px;overflow:hidden;">
+      <div id="tlMiniMapWrap" style="display:${_tlTeams.some(t=>t.wps.some(w=>w.lat&&w.lng))?'block':'none'};background:#0b1c30;border-radius:10px;border:.5px solid rgba(79,168,208,.15);margin:10px 0;overflow:hidden;">
         <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 12px 5px;">
           <div style="font-size:11px;color:#4fa8d0;font-weight:700;">🗺️ 경로 진행</div>
           <div id="tlMiniMapProg" style="font-size:11px;color:#7a9cb8;"></div>
         </div>
         <div id="tlMiniMap" style="width:100%;height:150px;"></div>
       </div>
-      <!-- GPS 자동 통과 (상단 공유 버튼) -->
-      <div style="display:flex;gap:6px;margin-bottom:8px;">
-        <button id="gpsAutoBtn" onclick="toggleGpsAuto()" style="flex:1;padding:8px 10px;border-radius:9px;border:1px solid ${_gpsAutoOn?'rgba(39,174,96,.45)':'rgba(255,255,255,.12)'};background:${_gpsAutoOn?'rgba(39,174,96,.12)':'transparent'};color:${_gpsAutoOn?'#27ae60':'rgba(255,255,255,.45)'};font-size:12px;font-weight:700;cursor:pointer;">📡 GPS 자동통과 ${_gpsAutoOn?'켜짐 ●':'꺼짐'}</button>
-        <button onclick="openTimetable()" style="flex:1;padding:8px 10px;border-radius:9px;border:1px solid rgba(255,255,255,.1);background:transparent;color:rgba(255,255,255,.45);font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;">📌 조우·특이사항 기록</button>
-      </div>
       <!-- 팀별 경로 카드 -->
-      <div id="tlAllTeams">
+      <div id="tlAllTeams" style="margin-top:10px;">
         ${_tlTeams.map((t,i)=>_tlTeamFullHtml(t,i)).join('')}
       </div>
       <!-- 전 팀 완료 배너 -->
@@ -1257,16 +1347,6 @@ function renderTimeline(r,viewMode,outId){
       <!-- 팀 생성 영역 -->
       <div id="tlBuildArea">
         ${_tlBuilding?_renderBuildPanelHtml():_renderCreateBtnsHtml()}
-      </div>
-      ${_scenePhotosHtml(r)}
-      ${_buildLogHtml(r)}
-      <div style="background:#0b1c30;border-radius:10px;padding:11px 12px;border:.5px solid rgba(79,168,208,.12);margin-top:8px;">
-        <div style="font-size:11px;color:#4fa8d0;font-weight:700;margin-bottom:8px;">💬 댓글</div>
-        <div id="commentList_adv_${r.id}">${renderComments(r.id)}</div>
-        <div style="display:flex;gap:6px;margin-top:8px;">
-          <input type="text" id="cmtInput_adv_${r.id}" class="fi" placeholder="댓글 입력..." style="flex:1;">
-          <button onclick="submitComment(${r.id},'adv')" style="background:#1a4a6e;color:#fff;border:none;padding:0 12px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;">등록</button>
-        </div>
       </div>
       `;
     if(_tlTeams.some(t=>t.wps.some(w=>w.lat&&w.lng)))setTimeout(()=>_initTlMiniMap((_tlTeams.find(t=>t.wps.some(w=>w.lat&&w.lng))||{wps:[]}).wps),150);
