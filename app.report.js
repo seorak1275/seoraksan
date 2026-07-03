@@ -785,7 +785,7 @@ function _stopGpsAuto(){
   _gpsAutoOn=false;
   if(_gpsWatchId!=null){try{navigator.geolocation.clearWatch(_gpsWatchId);}catch(e){}_gpsWatchId=null;}
   const b=document.getElementById('gpsAutoBtn');
-  if(b){b.textContent='📡 GPS 자동 통과 OFF';b.style.background='transparent';b.style.color='rgba(255,255,255,.4)';b.style.borderColor='rgba(255,255,255,.14)';}
+  if(b){b.textContent='📡 자동통과 OFF';b.style.background='transparent';b.style.color='rgba(255,255,255,.4)';b.style.borderColor='rgba(255,255,255,.14)';}
 }
 function toggleGpsAuto(){
   if(_gpsAutoOn){_stopGpsAuto();toast('📡 GPS 자동 통과 끔');return;}
@@ -795,7 +795,7 @@ function toggleGpsAuto(){
     ()=>{toast('⚠️ GPS 권한 거부 또는 수신 불가');_stopGpsAuto();},
     {enableHighAccuracy:true,maximumAge:5000,timeout:20000});
   const b=document.getElementById('gpsAutoBtn');
-  if(b){b.textContent='📡 GPS 자동 통과 ON';b.style.background='rgba(39,174,96,.15)';b.style.color='#27ae60';b.style.borderColor='rgba(39,174,96,.45)';}
+  if(b){b.textContent='📡 자동통과 ON';b.style.background='rgba(39,174,96,.15)';b.style.color='#27ae60';b.style.borderColor='rgba(39,174,96,.45)';}
   toast('📡 GPS 자동 통과 켬 — 다음 표지판 60m 접근 시 알림 (화면을 켜둔 동안만 동작)');
 }
 // 백그라운드(화면 꺼짐·앱 전환) 시 GPS 연속수신 일시정지 → 배터리 절약, 복귀 시 자동 재개
