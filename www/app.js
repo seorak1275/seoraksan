@@ -163,7 +163,8 @@ async function _ensureMemberAuth(){
     }else if(lastErr==='no_access_token')lastErr='no_tokens';
     _ensuringMember=false;
     window._lastMintErr=lastErr||'unknown';
-    try{_logErr&&_logErr('memberAuth 실패: '+window._lastMintErr);}catch(e){}
+    // 오류 기록은 세션당 1회만 (반복 재시도로 기록이 도배되지 않게)
+    if(!window._mintErrLogged){window._mintErrLogged=true;try{_logErr&&_logErr('memberAuth 실패: '+window._lastMintErr);}catch(e){}}
     // 네트워크·서버 일시 장애 → 재로그인 안내 대신 30초 뒤 자동 재시도(오해 방지)
     if(lastErr==='network'){
       if(!window._mintNetWarned){window._mintNetWarned=true;try{toast('⚠️ 인증 서버 연결 실패 — 잠시 후 자동 재시도합니다');}catch(e){}}
@@ -174,8 +175,17 @@ async function _ensureMemberAuth(){
     // 멤버 승급 실패 → 미승인/만료. 프로필 완료 상태면 대기 게이트로 차단.
     try{_enforceAccessGate();}catch(e){}
     if(!window._memberAuthWarned){window._memberAuthWarned=true;
-      var _why=lastErr==='not_allowed'?'(승인 목록에서 제외된 상태)':(lastErr==='no_tokens'||lastErr==='refresh_failed')?'(카카오 로그인 토큰 만료)':'('+lastErr+')';
-      setTimeout(function(){try{toast('⚠️ 저장 권한이 만료되었습니다 '+_why+' — 카카오 재로그인이 필요합니다(데이터는 보존됨)',6000);}catch(e){}},2500);
+      // 토큰이 아예 없거나 만료 → 그 자리에서 바로 재로그인 제안 (한 번 로그인하면 이후 자동 갱신)
+      if(lastErr==='no_tokens'||lastErr==='refresh_failed'){
+        setTimeout(function(){
+          try{
+            if(confirm('저장 권한이 만료되었습니다 (카카오 로그인 토큰 없음/만료).\n지금 카카오로 다시 로그인할까요?\n\n※ 한 번만 로그인하면 이후엔 자동 갱신됩니다. 데이터는 보존됩니다.'))kakaoLogin();
+          }catch(e){}
+        },1500);
+      }else{
+        var _why=lastErr==='not_allowed'?'(승인 목록에서 제외된 상태 — 관리자 확인 필요)':'('+lastErr+')';
+        setTimeout(function(){try{toast('⚠️ 저장 권한 오류 '+_why,6000);}catch(e){}},2500);
+      }
     }
     return false;
   }catch(e){_ensuringMember=false;return false;}
@@ -2616,7 +2626,7 @@ function sosToRescue(id){
 // 앱 자체 업데이트 (OTA · Capgo 자체호스팅) — APK 전용. 웹/PWA는 서비스워커가 자동 갱신.
 // 번들(www)의 새 버전을 ota.json으로 알리면, 설치된 앱이 받아서 그 자리에서 교체(재빌드 불필요).
 // ══════════════════════════════════════════
-const OTA_VER='2026.06.29.48';                         // ← 현재 번들 버전 (릴리스마다 올림 · build-ota.sh가 ota.json에 반영)
+const OTA_VER='2026.06.29.49';                         // ← 현재 번들 버전 (릴리스마다 올림 · build-ota.sh가 ota.json에 반영)
 const OTA_MANIFEST='https://109yoon.github.io/seoraksan/ota.json';
 let _otaInfo=null;
 function _otaPlugin(){try{return (window.Capacitor&&window.Capacitor.Plugins&&window.Capacitor.Plugins.CapacitorUpdater)||null;}catch(e){return null;}}
