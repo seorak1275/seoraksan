@@ -1171,7 +1171,8 @@ function _tlRecSave(rid){
   toast('📌 기록됨: '+stage);
   renderTimeline(res[idx],'advanced');
 }
-function _buildLogHtml(r){
+// 상황일지 엔트리 수집(공용) — 화면(_buildLogHtml)과 한글 보고서 생성이 함께 사용
+function _collectLogEntries(r){
   const baseDate=(r.date||'').slice(0,10);
   const _tKey=t=>{const s=String(t||'').trim();if(/^\d{4}-\d{2}-\d{2}/.test(s))return s;return baseDate+' '+s;};
   const _tShow=t=>{const s=String(t||'').trim();return s.length>5?s.slice(11,16)||s.slice(-5):s;};
@@ -1211,6 +1212,10 @@ function _buildLogHtml(r){
   (r.npsLog||[]).forEach(nl=>{if(nl.time)logEntries.push({k:_tKey(nl.time),t:_tShow(nl.time),ico:'🏕️',label:'공단 공유'+(nl.author?' · '+nl.author:''),sub:nl.text||'',type:'nps'});});
   if(r.handover&&r.handover.to)logEntries.push({k:_tKey(r.handover.time),t:_tShow(r.handover.time),ico:'🤝',label:'환자 인계 → '+r.handover.to,sub:r.handover.by||'',type:'victim'});
   logEntries.sort((a,b)=>a.k.localeCompare(b.k));
+  return logEntries;
+}
+function _buildLogHtml(r){
+  const logEntries=_collectLogEntries(r);
   if(!logEntries.length)return '';
   // 타입별 색상
   const TYPE_COL={victim:'#e74c3c',team:'#4fa8d0',report:'#9b59b6',nps:'#27ae60'};
@@ -1276,6 +1281,117 @@ function _mergedRescue(r){
   });
   return m;
 }
+// ══════════════════════════════════════════
+// 관공서 양식 보고서 (한글용) — 실제 결재문서 2종을 재현해 새 창으로 생성
+//  · 안전사고 처리현황: 결재란+표 양식   · 동향보고: 개조식(□·-)
+//  새 창에서 [한글용 전체 복사] → 한글에 붙여넣으면 표 그대로 들어감.
+//  [.html 저장] → 한글에서 열어 '다른 이름으로 저장(.hwp)' 하면 한글파일 완성.
+// ══════════════════════════════════════════
+function govReport(rid,kind){
+  let r=(DB.g('rescues')||[]).find(x=>String(x.id)===String(rid));if(!r){toast('⚠️ 사고 정보 없음');return;}
+  r=_mergedRescue(r);
+  const esc=s=>String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  const nb=v=>{const s=String(v==null?'':v).trim();return (s&&s!=='-'&&!['미상','없음','모르겠음','알수없음','미정','해당없음'].includes(s))?s:'';};
+  // ── 공통 데이터 가공 ──
+  const injStr=(Array.isArray(r.injuries)&&r.injuries.length)
+    ? r.injuries.map(i=>(typeof _injLabel==='function')?_injLabel(i):((i.part||'')+(i.type||''))).filter(Boolean).join(', ')
+    : [(r.injuryParts||[]).join(','),(r.injuryTypes||[]).join(',')].filter(Boolean).join(' / ');
+  const logs=_collectLogEntries(r).map(e=>({t:e.t,txt:e.label.replace(/^[^\w가-힣0-9]+\s?/,'')+(e.sub?' ('+e.sub+')':'')}));
+  const logLines=logs.map(l=>'- '+l.t+' '+l.txt);
+  // 동원인원 집계: 공단 대원 + 유관기관 팀(인원수)
+  const npsNames=[...(r.members||[]),...((r.extraMembers||[]).map(m=>m.name||m))].filter(Boolean);
+  const agTeams=(r.teams||[]).filter(t=>t.id&&String(t.id).startsWith('agency_'));
+  const npsTeams=(r.teams||[]).filter(t=>!t.id||!String(t.id).startsWith('agency_'));
+  const teamMemberNames=[...new Set(npsTeams.flatMap(t=>t.members||[]))];
+  const allNps=[...new Set([...npsNames,...teamMemberNames])];
+  const agStr=agTeams.map(t=>t.name+(t.memberCount?' '+t.memberCount+'명':'')).join(', ');
+  const totalCnt=allNps.length+agTeams.reduce((s,t)=>s+(+t.memberCount||0),0);
+  const mobStr=(r.mobilize||[]).join(', ');
+  const signCode=(r.lat&&r.lng&&typeof _nearestSignFull==='function')?(()=>{try{const s=_nearestSignFull(r.lat,r.lng);return s?s.code+(s.dist?' ('+s.dist+'m)':''):'';}catch(e){return '';}})():'';
+  const coordStr=(r.lat&&r.lng)?(+r.lat).toFixed(6)+', '+(+r.lng).toFixed(6):'';
+  const elevS=(typeof _elevStr==='function'&&r.lat&&r.lng)?_elevStr(r.lat,r.lng,r.alt).replace('⛰',''):'';
+  const vAgeStr=nb(r.vBirth)?(r.vBirth+(nb(r.vGender)?'/'+r.vGender:'')):(nb(r.vGender)?r.vGender:'');
+  const compStr=(r.companions||[]).map(c=>(c.name||'미상')+(c.tel?'('+c.tel+')':'')).join(', ');
+  const v2Str=(r.victims2||[]).map(v=>[(v.name||'미상'),v.age?v.age+'세':'',(v.gender&&v.gender!=='알수없음')?v.gender:'',v.note||''].filter(Boolean).join(' ')).join(' / ');
+  const vitalS=(r.vitals&&typeof _vitalsStr==='function')?(_vitalsStr(r.vitals)||''):'';
+  const wxStr=[nb(r.weather),(r.initTemp!=null&&r.initTemp!=='')?r.initTemp+'°C':'',nb(r.weatherAlert)].filter(Boolean).join(' · ');
+  // 양식에 없는 정보 → '추가 정보' 표로 문서 하단에 전부 수록
+  const extraRows=[
+    ['기상',wxStr],['고도',elevS],['중증도',nb(r.severity)],['활력징후',vitalS],
+    ['동반자',compStr],['추가 사고자',v2Str],['응소',mobStr],['접수내용',nb(r.reception)],
+    ['국적',nb(r.vNation)==='외국인'?('외국인'+(nb(r.vNationality)?' ('+r.vNationality+')':'')):''],
+    ['과태료',nb(r.fine)],['암빙벽 허가',nb(r.permit)==='해당없음'?'':nb(r.permit)],['기타 특이사항',nb(r.extra)],
+  ].filter(([k,v])=>v);
+  const th='background:#e8eef5;border:1px solid #444;padding:6px 8px;font-weight:700;text-align:center;font-size:13px;white-space:nowrap;';
+  const td='border:1px solid #444;padding:6px 9px;font-size:13px;line-height:1.55;';
+  let body='',title='';
+  if(kind==='status'){
+    title='탐방객 안전사고 처리현황';
+    body=`
+    <table style="border-collapse:collapse;float:right;margin-bottom:10px;"><tr>
+      <td rowspan="2" style="${td}width:22px;text-align:center;">결<br><br>재</td>
+      ${['직원','팀장','과장','소장'].map(x=>`<td style="${th}width:64px;">${x}</td>`).join('')}</tr>
+      <tr>${'<td style="'+td+'height:52px;"></td>'.repeat(4)}</tr></table>
+    <div style="clear:both;"></div>
+    <h1 style="text-align:center;font-size:21px;margin:6px 0 16px;letter-spacing:2px;">탐방객 안전사고 처리현황</h1>
+    <table style="border-collapse:collapse;width:100%;">
+      <tr><td style="${th}width:15%;">사고일시</td><td style="${td}width:35%;">${esc(r.date||'')}</td>
+          <td style="${th}width:15%;">접수경로</td><td style="${td}">■119 □사무소전화접수 □현장접수</td></tr>
+      <tr><td style="${th}">출동시간</td><td style="${td}">${esc(nb(r.dispatch))}</td>
+          <td style="${th}">도착/완료</td><td style="${td}">${esc([nb(r.arrival),nb(r.completion)].filter(Boolean).join(' / '))}</td></tr>
+      <tr><td style="${th}">사고장소</td><td style="${td}">${esc(nb(r.location))}${coordStr?'<br>좌표: '+coordStr:''}${elevS?' (고도 '+esc(elevS)+')':''}</td>
+          <td style="${th}">장소구분</td><td style="${td}">${esc(nb(r.loctype))}${signCode?'<br>표지판: '+esc(signCode):''}</td></tr>
+      <tr><td style="${th}">출동거리</td><td style="${td}">${esc(nb(r.distance))}</td>
+          <td style="${th}">병원후송</td><td style="${td}">${esc(nb(r.hospital))}</td></tr>
+      <tr><td rowspan="2" style="${th}">신고자<br>인적사항</td><td style="${th}">성명 / 연락처</td>
+          <td colspan="2" style="${td}">${esc([nb(r.repName),nb(r.repTel)].filter(Boolean).join(' / '))}</td></tr>
+      <tr><td style="${th}">사고자와 관계</td><td colspan="2" style="${td}">${esc(nb(r.repRel))}</td></tr>
+      <tr><td rowspan="2" style="${th}">사고자<br>인적사항</td><td style="${th}">성명 / 생년월일·성별</td>
+          <td colspan="2" style="${td}">${esc(nb(r.vName))}${vAgeStr?' / '+esc(vAgeStr):''}</td></tr>
+      <tr><td style="${th}">연락처 / 거주지</td><td colspan="2" style="${td}">${esc([nb(r.vTel),nb(r.vAddr)].filter(Boolean).join(' / '))}</td></tr>
+      <tr><td style="${th}">사고원인</td><td style="${td}">${esc(nb(r.cause))}</td>
+          <td style="${th}">부상유형</td><td style="${td}">${esc(injStr)}</td></tr>
+      <tr><td style="${th}">사고경위</td><td colspan="3" style="${td}">${esc(nb(r.situation))}</td></tr>
+      <tr><td style="${th}">조치내용<br>(시간대별)</td><td colspan="3" style="${td}">${logLines.map(esc).join('<br>')}</td></tr>
+      <tr><td style="${th}">동원인원</td><td colspan="3" style="${td}">[총 ${totalCnt}명]<br>- 국립공원 ${allNps.length}명${allNps.length?' ('+esc(allNps.join(', '))+')':''}${agStr?'<br>- 유관기관: '+esc(agStr):''}</td></tr>
+      <tr><td style="${th}">동원장비</td><td style="${td}">${esc(nb(r.equipment))}</td>
+          <td style="${th}">음주여부</td><td style="${td}">${esc(nb(r.alcohol)==='없음'?'X':nb(r.alcohol)+(nb(r.alcAmount)?' ('+r.alcAmount+')':''))}</td></tr>
+    </table>`;
+  }else{
+    const d=(r.date||'').slice(0,16);
+    title='설악산 탐방객 구조출동 동향보고';
+    const overview=`본 건은 ${esc(d)}경 ${esc(nb(r.location)||'설악산 일원')}에서 발생한 ${esc(nb(r.cause)||r.type||'안전사고')} 관련, 119와 설악산사무소에서 공동대응한 사항임`;
+    body=`
+    <h1 style="text-align:center;font-size:20px;margin:4px 0 2px;">설악산 탐방객 구조출동(${esc(r.type||'안전사고')}) 동향보고</h1>
+    <div style="text-align:center;font-size:13px;margin-bottom:14px;">(‘${esc((r.date||'').slice(2,10).replace(/-/g,'. '))}., 설악산사무소)</div>
+    <div style="border:1.5px solid #333;padding:9px 12px;font-size:13.5px;margin-bottom:12px;">◇ ${overview}</div>
+    <p style="margin:5px 0;font-size:13.5px;">□ (일    시) ${esc(r.date||'')}</p>
+    <p style="margin:5px 0;font-size:13.5px;">□ (장    소) ${esc(nb(r.location))}${signCode?' (표지판 '+esc(signCode)+')':''}${coordStr?'<br>&nbsp;&nbsp;&nbsp;- 좌표: '+coordStr+(elevS?' · 고도 '+esc(elevS):''):''}</p>
+    <p style="margin:5px 0;font-size:13.5px;">□ (인적사항)<br>&nbsp;&nbsp;- 사고자: ${esc(nb(r.vName)||'미상')}${vAgeStr?'('+esc(vAgeStr)+')':''}${nb(r.vTel)?' · '+esc(r.vTel):''}${v2Str?'<br>&nbsp;&nbsp;- 추가 사고자: '+esc(v2Str):''}${compStr?'<br>&nbsp;&nbsp;- 동반자: '+esc(compStr):''}</p>
+    <p style="margin:5px 0;font-size:13.5px;">□ (사고원인·부상)<br>&nbsp;&nbsp;- ${esc(nb(r.cause)||'-')}${injStr?' / '+esc(injStr):''}${nb(r.severity)?' / '+esc(r.severity):''}<br>&nbsp;&nbsp;- ${esc(nb(r.situation))}</p>
+    <p style="margin:8px 0 3px;font-size:13.5px;">□ (조치사항)</p>
+    <div style="font-size:13px;line-height:1.7;padding-left:10px;">${logLines.map(esc).join('<br>')}</div>
+    <p style="margin:8px 0 3px;font-size:13.5px;">□ (동원인원) [총 ${totalCnt}명]</p>
+    <div style="font-size:13px;padding-left:10px;">- 국립공원 ${allNps.length}명${allNps.length?' ('+esc(allNps.join(', '))+')':''}${agStr?'<br>- 유관기관: '+esc(agStr):''}</div>
+    ${nb(r.hospital)?`<p style="margin:8px 0 3px;font-size:13.5px;">□ (병원후송) ${esc(r.hospital)}</p>`:''}`;
+  }
+  // 추가 정보(양식 외 항목 전부) — 두 양식 공통으로 문서 맨 아래에
+  if(extraRows.length){
+    body+=`<p style="margin:14px 0 4px;font-size:13.5px;font-weight:700;">□ 추가 정보</p>
+    <table style="border-collapse:collapse;width:100%;">${extraRows.map(([k,v])=>`<tr><td style="${th}width:18%;">${esc(k)}</td><td style="${td}">${esc(v)}</td></tr>`).join('')}</table>`;
+  }
+  body+=`<p style="margin-top:14px;font-size:11px;color:#888;">※ 설악산 현장관리 앱 자동 생성 (${esc(now())}) — 한글에서 내용 수정 후 결재 상신</p>`;
+  const doc=`<!DOCTYPE html><html><head><meta charset="utf-8"><title>${esc(title)}</title></head>
+  <body style="background:#fff;color:#111;font-family:'맑은 고딕','Malgun Gothic','바탕',serif;max-width:760px;margin:0 auto;padding:18px;">
+  <div style="position:sticky;top:0;background:#f2f6fa;border:1px solid #c8d6e4;border-radius:8px;padding:10px;margin-bottom:14px;display:flex;gap:8px;" class="no-copy">
+    <button onclick="var b=document.getElementById('govDoc');var rge=document.createRange();rge.selectNodeContents(b);var sel=getSelection();sel.removeAllRanges();sel.addRange(rge);document.execCommand('copy');sel.removeAllRanges();alert('복사됨 — 한글(HWP)에서 붙여넣기 하세요. 표가 그대로 들어갑니다.');" style="flex:1;padding:10px;font-size:14px;font-weight:700;cursor:pointer;background:#1a6e9e;color:#fff;border:none;border-radius:7px;">📋 한글용 전체 복사</button>
+    <button onclick="var h=document.documentElement.outerHTML;var bl=new Blob(['\\ufeff'+h],{type:'text/html;charset=utf-8'});var a=document.createElement('a');a.href=URL.createObjectURL(bl);a.download='${esc(title)}_${(r.date||'').slice(0,10)}.html';a.click();" style="flex:1;padding:10px;font-size:14px;font-weight:700;cursor:pointer;background:#2a7a4b;color:#fff;border:none;border-radius:7px;">💾 파일 저장 (한글에서 열기)</button>
+  </div>
+  <div id="govDoc">${body}</div></body></html>`;
+  const win=window.open('','_blank');
+  if(!win){toast('⚠️ 팝업 차단 해제 필요');return;}
+  win.document.write(doc);win.document.close();
+}
 // 보고서 공유/복사/인쇄 — 헤더 우측 '📄 보고서' 버튼
 function openReportShare(rid){
   let m=document.getElementById('repShareModal');
@@ -1284,6 +1400,8 @@ function openReportShare(rid){
   const b='width:100%;margin-bottom:7px;padding:12px;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;';
   m.innerHTML=`<div style="background:#0a1828;border:1px solid rgba(79,168,208,.25);border-radius:14px;max-width:300px;width:100%;padding:16px;">
     <div style="font-size:14px;font-weight:800;color:#e0edf8;margin-bottom:12px;text-align:center;">📄 보고서</div>
+    <button onclick="govReport(${rid},'status');this.closest('#repShareModal').remove();" style="${b}border:1px solid rgba(232,179,74,.4);background:rgba(232,179,74,.1);color:#e8b34a;">📑 안전사고 처리현황 (한글용)</button>
+    <button onclick="govReport(${rid},'trend');this.closest('#repShareModal').remove();" style="${b}border:1px solid rgba(232,179,74,.4);background:rgba(232,179,74,.1);color:#e8b34a;">📈 동향보고 (한글용)</button>
     <button onclick="copyReportText(${rid});this.closest('#repShareModal').remove();" style="${b}border:1px solid rgba(79,168,208,.35);background:rgba(79,168,208,.1);color:#4fa8d0;">📋 텍스트 복사</button>
     <button onclick="shareReportText(${rid});this.closest('#repShareModal').remove();" style="${b}border:1px solid rgba(39,174,96,.35);background:rgba(39,174,96,.1);color:#27ae60;">📤 공유</button>
     <button onclick="printReport(${rid});this.closest('#repShareModal').remove();" style="${b}border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.05);color:#b8d4e8;">🖨 인쇄 / PDF</button>
