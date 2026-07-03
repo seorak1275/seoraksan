@@ -1184,11 +1184,13 @@ function _buildLogHtml(r){
   const TYPE_COL={victim:'#e74c3c',team:'#4fa8d0',report:'#9b59b6',nps:'#27ae60'};
   const TYPE_BG={victim:'rgba(231,76,60,.1)',team:'rgba(79,168,208,.08)',report:'rgba(155,89,182,.08)',nps:'rgba(39,174,96,.08)'};
   const isWpPass=e=>e.type==='team'&&e.ico==='📍';
+  const wpCount=logEntries.filter(isWpPass).length;
+  const collapseWp=wpCount>=4; // 통과 기록이 많으면 기본 접힘 — 주요 이벤트만 한눈에
   const rows=logEntries.map((e,i)=>{
     const col=TYPE_COL[e.type]||'#7a9cb8';
     const bg=TYPE_BG[e.type]||'transparent';
     const isLast=i===logEntries.length-1;
-    return `<div style="display:flex;gap:0;position:relative;">
+    return `<div class="${isWpPass(e)?'log-wp':''}" style="display:${(collapseWp&&isWpPass(e))?'none':'flex'};gap:0;position:relative;">
       <!-- 세로 타임라인 트랙 -->
       <div style="display:flex;flex-direction:column;align-items:center;width:28px;flex-shrink:0;">
         <div style="width:8px;height:8px;border-radius:50%;background:${col};flex-shrink:0;margin-top:4px;box-shadow:0 0 4px ${col}66;"></div>
@@ -1208,10 +1210,21 @@ function _buildLogHtml(r){
   const legend=`<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px;">
     ${Object.entries({요구조자:'victim',팀이동:'team',보고:'report','공단':'nps'}).map(([lbl,tp])=>`<span style="font-size:9px;color:${TYPE_COL[tp]};background:${TYPE_BG[tp]};border-radius:4px;padding:1px 6px;font-weight:700;">${lbl}</span>`).join('')}
   </div>`;
-  return `<div style="background:#060d1a;border-radius:10px;padding:11px 13px;margin-top:8px;border:.5px solid rgba(79,168,208,.15);">
-    <div style="font-size:11px;color:#4fa8d0;font-weight:700;margin-bottom:7px;">📜 상황 일지</div>
+  return `<div class="slog-box" style="background:#060d1a;border-radius:10px;padding:11px 13px;margin-top:8px;border:.5px solid rgba(79,168,208,.15);">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:7px;">
+      <span style="font-size:11px;color:#4fa8d0;font-weight:700;">📜 상황 일지</span>
+      ${collapseWp?`<button data-on="0" data-n="${wpCount}" onclick="_toggleWpLog(this)" style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.12);color:rgba(255,255,255,.5);border-radius:10px;padding:2px 9px;font-size:10px;font-weight:700;cursor:pointer;">📍 통과 ${wpCount}건 보기</button>`:''}
+    </div>
     ${legend}${rows}
   </div>`;
+}
+// 상황일지의 '지점 통과' 기록 접기/펼치기 (기본 접힘 — 주요 이벤트 위주 표시)
+function _toggleWpLog(btn){
+  const box=btn.closest('.slog-box');if(!box)return;
+  const open=btn.dataset.on==='1';
+  btn.dataset.on=open?'0':'1';
+  box.querySelectorAll('.log-wp').forEach(x=>{x.style.display=open?'none':'flex';});
+  btn.textContent=open?('📍 통과 '+(btn.dataset.n||'')+'건 보기'):'📍 통과 기록 접기';
 }
 // 추가보고(N보)에 들어온 새 정보를 최초접수 위에 최신값으로 병합 — 팝업·보고서에 '다 뜨게'
 // (각 보고는 빈값이면 직전값을 이어받으므로, 비어있지 않은 최신값이 이김. 메타·증분 필드는 제외)
