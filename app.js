@@ -111,6 +111,7 @@ async function _signInWithKakaoToken(kakaoAccessToken){
       if(_authRole==='admin')localStorage.setItem('_tokenAdmin','1');
       else localStorage.removeItem('_tokenAdmin');
       _markMemberOk(); // 멤버 확인 → 오프라인 보호 플래그
+      window._memberAuthWarned=false;window._mintNetWarned=false;window._lastMintErr=''; // 복구됨 → 경고 상태 초기화
       try{_enforceAccessGate();}catch(e){} // 멤버 확인 → 혹시 떠있던 게이트 해제
       setTimeout(_flushSyncQueue,300);
     }catch(e){return{error:'signin_failed',detail:String(e)};}
@@ -144,27 +145,43 @@ async function _ensureMemberAuth(){
     }
     var cu=DB.g('currentUser')||{};
     if(!cu.kakaoId)return false; // 카카오 로그인 이력이 없으면 재발급 불가(게스트)
+    if(!navigator.onLine){window._lastMintErr='offline';return false;} // 오프라인 — 경고 없이 온라인 복귀 때 재시도
     _ensuringMember=true;
+    var lastErr='';
     // 1) Kakao SDK가 들고 있는 토큰 또는 저장된 access_token으로 시도
     var at='';
     try{at=(window.Kakao&&Kakao.Auth&&Kakao.Auth.getAccessToken())||'';}catch(e){}
     if(!at)at=localStorage.getItem('_kkAT')||'';
-    if(at){var mr=await _signInWithKakaoToken(at);if(mr&&mr.token){_ensuringMember=false;return true;}}
+    if(at){var mr=await _signInWithKakaoToken(at);if(mr&&mr.token){_ensuringMember=false;return true;}lastErr=(mr&&mr.error)||'';}
+    else lastErr='no_access_token';
     // 2) access_token 만료 → refresh_token으로 새 토큰 발급 후 재시도
     var rt=localStorage.getItem('_kkRT')||'';
     if(rt){
       var nat=await _refreshKakaoToken(rt);
-      if(nat){var mr2=await _signInWithKakaoToken(nat);if(mr2&&mr2.token){_ensuringMember=false;return true;}}
-    }
+      if(nat){var mr2=await _signInWithKakaoToken(nat);if(mr2&&mr2.token){_ensuringMember=false;return true;}lastErr=(mr2&&mr2.error)||lastErr;}
+      else lastErr=lastErr||'refresh_failed';
+    }else if(lastErr==='no_access_token')lastErr='no_tokens';
     _ensuringMember=false;
+    window._lastMintErr=lastErr||'unknown';
+    try{_logErr&&_logErr('memberAuth 실패: '+window._lastMintErr);}catch(e){}
+    // 네트워크·서버 일시 장애 → 재로그인 안내 대신 30초 뒤 자동 재시도(오해 방지)
+    if(lastErr==='network'){
+      if(!window._mintNetWarned){window._mintNetWarned=true;try{toast('⚠️ 인증 서버 연결 실패 — 잠시 후 자동 재시도합니다');}catch(e){}}
+      clearTimeout(window._mintRetryT);
+      window._mintRetryT=setTimeout(function(){try{_ensureMemberAuth();}catch(e){}},30000);
+      return false;
+    }
     // 멤버 승급 실패 → 미승인/만료. 프로필 완료 상태면 대기 게이트로 차단.
     try{_enforceAccessGate();}catch(e){}
     if(!window._memberAuthWarned){window._memberAuthWarned=true;
-      setTimeout(function(){try{toast('⚠️ 저장 권한이 만료되었습니다 — 카카오 재로그인이 필요합니다(데이터는 보존됨)');}catch(e){}},2500);
+      var _why=lastErr==='not_allowed'?'(승인 목록에서 제외된 상태)':(lastErr==='no_tokens'||lastErr==='refresh_failed')?'(카카오 로그인 토큰 만료)':'('+lastErr+')';
+      setTimeout(function(){try{toast('⚠️ 저장 권한이 만료되었습니다 '+_why+' — 카카오 재로그인이 필요합니다(데이터는 보존됨)',6000);}catch(e){}},2500);
     }
     return false;
   }catch(e){_ensuringMember=false;return false;}
 }
+// 온라인 복귀 시 멤버 인증 자동 재시도 (오프라인 중 만료됐던 세션 복구)
+window.addEventListener('online',function(){setTimeout(function(){try{_ensureMemberAuth();}catch(e){}},2000);});
 // 로그인 이력 기록 (허용목록 관리 UI에서 직원을 골라 추가할 수 있도록 kakaoId+이름 수집)
 function _recordLoginLog(){
   try{
@@ -2599,7 +2616,7 @@ function sosToRescue(id){
 // 앱 자체 업데이트 (OTA · Capgo 자체호스팅) — APK 전용. 웹/PWA는 서비스워커가 자동 갱신.
 // 번들(www)의 새 버전을 ota.json으로 알리면, 설치된 앱이 받아서 그 자리에서 교체(재빌드 불필요).
 // ══════════════════════════════════════════
-const OTA_VER='2026.06.29.46';                         // ← 현재 번들 버전 (릴리스마다 올림 · build-ota.sh가 ota.json에 반영)
+const OTA_VER='2026.06.29.47';                         // ← 현재 번들 버전 (릴리스마다 올림 · build-ota.sh가 ota.json에 반영)
 const OTA_MANIFEST='https://109yoon.github.io/seoraksan/ota.json';
 let _otaInfo=null;
 function _otaPlugin(){try{return (window.Capacitor&&window.Capacitor.Plugins&&window.Capacitor.Plugins.CapacitorUpdater)||null;}catch(e){return null;}}
