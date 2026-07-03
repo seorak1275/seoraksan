@@ -1963,8 +1963,9 @@ function _sosBuildUI(){
   const _mg=(document.getElementById('sosMsg')||{}).value||'';
   const _ct=(document.getElementById('sosCountry')||{}).value||'';
   const langBtns=_SOS_LANGS.map(([c,n])=>`<button onclick="_sosSetLang('${c}')" style="flex:0 0 auto;background:${_sosLang===c?'#c0392b':'rgba(255,255,255,.08)'};color:#fff;border:1px solid ${_sosLang===c?'#ffe14d':'rgba(255,255,255,.15)'};border-radius:14px;padding:5px 11px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;">${n}</button>`).join('');
+  // 언어 버튼: 가로 스크롤 대신 줄바꿈(flex-wrap) — 큰 글자 설정에서도 전부 보이도록
   wrap.innerHTML=`
-    <div style="display:flex;gap:6px;overflow-x:auto;width:100%;max-width:440px;padding-bottom:5px;margin-bottom:2px;-webkit-overflow-scrolling:touch;">${langBtns}</div>
+    <div style="display:flex;flex-wrap:wrap;justify-content:center;gap:6px;width:100%;max-width:440px;padding-bottom:5px;margin-bottom:2px;">${langBtns}</div>
     <div style="font-size:34px;margin-top:2px;">🆘</div>
     <div style="font-size:19px;font-weight:800;margin-top:6px;text-align:center;">${_st('org')}</div>
     <div style="font-size:13px;color:#8ab4cc;margin-top:3px;text-align:center;line-height:1.6;">${_st('sub')}</div>
@@ -2626,7 +2627,7 @@ function sosToRescue(id){
 // 앱 자체 업데이트 (OTA · Capgo 자체호스팅) — APK 전용. 웹/PWA는 서비스워커가 자동 갱신.
 // 번들(www)의 새 버전을 ota.json으로 알리면, 설치된 앱이 받아서 그 자리에서 교체(재빌드 불필요).
 // ══════════════════════════════════════════
-const OTA_VER='2026.06.29.50';                         // ← 현재 번들 버전 (릴리스마다 올림 · build-ota.sh가 ota.json에 반영)
+const OTA_VER='2026.06.29.51';                         // ← 현재 번들 버전 (릴리스마다 올림 · build-ota.sh가 ota.json에 반영)
 const OTA_MANIFEST='https://109yoon.github.io/seoraksan/ota.json';
 let _otaInfo=null;
 function _otaPlugin(){try{return (window.Capacitor&&window.Capacitor.Plugins&&window.Capacitor.Plugins.CapacitorUpdater)||null;}catch(e){return null;}}
