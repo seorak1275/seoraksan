@@ -19,10 +19,12 @@ service cloud.firestore {
     match /sos/{doc} {
       allow get: if true;
       allow list, delete: if request.auth != null;
-      allow create, update: if request.resource.data.lat is number
+      // 좌표가 포함되면 반드시 유효 범위. 좌표 없는 쓰기(팀 발급·접속표시 openedAt·종료 active:false)는 허용
+      allow create, update: if (!('lat' in request.resource.data) && !('lng' in request.resource.data))
+                            || (request.resource.data.lat is number
                             && request.resource.data.lng is number
                             && request.resource.data.lat > 33 && request.resource.data.lat < 39
-                            && request.resource.data.lng > 124 && request.resource.data.lng < 132;
+                            && request.resource.data.lng > 124 && request.resource.data.lng < 132);
     }
 
     // 그 외 모든 컬렉션: 인증된 요청만 (익명 인증 포함)

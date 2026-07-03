@@ -2041,10 +2041,20 @@ function _bootSos(){
   try{
     _sosDb=firebase.firestore();
     firebase.auth().signInAnonymously().catch(()=>{});
-    firebase.auth().onAuthStateChanged(function(u){ if(u){ _sosAuthed=true; _sosRequest(); if(_sosLast)_sosWrite(); _sosVictimListen(); } });
+    firebase.auth().onAuthStateChanged(function(u){ if(u){ _sosAuthed=true; _sosMarkOpened(); _sosRequest(); if(_sosLast)_sosWrite(); _sosVictimListen(); } });
     _sosVictimListen(); // 인증 전이라도(공개 get 허용) 종료·메시지 감지 시도
+    _sosMarkOpened();   // 링크 접속 즉시 알림용(위치 수신 전) — 실패해도 무해
   }catch(e){}
   setTimeout(_sosRequest,400);
+}
+// 링크 열림 표시(1회) — 구조대 화면에서 '접속함' 알림을 울리기 위함
+function _sosMarkOpened(){
+  if(window._sosOpenSent||!_sosDb||!_sosId)return;
+  try{
+    _sosDb.collection('sos').doc(_sosId).set({openedAt:Date.now()},{merge:true})
+      .then(function(){window._sosOpenSent=true;})
+      .catch(function(){});
+  }catch(e){}
 }
 let _sosAuthed=false;
 function _sosSet(ico,txt,col){
@@ -2181,7 +2191,12 @@ function _initSosWatch(){
       _sosPings=DB.g('sosBlocked')?[]:snap.docs.map(d=>d.data()).filter(p=>p&&p.active===true&&Date.now()-(p.issuedAt||p.ts||0)<48*3600000);
       // 위치가 새로 수신된 조난자 알림(최초 스냅샷·미수신 토큰은 제외)
       const seen=window._sosSeen||(window._sosSeen={});
+      const seenOpen=window._sosSeenOpen||(window._sosSeenOpen={});
       _sosPings.forEach(p=>{
+        // 링크 '접속' 즉시 알림 (위치 수신 전 단계 — 링크가 전달됐고 열렸다는 신호)
+        if(p.openedAt&&!seenOpen[p.id]){seenOpen[p.id]=1;
+          if(window._sosInited&&!(p.lat&&p.lng)){try{toast('🔗 위치요청 링크 접속됨'+(p.name?': '+p.name:'')+' — 위치 수신 대기',6000);}catch(e){}try{pushNoti('🔗 위치요청 링크 접속됨'+(p.name?': '+p.name:''),'🆘','sos',{app:'rescue',tab:1});}catch(e){}}
+        }
         if(p.lat&&p.lng&&!seen[p.id]){seen[p.id]=1;
           if(window._sosInited){try{toast('🆘 조난·사고자 위치 수신: '+(p.name||'익명')+(p.acc?' (±'+p.acc+'m)':''),6000);}catch(e){}try{pushNoti('🆘 조난·사고자 위치 수신'+(p.name?': '+p.name:''),'🆘','sos',{app:'rescue',tab:1});}catch(e){}}
         }
@@ -2584,7 +2599,7 @@ function sosToRescue(id){
 // 앱 자체 업데이트 (OTA · Capgo 자체호스팅) — APK 전용. 웹/PWA는 서비스워커가 자동 갱신.
 // 번들(www)의 새 버전을 ota.json으로 알리면, 설치된 앱이 받아서 그 자리에서 교체(재빌드 불필요).
 // ══════════════════════════════════════════
-const OTA_VER='2026.06.29.42';                         // ← 현재 번들 버전 (릴리스마다 올림 · build-ota.sh가 ota.json에 반영)
+const OTA_VER='2026.06.29.43';                         // ← 현재 번들 버전 (릴리스마다 올림 · build-ota.sh가 ota.json에 반영)
 const OTA_MANIFEST='https://109yoon.github.io/seoraksan/ota.json';
 let _otaInfo=null;
 function _otaPlugin(){try{return (window.Capacitor&&window.Capacitor.Plugins&&window.Capacitor.Plugins.CapacitorUpdater)||null;}catch(e){return null;}}
