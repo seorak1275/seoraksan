@@ -1371,6 +1371,11 @@ function selHasComp(val){
   document.querySelectorAll('#hasCompBtns .tog-btn').forEach(b=>b.classList.toggle('on',b.dataset.val===val));
   document.getElementById('companionWrap').style.display=val==='y'?'block':'none';
 }
+// 접수 경로 버튼 (119/사무소 전화/현장 접수)
+function selRecvRoute(v){
+  const h=document.getElementById('r_recvRoute');if(h)h.value=v;
+  document.querySelectorAll('#recvRouteBtns .tog-btn').forEach(b=>b.classList.toggle('on',b.dataset.val===v));
+}
 // 성별 버튼 (select → 버튼식)
 function selGender(v){
   document.getElementById('r_vGender').value=v;

@@ -74,6 +74,7 @@ function submitNBoFromForm(){
     vGender: document.getElementById('r_vGender')?.value||res[idx].vGender,
     vBirth: document.getElementById('r_vBirth')?.value||res[idx].vBirth||'',
     vAddr: document.getElementById('r_vAddr')?.value||res[idx].vAddr||'',
+    recvRoute: document.getElementById('r_recvRoute')?.value||res[idx].recvRoute||'119',
     hasRep: document.getElementById('r_hasRep')?.value||res[idx].hasRep||'n',
     repName: document.getElementById('r_repName')?.value||res[idx].repName||'',
     repTel: document.getElementById('r_repTel')?.value||res[idx].repTel||'',
@@ -119,7 +120,7 @@ function submitNBoFromForm(){
    ['생년월일','vBirth'],['거주지','vAddr'],['기저질환','vDisease'],['알레르기','vAllergy'],['복용약','vMeds'],
    ['신고자','repName'],['신고자 연락처','repTel'],['신고자 관계','repRel'],
    ['부상부위','injuryParts'],['부상유형','injuryTypes'],['원인','cause'],['구조방법','rescueMethod'],
-   ['음주','alcohol'],['음주량','alcAmount'],['병원후송','hospital'],['기상','weather'],['동원장비','equipment'],['119공조','r119']].forEach(([label,key])=>{
+   ['음주','alcohol'],['음주량','alcAmount'],['병원후송','hospital'],['기상','weather'],['동원장비','equipment'],['119공조','r119'],['접수경로','recvRoute']].forEach(([label,key])=>{
     const a=_cv(prev[key]),b=_cv(phaseData[key]);
     if(!b||_BLANK2.includes(b))return;          // 새 값이 비면 '이어받기'라 변경 아님
     if(a===b)return;                             // 동일 → 변경 아님
@@ -1336,7 +1337,7 @@ function govReport(rid,kind){
     <h1 style="text-align:center;font-size:21px;margin:6px 0 16px;letter-spacing:2px;">탐방객 안전사고 처리현황</h1>
     <table style="border-collapse:collapse;width:100%;">
       <tr><td style="${th}width:15%;">사고일시</td><td style="${td}width:35%;">${esc(r.date||'')}</td>
-          <td style="${th}width:15%;">접수경로</td><td style="${td}">■119 □사무소전화접수 □현장접수</td></tr>
+          <td style="${th}width:15%;">접수경로</td><td style="${td}">${(()=>{const rr=nb(r.recvRoute)||'119';return [['119','119'],['사무소 전화','사무소전화접수'],['현장 접수','현장접수']].map(([k,lbl])=>(rr===k?'■':'□')+lbl).join(' ');})()}</td></tr>
       <tr><td style="${th}">출동시간</td><td style="${td}">${esc(nb(r.dispatch))}</td>
           <td style="${th}">도착/완료</td><td style="${td}">${esc([nb(r.arrival),nb(r.completion)].filter(Boolean).join(' / '))}</td></tr>
       <tr><td style="${th}">사고장소</td><td style="${td}">${esc(nb(r.location))}${coordStr?'<br>좌표: '+coordStr:''}${elevS?' (고도 '+esc(elevS)+')':''}</td>
@@ -1365,7 +1366,8 @@ function govReport(rid,kind){
     <h1 style="text-align:center;font-size:20px;margin:4px 0 2px;">설악산 탐방객 구조출동(${esc(r.type||'안전사고')}) 동향보고</h1>
     <div style="text-align:center;font-size:13px;margin-bottom:14px;">(‘${esc((r.date||'').slice(2,10).replace(/-/g,'. '))}., 설악산사무소)</div>
     <div style="border:1.5px solid #333;padding:9px 12px;font-size:13.5px;margin-bottom:12px;">◇ ${overview}</div>
-    <p style="margin:5px 0;font-size:13.5px;">□ (일    시) ${esc(r.date||'')}</p>
+    <p style="margin:5px 0;font-size:13.5px;">□ (사 건 명) ${esc(nb(r.title)||'-')}</p>
+    <p style="margin:5px 0;font-size:13.5px;">□ (일    시) ${esc(r.date||'')} <span style="color:#666;">(접수: ${esc(nb(r.recvRoute)||'119')})</span></p>
     <p style="margin:5px 0;font-size:13.5px;">□ (장    소) ${esc(nb(r.location))}${signCode?' (표지판 '+esc(signCode)+')':''}${coordStr?'<br>&nbsp;&nbsp;&nbsp;- 좌표: '+coordStr+(elevS?' · 고도 '+esc(elevS):''):''}</p>
     <p style="margin:5px 0;font-size:13.5px;">□ (인적사항)<br>&nbsp;&nbsp;- 사고자: ${esc(nb(r.vName)||'미상')}${vAgeStr?'('+esc(vAgeStr)+')':''}${nb(r.vTel)?' · '+esc(r.vTel):''}${v2Str?'<br>&nbsp;&nbsp;- 추가 사고자: '+esc(v2Str):''}${compStr?'<br>&nbsp;&nbsp;- 동반자: '+esc(compStr):''}</p>
     <p style="margin:5px 0;font-size:13.5px;">□ (사고원인·부상)<br>&nbsp;&nbsp;- ${esc(nb(r.cause)||'-')}${injStr?' / '+esc(injStr):''}${nb(r.severity)?' / '+esc(r.severity):''}<br>&nbsp;&nbsp;- ${esc(nb(r.situation))}</p>
@@ -1379,6 +1381,24 @@ function govReport(rid,kind){
   if(extraRows.length){
     body+=`<p style="margin:14px 0 4px;font-size:13.5px;font-weight:700;">□ 추가 정보</p>
     <table style="border-collapse:collapse;width:100%;">${extraRows.map(([k,v])=>`<tr><td style="${th}width:18%;">${esc(k)}</td><td style="${td}">${esc(v)}</td></tr>`).join('')}</table>`;
+  }
+  // 첨부1: 위치도 — 지도는 보안 제약으로 자동 캡처 불가 → 붙여넣기 자리 마련
+  body+=`<p style="margin:16px 0 4px;font-size:13.5px;font-weight:700;">[첨부1 : 위치도]</p>
+  <div style="border:1px dashed #999;padding:34px 12px;text-align:center;color:#999;font-size:12px;">지도 화면을 캡처해 이 자리에 붙여넣으세요 (앱 지도 → 해당 사고 확대 → 캡처)</div>`;
+  // 첨부2: 현황 사진 — 앱에 등록된 부상/이송/현장 사진 자동 첨부 (2열)
+  const _pics=[];
+  if(r.injuryPhoto&&String(r.injuryPhoto).startsWith('http'))_pics.push({url:r.injuryPhoto,label:'부상'});
+  if(r.transPhoto&&String(r.transPhoto).startsWith('http'))_pics.push({url:r.transPhoto,label:'이송'});
+  (r.photos||[]).forEach(p=>{if(p&&p.url&&String(p.url).startsWith('http'))_pics.push({url:p.url,label:'현장'+((p.time||'').slice(11,16)?' '+(p.time||'').slice(11,16):'')});});
+  if(_pics.length){
+    body+=`<p style="margin:16px 0 4px;font-size:13.5px;font-weight:700;">[첨부2 : 사진현황]</p>
+    <table style="border-collapse:collapse;width:100%;">`;
+    for(let i=0;i<_pics.length;i+=2){
+      const a=_pics[i],b2=_pics[i+1];
+      body+=`<tr><td style="${td}width:50%;text-align:center;"><img src="${esc(a.url)}" style="max-width:100%;max-height:280px;"></td>${b2?`<td style="${td}width:50%;text-align:center;"><img src="${esc(b2.url)}" style="max-width:100%;max-height:280px;"></td>`:`<td style="${td}"></td>`}</tr>
+      <tr><td style="${th}">【${esc(a.label)}】</td>${b2?`<td style="${th}">【${esc(b2.label)}】</td>`:`<td style="${th}"></td>`}</tr>`;
+    }
+    body+='</table>';
   }
   body+=`<p style="margin-top:14px;font-size:11px;color:#888;">※ 설악산 현장관리 앱 자동 생성 (${esc(now())}) — 한글에서 내용 수정 후 결재 상신</p>`;
   const doc=`<!DOCTYPE html><html><head><meta charset="utf-8"><title>${esc(title)}</title></head>
@@ -2501,7 +2521,13 @@ function render1BoForm(prefill=null){
           ${['특구대','재난과','전직원응소'].map(o=>`<div class="pill${(p.mobilize||[]).includes(o)?' on':''}" onclick="tPill(this)">${o}</div>`).join('')}
         </div>
       </div>`:''}
-      <div class="rsec" style="margin-top:${isNbo?'0':'12px'};"><div class="rsec-t">📝 사고접수 내용 (자유작성)</div>
+      <div class="rsec" style="margin-top:${isNbo?'0':'12px'};"><div class="rsec-t">📞 접수 경로</div>
+        <div style="display:flex;gap:6px;" id="recvRouteBtns">
+          ${['119','사무소 전화','현장 접수'].map(o=>`<button class="tog-btn${(p.recvRoute||'119')===o?' on':''}" data-val="${o}" style="flex:1;" onclick="selRecvRoute('${o}')">${o==='119'?'🚒 119':o==='사무소 전화'?'☎️ 사무소 전화':'🧍 현장 접수'}</button>`).join('')}
+        </div>
+        <input type="hidden" id="r_recvRoute" value="${p.recvRoute||'119'}">
+      </div>
+      <div class="rsec" style="margin-top:12px;"><div class="rsec-t">📝 사고접수 내용 (자유작성)</div>
         <textarea id="r_recv" class="fta" rows="4" placeholder="사고 접수 당시 상황을 자유롭게 적어주세요 (신고 내용, 현장 상황, 인지 경위 등)">${p.reception||''}</textarea>
       </div>
       <div class="rsec" style="margin-top:12px;"><div class="rsec-t">📋 사고 제목 및 작성 정보</div>
@@ -2638,6 +2664,7 @@ function submit1Bo(){
     type:(typeof _resolvedAccType==='function')?_resolvedAccType():(document.getElementById('r_type')?.value||'안전사고'),
     date:nowStr,
     reception:document.getElementById('r_recv')?.value||'',
+    recvRoute:document.getElementById('r_recvRoute')?.value||'119',
     weather:getSelPills('weatherPills')[0]||'',
     initTemp:document.getElementById('r_initTemp')?.value||'',
     weatherAlert:getWeatherAlertStr()||'',
