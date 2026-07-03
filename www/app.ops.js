@@ -2017,6 +2017,21 @@ function renderAdmSheets(){
         <button onclick="addCustomResType()" style="background:#1a3a20;color:#86efac;border:1px solid rgba(74,222,128,.3);padding:8px 14px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;">추가</button>
       </div>
     </div>
+    <div class="scard" style="margin-bottom:8px;">
+      <div class="stitle">📄 한글 보고서 서식 (hwpx)</div>
+      <div style="font-size:11px;color:#7a9cb8;margin-bottom:8px;line-height:1.6;">실제 결재 서식(.hwpx)을 등록하면 보고서 버튼이 <b style="color:#9fc0da;">그 서식 그대로</b> 데이터를 채운 한글파일을 만듭니다.<br>
+      ① 한글에서 서식 문서를 열고, 값이 들어갈 칸에 <b style="color:#e8b34a;">{{사고일시}}</b> 같은 자리표시자를 입력<br>
+      ② 다른 이름으로 저장 → <b>HWPX</b> 형식 선택 ③ 아래에서 업로드</div>
+      <button onclick="copyTplPlaceholders()" style="width:100%;margin-bottom:8px;background:rgba(232,179,74,.1);border:1px solid rgba(232,179,74,.35);color:#e8b34a;padding:8px;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;">📋 자리표시자 전체 목록 복사</button>
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
+        <span style="font-size:12px;color:#cfe2f2;flex:1;">📑 처리현황: <span id="tplName_status" style="color:#7a9cb8;">확인중…</span></span>
+        <label style="background:#1a3a20;color:#86efac;border:1px solid rgba(74,222,128,.3);padding:7px 12px;border-radius:8px;font-size:11px;font-weight:700;cursor:pointer;">업로드<input type="file" accept=".hwpx" style="display:none;" onchange="uploadHwpxTpl('status',this)"></label>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <span style="font-size:12px;color:#cfe2f2;flex:1;">📈 동향보고: <span id="tplName_trend" style="color:#7a9cb8;">확인중…</span></span>
+        <label style="background:#1a3a20;color:#86efac;border:1px solid rgba(74,222,128,.3);padding:7px 12px;border-radius:8px;font-size:11px;font-weight:700;cursor:pointer;">업로드<input type="file" accept=".hwpx" style="display:none;" onchange="uploadHwpxTpl('trend',this)"></label>
+      </div>
+    </div>
     <div class="scard">
       <div class="stitle">🌦️ 기상청 프록시 주소</div>
       <div style="font-size:11px;color:#7a9cb8;margin-bottom:8px;">실제 기상청 데이터를 안정적으로 받기 위한 본인 소유 프록시(Cloudflare Worker) 주소. 비우면 공개 프록시로 동작. 설정법: 저장소 <b>cloudflare-worker/README.md</b></div>
@@ -2026,6 +2041,43 @@ function renderAdmSheets(){
       </div>
       <div style="font-size:10px;color:#3a4a6a;margin-top:7px;">Cloudflare Workers 무료: 1일 10만 요청 · 설정 후 날씨 상세 출처가 '기상청'으로 표시</div>
     </div>`;
+  setTimeout(_loadTplNames,80); // hwpx 서식 등록 상태 비동기 표시
+}
+// ── 한글 서식(hwpx) 템플릿 관리 ──
+function _loadTplNames(){
+  if(typeof _fdb==='undefined'||!_fdb)return;
+  ['status','trend'].forEach(k=>{
+    _fdb.collection('tpl').doc(k).get().then(d=>{
+      const el=document.getElementById('tplName_'+k);if(!el)return;
+      const dt=d.exists?d.data():null;
+      if(dt&&dt.b64){el.textContent='✅ '+(dt.name||'등록됨')+(dt.by?' · '+dt.by:'');el.style.color='#86efac';}
+      else{el.textContent='미등록 (HTML 방식으로 동작)';el.style.color='#7a9cb8';}
+    }).catch(()=>{const el=document.getElementById('tplName_'+k);if(el)el.textContent='조회 실패';});
+  });
+}
+async function uploadHwpxTpl(kind,input){
+  if(!isAdminUser()){toast('⚠️ 관리자만 가능');input.value='';return;}
+  const f=input.files&&input.files[0];if(!f)return;
+  if(!/\.hwpx$/i.test(f.name)){toast('⚠️ .hwpx 파일만 가능 — 한글에서 [다른 이름으로 저장 → HWPX]');input.value='';return;}
+  if(f.size>700*1024){toast('⚠️ 700KB 이하만 가능 — 서식에서 큰 이미지를 빼주세요');input.value='';return;}
+  try{
+    const buf=await f.arrayBuffer();
+    // hwpx(zip) 유효성 간단 확인
+    try{await _zipRead(buf.slice(0));}catch(e){toast('⚠️ 올바른 hwpx가 아닙니다: '+e.message);input.value='';return;}
+    const u8=new Uint8Array(buf);let b64='';const CH=0x8000;
+    for(let i=0;i<u8.length;i+=CH)b64+=String.fromCharCode.apply(null,u8.subarray(i,i+CH));
+    b64=btoa(b64);
+    await _fdb.collection('tpl').doc(kind).set({b64:b64,name:f.name,at:Date.now(),by:getAuthor()});
+    toast('✅ 서식 등록됨: '+f.name+' — 이제 보고서 버튼이 이 서식으로 생성합니다',5000);
+    _loadTplNames();
+  }catch(e){toast('⚠️ 업로드 실패: '+(e&&e.message||e));}
+  input.value='';
+}
+function copyTplPlaceholders(){
+  const list=(typeof HWPX_PLACEHOLDERS!=='undefined'?HWPX_PLACEHOLDERS:[]).map(k=>'{{'+k+'}}').join('\n');
+  const txt='── 한글 서식 자리표시자 목록 (원하는 칸에 붙여넣기) ──\n'+list+'\n\n※ 여러 줄 항목: {{조치내용}} {{동원인원}} {{사고경위}}\n※ 서식에 없는 자리표시자는 빈칸으로 처리됩니다';
+  if(navigator.clipboard)navigator.clipboard.writeText(txt).then(()=>toast('📋 자리표시자 목록 복사됨 — 한글 서식에 붙여넣어 배치하세요',5000)).catch(()=>_fallbackCopy(txt));
+  else _fallbackCopy(txt);
 }
 // 커스텀 사고유형 아이콘 등록/삭제 (공유 customResTypes → RES_TYPES 병합)
 function addCustomResType(){

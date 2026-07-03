@@ -1283,12 +1283,99 @@ function _mergedRescue(r){
   return m;
 }
 // ══════════════════════════════════════════
-// 관공서 양식 보고서 (한글용) — 실제 결재문서 2종을 재현해 새 창으로 생성
-//  · 안전사고 처리현황: 결재란+표 양식   · 동향보고: 개조식(□·-)
-//  새 창에서 [한글용 전체 복사] → 한글에 붙여넣으면 표 그대로 들어감.
-//  [.html 저장] → 한글에서 열어 '다른 이름으로 저장(.hwp)' 하면 한글파일 완성.
+// HWPX 템플릿 엔진 — 관리자가 올린 실제 한글 서식(.hwpx)의 {{자리표시자}}를 데이터로 치환해
+// 진짜 한글파일 생성 (서식·글꼴·표가 원본과 100% 동일). ZIP은 브라우저 내장 스트림으로 처리.
 // ══════════════════════════════════════════
-function govReport(rid,kind){
+const HWPX_PLACEHOLDERS=['사건명','사고일시','접수경로','출동시간','도착시간','완료시간','출동거리','사고장소','좌표','고도','장소구분','위치표지판','신고자성명','신고자연락처','신고자관계','사고자성명','사고자생년월일','사고자성별','사고자연락처','사고자거주지','사고원인','부상유형','사고경위','조치내용','동원인원','동원인원수','동원장비','병원후송','특이사항','음주여부','기상','작성자','오늘'];
+async function _zipRead(buf){ // ArrayBuffer → [{name,data:Uint8Array}]
+  const dv=new DataView(buf);const u8=new Uint8Array(buf);
+  let e=buf.byteLength-22;
+  while(e>=0&&dv.getUint32(e,true)!==0x06054b50)e--;
+  if(e<0)throw new Error('ZIP 형식이 아님');
+  const cnt=dv.getUint16(e+10,true);let off=dv.getUint32(e+16,true);
+  const out=[];
+  for(let i=0;i<cnt;i++){
+    if(dv.getUint32(off,true)!==0x02014b50)throw new Error('ZIP 목록 손상');
+    const method=dv.getUint16(off+10,true);
+    const csize=dv.getUint32(off+20,true);
+    const nlen=dv.getUint16(off+28,true),elen=dv.getUint16(off+30,true),clen=dv.getUint16(off+32,true);
+    const lho=dv.getUint32(off+42,true);
+    const name=new TextDecoder().decode(u8.subarray(off+46,off+46+nlen));
+    const lnlen=dv.getUint16(lho+26,true),lelen=dv.getUint16(lho+28,true);
+    const dstart=lho+30+lnlen+lelen;
+    const cdata=u8.slice(dstart,dstart+csize);
+    let data;
+    if(method===0)data=cdata;
+    else if(method===8){
+      const resp=new Response(new Blob([cdata]).stream().pipeThrough(new DecompressionStream('deflate-raw')));
+      data=new Uint8Array(await resp.arrayBuffer());
+    }else throw new Error('미지원 압축방식 '+method);
+    out.push({name,data});
+    off+=46+nlen+elen+clen;
+  }
+  return out;
+}
+function _crc32(u8){
+  let t=window.__crcT;
+  if(!t){t=window.__crcT=new Int32Array(256);for(let n=0;n<256;n++){let c=n;for(let k=0;k<8;k++)c=(c&1)?(0xEDB88320^(c>>>1)):(c>>>1);t[n]=c;}}
+  let crc=-1;for(let i=0;i<u8.length;i++)crc=(crc>>>8)^t[(crc^u8[i])&0xFF];
+  return (crc^-1)>>>0;
+}
+function _zipWrite(files){ // [{name,data}] → Blob (무압축 저장 — hwpx는 작아서 무압축 OK)
+  const enc=new TextEncoder();const parts=[];const cd=[];let off=0;
+  files.forEach(f=>{
+    const nm=enc.encode(f.name);const crc=_crc32(f.data);
+    const lh=new DataView(new ArrayBuffer(30));
+    lh.setUint32(0,0x04034b50,true);lh.setUint16(4,20,true);
+    lh.setUint32(14,crc,true);lh.setUint32(18,f.data.length,true);lh.setUint32(22,f.data.length,true);
+    lh.setUint16(26,nm.length,true);
+    parts.push(new Uint8Array(lh.buffer),nm,f.data);
+    const ch=new DataView(new ArrayBuffer(46));
+    ch.setUint32(0,0x02014b50,true);ch.setUint16(4,20,true);ch.setUint16(6,20,true);
+    ch.setUint32(16,crc,true);ch.setUint32(20,f.data.length,true);ch.setUint32(24,f.data.length,true);
+    ch.setUint16(28,nm.length,true);ch.setUint32(42,off,true);
+    cd.push(new Uint8Array(ch.buffer),nm);
+    off+=30+nm.length+f.data.length;
+  });
+  let cdSize=0;cd.forEach(p=>cdSize+=p.length);
+  const eo=new DataView(new ArrayBuffer(22));
+  eo.setUint32(0,0x06054b50,true);eo.setUint16(8,files.length,true);eo.setUint16(10,files.length,true);
+  eo.setUint32(12,cdSize,true);eo.setUint32(16,off,true);
+  return new Blob([...parts,...cd,new Uint8Array(eo.buffer)]);
+}
+// XML 안 {{키}} 치환 — 여러 줄 값은 한글 줄바꿈(<hp:lineBreak/>)으로. 남은 자리표시자는 비움
+function _hwpxFill(entries,map){
+  const dec=new TextDecoder(),enc=new TextEncoder();
+  return entries.map(en=>{
+    if(!/\.(xml|hpf)$/i.test(en.name))return en;
+    let s=dec.decode(en.data);
+    if(s.indexOf('{{')<0)return en;
+    Object.entries(map).forEach(([k,v])=>{
+      const ph='{{'+k+'}}';
+      if(s.indexOf(ph)<0)return;
+      const xv=String(v==null?'':v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+        .replace(/\n/g,'</hp:t><hp:lineBreak/><hp:t>'); // 셀 안 줄바꿈
+      s=s.split(ph).join(xv);
+    });
+    s=s.replace(/\{\{[^{}]{1,24}\}\}/g,''); // 값 없는 자리표시자 제거
+    return {name:en.name,data:enc.encode(s)};
+  });
+}
+async function _hwpxGenerate(tpl,map,fname){
+  const bin=atob(tpl.b64);
+  const buf=new Uint8Array(bin.length);
+  for(let i=0;i<bin.length;i++)buf[i]=bin.charCodeAt(i);
+  const entries=await _zipRead(buf.buffer);
+  const blob=_zipWrite(_hwpxFill(entries,map));
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);a.download=fname;a.click();
+  toast('📄 한글 서식(hwpx) 생성 완료 — 한글에서 열어 확인하세요',5000);
+}
+// ══════════════════════════════════════════
+// 관공서 양식 보고서 (한글용) — 등록된 hwpx 서식이 있으면 그걸로 진짜 한글파일 생성(우선),
+// 없으면 HTML 재현본(복사→한글 붙여넣기 / .html 저장) 폴백
+// ══════════════════════════════════════════
+async function govReport(rid,kind){
   let r=(DB.g('rescues')||[]).find(x=>String(x.id)===String(rid));if(!r){toast('⚠️ 사고 정보 없음');return;}
   r=_mergedRescue(r);
   const esc=s=>String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
@@ -1323,40 +1410,77 @@ function govReport(rid,kind){
     ['국적',nb(r.vNation)==='외국인'?('외국인'+(nb(r.vNationality)?' ('+r.vNationality+')':'')):''],
     ['과태료',nb(r.fine)],['암빙벽 허가',nb(r.permit)==='해당없음'?'':nb(r.permit)],['기타 특이사항',nb(r.extra)],
   ].filter(([k,v])=>v);
-  const th='background:#e8eef5;border:1px solid #444;padding:6px 8px;font-weight:700;text-align:center;font-size:13px;white-space:nowrap;';
-  const td='border:1px solid #444;padding:6px 9px;font-size:13px;line-height:1.55;';
+  // ── 등록된 hwpx 서식이 있으면 진짜 한글파일로 생성 (서식 100% 동일) ──
+  const dataMap={
+    '사건명':nb(r.title),'사고일시':r.date||'','접수경로':nb(r.recvRoute)||'119',
+    '출동시간':nb(r.dispatch),'도착시간':nb(r.arrival),'완료시간':nb(r.completion),'출동거리':nb(r.distance),
+    '사고장소':nb(r.location),'좌표':coordStr,'고도':elevS,'장소구분':nb(r.loctype),'위치표지판':signCode,
+    '신고자성명':nb(r.repName),'신고자연락처':nb(r.repTel),'신고자관계':nb(r.repRel),
+    '사고자성명':nb(r.vName),'사고자생년월일':nb(r.vBirth),'사고자성별':nb(r.vGender),
+    '사고자연락처':nb(r.vTel),'사고자거주지':nb(r.vAddr),
+    '사고원인':nb(r.cause),'부상유형':injStr,'사고경위':nb(r.situation),
+    '조치내용':logLines.join('\n'),
+    '동원인원':'[총 '+totalCnt+'명]\n- 국립공원 '+allNps.length+'명'+(allNps.length?'('+allNps.join(', ')+')':'')+(agStr?'\n- 유관기관: '+agStr:''),
+    '동원인원수':String(totalCnt),
+    '동원장비':nb(r.equipment),'병원후송':nb(r.hospital),'특이사항':nb(r.extra),
+    '음주여부':nb(r.alcohol)==='없음'||!nb(r.alcohol)?'X':nb(r.alcohol)+(nb(r.alcAmount)?'('+r.alcAmount+')':''),
+    '기상':wxStr,'작성자':(typeof getAuthor==='function')?getAuthor():'','오늘':now(),
+  };
+  try{
+    if(typeof _fdb!=='undefined'&&_fdb){
+      const tdoc=await _fdb.collection('tpl').doc(kind).get();
+      if(tdoc.exists&&tdoc.data()&&tdoc.data().b64){
+        await _hwpxGenerate(tdoc.data(),dataMap,(kind==='status'?'안전사고처리현황':'동향보고')+'_'+((r.date||'').slice(0,10)||'문서')+'.hwpx');
+        return;
+      }
+    }
+  }catch(e){try{toast('⚠️ 서식 생성 실패('+(e&&e.message||e)+') — HTML 방식으로 대체');}catch(_){}}
+  // ── 폴백: HTML 재현본 ──
+  const th='border:1px solid #000;padding:5px 7px;font-weight:700;text-align:center;font-size:12.5px;white-space:nowrap;background:#fff;';
+  const td='border:1px solid #000;padding:5px 8px;font-size:12.5px;line-height:1.5;';
   let body='',title='';
   if(kind==='status'){
     title='탐방객 안전사고 처리현황';
+    const rr=nb(r.recvRoute)||'119';
+    const rrStr=[['119','119'],['사무소 전화','사무소전화접수'],['현장 접수','현장접수']].map(([k,lbl])=>(rr===k?'■':'□')+lbl).join(' ');
+    // 결재란(우측 상단) + 제목 한 줄 배치 — 원본과 동일
     body=`
-    <table style="border-collapse:collapse;float:right;margin-bottom:10px;"><tr>
-      <td rowspan="2" style="${td}width:22px;text-align:center;">결<br><br>재</td>
-      ${['직원','팀장','과장','소장'].map(x=>`<td style="${th}width:64px;">${x}</td>`).join('')}</tr>
-      <tr>${'<td style="'+td+'height:52px;"></td>'.repeat(4)}</tr></table>
-    <div style="clear:both;"></div>
-    <h1 style="text-align:center;font-size:21px;margin:6px 0 16px;letter-spacing:2px;">탐방객 안전사고 처리현황</h1>
-    <table style="border-collapse:collapse;width:100%;">
-      <tr><td style="${th}width:15%;">사고일시</td><td style="${td}width:35%;">${esc(r.date||'')}</td>
-          <td style="${th}width:15%;">접수경로</td><td style="${td}">${(()=>{const rr=nb(r.recvRoute)||'119';return [['119','119'],['사무소 전화','사무소전화접수'],['현장 접수','현장접수']].map(([k,lbl])=>(rr===k?'■':'□')+lbl).join(' ');})()}</td></tr>
-      <tr><td style="${th}">출동시간</td><td style="${td}">${esc(nb(r.dispatch))}</td>
-          <td style="${th}">도착/완료</td><td style="${td}">${esc([nb(r.arrival),nb(r.completion)].filter(Boolean).join(' / '))}</td></tr>
-      <tr><td style="${th}">사고장소</td><td style="${td}">${esc(nb(r.location))}${coordStr?'<br>좌표: '+coordStr:''}${elevS?' (고도 '+esc(elevS)+')':''}</td>
-          <td style="${th}">장소구분</td><td style="${td}">${esc(nb(r.loctype))}${signCode?'<br>표지판: '+esc(signCode):''}</td></tr>
-      <tr><td style="${th}">출동거리</td><td style="${td}">${esc(nb(r.distance))}</td>
-          <td style="${th}">병원후송</td><td style="${td}">${esc(nb(r.hospital))}</td></tr>
-      <tr><td rowspan="2" style="${th}">신고자<br>인적사항</td><td style="${th}">성명 / 연락처</td>
-          <td colspan="2" style="${td}">${esc([nb(r.repName),nb(r.repTel)].filter(Boolean).join(' / '))}</td></tr>
-      <tr><td style="${th}">사고자와 관계</td><td colspan="2" style="${td}">${esc(nb(r.repRel))}</td></tr>
-      <tr><td rowspan="2" style="${th}">사고자<br>인적사항</td><td style="${th}">성명 / 생년월일·성별</td>
-          <td colspan="2" style="${td}">${esc(nb(r.vName))}${vAgeStr?' / '+esc(vAgeStr):''}</td></tr>
-      <tr><td style="${th}">연락처 / 거주지</td><td colspan="2" style="${td}">${esc([nb(r.vTel),nb(r.vAddr)].filter(Boolean).join(' / '))}</td></tr>
-      <tr><td style="${th}">사고원인</td><td style="${td}">${esc(nb(r.cause))}</td>
-          <td style="${th}">부상유형</td><td style="${td}">${esc(injStr)}</td></tr>
-      <tr><td style="${th}">사고경위</td><td colspan="3" style="${td}">${esc(nb(r.situation))}</td></tr>
-      <tr><td style="${th}">조치내용<br>(시간대별)</td><td colspan="3" style="${td}">${logLines.map(esc).join('<br>')}</td></tr>
-      <tr><td style="${th}">동원인원</td><td colspan="3" style="${td}">[총 ${totalCnt}명]<br>- 국립공원 ${allNps.length}명${allNps.length?' ('+esc(allNps.join(', '))+')':''}${agStr?'<br>- 유관기관: '+esc(agStr):''}</td></tr>
-      <tr><td style="${th}">동원장비</td><td style="${td}">${esc(nb(r.equipment))}</td>
-          <td style="${th}">음주여부</td><td style="${td}">${esc(nb(r.alcohol)==='없음'?'X':nb(r.alcohol)+(nb(r.alcAmount)?' ('+r.alcAmount+')':''))}</td></tr>
+    <table style="border-collapse:collapse;width:100%;margin-bottom:8px;"><tr>
+      <td style="border:none;vertical-align:bottom;font-size:20px;font-weight:800;letter-spacing:1px;">탐방객 안전사고 처리현황</td>
+      <td style="border:none;width:300px;">
+        <table style="border-collapse:collapse;width:100%;">
+          <tr><td rowspan="2" style="${td}width:24px;text-align:center;">결<br>재</td><td style="${th}">팀 원</td><td style="${th}">팀 장</td><td style="${th}">과 장</td><td style="${th}">소 장</td></tr>
+          <tr><td style="${td}height:50px;"></td><td style="${td}"></td><td style="${td}"></td><td style="${td}"></td></tr>
+        </table>
+      </td></tr></table>
+    <table style="border-collapse:collapse;width:100%;table-layout:fixed;">
+      <tr><td style="${th}width:12.5%;">사고일시</td><td colspan="3" style="${td}text-align:center;">${esc(r.date||'')}</td>
+          <td colspan="4" style="${td}text-align:center;"><b>사고발생상황 접수경로</b><br>${rrStr}</td></tr>
+      <tr><td style="${th}">출동시간</td><td style="${td}text-align:center;">${esc(nb(r.dispatch))}</td>
+          <td style="${th}">도착시간</td><td style="${td}text-align:center;">${esc(nb(r.arrival))}</td>
+          <td style="${th}">완료시간</td><td style="${td}text-align:center;">${esc(nb(r.completion))}</td>
+          <td style="${th}">출동거리</td><td style="${td}text-align:center;">${esc(nb(r.distance))}</td></tr>
+      <tr><td style="${th}">사고장소</td><td colspan="5" style="${td}text-align:center;">${esc(nb(r.location))}${coordStr?'<br>좌표: '+coordStr:''}${elevS?' (고도 '+esc(elevS)+')':''}${signCode?' · 표지판 '+esc(signCode):''}</td>
+          <td style="${th}">장소구분</td><td style="${td}text-align:center;">${esc(nb(r.loctype))}</td></tr>
+      <tr><td rowspan="2" style="${th}">신고자<br>인적사항</td>
+          <td style="${th}">성  명</td><td style="${td}text-align:center;">${esc(nb(r.repName))}</td>
+          <td colspan="2" style="${th}">성  별</td><td colspan="3" style="${td}text-align:center;"></td></tr>
+      <tr><td style="${th}">연락처</td><td style="${td}text-align:center;">${esc(nb(r.repTel))}</td>
+          <td colspan="2" style="${th}">사고자와 관계</td><td colspan="3" style="${td}text-align:center;">${esc(nb(r.repRel))}</td></tr>
+      <tr><td rowspan="2" style="${th}">사고자<br>인적사항</td>
+          <td style="${th}">성  명</td><td style="${td}text-align:center;">${esc(nb(r.vName))}</td>
+          <td colspan="2" style="${th}">생년월일</td><td colspan="3" style="${td}text-align:center;">${esc(vAgeStr)}</td></tr>
+      <tr><td style="${th}">연락처</td><td style="${td}text-align:center;">${esc(nb(r.vTel))}</td>
+          <td colspan="2" style="${th}">거 주 지</td><td colspan="3" style="${td}text-align:center;">${esc(nb(r.vAddr))}</td></tr>
+      <tr><td style="${th}">사고원인</td><td colspan="7" style="${td}text-align:center;">${esc(nb(r.cause))}</td></tr>
+      <tr><td style="${th}">부상유형</td><td colspan="7" style="${td}text-align:center;">${esc(injStr)}</td></tr>
+      <tr><td style="${th}">사고경위</td><td colspan="7" style="${td}">${esc(nb(r.situation))}</td></tr>
+      <tr><td style="${th}">조치내용<br>(시간대별)</td><td colspan="7" style="${td}">${logLines.map(esc).join('<br>')}</td></tr>
+      <tr><td style="${th}">동원인원</td><td colspan="7" style="${td}">[총 ${totalCnt}명]<br>- 국립공원 ${allNps.length}명${allNps.length?' ('+esc(allNps.join(', '))+')':''}${agStr?'<br>- 유관기관: '+esc(agStr):''}</td></tr>
+      <tr><td style="${th}">동원장비</td><td colspan="3" style="${td}">${esc(nb(r.equipment))}</td>
+          <td style="${th}">병원후송</td><td colspan="3" style="${td}text-align:center;">${esc(nb(r.hospital))}</td></tr>
+      <tr><td style="${th}">특이사항</td><td colspan="3" style="${td}">${esc(nb(r.extra))}</td>
+          <td style="${th}">음주여부</td><td colspan="3" style="${td}text-align:center;">${esc(nb(r.alcohol)==='없음'||!nb(r.alcohol)?'X':nb(r.alcohol)+(nb(r.alcAmount)?' ('+r.alcAmount+')':''))}</td></tr>
     </table>`;
   }else{
     const d=(r.date||'').slice(0,16);
@@ -1402,7 +1526,7 @@ function govReport(rid,kind){
   }
   body+=`<p style="margin-top:14px;font-size:11px;color:#888;">※ 설악산 현장관리 앱 자동 생성 (${esc(now())}) — 한글에서 내용 수정 후 결재 상신</p>`;
   const doc=`<!DOCTYPE html><html><head><meta charset="utf-8"><title>${esc(title)}</title></head>
-  <body style="background:#fff;color:#111;font-family:'맑은 고딕','Malgun Gothic','바탕',serif;max-width:760px;margin:0 auto;padding:18px;">
+  <body style="background:#fff;color:#000;font-family:'바탕','Batang','맑은 고딕','Malgun Gothic',serif;max-width:760px;margin:0 auto;padding:18px;">
   <div style="position:sticky;top:0;background:#f2f6fa;border:1px solid #c8d6e4;border-radius:8px;padding:10px;margin-bottom:14px;display:flex;gap:8px;" class="no-copy">
     <button onclick="var b=document.getElementById('govDoc');var rge=document.createRange();rge.selectNodeContents(b);var sel=getSelection();sel.removeAllRanges();sel.addRange(rge);document.execCommand('copy');sel.removeAllRanges();alert('복사됨 — 한글(HWP)에서 붙여넣기 하세요. 표가 그대로 들어갑니다.');" style="flex:1;padding:10px;font-size:14px;font-weight:700;cursor:pointer;background:#1a6e9e;color:#fff;border:none;border-radius:7px;">📋 한글용 전체 복사</button>
     <button onclick="var h=document.documentElement.outerHTML;var bl=new Blob(['\\ufeff'+h],{type:'text/html;charset=utf-8'});var a=document.createElement('a');a.href=URL.createObjectURL(bl);a.download='${esc(title)}_${(r.date||'').slice(0,10)}.html';a.click();" style="flex:1;padding:10px;font-size:14px;font-weight:700;cursor:pointer;background:#2a7a4b;color:#fff;border:none;border-radius:7px;">💾 파일 저장 (한글에서 열기)</button>
