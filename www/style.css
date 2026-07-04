@@ -249,7 +249,7 @@ button{-webkit-tap-highlight-color:transparent;touch-action:manipulation;}
 .ph{flex:1;min-width:48px;padding:8px 2px;text-align:center;font-size:10px;color:rgba(255,255,255,.35);cursor:pointer;border-bottom:2px solid transparent;}
 .ph.done{color:#27ae60;border-bottom-color:#27ae60;}.ph.active{color:#4fa8d0;border-bottom-color:#4fa8d0;font-weight:700;}
 .ph-dot{width:7px;height:7px;border-radius:50%;background:currentColor;margin:0 auto 3px;}
-.rcontent{flex:1;overflow-y:auto;padding:12px;}
+.rcontent{flex:1;overflow-y:auto;padding:12px 12px calc(28px + env(safe-area-inset-bottom));}
 .rsec{background:#0b1c30;border-radius:10px;padding:12px;margin-bottom:8px;border:.5px solid rgba(255,255,255,.07);}
 .rsec-t{font-size:11px;color:#4fa8d0;font-weight:700;margin-bottom:8px;}
 
@@ -337,6 +337,8 @@ button{-webkit-tap-highlight-color:transparent;touch-action:manipulation;}
 .pill.on{background:rgba(79,168,208,.15);color:#4fa8d0;border-color:rgba(79,168,208,.4);}
 .tt-stage-pill.on{background:#1a4a6e !important;color:#fff !important;border-color:#4fa8d0 !important;box-shadow:0 0 0 2px rgba(79,168,208,.25);}
 .tt-actor-pill.on{background:#7a3800 !important;color:#fff !important;border-color:#c05000 !important;}
+.press-fx{transition:transform .1s var(--qt),opacity .1s;}
+.press-fx:active{transform:scale(.95);opacity:.8;}
 .tog-btn{padding:9px 15px;border-radius:8px;border:1px solid rgba(255,255,255,.15);background:rgba(255,255,255,.04);color:rgba(255,255,255,.55);font-size:12px;cursor:pointer;min-height:40px;transition:all .15s var(--qt);}
 .tog-btn.on{background:rgba(79,168,208,.18);border-color:rgba(79,168,208,.4);color:#4fa8d0;font-weight:700;}
 /* ── 체크박스 / 체크아이템 ── */

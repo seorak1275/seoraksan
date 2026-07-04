@@ -79,6 +79,8 @@ function submitNBoFromForm(){
     repName: document.getElementById('r_repName')?.value||res[idx].repName||'',
     repTel: document.getElementById('r_repTel')?.value||res[idx].repTel||'',
     repRel: document.getElementById('r_repRel')?.value||res[idx].repRel||'',
+    repBirth: document.getElementById('r_repBirth')?.value||res[idx].repBirth||'',
+    repGender: document.getElementById('r_repGender')?.value||res[idx].repGender||'알수없음',
     vDisease: document.getElementById('r_vDis')?.value||res[idx].vDisease||'',
     vAllergy: document.getElementById('r_vAll')?.value||res[idx].vAllergy||'',
     vMeds: document.getElementById('r_vMed')?.value||res[idx].vMeds||'',
@@ -118,7 +120,7 @@ function submitNBoFromForm(){
   [['사고유형','type'],['중증도','severity'],['위치','location'],['장소구분','loctype'],
    ['사고자','vName'],['전화','vTel'],['성별','vGender'],['내외국인','vNation'],['국적','vNationality'],
    ['생년월일','vBirth'],['거주지','vAddr'],['기저질환','vDisease'],['알레르기','vAllergy'],['복용약','vMeds'],
-   ['신고자','repName'],['신고자 연락처','repTel'],['신고자 관계','repRel'],
+   ['신고자','repName'],['신고자 연락처','repTel'],['신고자 관계','repRel'],['신고자 생년월일','repBirth'],['신고자 성별','repGender'],
    ['부상부위','injuryParts'],['부상유형','injuryTypes'],['원인','cause'],['구조방법','rescueMethod'],
    ['음주','alcohol'],['음주량','alcAmount'],['병원후송','hospital'],['기상','weather'],['동원장비','equipment'],['119공조','r119'],['접수경로','recvRoute']].forEach(([label,key])=>{
     const a=_cv(prev[key]),b=_cv(phaseData[key]);
@@ -1286,7 +1288,7 @@ function _mergedRescue(r){
 // HWPX 템플릿 엔진 — 관리자가 올린 실제 한글 서식(.hwpx)의 {{자리표시자}}를 데이터로 치환해
 // 진짜 한글파일 생성 (서식·글꼴·표가 원본과 100% 동일). ZIP은 브라우저 내장 스트림으로 처리.
 // ══════════════════════════════════════════
-const HWPX_PLACEHOLDERS=['사건명','사고일시','접수경로','출동시간','조우시간','완료시간','출동거리','사고장소','좌표','장소구분','신고자 이름','신고자 연락처','사고자 관계','사고자 이름','사고자 생년월일, 성별','사고자 연락처','사고자 거주지, 국가','사고원인','부상유형','사고경위','조치내용','동원인원','동원장비','병원이송','특이사항','음주여부','기상','중증도','활력징후','동반자','추가사고자','접수내용','응소','작성자','오늘'];
+const HWPX_PLACEHOLDERS=['사건명','사고일시','접수경로','출동시간','조우시간','완료시간','출동거리','사고장소','좌표','장소구분','신고자 이름','신고자 연락처','신고자 생년월일, 성별','사고자 관계','사고자 이름','사고자 생년월일, 성별','사고자 연락처','사고자 거주지, 국가','사고원인','부상유형','사고경위','조치내용','동원인원','동원장비','병원이송','특이사항','음주여부','기상','중증도','활력징후','동반자','추가사고자','접수내용','응소','작성자','오늘'];
 async function _zipRead(buf){ // ArrayBuffer → [{name,data:Uint8Array}]
   const dv=new DataView(buf);const u8=new Uint8Array(buf);
   let e=buf.byteLength-22;
@@ -1360,6 +1362,22 @@ function _hwpxFill(entries,map){
     s=s.replace(/\{\{[^{}]{1,24}\}\}/g,''); // 값 없는 자리표시자 제거
     return {name:en.name,data:enc.encode(s)};
   });
+}
+// 문서 미리보기 인앱 오버레이 — 새 창 대신(PWA/앱에서 뒤로 못 돌아오는 문제 해결). ← 앱으로 버튼 + 🖨 인쇄
+function _docPreviewOverlay(docHtml,title){
+  let ov=document.getElementById('docPrevOv');if(ov)ov.remove();
+  ov=document.createElement('div');ov.id='docPrevOv';
+  ov.style.cssText='position:fixed;inset:0;z-index:99990;background:#222;display:flex;flex-direction:column;';
+  ov.innerHTML='<div style="flex-shrink:0;display:flex;gap:8px;padding:calc(8px + env(safe-area-inset-top)) 12px 8px;background:#0a1828;align-items:center;border-bottom:1px solid rgba(255,255,255,.1);">'
+    +'<button id="docPrevBack" class="press-fx" style="background:rgba(79,168,208,.15);border:1px solid rgba(79,168,208,.4);color:#4fa8d0;border-radius:8px;padding:9px 14px;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap;">← 앱으로</button>'
+    +'<span style="flex:1;font-size:12px;color:#cfe2f2;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+_esc(title||'문서')+'</span>'
+    +'<button id="docPrevPrint" class="press-fx" style="background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.15);color:#cfe2f2;border-radius:8px;padding:9px 14px;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap;">🖨 인쇄</button></div>'
+    +'<iframe id="docPrevFrame" style="flex:1;border:none;background:#fff;width:100%;"></iframe>';
+  document.body.appendChild(ov);
+  const fr=document.getElementById('docPrevFrame');
+  fr.srcdoc=docHtml;
+  document.getElementById('docPrevBack').onclick=function(){ov.remove();};
+  document.getElementById('docPrevPrint').onclick=function(){try{fr.contentWindow.focus();fr.contentWindow.print();}catch(e){toast('⚠️ 인쇄 실패 — 파일 저장 후 인쇄하세요');}};
 }
 async function _hwpxGenFromBuf(buf,map,fname){
   const entries=await _zipRead(buf);
@@ -1436,7 +1454,7 @@ async function govReport(rid,kind){
     '접수경로':rrChk,                                   // 서식 칸엔 체크박스 문자열로
     '조우시간':nb(r.arrival),                            // 도착(조우)시간
     '신고자 이름':nb(r.repName),'신고자 연락처':nb(r.repTel),
-    '신고자 생년월일, 성별':'',                          // 앱 미수집 항목 — 빈칸
+    '신고자 생년월일, 성별':[nb(r.repBirth),(nb(r.repGender)&&r.repGender!=='알수없음')?r.repGender:''].filter(Boolean).join('/'),
     '사고자 이름':nb(r.vName),'사고자 연락처':nb(r.vTel),
     '사고자 생년월일, 성별':vAgeStr,
     '사고자 관계':nb(r.repRel),
@@ -1567,30 +1585,31 @@ async function govReport(rid,kind){
     <button onclick="var h=document.documentElement.outerHTML;var bl=new Blob(['\\ufeff'+h],{type:'text/html;charset=utf-8'});var a=document.createElement('a');a.href=URL.createObjectURL(bl);a.download='${esc(title)}_${(r.date||'').slice(0,10)}.html';document.body.appendChild(a);a.click();setTimeout(function(){a.remove();},1500);" style="flex:1;padding:10px;font-size:14px;font-weight:700;cursor:pointer;background:#2a7a4b;color:#fff;border:none;border-radius:7px;">💾 파일 저장 (한글에서 열기)</button>
   </div>
   <div id="govDoc">${body}</div></body></html>`;
-  const win=window.open('','_blank');
-  if(!win){toast('⚠️ 팝업 차단 해제 필요');return;}
-  win.document.write(doc);win.document.close();
+  _docPreviewOverlay(doc,title); // 새 창 대신 인앱 오버레이 — '← 앱으로'로 즉시 복귀
 }
 // 보고서 공유/복사/인쇄 — 헤더 우측 '📄 보고서' 버튼
 function openReportShare(rid){
   let m=document.getElementById('repShareModal');
   if(!m){m=document.createElement('div');m.id='repShareModal';document.body.appendChild(m);}
   m.style.cssText='position:fixed;inset:0;z-index:9600;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;padding:30px;';
-  const b='width:100%;margin-bottom:7px;padding:12px;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;';
+  const b='width:100%;margin-bottom:7px;padding:12px;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;transition:transform .1s,opacity .1s;';
   m.innerHTML=`<div style="background:#0a1828;border:1px solid rgba(79,168,208,.25);border-radius:14px;max-width:300px;width:100%;padding:16px;">
     <div style="font-size:14px;font-weight:800;color:#e0edf8;margin-bottom:12px;text-align:center;">📄 보고서</div>
-    <button onclick="govReport(${rid},'status');this.closest('#repShareModal').remove();" style="${b}border:1px solid rgba(232,179,74,.4);background:rgba(232,179,74,.1);color:#e8b34a;">📑 안전사고 처리현황 (한글용)</button>
-    <button onclick="govReport(${rid},'trend');this.closest('#repShareModal').remove();" style="${b}border:1px solid rgba(232,179,74,.4);background:rgba(232,179,74,.1);color:#e8b34a;">📈 동향보고 (한글용)</button>
-    <button onclick="copyReportText(${rid});this.closest('#repShareModal').remove();" style="${b}border:1px solid rgba(79,168,208,.35);background:rgba(79,168,208,.1);color:#4fa8d0;">📋 텍스트 복사</button>
-    <button onclick="shareReportText(${rid});this.closest('#repShareModal').remove();" style="${b}border:1px solid rgba(39,174,96,.35);background:rgba(39,174,96,.1);color:#27ae60;">📤 공유</button>
-    <button onclick="printReport(${rid});this.closest('#repShareModal').remove();" style="${b}border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.05);color:#b8d4e8;">🖨 인쇄 / PDF</button>
+    <button class="press-fx" onclick="govReport(${rid},'status');this.closest('#repShareModal').remove();" style="${b}border:1px solid rgba(232,179,74,.4);background:rgba(232,179,74,.1);color:#e8b34a;">📑 안전사고 처리현황 (한글용)</button>
+    <button class="press-fx" onclick="govReport(${rid},'trend');this.closest('#repShareModal').remove();" style="${b}border:1px solid rgba(232,179,74,.4);background:rgba(232,179,74,.1);color:#e8b34a;">📈 동향보고 (한글용)</button>
+    <button class="press-fx" onclick="copyReportText(${rid});this.closest('#repShareModal').remove();" style="${b}border:1px solid rgba(79,168,208,.35);background:rgba(79,168,208,.1);color:#4fa8d0;">📋 텍스트 복사</button>
+    <button class="press-fx" onclick="shareReportText(${rid});this.closest('#repShareModal').remove();" style="${b}border:1px solid rgba(39,174,96,.35);background:rgba(39,174,96,.1);color:#27ae60;">📤 공유</button>
+    <button class="press-fx" onclick="printReport(${rid});this.closest('#repShareModal').remove();" style="${b}border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.05);color:#b8d4e8;">🖨 인쇄 / PDF</button>
     <button onclick="this.closest('#repShareModal').remove();" style="width:100%;padding:9px;border:none;background:none;color:#7a9cb8;font-size:12px;cursor:pointer;">닫기</button>
   </div>`;
   m.onclick=function(e){if(e.target===m)m.remove();};
 }
 function renderTimeline(r,viewMode,outId){
   const _isBoard=outId&&outId!=='repContent';
-  if(!_isBoard){_hideRepFooter();window._reportMode='timeline';clearInterval(_draftAutoTimer);} // 타임라인 보기 — 작성모드 해제
+  if(!_isBoard){
+    _hideRepFooter();window._reportMode='timeline';clearInterval(_draftAutoTimer); // 타임라인 보기 — 작성모드 해제
+    try{const bn=document.getElementById('bnav');if(bn)bn.style.display='none';}catch(e){} // 어느 경로로 와도 하단바에 안 가리게
+  }
 
   _curViewResId=r.id;
   const mode=(viewMode==='full'||viewMode==='write')?'write':'advanced';
@@ -2227,18 +2246,13 @@ function shareReportText(id){
 function printReport(id){
   const r=getRes(id);const txt=_buildReportText(r);
   const esc=s=>String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-  const win=window.open('','_blank');
-  if(!win){toast('⚠️ 팝업 차단 — 인쇄 창을 열 수 없습니다');return;}
-  win.document.write('<html><head><title>'+esc(r.title||'구조 보고서')+'</title>'
+  // 새 창 대신 인앱 오버레이(← 앱으로 복귀 가능) — 상단 🖨 인쇄 버튼 사용
+  const html='<html><head><title>'+esc(r.title||'구조 보고서')+'</title>'
     +'<meta name="viewport" content="width=device-width,initial-scale=1">'
-    +'<style>body{font-family:-apple-system,"Malgun Gothic",sans-serif;padding:24px;color:#111;line-height:1.7;font-size:13px;}'
-    +'h1{font-size:18px;border-bottom:2px solid #333;padding-bottom:8px;}pre{white-space:pre-wrap;word-break:break-word;font-family:inherit;}'
-    +'@media print{button{display:none;}}</style></head><body>'
-    +'<h1>🏔️ 설악산 구조 보고서</h1><pre>'+esc(txt)+'</pre>'
-    +'<button onclick="window.print()" style="margin-top:16px;padding:10px 18px;font-size:14px;cursor:pointer;">🖨 인쇄 / PDF 저장</button>'
-    +'</body></html>');
-  win.document.close();
-  setTimeout(()=>{try{win.focus();}catch(e){}},300);
+    +'<style>body{font-family:-apple-system,"Malgun Gothic",sans-serif;padding:24px;color:#111;line-height:1.7;font-size:13px;background:#fff;}'
+    +'h1{font-size:18px;border-bottom:2px solid #333;padding-bottom:8px;}pre{white-space:pre-wrap;word-break:break-word;font-family:inherit;}</style></head><body>'
+    +'<h1>🏔️ 설악산 구조 보고서</h1><pre>'+esc(txt)+'</pre></body></html>';
+  _docPreviewOverlay(html,(r.title||'구조 보고서')+' — 인쇄/PDF');
 }
 function endSit(){
   const res=DB.g('rescues')||[];const idx=res.findIndex(x=>x.id===selResId);if(idx===-1)return;
@@ -2323,6 +2337,7 @@ function _restoreRescueForm(snap){
     if(n&&n.value==='외국인'){const lbl=document.getElementById('vAddrLabel');if(lbl)lbl.textContent='국적 (국가명)';}
     _syncBtns('r_loctype','loctypeBtns');
     _syncBtns('r_repRel','repRelBtns');
+    _syncBtns('r_repGender','repGenderBtns');
     const hr=_syncBtns('r_hasRep','hasRepBtns');
     if(hr&&hr.value==='y'){const rw=document.getElementById('reporterWrap');if(rw)rw.style.display='block';}
     const hc=_syncBtns('r_hasComp','hasCompBtns');
@@ -2649,6 +2664,15 @@ function render1BoForm(prefill=null){
             <div class="fg"><span class="fl">성명</span><input type="text" id="r_repName" class="fi" value="${p.repName||''}"></div>
             <div class="fg"><span class="fl">연락처</span><input type="tel" id="r_repTel" class="fi" value="${p.repTel||''}"></div>
           </div>
+          <div class="frow">
+            <div class="fg"><span class="fl">생년월일 (선택)</span><input type="text" inputmode="numeric" id="r_repBirth" class="fi" placeholder="19801231" maxlength="10" value="${p.repBirth||''}" oninput="_fmtBirth(this)"></div>
+            <div class="fg"><span class="fl">성별</span>
+              <div style="display:flex;gap:5px;" id="repGenderBtns">
+                ${['남','여','알수없음'].map(o=>`<button class="tog-btn${(p.repGender||'알수없음')===o?' on':''}" data-val="${o}" style="flex:1;padding:7px 2px;min-height:36px;font-size:11px;" onclick="selRepGender('${o}')">${o}</button>`).join('')}
+              </div>
+              <input type="hidden" id="r_repGender" value="${p.repGender||'알수없음'}">
+            </div>
+          </div>
           ${isNbo&&p.repTel?`<div style="margin:-2px 0 8px;">${(typeof _telBtnsHtml==='function')?_telBtnsHtml(p.repTel,curResId,'신고자',p.repName):''}</div>`:''}
         </div>
       </div>
@@ -2870,6 +2894,8 @@ function submit1Bo(){
     repName:document.getElementById('r_repName')?.value||'',
     repTel:document.getElementById('r_repTel')?.value||'',
     repRel:document.getElementById('r_repRel')?.value||'',
+    repBirth:document.getElementById('r_repBirth')?.value||'',
+    repGender:document.getElementById('r_repGender')?.value||'알수없음',
     injuryPhoto:_photoUrl('prevInj'),
     transPhoto:_photoUrl('prevTrans'),
     timetable: sortTTByTime(_ttInlineEntries||[]),
