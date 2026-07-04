@@ -1256,14 +1256,14 @@ function _latestOccupancy(op,loc){
 let _occOpId=null,_occLoc='';
 function openAlertOcc(opId,presetLoc){
   _occOpId=opId;_occLoc=presetLoc||'';
-  document.getElementById('occOpId').value=opId;
-  document.getElementById('occLoc').value=presetLoc||'';
-  document.getElementById('occLocDisplay').textContent=presetLoc?_stationLabel(presetLoc):'관측소 미지정';
-  document.getElementById('occStaff').value='';
-  document.getElementById('occVisitors').value='';
-  document.getElementById('occNote').value='';
-  document.getElementById('modalAlertOcc').classList.add('on');
-  setTimeout(()=>document.getElementById('occStaff').focus(),200);
+  const $=id=>document.getElementById(id);
+  if(!$('modalAlertOcc')){toast('⚠️ 화면 로딩 중 — 다시 시도');return;} // DOM 미로드 방어
+  if($('occOpId'))$('occOpId').value=opId;
+  if($('occLoc'))$('occLoc').value=presetLoc||'';
+  if($('occLocDisplay'))$('occLocDisplay').textContent=presetLoc?_stationLabel(presetLoc):'관측소 미지정';
+  ['occStaff','occVisitors','occNote'].forEach(id=>{if($(id))$(id).value='';});
+  $('modalAlertOcc').classList.add('on');
+  setTimeout(()=>{const el=$('occStaff');if(el)el.focus();},200);
 }
 function addAlertOccupancy(){
   const opId=parseInt(document.getElementById('occOpId').value)||_occOpId;

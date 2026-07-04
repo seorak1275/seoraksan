@@ -1596,9 +1596,9 @@ async function govReport(rid,kind){
 function openReportShare(rid){
   let m=document.getElementById('repShareModal');
   if(!m){m=document.createElement('div');m.id='repShareModal';document.body.appendChild(m);}
-  m.style.cssText='position:fixed;inset:0;z-index:9600;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;padding:30px;';
+  m.style.cssText='position:fixed;inset:0;z-index:99800;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;padding:30px;';
   const b='width:100%;margin-bottom:7px;padding:12px;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;transition:transform .1s,opacity .1s;';
-  m.innerHTML=`<div style="background:#0a1828;border:1px solid rgba(79,168,208,.25);border-radius:14px;max-width:300px;width:100%;padding:16px;">
+  m.innerHTML=`<div style="background:#0a1828;border:1px solid rgba(79,168,208,.25);border-radius:14px;max-width:300px;width:100%;padding:16px;max-height:85vh;overflow-y:auto;">
     <div style="font-size:14px;font-weight:800;color:#e0edf8;margin-bottom:12px;text-align:center;">📄 보고서</div>
     <button class="press-fx" onclick="govReport(${rid},'status');this.closest('#repShareModal').remove();" style="${b}border:1px solid rgba(232,179,74,.4);background:rgba(232,179,74,.1);color:#e8b34a;">📑 안전사고 처리현황 (한글용)</button>
     <button class="press-fx" onclick="govReport(${rid},'trend');this.closest('#repShareModal').remove();" style="${b}border:1px solid rgba(232,179,74,.4);background:rgba(232,179,74,.1);color:#e8b34a;">📈 동향보고 (한글용)</button>
@@ -1928,7 +1928,7 @@ function openLightbox(url){
   let lb=document.getElementById('photoLightbox');
   if(!lb){
     lb=document.createElement('div');lb.id='photoLightbox';
-    lb.style.cssText='position:fixed;inset:0;z-index:99;background:rgba(0,0,0,.93);display:flex;align-items:center;justify-content:center;padding:18px;';
+    lb.style.cssText='position:fixed;inset:0;z-index:99850;background:rgba(0,0,0,.93);display:flex;align-items:center;justify-content:center;padding:18px;';
     lb.onclick=()=>{lb.style.display='none';};
     lb.innerHTML='<img id="lightboxImg" style="max-width:100%;max-height:100%;border-radius:10px;object-fit:contain;">';
     document.body.appendChild(lb);
