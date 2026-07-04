@@ -993,7 +993,7 @@ function renderHomeActive(){
     `<div onclick="${onclick}" style="flex:0 0 auto;width:166px;background:#0f1e30;border:1px solid ${borderRGBA};border-left:3px solid ${accent};border-radius:13px;padding:10px 12px;cursor:pointer;box-shadow:0 2px 9px rgba(0,0,0,.3);">
       <div style="display:flex;align-items:center;gap:5px;margin-bottom:6px;">
         <span style="font-size:14px;">${ico}</span>
-        <span style="font-size:8.5px;font-weight:800;color:${badgeCol};background:${badgeBg};border-radius:6px;padding:2px 6px;letter-spacing:.2px;">${badgeTxt}</span>
+        <span style="font-size:10px;font-weight:800;color:${badgeCol};background:${badgeBg};border-radius:6px;padding:2px 6px;letter-spacing:.2px;">${badgeTxt}</span>
         ${mobHtml||''}
       </div>
       <div style="font-size:11.5px;font-weight:700;color:#eaf2fa;line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${title}</div>
@@ -2627,7 +2627,7 @@ function sosToRescue(id){
 // 앱 자체 업데이트 (OTA · Capgo 자체호스팅) — APK 전용. 웹/PWA는 서비스워커가 자동 갱신.
 // 번들(www)의 새 버전을 ota.json으로 알리면, 설치된 앱이 받아서 그 자리에서 교체(재빌드 불필요).
 // ══════════════════════════════════════════
-const OTA_VER='2026.06.29.54';                         // ← 현재 번들 버전 (릴리스마다 올림 · build-ota.sh가 ota.json에 반영)
+const OTA_VER='2026.06.29.55';                         // ← 현재 번들 버전 (릴리스마다 올림 · build-ota.sh가 ota.json에 반영)
 const OTA_MANIFEST='https://109yoon.github.io/seoraksan/ota.json';
 let _otaInfo=null;
 function _otaPlugin(){try{return (window.Capacitor&&window.Capacitor.Plugins&&window.Capacitor.Plugins.CapacitorUpdater)||null;}catch(e){return null;}}
