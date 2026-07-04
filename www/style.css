@@ -339,6 +339,8 @@ button{-webkit-tap-highlight-color:transparent;touch-action:manipulation;}
 .tt-actor-pill.on{background:#7a3800 !important;color:#fff !important;border-color:#c05000 !important;}
 .press-fx{transition:transform .1s var(--qt),opacity .1s;}
 .press-fx:active{transform:scale(.95);opacity:.8;}
+/* 주요 액션 버튼 공통 누름 피드백 (시인성) */
+.btn-submit:active,.mbtn:active,.map-ctrl:active,.fab2:active,.dbbtns .btn:active,.tog-btn:active,.sm-btn:active{transform:scale(.96);opacity:.85;}
 .tog-btn{padding:9px 15px;border-radius:8px;border:1px solid rgba(255,255,255,.15);background:rgba(255,255,255,.04);color:rgba(255,255,255,.55);font-size:12px;cursor:pointer;min-height:40px;transition:all .15s var(--qt);}
 .tog-btn.on{background:rgba(79,168,208,.18);border-color:rgba(79,168,208,.4);color:#4fa8d0;font-weight:700;}
 /* ── 체크박스 / 체크아이템 ── */
