@@ -1467,25 +1467,30 @@ async function govReport(rid,kind){
     // 서식에 추가하면 자동으로 채워지는 확장 자리표시자
     '중증도':nb(r.severity),'활력징후':vitalS,'동반자':compStr,'추가사고자':v2Str,
     '접수내용':nb(r.reception),'응소':mobStr,
+    // 동향보고 전용
+    '사고유형':nb(r.type)||'안전사고',
+    '개요':'본 건은 '+(r.date||'')+'경 '+(nb(r.location)||'설악산 일원')+'에서 발생한 '+(nb(r.cause)||r.type||'안전사고')+' 관련, 119와 설악산사무소에서 공동대응한 사항임',
+    '인적사항':['- 사고자: '+(nb(r.vName)||'미상')+(vAgeStr?'('+vAgeStr+')':'')+(nb(r.vTel)?' · '+r.vTel:''),v2Str?'- 추가 사고자: '+v2Str:'',compStr?'- 동반자: '+compStr:''].filter(Boolean).join('\n'),
+    '사고원인분석':['- '+(nb(r.cause)||'-')+(injStr?' / '+injStr:'')+(nb(r.severity)?' ('+r.severity+')':''),nb(r.situation)?'- '+r.situation:''].filter(Boolean).join('\n'),
   });
+  const _fname=(kind==='status'?'안전사고처리현황':'동향보고')+'_'+((r.date||'').slice(0,10)||'문서')+'.hwpx';
   try{
-    // 1) 관리자 업로드 서식(Firestore) 우선
-    if(typeof _fdb!=='undefined'&&_fdb){
+    toast('📄 한글파일 생성 중…'); // 생성 시작 즉시 표시 (서버 서식 조회로 수 초 걸릴 수 있음)
+    // 1) 관리자 업로드 서식(Firestore) 우선 — 오프라인이면 건너뛰고 내장 서식으로
+    if(typeof _fdb!=='undefined'&&_fdb&&navigator.onLine){
       try{
         const tdoc=await _fdb.collection('tpl').doc(kind).get();
         if(tdoc.exists&&tdoc.data()&&tdoc.data().b64){
-          await _hwpxGenerate(tdoc.data(),dataMap,(kind==='status'?'안전사고처리현황':'동향보고')+'_'+((r.date||'').slice(0,10)||'문서')+'.hwpx');
+          await _hwpxGenerate(tdoc.data(),dataMap,_fname);
           return;
         }
       }catch(e){}
     }
-    // 2) 앱 내장 서식 (처리현황 — 실제 결재 서식 원본)
-    if(kind==='status'){
-      const resp=await fetch('./tpl-status.hwpx');
-      if(resp.ok){
-        await _hwpxGenFromBuf(await resp.arrayBuffer(),dataMap,'안전사고처리현황_'+((r.date||'').slice(0,10)||'문서')+'.hwpx');
-        return;
-      }
+    // 2) 앱 내장 서식 (실제 결재 서식 기반 — 처리현황·동향보고)
+    const resp=await fetch(kind==='status'?'./tpl-status.hwpx':'./tpl-trend.hwpx');
+    if(resp.ok){
+      await _hwpxGenFromBuf(await resp.arrayBuffer(),dataMap,_fname);
+      return;
     }
   }catch(e){try{toast('⚠️ 서식 생성 실패('+(e&&e.message||e)+') — HTML 방식으로 대체');}catch(_){}}
   // ── 폴백: HTML 재현본 ──
