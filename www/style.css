@@ -156,7 +156,7 @@ button{-webkit-tap-highlight-color:transparent;touch-action:manipulation;}
 .fab{position:absolute;bottom:66px;right:13px;width:56px;height:56px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:24px;box-shadow:0 4px 14px rgba(0,0,0,.6);border:none;cursor:pointer;z-index:10;}
 .fab2{position:absolute;bottom:66px;left:13px;background:#7a1818;color:#fff;border:none;border-radius:10px;padding:12px 16px;font-size:13px;font-weight:700;cursor:pointer;z-index:10;box-shadow:0 3px 10px rgba(0,0,0,.5);min-height:44px;}
 .fab-gps{position:absolute;bottom:134px;right:13px;width:44px;height:44px;border-radius:50%;background:#0b1c30;color:#4fa8d0;display:flex;align-items:center;justify-content:center;font-size:17px;border:1.5px solid rgba(79,168,208,.35);cursor:pointer;z-index:10;}
-.map-ctrl{position:absolute;top:10px;left:10px;background:rgba(11,28,48,.85);color:#4fa8d0;border:1px solid rgba(79,168,208,.22);border-radius:7px;padding:8px 10px;min-height:32px;font-size:11px;font-weight:600;cursor:pointer;z-index:10;}
+.map-ctrl{position:absolute;top:10px;left:10px;background:rgba(11,28,48,.85);color:#4fa8d0;border:1px solid rgba(79,168,208,.22);border-radius:8px;padding:0 10px;height:34px;display:inline-flex;align-items:center;line-height:1.2;white-space:nowrap;box-sizing:border-box;font-size:11px;font-weight:600;cursor:pointer;z-index:10;}
 /* Android/iOS 시스템 바 안전영역: 전체화면 지도의 상단 컨트롤·하단 FAB가 상태바/뒤로가기 바에 가려 못 눌리는 문제 방지(인라인 top/bottom 값은 그대로 두고 margin으로만 밀어냄) */
 .map-ctrl{margin-top:env(safe-area-inset-top);}
 .fab,.fab2,.fab-gps{margin-bottom:env(safe-area-inset-bottom);}

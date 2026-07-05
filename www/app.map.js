@@ -59,7 +59,10 @@ function _clusterByPixels(map,items,cellPx,onClick,cls){
   cells.forEach(group=>{
     if(group.length<2){group.forEach(it=>{try{it.ov.setMap(map);}catch(e){}});return;}
     group.forEach(it=>{try{it.ov.setMap(null);}catch(e){}});
-    let lat=0,lng=0;group.forEach(it=>{lat+=it.lat;lng+=it.lng;});lat/=group.length;lng/=group.length;
+    // 버블 위치: 평균점이 아니라 그룹에서 가장 최근 건의 실제 좌표 — 축소 시 사고 위치가 어긋나 보이던 문제 해결
+    let anchor=group[0];
+    group.forEach(it=>{const a=(it.ov&&it.ov._ev&&+it.ov._ev.id)||0;const b=(anchor.ov&&anchor.ov._ev&&+anchor.ov._ev.id)||0;if(a>b)anchor=it;});
+    const lat=anchor.lat,lng=anchor.lng;
     const el=document.createElement('div');
     el.className='map-cluster'+(cls?' '+cls:'');el.textContent=group.length;
     el.addEventListener('click',e=>{e.stopPropagation();onClick&&onClick(lat,lng,group);});
@@ -207,9 +210,16 @@ function initMaps(){
         clearTimeout(_saveMapCenterTimer);
         _saveMapCenterTimer=setTimeout(function(){
           const _s=_nearestSign(lat,lng);
-          const _e=(typeof _elevStr==='function')?_elevStr(lat,lng):'';
+          // 고도: 내 위치(GPS 실측)가 중심과 가까우면 실측값, 아니면 표지판 기반 추정
+          let _e='';
+          try{
+            const g=window._myGpsAlt;
+            if(g&&g.alt!=null&&Date.now()-g.ts<120000&&_haversine(g.lat,g.lng,lat,lng)<30)_e='⛰'+Math.round(g.alt)+'m';
+            else if(typeof _elevStr==='function')_e=_elevStr(lat,lng);
+          }catch(e){}
           if(cd)cd.innerHTML=lat.toFixed(5)+', '+lng.toFixed(5)+(_e?' <span style="color:#a7f3e4;">'+_e+'</span>':'')+(_s?'<br><span style="color:#f0c040;font-size:9.5px;">📍 '+_s+'</span>':'');
-          _updateZoneBadge(lat,lng,'rescueZoneBadge');
+          // 'NN-NN → 거점' 존 배지는 사용 안 함 (카카오 길찾기 API 도입 후 재검토)
+          try{const zb=document.getElementById('rescueZoneBadge');if(zb)zb.style.display='none';}catch(e){}
         },300);
       }catch(e){}
     }
@@ -295,6 +305,7 @@ function gpsTo(mode){
     el.style.cssText='width:18px;height:18px;border-radius:50%;background:#4fa8d0;border:3px solid #fff;box-shadow:0 0 10px rgba(79,168,208,.8),0 2px 6px rgba(0,0,0,.5);';
     myOv=new kakao.maps.CustomOverlay({position:ll,content:el});myOv.setMap(m);
     const _alt=(p.coords.altitude!=null&&isFinite(p.coords.altitude))?Math.round(p.coords.altitude):null;
+    window._myGpsAlt={lat:p.coords.latitude,lng:p.coords.longitude,alt:_alt,ts:Date.now()}; // 좌표 readout 실측 고도용
     toast('✅ 내 위치'+(_alt!=null?' · ⛰'+_alt+'m':''));
   },()=>toast('⚠️ GPS 실패. 위치 권한 확인'),{enableHighAccuracy:true,timeout:15000,maximumAge:10000});
 }
