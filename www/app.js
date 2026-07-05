@@ -112,6 +112,7 @@ async function _signInWithKakaoToken(kakaoAccessToken){
       else localStorage.removeItem('_tokenAdmin');
       _markMemberOk(); // 멤버 확인 → 오프라인 보호 플래그
       window._memberAuthWarned=false;window._mintNetWarned=false;window._lastMintErr=''; // 복구됨 → 경고 상태 초기화
+      try{var _ab=document.getElementById('authFixBanner');if(_ab)_ab.remove();}catch(e){}
       try{_enforceAccessGate();}catch(e){} // 멤버 확인 → 혹시 떠있던 게이트 해제
       setTimeout(_flushSyncQueue,300);
     }catch(e){return{error:'signin_failed',detail:String(e)};}
@@ -178,6 +179,7 @@ async function _ensureMemberAuth(){
       // 토큰이 아예 없거나 만료 → 그 자리에서 바로 재로그인 제안 (한 번 로그인하면 이후 자동 갱신)
       if(lastErr==='no_tokens'||lastErr==='refresh_failed'){
         setTimeout(function(){
+          try{_showAuthFixBanner();}catch(e){}
           try{
             if(confirm('저장 권한이 만료되었습니다 (카카오 로그인 토큰 없음/만료).\n지금 카카오로 다시 로그인할까요?\n\n※ 한 번만 로그인하면 이후엔 자동 갱신됩니다. 데이터는 보존됩니다.'))kakaoLogin();
           }catch(e){}
@@ -189,6 +191,16 @@ async function _ensureMemberAuth(){
     }
     return false;
   }catch(e){_ensuringMember=false;return false;}
+}
+// 재로그인 안내 고정 배너 — confirm을 지나쳐도 남아서 한 탭으로 복구 (로그인 성공 시 자동 제거)
+function _showAuthFixBanner(){
+  if(document.getElementById('authFixBanner'))return;
+  const b=document.createElement('div');b.id='authFixBanner';
+  b.style.cssText='position:fixed;top:calc(env(safe-area-inset-top) + 54px);left:10px;right:10px;z-index:9990;background:rgba(160,42,32,.97);border:1px solid rgba(255,180,168,.6);border-radius:11px;padding:9px 12px;display:flex;align-items:center;gap:8px;box-shadow:0 4px 14px rgba(0,0,0,.5);';
+  b.innerHTML='<span style="flex:1;font-size:12px;color:#fff;font-weight:700;line-height:1.4;">⚠️ 저장 권한 만료 — 재로그인 한 번이면 해결돼요 (데이터 보존)</span>'
+    +'<button class="press-fx" onclick="try{kakaoLogin()}catch(e){}" style="flex-shrink:0;background:#FEE500;color:#191919;border:none;border-radius:7px;padding:8px 13px;font-size:12px;font-weight:800;cursor:pointer;">카카오 로그인</button>'
+    +'<button onclick="var e=document.getElementById(\'authFixBanner\');if(e)e.remove();" style="flex-shrink:0;background:none;border:none;color:rgba(255,255,255,.7);font-size:17px;cursor:pointer;padding:0 2px;">×</button>';
+  document.body.appendChild(b);
 }
 // 온라인 복귀 시 멤버 인증 자동 재시도 (오프라인 중 만료됐던 세션 복구)
 window.addEventListener('online',function(){setTimeout(function(){try{_ensureMemberAuth();}catch(e){}},2000);});
@@ -2627,7 +2639,7 @@ function sosToRescue(id){
 // 앱 자체 업데이트 (OTA · Capgo 자체호스팅) — APK 전용. 웹/PWA는 서비스워커가 자동 갱신.
 // 번들(www)의 새 버전을 ota.json으로 알리면, 설치된 앱이 받아서 그 자리에서 교체(재빌드 불필요).
 // ══════════════════════════════════════════
-const OTA_VER='2026.06.29.60';                         // ← 현재 번들 버전 (릴리스마다 올림 · build-ota.sh가 ota.json에 반영)
+const OTA_VER='2026.06.29.61';                         // ← 현재 번들 버전 (릴리스마다 올림 · build-ota.sh가 ota.json에 반영)
 const OTA_MANIFEST='https://109yoon.github.io/seoraksan/ota.json';
 let _otaInfo=null;
 function _otaPlugin(){try{return (window.Capacitor&&window.Capacitor.Plugins&&window.Capacitor.Plugins.CapacitorUpdater)||null;}catch(e){return null;}}

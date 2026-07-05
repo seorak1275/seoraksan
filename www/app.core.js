@@ -20,6 +20,14 @@ function _uploadErr(msg){
     var key=String(msg).slice(0,80);
     if(_errUpSeen[key])return;
     var nowMs=Date.now();if(nowMs-_errUpLast<3000)return;
+    // 세션이 바뀌어도(새로고침) 같은 오류는 24시간 1건만 — 반복 오류 도배 방지
+    try{
+      var dd=JSON.parse(localStorage.getItem('_errUpDay')||'{}');
+      if(dd[key]&&nowMs-dd[key]<86400000)return;
+      dd[key]=nowMs;
+      var trimmed={};Object.keys(dd).forEach(function(k){if(nowMs-dd[k]<86400000)trimmed[k]=dd[k];});
+      localStorage.setItem('_errUpDay',JSON.stringify(trimmed));
+    }catch(e){}
     _errUpSeen[key]=1;_errUpLast=nowMs;
     var u={};try{u=DB.g('currentUser')||{};}catch(e){}
     db.collection('errLogs').add({
