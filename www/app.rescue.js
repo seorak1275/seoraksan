@@ -1278,7 +1278,7 @@ function renderResList(){
         </div>
       </div>`;
     };
-    if(_og.length)cards.push(_hdr('🔴 진행중 작전 '+_og.length,'#ff6b5e'),..._og.map(_mkCard));
+    if(_og.length)cards.push(_hdr('🔴 진행중 구조 '+_og.length,'#ff6b5e'),..._og.map(_mkCard));
     if(_dn.length)cards.push(_hdr('✅ 종료 '+_dn.length,'#3ad17a'),..._dn.map(_mkCard));
   }
   if(_showHaz){
