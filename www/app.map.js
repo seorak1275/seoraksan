@@ -268,6 +268,30 @@ function initMaps(){
     },12000);
   }
 }
+// 지도 상단 컨트롤을 flex 컨테이너로 강제 재배치 — 어떤 index.html(구버전 캐시 포함)이든 동일 레이아웃 보장
+function _ensureMapTopCtrls(){
+  try{
+    const wrap=document.querySelector('#v-rescue-map .mapwrap');if(!wrap)return;
+    let c=document.getElementById('mapTopCtrls');
+    if(!c){
+      c=document.createElement('div');c.id='mapTopCtrls';
+      const r1=document.createElement('div');r1.id='mapTopRow1';
+      const r2=document.createElement('div');r2.id='mapTopRow2';
+      c.appendChild(r1);c.appendChild(r2);wrap.appendChild(c);
+      const satBtn=Array.from(wrap.children).find(el=>el.tagName==='BUTTON'&&el.classList.contains('map-ctrl')&&!el.id);
+      const mv=(el,row,right)=>{if(!el)return;el.style.position='static';el.style.top='';el.style.left='';el.style.right='';el.style.pointerEvents='auto';if(right)el.style.marginLeft='auto';row.appendChild(el);};
+      mv(satBtn,r1);mv(document.getElementById('resOngoingBtn'),r1);
+      mv(document.getElementById('resCatFilterBtn'),r1,true);mv(document.getElementById('resMapFilterBtn'),r1);
+      mv(document.getElementById('sosReqBtn'),r2);
+    }
+    // 스타일은 항상 강제(구버전 인라인 잔존 대비)
+    c.style.cssText='position:absolute;top:8px;left:8px;right:8px;z-index:10;display:flex;flex-direction:column;gap:5px;pointer-events:none;';
+    const rows=c.children;
+    if(rows[0])rows[0].style.cssText='display:flex;gap:6px;align-items:center;pointer-events:none;';
+    if(rows[1])rows[1].style.cssText='display:flex;pointer-events:none;';
+    Array.from(c.querySelectorAll('button')).forEach(b=>{b.style.position='static';b.style.top='';b.style.left='';b.style.right='';b.style.pointerEvents='auto';});
+  }catch(e){}
+}
 function rMaps(){
   // 지도 컨테이너 크기를 부모에 맞게 강제 설정
   ['mapRescue','mapInspect'].forEach(id=>{
@@ -275,6 +299,7 @@ function rMaps(){
     if(el){el.style.width='100%';el.style.height='100%';}
   });
   _applyMapVOff(); // 하단바 기준 활성지점 오프셋(십자선 위치) 갱신
+  try{_ensureMapTopCtrls();}catch(e){} // 상단 컨트롤 flex 강제(구버전 DOM 대비)
   setTimeout(()=>{
     try{if(mapI){mapI.relayout();}}catch(e){}
     try{if(mapR){mapR.relayout();}}catch(e){}

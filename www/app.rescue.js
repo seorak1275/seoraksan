@@ -1220,6 +1220,14 @@ function renderResList(){
   if(_sig!==_resListSig){_resListSig=_sig;_resListLimit=50;}
   let cards=[];
   const _hdr=(txt,col)=>`<div style="display:flex;align-items:center;gap:7px;margin:4px 2px 7px;"><span style="font-size:11px;font-weight:800;color:${col};letter-spacing:.3px;">${txt}</span><div style="flex:1;height:1px;background:linear-gradient(90deg,${col}44,transparent);"></div></div>`;
+  // 지도에서 켠 필터(진행중만 등)가 목록에도 적용 중이면 배지로 알림 — '왜 안 보이지' 방지
+  if(resStatusF.size||resTypeF.size){
+    const _fLbl=[...resTypeF,...resStatusF].join(' · ');
+    cards.push(`<div style="display:flex;align-items:center;gap:8px;background:rgba(240,192,64,.08);border:1px solid rgba(240,192,64,.35);border-radius:10px;padding:8px 12px;margin:0 2px 8px;">
+      <span style="flex:1;font-size:11px;color:#f0c040;font-weight:700;">🔍 필터 적용 중: ${_esc(_fLbl)} — 일부 항목 숨김</span>
+      <button class="press-fx" onclick="resetResFilter()" style="flex-shrink:0;background:rgba(240,192,64,.15);border:1px solid rgba(240,192,64,.4);color:#f0c040;border-radius:7px;padding:5px 11px;font-size:11px;font-weight:700;cursor:pointer;">전체 보기</button>
+    </div>`);
+  }
   // 정렬 토글(기본 최신순) — 날짜 정렬이 헷갈린다는 피드백 반영
   cards.push(`<div style="display:flex;justify-content:flex-end;margin:0 2px 6px;"><button onclick="toggleResSort()" style="background:rgba(79,168,208,.1);color:#4fa8d0;border:1px solid rgba(79,168,208,.28);border-radius:16px;padding:5px 12px;font-size:11px;font-weight:700;cursor:pointer;">↕ ${_resSortNewest?'최신순':'오래된순'}</button></div>`);
   // 🆘 조난·사고자 위치 수신 — 별도 sos 컬렉션이라 목록 최상단에 노출(아직 사고 미등록 건만)
