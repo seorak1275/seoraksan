@@ -626,15 +626,28 @@ function _rebuildTeamChips(){
   _rTeamConnLines.forEach(p=>{try{p.setMap(null);}catch(e){}});_rTeamConnLines=[];
   if(!mapR)return;
   (DB.g('rescues')||[]).filter(r=>r.status==='ongoing'&&r.teams&&r.teams.length).forEach(rescue=>{
+    // 같은 지점(±40m)에 모인 팀은 하나의 칩으로 묶음 — 합류(mergedInto) 팀은 제외
+    const _groups=[];
     rescue.teams.forEach((team,ti)=>{
+      if(team.mergedInto)return; // 합류팀은 대표팀 칩이 대신함
       const cur=team.wps&&team.wps[team.wpIdx>=0?team.wpIdx:0];
       if(!cur||!cur.lat||!cur.lng)return;
+      const g=_groups.find(x=>_haversineKm(x.lat,x.lng,cur.lat,cur.lng)*1000<40);
+      if(g)g.items.push({team,ti});
+      else _groups.push({lat:cur.lat,lng:cur.lng,items:[{team,ti}]});
+    });
+    _groups.forEach(gr=>{
+      const {team,ti}=gr.items[0];
+      const cur={lat:gr.lat,lng:gr.lng};
+      // 합류로 흡수된 팀 수 표시 (mergedInto가 이 팀을 가리키는 팀들)
+      const mergedCnt=rescue.teams.filter(t=>t.mergedInto===team.id).length;
+      const extraCnt=gr.items.length-1+mergedCnt;
       const typeIco=_teamIco(team);
       const col=TEAM_COLORS[ti%TEAM_COLORS.length];
       const el=document.createElement('div');
       el.className='team-chip';
       el.style.borderColor=col;el.style.color=col;
-      el.innerHTML=`${typeIco} <span>${_shortTeamName(team.name)}</span>`;
+      el.innerHTML=`${typeIco} <span>${_shortTeamName(team.name)}${extraCnt?' 외 '+extraCnt+'팀':''}</span>`;
       el.dataset.ev='1';el.dataset.rid=String(rescue.id);
       let _ts=null;
       el.addEventListener('touchstart',e=>{_ts={x:e.touches[0].clientX,y:e.touches[0].clientY};},{passive:true});

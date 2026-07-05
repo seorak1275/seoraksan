@@ -297,15 +297,22 @@ if(window.Kakao&&!Kakao.isInitialized()) Kakao.init(KAKAO_KEY);
         <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:11px;height:11px;border-radius:50%;border:1.5px solid rgba(79,168,208,.8);"></div>
       </div>
     </div>
-    <button class="map-ctrl" onclick="toggleMapType('rescue')">위성/일반</button>
-    <button class="map-ctrl" id="resOngoingBtn" onclick="toggleOngoingOnly()" style="left:90px;border-color:rgba(231,76,60,.5);color:#ff8a73;">🔴 진행중</button>
-    <button class="map-ctrl" id="sosReqBtn" onclick="openSosRequest()" style="top:48px;left:10px;border-color:#ffe14d;background:rgba(192,57,43,.7);color:#fff;font-weight:700;">🆘 조난·사고자 위치요청</button>
-    <button class="map-ctrl" id="resMapFilterBtn" onclick="toggleResMapFilter()" style="left:auto;right:10px;display:flex;align-items:center;gap:4px;border-color:rgba(192,57,43,.5);color:#e05050;">🚨 구조 <span id="resMapFilterBadge" style="display:none;background:#e05050;color:#fff;border-radius:50%;width:15px;height:15px;font-size:9px;font-weight:800;align-items:center;justify-content:center;flex-shrink:0;"></span></button>
-    <button class="map-ctrl" id="resCatFilterBtn" onclick="toggleResCatFilter()" style="left:auto;right:88px;display:flex;align-items:center;gap:4px;border-color:rgba(39,174,96,.5);color:#27ae60;">🗺️ 시설물 <span id="resCatFilterBadge" style="display:none;background:#27ae60;color:#fff;border-radius:50%;width:15px;height:15px;font-size:9px;font-weight:800;align-items:center;justify-content:center;flex-shrink:0;"></span></button>
+    <!-- 상단 컨트롤: flex 2행 — 글자 크기가 커져도 항상 위에 붙고 자연 줄바꿈 -->
+    <div id="mapTopCtrls" style="position:absolute;top:8px;left:8px;right:8px;z-index:10;display:flex;flex-direction:column;gap:5px;pointer-events:none;">
+      <div style="display:flex;gap:6px;align-items:center;">
+        <button class="map-ctrl" style="position:static;pointer-events:auto;" onclick="toggleMapType('rescue')">위성/일반</button>
+        <button class="map-ctrl" id="resOngoingBtn" onclick="toggleOngoingOnly()" style="position:static;pointer-events:auto;border-color:rgba(231,76,60,.5);color:#ff8a73;">🔴 진행중</button>
+        <button class="map-ctrl" id="resCatFilterBtn" onclick="toggleResCatFilter()" style="position:static;pointer-events:auto;margin-left:auto;display:flex;align-items:center;gap:4px;border-color:rgba(39,174,96,.5);color:#27ae60;">🗺️ 시설물 <span id="resCatFilterBadge" style="display:none;background:#27ae60;color:#fff;border-radius:50%;width:15px;height:15px;font-size:9px;font-weight:800;align-items:center;justify-content:center;flex-shrink:0;"></span></button>
+        <button class="map-ctrl" id="resMapFilterBtn" onclick="toggleResMapFilter()" style="position:static;pointer-events:auto;display:flex;align-items:center;gap:4px;border-color:rgba(192,57,43,.5);color:#e05050;">🚨 구조 <span id="resMapFilterBadge" style="display:none;background:#e05050;color:#fff;border-radius:50%;width:15px;height:15px;font-size:9px;font-weight:800;align-items:center;justify-content:center;flex-shrink:0;"></span></button>
+      </div>
+      <div style="display:flex;">
+        <button class="map-ctrl" id="sosReqBtn" onclick="openSosRequest()" style="position:static;pointer-events:auto;border-color:#ffe14d;background:rgba(192,57,43,.7);color:#fff;font-weight:700;">🆘 조난·사고자 위치요청</button>
+      </div>
+    </div>
     <button class="fab-gps" onclick="gpsTo('rescue')" title="내 위치">
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M12 8c-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4-1.79-4-4-4zm8.94 3A8.994 8.994 0 0 0 13 3.06V1h-2v2.06A8.994 8.994 0 0 0 3.06 11H1v2h2.06A8.994 8.994 0 0 0 11 20.94V23h2v-2.06A8.994 8.994 0 0 0 20.94 13H23v-2h-2.06zM12 19c-3.87 0-7-3.13-7-7s3.13-7 7-7 7 3.13 7 7-3.13 7-7 7z"/></svg>
     </button>
-    <div id="rescueInfoPanel" style="position:absolute;bottom:calc(150px + env(safe-area-inset-bottom));left:10px;z-index:9;pointer-events:none;display:flex;flex-direction:column;gap:3px;max-width:calc(100% - 105px);">
+    <div id="rescueInfoPanel" style="position:absolute;bottom:calc(118px + env(safe-area-inset-bottom));left:13px;z-index:9;pointer-events:none;display:flex;flex-direction:column;gap:3px;max-width:calc(100% - 105px);">
       <div id="rescueZoneBadge" style="display:none;background:rgba(26,58,95,.9);color:#7dd3fa;font-size:10px;font-weight:700;padding:4px 9px;border-radius:7px;border:1px solid rgba(79,168,208,.35);letter-spacing:.4px;backdrop-filter:blur(4px);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;"></div>
       <div id="rescueCoords" style="background:rgba(0,0,0,.65);color:#8ab4cc;font-size:10px;padding:4px 8px;border-radius:7px;font-family:monospace;backdrop-filter:blur(4px);letter-spacing:.3px;line-height:1.5;border:1px solid rgba(255,255,255,.07);"><span id="rescueCoordsLat">--</span></div>
     </div>
