@@ -1709,7 +1709,7 @@ function renderTimeline(r,viewMode,outId){
     _initTlTeams(r);
     _tlRecTeam='';_tlRecStage='';
     // 기록 단계 버튼(조우·특이사항) — 자주 쓰는 순. '직접입력'으로 자유 작성
-    const REC_STAGES=['요구조자 조우','응급처치','심정지','하산 시작','헬기 요청','헬기 도착','지점통과','휴식','기상 악화','작전 중단','작전 재개','대피소 숙박'];
+    const REC_STAGES=['요구조자 조우','응급처치','심정지','하산 시작','헬기 요청','헬기 도착','지점통과','휴식','기상 악화','구조 중단','구조 재개','대피소 숙박'];
     const _teamNames=(r.teams||[]).map(t=>t.name).filter(Boolean);
     w.innerHTML=tabHdr+`
       <!-- 📌 기록 (메인): 누가 · 무엇을 · 언제 — 과거 시간 입력 가능, 일지는 시간순 자동 정렬 -->
