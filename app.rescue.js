@@ -651,8 +651,8 @@ function _rebuildTeamChips(){
       el.dataset.ev='1';el.dataset.rid=String(rescue.id);
       let _ts=null;
       el.addEventListener('touchstart',e=>{_ts={x:e.touches[0].clientX,y:e.touches[0].clientY};},{passive:true});
-      el.addEventListener('touchend',ev=>{if(!_ts)return;const dx=ev.changedTouches[0].clientX-_ts.x,dy=ev.changedTouches[0].clientY-_ts.y;_ts=null;if(Math.abs(dx)<8&&Math.abs(dy)<8){ev.stopPropagation();ev.preventDefault();enterFocusMode(rescue.id);}});
-      el.addEventListener('click',ev=>{ev.stopPropagation();enterFocusMode(rescue.id);});
+      el.addEventListener('touchend',ev=>{if(!_ts)return;const dx=ev.changedTouches[0].clientX-_ts.x,dy=ev.changedTouches[0].clientY-_ts.y;_ts=null;if(Math.abs(dx)<8&&Math.abs(dy)<8){ev.stopPropagation();ev.preventDefault();_showTeamChipPopup(rescue,gr);}});
+      el.addEventListener('click',ev=>{ev.stopPropagation();_showTeamChipPopup(rescue,gr);});
       const ov=new kakao.maps.CustomOverlay({position:new kakao.maps.LatLng(cur.lat,cur.lng),content:el,clickable:true,yAnchor:1.5,zIndex:4});
       ov.setMap(mapR);_rTeamOvs.push(ov);_rTeamEls.push(el);
       // 팀 위치 → 사고 위치 점선 연결 (연관성 표시)
@@ -669,6 +669,44 @@ function _rebuildTeamChips(){
   });
 }
 
+// 지도 팀 칩 탭 → 출동 인원·상태 팝업 (겹친 팀·합류 팀 포함, 포커스 모드 진입 버튼)
+function _showTeamChipPopup(rescue,gr){
+  const teams=[];
+  (gr.items||[]).forEach(({team})=>{
+    teams.push(team);
+    (rescue.teams||[]).filter(t=>t.mergedInto===team.id).forEach(t=>teams.push(t));
+  });
+  if(!teams.length)return;
+  const STAGE=['출발','이동 중','환자 조우','하산·이송'];
+  let m=document.getElementById('teamChipModal');
+  if(!m){m=document.createElement('div');m.id='teamChipModal';document.body.appendChild(m);}
+  m.style.cssText='position:fixed;inset:0;z-index:9700;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;padding:24px;';
+  const rows=teams.map(t=>{
+    let si=0;try{if(typeof _teamStageIdx==='function')si=_teamStageIdx(t);}catch(e){}
+    const mem=(t.members&&t.members.length)?t.members.join(', '):'';
+    const cnt=t.memberCount?t.memberCount+'명':(t.members&&t.members.length?t.members.length+'명':'');
+    const req=t.requestedAt?String(t.requestedAt).slice(11,16):'';
+    const arr=t.arrivedAt?String(t.arrivedAt).slice(11,16):'';
+    return `<div style="background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.08);border-radius:10px;padding:10px 12px;margin-bottom:7px;">
+      <div style="display:flex;align-items:center;gap:7px;flex-wrap:wrap;">
+        <span style="font-size:13px;font-weight:800;color:#e0edf8;">${_teamIco(t)} ${_esc(t.name)}</span>
+        ${cnt?`<span style="font-size:10px;color:#7dd3fa;font-weight:700;">${cnt}</span>`:''}
+        ${t.mergedInto?'<span style="font-size:9px;color:#e8b34a;background:rgba(232,179,74,.1);border-radius:5px;padding:1px 6px;font-weight:700;">🤝 합류</span>':`<span style="font-size:10px;color:${si===2?'#e74c3c':si===3?'#27ae60':'#4fa8d0'};font-weight:700;">${STAGE[si]||''}</span>`}
+      </div>
+      ${mem?`<div style="font-size:12px;color:#b8d4e8;margin-top:5px;line-height:1.55;">👥 ${_esc(mem)}</div>`:''}
+      ${(req||arr)?`<div style="font-size:10px;color:#5a7e98;margin-top:4px;">${req?'🚨 출동 '+req:''}${arr?(req?' · ':'')+'🏁 도착 '+arr:''}</div>`:''}
+    </div>`;
+  }).join('');
+  m.innerHTML=`<div style="background:#0a1828;border:1px solid rgba(79,168,208,.25);border-radius:14px;max-width:330px;width:100%;max-height:75vh;overflow-y:auto;padding:14px;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;gap:8px;">
+      <span style="font-size:13px;font-weight:800;color:#e0edf8;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">🚑 출동팀 ${teams.length}팀 · ${_esc(rescue.title||'')}</span>
+      <button onclick="var e=document.getElementById('teamChipModal');if(e)e.remove();" style="background:none;border:none;color:rgba(255,255,255,.5);font-size:22px;cursor:pointer;line-height:1;flex-shrink:0;">×</button>
+    </div>
+    ${rows}
+    <button class="press-fx" onclick="var e=document.getElementById('teamChipModal');if(e)e.remove();enterFocusMode(${rescue.id});" style="width:100%;padding:11px;border-radius:9px;border:1px solid rgba(79,168,208,.35);background:rgba(79,168,208,.1);color:#4fa8d0;font-size:13px;font-weight:700;cursor:pointer;">🎯 이 사고 포커스 모드</button>
+  </div>`;
+  m.onclick=function(e){if(e.target===m)m.remove();};
+}
 function _haversineKm(lat1,lng1,lat2,lng2){
   const R=6371,dLat=(lat2-lat1)*Math.PI/180,dLng=(lng2-lng1)*Math.PI/180;
   const a=Math.sin(dLat/2)**2+Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLng/2)**2;
