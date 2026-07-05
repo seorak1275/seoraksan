@@ -2627,7 +2627,7 @@ function sosToRescue(id){
 // 앱 자체 업데이트 (OTA · Capgo 자체호스팅) — APK 전용. 웹/PWA는 서비스워커가 자동 갱신.
 // 번들(www)의 새 버전을 ota.json으로 알리면, 설치된 앱이 받아서 그 자리에서 교체(재빌드 불필요).
 // ══════════════════════════════════════════
-const OTA_VER='2026.06.29.55';                         // ← 현재 번들 버전 (릴리스마다 올림 · build-ota.sh가 ota.json에 반영)
+const OTA_VER='2026.06.29.56';                         // ← 현재 번들 버전 (릴리스마다 올림 · build-ota.sh가 ota.json에 반영)
 const OTA_MANIFEST='https://109yoon.github.io/seoraksan/ota.json';
 let _otaInfo=null;
 function _otaPlugin(){try{return (window.Capacitor&&window.Capacitor.Plugins&&window.Capacitor.Plugins.CapacitorUpdater)||null;}catch(e){return null;}}
@@ -2692,6 +2692,12 @@ function _otaInit(){
 }
 
 window.onload=function(){
+  // 안드로이드 APK: 시스템 글자 확대가 WebView 텍스트만 부풀려 레이아웃이 깨지는 것 방지
+  // (@capacitor/text-zoom 플러그인이 포함된 APK에서만 동작 — 미포함이면 조용히 무시)
+  try{
+    var _tz=window.Capacitor&&window.Capacitor.Plugins&&window.Capacitor.Plugins.TextZoom;
+    if(_tz&&_tz.set)_tz.set({value:1}).catch(function(){});
+  }catch(e){}
   // 🆘 조난자 위치전송 모드(?sos): 로그인·앱 로딩 전부 건너뛰고 위치만 전송
   if(/[?&]sos(=|&|$)/.test(location.search)){ try{_bootSos();}catch(e){document.body.innerHTML='<div style="color:#fff;padding:30px;font-size:16px;">위치 전송 초기화 오류: '+(e&&e.message||e)+'<br>새로고침 해주세요.</div>';} return; }
   try{_restoreFilters();}catch(e){} // 마지막 사용 필터 복원
