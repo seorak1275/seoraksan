@@ -2523,7 +2523,19 @@ function render1BoForm(prefill=null){
     <!-- ══ 섹터2: 환자·부상 (순서: 부상현황 → 현장사진 → 원인·경위 → 활력징후) ══ -->
     <div id="repSec2" class="rep-sec" style="display:none;padding:12px;overflow-y:auto;">
 
-      <!-- 1. 부상 현황 -->
+      <!-- 1. 사고 원인·경위 (요청: 최상단) -->
+      <div class="rsec"><div class="rsec-t">⚡ 사고 원인·경위</div>
+        <div class="fg"><span class="fl">사고 원인</span>
+          <select id="r_cause" class="fsel" onchange="autoGenTitle()">
+            ${['본인부주의','실족','추락','낙석 피격','탈진/탈수','저체온','심혈관 이상','동물 피해','익수','기타'].map(o=>`<option${(p.cause||'본인부주의')===o?' selected':''}>${o}</option>`).join('')}
+          </select>
+        </div>
+        <div class="fg"><span class="fl">사고 경위 <span style="font-size:9px;color:#7a9cb8;font-weight:400;">(상세 기술)</span></span>
+          <textarea id="r_sit" class="fta" rows="4" placeholder="예) 오전 09:00 비선대 주차장에서 산행 시작, 11:30경 천불동계곡 3km 지점 하산 중 실족하여 우측 발목 부상 발생">${p.situation||''}</textarea>
+        </div>
+      </div>
+
+      <!-- 2. 부상 현황 -->
       <div class="rsec"><div class="rsec-t">🩺 부상 현황</div>
         <div style="background:#060d1a;border-radius:8px;border:1px solid rgba(255,255,255,.07);padding:10px;margin-bottom:8px;">
           <!-- 외상/내상 구분 (기본: 외상) -->
@@ -2565,18 +2577,6 @@ function render1BoForm(prefill=null){
           <div class="fg"><span class="fl">이송 사진</span>
             <div class="photo-slot" onclick="document.getElementById('fileTrans').click()"><input type="file" id="fileTrans" accept="image/*" capture="environment" style="display:none;" onchange="prevImg(this,'prevTrans')"><div id="prevTrans">📸</div></div>
           </div>
-        </div>
-      </div>
-
-      <!-- 3. 사고 원인·경위 -->
-      <div class="rsec"><div class="rsec-t">⚡ 사고 원인·경위</div>
-        <div class="fg"><span class="fl">사고 원인</span>
-          <select id="r_cause" class="fsel" onchange="autoGenTitle()">
-            ${['본인부주의','실족','추락','낙석 피격','탈진/탈수','저체온','심혈관 이상','동물 피해','익수','기타'].map(o=>`<option${(p.cause||'본인부주의')===o?' selected':''}>${o}</option>`).join('')}
-          </select>
-        </div>
-        <div class="fg"><span class="fl">사고 경위 <span style="font-size:9px;color:#7a9cb8;font-weight:400;">(상세 기술)</span></span>
-          <textarea id="r_sit" class="fta" rows="4" placeholder="예) 오전 09:00 비선대 주차장에서 산행 시작, 11:30경 천불동계곡 3km 지점 하산 중 실족하여 우측 발목 부상 발생">${p.situation||''}</textarea>
         </div>
       </div>
 
