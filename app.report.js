@@ -1035,6 +1035,15 @@ function _compactRouteHtml(team,idx){
 }
 
 function _tlTeamFullHtml(team,idx){
+  // 합류(merge)된 팀: 한 줄 요약 카드 — 지도·경로는 흡수한 팀이 대표
+  if(team.mergedInto){
+    const host=_tlTeams.find(t=>t.id===team.mergedInto);
+    return `<div style="background:rgba(255,255,255,.015);border:1px dashed rgba(255,255,255,.14);border-radius:10px;margin-bottom:8px;padding:9px 13px;display:flex;align-items:center;gap:8px;">
+      <span style="font-size:12px;color:rgba(255,255,255,.5);">${_teamIco(team)} ${_esc(team.name)}</span>
+      <span style="font-size:10px;color:#e8b34a;background:rgba(232,179,74,.1);border:1px solid rgba(232,179,74,.3);border-radius:5px;padding:1px 7px;font-weight:700;">🤝 ${_esc(host?host.name:'다른 팀')}에 합류</span>
+      <button class="press-fx" onclick="event.stopPropagation();_tlSplitTeam(${idx})" style="margin-left:auto;background:rgba(79,168,208,.1);border:1px solid rgba(79,168,208,.35);color:#4fa8d0;border-radius:6px;font-size:10px;font-weight:700;padding:4px 10px;cursor:pointer;">↩️ 분리</button>
+    </div>`;
+  }
   const isSel=idx===_tlSelTeam&&!team.collapsed;
   const si=_teamStageIdx(team);
   const typeIco=_teamIco(team);
@@ -1054,6 +1063,7 @@ function _tlTeamFullHtml(team,idx){
     ${_arr?`<span style="font-size:10px;color:#3ad17a;background:rgba(39,174,96,.1);border-radius:6px;padding:2px 7px;">🏁 ${_arr}</span>`:(_isAgency?`<button onclick="event.stopPropagation();tlMarkArrival(${idx})" style="background:rgba(39,174,96,.12);border:1px solid rgba(39,174,96,.35);color:#5dbf8a;border-radius:6px;font-size:10px;font-weight:700;padding:3px 9px;cursor:pointer;">🏁 도착 기록</button>`:'')}
     ${_brd?`<span style="font-size:10px;color:#5fb0d8;background:rgba(79,168,208,.1);border-radius:6px;padding:2px 7px;">🚁 탑승 ${_brd}</span>`:''}
     ${_transport}
+    ${_tlTeams.filter((t,i)=>i!==idx&&!t.mergedInto).length?`<button onclick="event.stopPropagation();_tlMergeTeam(${idx})" style="background:rgba(232,179,74,.08);border:1px solid rgba(232,179,74,.3);color:#e8b34a;border-radius:6px;font-size:10px;font-weight:700;padding:3px 9px;cursor:pointer;">🤝 합류</button>`:''}
   </div>`;
   const routeInner=team.wps.length>1
     ?_compactRouteHtml(team,idx)
@@ -1072,6 +1082,35 @@ function _tlTeamFullHtml(team,idx){
   </div>`;
 }
 
+// 팀 합류: 이 팀을 다른 팀에 흡수 — 지도·경로는 대상 팀이 대표, 일지 자동 기록
+function _tlMergeTeam(idx){
+  const team=_tlTeams[idx];if(!team)return;
+  const others=_tlTeams.map((t,i)=>({t,i})).filter(x=>x.i!==idx&&!x.t.mergedInto);
+  if(!others.length){toast('합류할 다른 팀이 없습니다');return;}
+  const pick=prompt('어느 팀에 합류할까요?\n'+others.map((x,n)=>(n+1)+'. '+x.t.name).join('\n')+'\n\n번호 입력:');
+  const n=parseInt(pick);if(!n||n<1||n>others.length)return;
+  const host=others[n-1].t;
+  team.mergedInto=host.id;team.collapsed=true;
+  _persistTeams();_rerenderTlFull();
+  try{_rebuildTeamChips();}catch(e){}
+  // 상황일지 기록
+  const res=DB.g('rescues')||[];const ri=res.findIndex(x=>x.id===_tlWpResId);
+  if(ri>=0){if(!res[ri].timetable)res[ri].timetable=[];res[ri].timetable.push({stage:'팀 합류',time:now(),note:team.name+' → '+host.name,team:team.name,by:getAuthor()});DB.s('rescues',res);}
+  toast('🤝 '+team.name+' → '+host.name+' 합류');
+}
+// 팀 분리: 합류 해제 — 대표 팀의 현재 지점에서 독립 재개, 일지 자동 기록
+function _tlSplitTeam(idx){
+  const team=_tlTeams[idx];if(!team||!team.mergedInto)return;
+  const host=_tlTeams.find(t=>t.id===team.mergedInto);
+  // 대표 팀의 현재 위치에서 재개(경로 진행도 동기화)
+  if(host&&host.wps&&team.wps&&team.wps.length===host.wps.length)team.wpIdx=host.wpIdx;
+  delete team.mergedInto;team.collapsed=false;
+  _persistTeams();_rerenderTlFull();
+  try{_rebuildTeamChips();}catch(e){}
+  const res=DB.g('rescues')||[];const ri=res.findIndex(x=>x.id===_tlWpResId);
+  if(ri>=0){if(!res[ri].timetable)res[ri].timetable=[];res[ri].timetable.push({stage:'팀 분리',time:now(),note:(host?host.name+'에서 ':'')+team.name+' 분리·독립 활동',team:team.name,by:getAuthor()});DB.s('rescues',res);}
+  toast('↩️ '+team.name+' 분리 — 독립 활동 재개');
+}
 function toggleTlTeamRoute(idx){
   if(!_tlTeams[idx])return;
   const wasCollapsed=_tlTeams[idx].collapsed;
@@ -1170,6 +1209,21 @@ function _tlRecSave(rid){
   if(!res[idx].timetable)res[idx].timetable=[];
   res[idx].timetable.push(entry);
   DB.s('rescues',res);
+  // 팀 연동: 조우 → 그 팀 경로를 조우 지점까지 자동 점프 / 하산 시작 → 하산 경로 자동 추가
+  try{
+    const tm=(_tlRecTeam&&_tlRecTeam!=='본부')?_tlTeams.find(t=>t.name===_tlRecTeam&&!t.mergedInto):null;
+    if(tm){
+      if(stage==='요구조자 조우'){
+        const ti=tm.wps.findIndex(w=>w.isTarget);
+        if(ti>0){tm.wps.forEach((w,i)=>{if(w.status!=='skipped')w.status=i<ti?'passed':i===ti?'active':'pending';});tm.wpIdx=ti;}
+        if(!tm.arrivedAt)tm.arrivedAt=entry.time;
+        _persistTeams();
+        toast('🎯 '+tm.name+' 조우 지점 도달 처리 — 이후 [하산 시작] 기록으로 복귀 경로 시작');
+      }else if(stage==='하산 시작'){
+        if(typeof _appendDescentWps==='function'&&_appendDescentWps(tm)){_persistTeams();toast('⛰ '+tm.name+' 하산 경로 추가됨');}
+      }
+    }
+  }catch(e){}
   _tlRecTeam='';_tlRecStage='';
   toast('📌 기록됨: '+stage);
   renderTimeline(res[idx],'advanced');
