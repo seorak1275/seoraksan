@@ -292,6 +292,22 @@ function _ensureMapTopCtrls(){
     Array.from(c.querySelectorAll('button')).forEach(b=>{b.style.position='static';b.style.top='';b.style.left='';b.style.right='';b.style.pointerEvents='auto';});
   }catch(e){}
 }
+// 상단 컨트롤 실측 자가보정 — 어떤 원인이든(웹뷰 오프셋 등) 지도 상단과의 실제 간격을 재서 8px로 끌어올림
+function _fixTopCtrlOffset(){
+  try{
+    const c=document.getElementById('mapTopCtrls');
+    const w=document.querySelector('#v-rescue-map .mapwrap');
+    if(!c||!w)return;
+    c.style.transform='';
+    const cr=c.getBoundingClientRect(), wr=w.getBoundingClientRect();
+    const gap=cr.top-wr.top;                        // 기대값: 8px
+    if(gap>14)c.style.transform='translateY(-'+Math.round(gap-8)+'px)';
+    // 진단 1회 기록(원인 추적용) — 간격 이상일 때만
+    if(gap>14&&!window._ctrlDiagLogged){window._ctrlDiagLogged=true;
+      try{_logErr&&_logErr('[진단] 지도상단 gap='+Math.round(gap)+'px wrapTop='+Math.round(wr.top)+' wrapH='+Math.round(wr.height)+' winH='+window.innerHeight+' dpr='+(window.devicePixelRatio||1));}catch(e){}
+    }
+  }catch(e){}
+}
 function rMaps(){
   // 지도 컨테이너 크기를 부모에 맞게 강제 설정
   ['mapRescue','mapInspect'].forEach(id=>{
@@ -305,7 +321,9 @@ function rMaps(){
     try{if(mapR){mapR.relayout();}}catch(e){}
     _applyMapVOff();
     try{if(typeof window._saveMapCenter==='function')window._saveMapCenter();}catch(e){}
+    try{_fixTopCtrlOffset();}catch(e){}
   },150);
+  setTimeout(function(){try{_fixTopCtrlOffset();}catch(e){}},600); // 레이아웃 안정 후 재확인
 }
 function toggleMapType(m){
   if(m==='inspect'){mapIType=mapIType==='hybrid'?'roadmap':'hybrid';mapI.setMapTypeId(mapIType==='hybrid'?kakao.maps.MapTypeId.HYBRID:kakao.maps.MapTypeId.ROADMAP);}
