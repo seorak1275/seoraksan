@@ -925,10 +925,13 @@ setInterval(function(){
   _weatherFetched=false;_wDetailCache=null;fetchWeather();
 },30*60*1000);
 
-// ── 진행중 구조 방치 감시: 마지막 보고 후 일정시간 경과 시 알림 ──────
-const _STALE_HOURS=2;            // 경과 임계(시간)
-const _STALE_REPEAT_MS=2*3600*1000; // 동일 건 재알림 최소 간격
-let _staleAlerted={};            // {id: lastAlertTs}
+// ── 진행중 구조 방치 감시: 보고서·타임라인에 24시간 동안 새 내용이 없을 때만 알림 ──────
+// (추가보고·📌 기록·댓글·팀 출동/도착·공단 공유·인계 등 모든 활동을 '새 내용'으로 집계.
+//  하루 한 번만 — 끝났는데 종료 처리를 잊은 건을 확인시키는 용도)
+const _STALE_HOURS=24;              // 무소식 임계(시간)
+const _STALE_REPEAT_MS=24*3600*1000; // 동일 건 재알림 최소 간격 (하루 1회)
+let _staleAlerted={};               // {id: lastAlertTs} — 재시작해도 유지(localStorage)
+try{_staleAlerted=JSON.parse(localStorage.getItem('_staleAlerted_v1')||'{}')||{};}catch(e){}
 function _parseDT(s){
   // "YYYY-MM-DD HH:MM" 또는 "YYYY-MM-DDTHH:MM" → ms
   if(!s)return null;
@@ -938,7 +941,13 @@ function _parseDT(s){
 }
 function _lastActivityTs(r){
   let t=_parseDT(r.date)||0;
-  (r.reports||[]).forEach(p=>{const pt=_parseDT(p.repTime)||_parseDT(p.date);if(pt&&pt>t)t=pt;});
+  const up=v=>{const pt=_parseDT(v);if(pt&&pt>t)t=pt;};
+  (r.reports||[]).forEach(p=>{up(p.repTime);up(p.date);});
+  (r.timetable||[]).forEach(e=>up(e.time));          // 📌 기록
+  (r.comments||[]).forEach(c=>up(c.time));            // 댓글
+  (r.npsLog||[]).forEach(n=>up(n.time));              // 공단 공유
+  (r.teams||[]).forEach(tm=>{up(tm.requestedAt);up(tm.arrivedAt);up(tm.createdAt);}); // 팀 출동·도착
+  if(r.handover)up(r.handover.time);                  // 환자 인계
   return t;
 }
 function _checkStaleRescues(){
@@ -952,8 +961,10 @@ function _checkStaleRescues(){
     const lastAlert=_staleAlerted[r.id]||0;
     if(nowMs-lastAlert<_STALE_REPEAT_MS)return;
     _staleAlerted[r.id]=nowMs;
-    pushNoti('⏰ 진행중 '+Math.floor(elapsedH)+'시간 경과 — 상태 확인 필요',
-      '⏰','progress',{app:'rescue',tab:2,id:r.id});
+    try{localStorage.setItem('_staleAlerted_v1',JSON.stringify(_staleAlerted));}catch(e){}
+    const d=Math.floor(elapsedH/24);
+    pushNoti('💤 "'+(r.title||'진행중 구조')+'" — '+(d>=1?d+'일':Math.floor(elapsedH)+'시간')+' 동안 새 소식 없음. 상황이 끝났다면 종료 처리해 주세요',
+      '💤','progress',{app:'rescue',tab:2,id:r.id});
   });
 }
 setInterval(_checkStaleRescues,15*60*1000);
@@ -2639,7 +2650,7 @@ function sosToRescue(id){
 // 앱 자체 업데이트 (OTA · Capgo 자체호스팅) — APK 전용. 웹/PWA는 서비스워커가 자동 갱신.
 // 번들(www)의 새 버전을 ota.json으로 알리면, 설치된 앱이 받아서 그 자리에서 교체(재빌드 불필요).
 // ══════════════════════════════════════════
-const OTA_VER='2026.07.06.66';                         // ← 현재 번들 버전 (릴리스마다 올림 · build-ota.sh가 ota.json에 반영)
+const OTA_VER='2026.07.06.67';                         // ← 현재 번들 버전 (릴리스마다 올림 · build-ota.sh가 ota.json에 반영)
 const OTA_MANIFEST='https://seorak1275.github.io/seoraksan/ota.json';
 let _otaInfo=null;
 function _otaPlugin(){try{return (window.Capacitor&&window.Capacitor.Plugins&&window.Capacitor.Plugins.CapacitorUpdater)||null;}catch(e){return null;}}

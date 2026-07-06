@@ -1078,7 +1078,7 @@ const NOTI_GROUPS=[
     {k:'화재',l:'화재·산불',sub:'산불·시설 화재',def:true,push:true},
     {k:'기타',l:'기타 위험',sub:'기타 위험상황',def:true,push:true},
     {k:'rescue_mobilize',l:'응소 요청',sub:'야간·산불 응소·재알림',def:true,push:true},
-    {k:'progress',l:'진행중 경과 알림',sub:'장시간 미종료 리마인더',def:true,push:true},
+    {k:'progress',l:'진행중 경과 알림',sub:'24시간 무소식 시 종료 확인 (하루 1회)',def:true,push:true},
     {k:'rescue_update',l:'추가보고·댓글',sub:'구조 추가보고·댓글',def:false,push:false},
     {k:'rescue_close',l:'상황 종료',sub:'구조 상황 종료',def:false,push:false},
   ]},
