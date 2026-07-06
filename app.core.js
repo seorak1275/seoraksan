@@ -58,7 +58,7 @@ function _checkAppUpdate(){
     if(!/^v\d{8}-\d{4}$/.test(APP_VER))return; // CI 스탬프 안 된 개발 빌드는 스킵
     const last=parseInt(localStorage.getItem('_updCheckAt')||'0',10);
     if(Date.now()-last<6*3600*1000)return; // 6시간에 한 번만 확인
-    fetch('https://api.github.com/repos/109yoon/seoraksan/releases/latest')
+    fetch('https://api.github.com/repos/seorak1275/seoraksan/releases/latest')
       .then(r=>r.ok?r.json():null)
       .then(rel=>{
         // 확인이 실제로 성공했을 때만 6시간 창을 소모(오프라인/실패 시 다음 호출에서 재시도)

@@ -54,7 +54,7 @@ if(window.Kakao&&!Kakao.isInitialized()) Kakao.init(KAKAO_KEY);
   loadSDK();
   window._retryKakao=function(){ if(window._KR){if(typeof toast==='function')toast('✅ 지도 정상');return;} tries=0; window._KMapsErr=''; loadSDK(); if(typeof toast==='function')toast('🔄 지도 다시 불러오는 중...'); };
   // 카카오맵 JS키는 현재 페이지 출처(origin)가 카카오 디벨로퍼스에 등록돼 있어야 동작.
-  // 웹(109yoon.github.io)과 APK(Capacitor https://localhost)는 서로 다른 출처라 둘 다 등록 필요.
+  // 웹(seorak1275.github.io)과 APK(Capacitor https://localhost)는 서로 다른 출처라 둘 다 등록 필요.
   setTimeout(function(){
     if(window._KR)return;
     var msg='카카오맵 미로딩(15s) origin='+location.origin+(window._KMapsErr?(' / '+window._KMapsErr):'');

@@ -4,7 +4,7 @@
   "webDir": "www",
   "server": {
     "androidScheme": "https",
-    "allowNavigation": ["109yoon.github.io", "*.kakao.com", "*.kakaocdn.net", "dapi.kakao.com", "kauth.kakao.com", "kapi.kakao.com", "accounts.kakao.com"]
+    "allowNavigation": ["seorak1275.github.io", "*.kakao.com", "*.kakaocdn.net", "dapi.kakao.com", "kauth.kakao.com", "kapi.kakao.com", "accounts.kakao.com"]
   },
   "android": {
     "allowMixedContent": true

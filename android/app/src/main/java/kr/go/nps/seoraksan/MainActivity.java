@@ -20,7 +20,7 @@ public class MainActivity extends BridgeActivity {
                 Uri uri = request.getUrl();
                 // 카카오 OAuth 리다이렉트: GitHub Pages에 ?code= 붙어 오는 경우
                 if (uri != null
-                        && "109yoon.github.io".equals(uri.getHost())
+                        && "seorak1275.github.io".equals(uri.getHost())
                         && uri.getQueryParameter("code") != null) {
                     String code = uri.getQueryParameter("code");
                     if (code != null && !code.isEmpty()) {
@@ -55,7 +55,7 @@ public class MainActivity extends BridgeActivity {
                     view.postDelayed(() -> view.evaluateJavascript(
                         "if(typeof _handleKakaoCode==='function'){" +
                             "_handleKakaoCode('" + safe + "'," +
-                            "'https://109yoon.github.io/seoraksan/');" +
+                            "'https://seorak1275.github.io/seoraksan/');" +
                         "}",
                         null
                     ), 400);

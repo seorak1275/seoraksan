@@ -32,7 +32,7 @@ function renderSettings(){
         <div style="font-size:11px;color:#7a9cb8;margin-bottom:8px;">현재 버전 <b style="color:#cfe2f2;">${OTA_VER}</b> · 앱은 재설치 없이 최신으로 자체 업데이트됩니다. (웹은 새로고침 시 자동)</div>
         <button onclick="_otaCheck(true)" style="width:100%;padding:11px;border-radius:8px;border:1px solid rgba(79,168,208,.4);background:rgba(79,168,208,.12);color:#4fa8d0;font-size:13px;font-weight:700;cursor:pointer;">🔄 업데이트 확인 / 적용</button>
       </div>
-      <a href="https://github.com/109yoon/seoraksan/releases/latest" target="_blank" style="display:flex;align-items:center;gap:10px;background:#0b1c30;border:1px solid rgba(79,168,208,.18);border-radius:10px;padding:11px 13px;text-decoration:none;flex-shrink:0;">
+      <a href="https://github.com/seorak1275/seoraksan/releases/latest" target="_blank" style="display:flex;align-items:center;gap:10px;background:#0b1c30;border:1px solid rgba(79,168,208,.18);border-radius:10px;padding:11px 13px;text-decoration:none;flex-shrink:0;">
         <span style="font-size:18px;">📱</span>
         <div style="flex:1;"><div style="font-size:12px;font-weight:700;color:#e0edf8;">안드로이드 APK 다운로드</div><div style="font-size:10px;color:#3a6a8a;margin-top:1px;">최신 빌드 받기 (GitHub Releases)</div></div>
         <span style="font-size:11px;color:#4fa8d0;">↗</span>
@@ -221,7 +221,7 @@ function _recordLoginLog(){
 // 카카오 로그인 리다이렉트 URI: 네이티브 앱은 자기 출처(https://localhost)로 되돌려받아
 // 앱 안에서 로그인을 끝낸다(웹페이지로 이탈 → 하얀화면 방지). 웹은 기존 깃헙페이지 경로.
 function _kakaoRedirectUri(){
-  return (typeof _isNativeApp==='function'&&_isNativeApp()) ? 'https://localhost' : 'https://109yoon.github.io/seoraksan/';
+  return (typeof _isNativeApp==='function'&&_isNativeApp()) ? 'https://localhost' : 'https://seorak1275.github.io/seoraksan/';
 }
 function kakaoLogin(){
   if(!window.Kakao||!Kakao.isInitialized()){toast('⚠️ 카카오 SDK 오류');return;}
@@ -2639,8 +2639,8 @@ function sosToRescue(id){
 // 앱 자체 업데이트 (OTA · Capgo 자체호스팅) — APK 전용. 웹/PWA는 서비스워커가 자동 갱신.
 // 번들(www)의 새 버전을 ota.json으로 알리면, 설치된 앱이 받아서 그 자리에서 교체(재빌드 불필요).
 // ══════════════════════════════════════════
-const OTA_VER='2026.06.29.63';                         // ← 현재 번들 버전 (릴리스마다 올림 · build-ota.sh가 ota.json에 반영)
-const OTA_MANIFEST='https://109yoon.github.io/seoraksan/ota.json';
+const OTA_VER='2026.07.06.64';                         // ← 현재 번들 버전 (릴리스마다 올림 · build-ota.sh가 ota.json에 반영)
+const OTA_MANIFEST='https://seorak1275.github.io/seoraksan/ota.json';
 let _otaInfo=null;
 function _otaPlugin(){try{return (window.Capacitor&&window.Capacitor.Plugins&&window.Capacitor.Plugins.CapacitorUpdater)||null;}catch(e){return null;}}
 function _isNativeApp(){try{return !!(window.Capacitor&&window.Capacitor.isNativePlatform&&window.Capacitor.isNativePlatform());}catch(e){return false;}}
@@ -2951,8 +2951,6 @@ window.onload=function(){
     // 모니터 거치용: 주소에 ?board=1 붙이면 켜자마자 상황판
     if(/[?&]board=1/.test(location.search))setTimeout(openBoard,300);
     if(window._hideLoading) window._hideLoading();
-    // 이미 관리자 세션이면 과거 안전사고 데이터 1회 자동 반영 (아카이브 로드 후)
-    try{setTimeout(_autoSeedAccidents,6000);}catch(e){}
   });
 };
 

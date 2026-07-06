@@ -78,8 +78,6 @@ async function doAdminLogin(){
     document.getElementById('adminLoginPw').value='';
     var _g=document.getElementById('approvalGate');if(_g)_g.style.display='none'; // 관리자는 게이트 통과
     openApp('admin');
-    try{setTimeout(_autoSeedAccidents,1500);}catch(e){} // 관리자 로그인 시 과거 안전사고 1회 자동 반영
-
   }else{
     toast('❌ 비밀번호가 틀렸습니다');
     document.getElementById('adminLoginPw').value='';

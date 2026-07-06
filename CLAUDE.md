@@ -4,11 +4,13 @@
 
 **모든 커밋 후 반드시 main 병합·푸시할 것.**
 
-GitHub Pages(`109yoon.github.io/seoraksan`)는 `main` 브랜치를 서빙한다.
-기능 브랜치(`claude/update-java-version-xi45x`)에만 커밋하면 웹앱에 반영되지 않는다.
+GitHub Pages(`seorak1275.github.io/seoraksan`)는 `main` 브랜치를 서빙한다.
+(계정: `seorak1275` — 프로젝트 저장소라 URL 뒤 `/seoraksan` 경로는 GitHub 규칙상 필수.
+카카오 개발자 콘솔에는 경로 없이 origin `https://seorak1275.github.io`만 등록하면 됨)
+기능 브랜치(세션마다 이름이 다름)에만 커밋하면 웹앱에 반영되지 않는다.
 
 ### 작업 순서
-1. `claude/update-java-version-xi45x` 브랜치에서 작업·커밋
+1. 현재 세션의 기능 브랜치에서 작업·커밋
 2. `www/` → 루트 미러 (index/style + 분리된 JS 6개 모두):
    ```
    cp www/index.html index.html && cp www/style.css style.css && cp www/app.core.js app.core.js && cp www/app.map.js app.map.js && cp www/app.rescue.js app.rescue.js && cp www/app.report.js app.report.js && cp www/app.ops.js app.ops.js && cp www/app.js app.js
@@ -16,7 +18,7 @@ GitHub Pages(`109yoon.github.io/seoraksan`)는 `main` 브랜치를 서빙한다.
 3. feature 브랜치에 push
 4. **즉시 main에 머지·푸시**:
    ```
-   git checkout main && git merge claude/update-java-version-xi45x --no-edit && git push -u origin main && git checkout claude/update-java-version-xi45x
+   git checkout main && git merge <기능브랜치> --no-edit && git push -u origin main && git checkout <기능브랜치>
    ```
 5. 코드 구조를 바꿨으면 `sw.js`의 `_CACHE` 버전을 올려 캐시 갱신 유도
 6. **APK 자체 업데이트(OTA)**: 코드 변경 시 `www/app.js`의 `OTA_VER`를 올리고 `sh build-ota.sh "변경요약"` 실행 → `bundle.zip`·`ota.json` 갱신 → 같이 커밋·푸시. (설치된 앱이 자동/버튼으로 새 번들을 받아 교체. 재빌드 불필요)

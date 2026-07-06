@@ -2109,40 +2109,6 @@ function delCustomResType(i){
 function saveSheetsUrl(){const url=document.getElementById('sheetsUrlIn')?.value?.trim();if(!url){toast('⚠️ URL 입력');return;}DB.s('sheetsUrl',url);toast('✅ URL 저장');renderAdmSheets();}
 // ── 전체 데이터 백업/복원 (JSON) ──
 const _BACKUP_KEYS=['rescues','hazards','facilities','history','catFac','catFacMeta','pendingUsers','approvedUsers','deletedKakaoIds'];
-// 과거 안전사고 데이터(2020~2026) 머지 핵심 — id 기준 중복 제외. silent=자동(토스트 최소)
-async function _doAccidentSeed(silent){
-  let seed;
-  try{const resp=await fetch('./accidents-seed.json?v='+APP_VER);seed=await resp.json();}
-  catch(e){if(!silent)toast('⚠️ 데이터 파일을 불러오지 못했습니다');return 0;}
-  if(!Array.isArray(seed)||!seed.length){if(!silent)toast('⚠️ 데이터 없음');return 0;}
-  try{await _loadArchive('rescues');}catch(e){} // 아카이브까지 로드해 전체 id 비교(중복 방지)
-  const cur=DB.g('rescues')||[];
-  const have=new Set(cur.map(r=>String(r.id)));
-  const add=seed.filter(r=>!have.has(String(r.id)));
-  if(!add.length){if(!silent)toast('✅ 이미 모두 가져왔습니다 (추가 0건)');return 0;}
-  DB.s('rescues',cur.concat(add));
-  toast('📊 과거 안전사고 '+add.length+'건 자동 반영 — 동기화 진행 중',5000);
-  try{renderAdmSys();}catch(e){}try{renderRescueMap();}catch(e){}try{renderResList();}catch(e){}try{updateSummary();}catch(e){}
-  return add.length;
-}
-// 수동 가져오기 버튼
-async function importAccidentSeed(){
-  if(!isAdminUser()){toast('⚠️ 관리자만 가능');return;}
-  if(!confirm('2020~2026 과거 안전사고 약 1,312건을 가져옵니다.\n이미 가져온 건 건너뜁니다. 동기화는 백그라운드로 진행됩니다.'))return;
-  toast('📥 데이터 불러오는 중...');
-  await _doAccidentSeed(false);
-  try{localStorage.setItem('_accSeeded_v1','1');}catch(e){}
-}
-// 관리자 진입 시 1회 자동 반영 (버튼 클릭 없이) — 관리자 + 미시드 시에만
-let _accSeedRunning=false;
-async function _autoSeedAccidents(){
-  if(_accSeedRunning)return;
-  try{if(localStorage.getItem('_accSeeded_v1'))return;}catch(e){}
-  if(!_fdb||!isAdminUser())return; // 대량 쓰기는 관리자만 트리거
-  _accSeedRunning=true;
-  try{const n=await _doAccidentSeed(true);try{localStorage.setItem('_accSeeded_v1','1');}catch(e){}}
-  finally{_accSeedRunning=false;}
-}
 function toggleSosBlock(){
   if(!isAdminUser()){toast('⚠️ 관리자만 가능');return;}
   const cur=!!DB.g('sosBlocked');
@@ -2150,16 +2116,6 @@ function toggleSosBlock(){
   DB.s('sosBlocked',!cur);
   toast(cur?'✅ 조난 접수 허용됨':'⛔ 조난 접수 차단됨');
   try{renderAdmSys();}catch(e){}try{_sosPings=[];_drawSosPins();_updateSosFab();}catch(e){}
-}
-function removeImportedAccidents(){
-  if(!isAdminUser()){toast('⚠️ 관리자만 가능');return;}
-  const cur=DB.g('rescues')||[];
-  const imp=cur.filter(r=>r.imported);
-  if(!imp.length){toast('가져온 데이터가 없습니다 (통계 화면을 한번 열면 보관분까지 로드됩니다)');return;}
-  if(!confirm('가져온 과거 안전사고 '+imp.length+'건을 삭제할까요?'))return;
-  DB.s('rescues',cur.filter(r=>!r.imported));
-  toast('🗑️ '+imp.length+'건 삭제');
-  try{renderAdmSys();}catch(e){}try{renderRescueMap();}catch(e){}try{renderResList();}catch(e){}try{updateSummary();}catch(e){}
 }
 function exportAllData(){
   const data={};

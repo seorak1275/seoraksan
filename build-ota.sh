@@ -27,7 +27,7 @@ rm -f bundle.zip
 ( cd www && zip -qr ../bundle.zip . -x '*.DS_Store' '*/.*' )
 
 # ota.json (루트 = GitHub Pages 서빙 위치, www = 다음 번들에도 포함)
-printf '{"version":"%s","url":"https://109yoon.github.io/seoraksan/bundle.zip","notes":"%s"}\n' "$VER" "$NOTES" > ota.json
+printf '{"version":"%s","url":"https://seorak1275.github.io/seoraksan/bundle.zip","notes":"%s"}\n' "$VER" "$NOTES" > ota.json
 cp -f ota.json www/ota.json
 
 echo "✅ OTA 번들 생성: version=$VER  ($(du -h bundle.zip | cut -f1))  notes=$NOTES"
