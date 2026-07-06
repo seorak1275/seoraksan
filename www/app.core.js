@@ -797,6 +797,32 @@ function _undoToast(msg,onUndo,onCommit,dur=5000){
   _undoTimer=setTimeout(()=>{close();_undoCommit=null;try{onCommit&&onCommit();}catch(e){}},dur);
 }
 function closeDB(){document.querySelectorAll('.dbcard').forEach(c=>c.classList.remove('on'));try{if(typeof _clearPopupDim==='function')_clearPopupDim();}catch(e){}}
+// dbcard(하단 조회 카드): X버튼 대신 손잡이를 아래로 내려서 닫기
+function _bindDbcardDrag(p){
+  if(!p||p._dbDrag)return;p._dbDrag=true;
+  const h=p.querySelector('.dbgrab')||p;
+  let y0=null,t0=0;
+  const start=y=>{y0=y;t0=Date.now();p.style.transition='none';};
+  const move=y=>{if(y0==null)return;p.style.transform='translateY('+Math.max(0,y-y0)+'px)';};
+  const end=y=>{
+    if(y0==null)return;
+    const dy=y-y0,dt=Date.now()-t0,vel=dt>0?dy/dt:0;y0=null;
+    if(dy>40||(dy>12&&vel>0.4)){
+      p.style.transition='transform .18s ease-in';
+      p.style.transform='translateY(130%)';
+      setTimeout(()=>{closeDB();p.style.transition='';p.style.transform='';},180);
+    }else{
+      p.style.transition='transform .2s cubic-bezier(.4,0,.2,1)';
+      p.style.transform='translateY(0)';
+      setTimeout(()=>{p.style.transition='';},210);
+    }
+  };
+  h.addEventListener('touchstart',e=>start(e.touches[0].clientY),{passive:true});
+  h.addEventListener('touchmove',e=>move(e.touches[0].clientY),{passive:true});
+  h.addEventListener('touchend',e=>end(e.changedTouches[0].clientY));
+  h.addEventListener('mousedown',e=>{start(e.clientY);const mv=ev=>move(ev.clientY);const up=ev=>{end(ev.clientY);document.removeEventListener('mousemove',mv);document.removeEventListener('mouseup',up);};document.addEventListener('mousemove',mv);document.addEventListener('mouseup',up);e.preventDefault();});
+}
+document.querySelectorAll('.dbcard').forEach(_bindDbcardDrag);
 function closeM(id){document.getElementById(id).classList.remove('on');}
 // 모달 배경(backdrop) 클릭 시 닫기
 document.querySelectorAll('.modal').forEach(m=>{

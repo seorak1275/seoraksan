@@ -427,17 +427,14 @@ function _renderBoardPins(fit){
     const pos=new kakao.maps.LatLng(r.lat,r.lng);
     const ov=new kakao.maps.CustomOverlay({position:pos,content:el,yAnchor:1,zIndex:5,clickable:true});
     ov.setMap(_boardMap);_boardOvs.push(ov);bounds.extend(pos);n++;
-    // 팀 현재 위치 칩
-    (r.teams||[]).forEach((t,ti2)=>{
-      const cur=(t.wps||[])[t.wpIdx];
-      if(!cur||!cur.lat||!cur.lng)return;
-      const col=TEAM_COLORS[ti2%TEAM_COLORS.length];
+    // 출동팀 칩 (사고 지점 아래에 묶음 표시)
+    if(r.teams&&r.teams.length){
+      const t0=r.teams[0];
       const tel=document.createElement('div');
-      tel.innerHTML=`<div style="background:${col};border:1.5px solid #fff;color:#fff;border-radius:11px;padding:1px 7px;font-size:10px;font-weight:700;white-space:nowrap;box-shadow:0 1px 4px rgba(0,0,0,.5);">${_teamIco(t)} ${_shortTeamName(t.name)}</div>`;
-      const tpos=new kakao.maps.LatLng(cur.lat,cur.lng);
-      const tov=new kakao.maps.CustomOverlay({position:tpos,content:tel,yAnchor:-0.2,zIndex:6});
-      tov.setMap(_boardMap);_boardOvs.push(tov);bounds.extend(tpos);
-    });
+      tel.innerHTML=`<div style="background:${TEAM_COLORS[0]};border:1.5px solid #fff;color:#fff;border-radius:11px;padding:1px 7px;font-size:10px;font-weight:700;white-space:nowrap;box-shadow:0 1px 4px rgba(0,0,0,.5);">${_teamIco(t0)} ${_shortTeamName(t0.name)}${r.teams.length>1?' 외 '+(r.teams.length-1)+'팀':''}</div>`;
+      const tov=new kakao.maps.CustomOverlay({position:pos,content:tel,yAnchor:-0.2,zIndex:6});
+      tov.setMap(_boardMap);_boardOvs.push(tov);
+    }
   });
   (DB.g('hazards')||[]).filter(h=>h.lat&&h.lng&&(!h.hazStatus||h.hazStatus==='미조치'||h.hazStatus==='조치중')).forEach(h=>{
     const el=document.createElement('div');
@@ -542,8 +539,6 @@ function renderBoard(){
   const _td=today();
   const todayList=res.filter(r=>(r.date||'').slice(0,10)===_td).sort((a,b)=>(b.date||'').localeCompare(a.date||''));
   const recentList=res.filter(r=>(r.date||'').slice(0,10)!==_td).sort((a,b)=>(b.date||'').localeCompare(a.date||'')).slice(0,15);
-  const stageLbl=['출발','이동중','환자조우','하산'];
-  const stageCol=['rgba(255,255,255,.45)','#4fa8d0','#f0a500','#27ae60'];
   const aops=DB.g('alertOps')||[];
   const activeOp=aops.find(o=>!o.closedAt);
   const opRespCnt=activeOp?(activeOp.responders||[]).length:0;
@@ -677,7 +672,6 @@ function renderBoard(){
   ongoing.forEach(r=>{
     const elp=_elapsedStr(r.date);
     const ti=RES_TYPES[r.type]||RES_TYPES['기타'];
-    const lastLog=(r.wpLog||[]).slice(-1)[0];
     html+=`<div style="background:#0a1626;border:1.5px solid rgba(192,57,43,.35);border-radius:14px;padding:14px 16px;margin-bottom:12px;">
       <div onclick="_boardFocus(${r.id})" style="cursor:pointer;">
         <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:6px;margin-bottom:4px;">
@@ -687,24 +681,19 @@ function renderBoard(){
         <div style="font-size:13px;color:#7aa8c8;margin-bottom:12px;">${_esc(r.type)} · ${_esc(_resLocLabel(r))} · ${r.date}</div>
         ${(r.teams&&r.teams.length)?r.teams.map((t,ti2)=>{
           const col=TEAM_COLORS[ti2%TEAM_COLORS.length];
-          const si=_teamStageIdx(t);
-          const done=_teamDone(t);
-          const total=Math.max(t.wps.length-1,1);
-          const pct=Math.round((t.wpIdx/total)*100);
-          const cur=t.wps[t.wpIdx]||{};
-          const curName=(cur.code?cur.code+' ':'')+(cur.name||'').slice(0,16);
+          const mem=(t.members&&t.members.length)?t.members.join(', '):'';
+          const cnt=t.memberCount?t.memberCount+'명':(t.members&&t.members.length?t.members.length+'명':'');
+          const arr=t.arrivedAt?String(t.arrivedAt).slice(11,16):'';
+          const req=t.requestedAt?String(t.requestedAt).slice(11,16):'';
           return `<div style="display:flex;align-items:center;gap:12px;padding:7px 0;border-top:1px solid rgba(255,255,255,.05);">
-            <span style="font-size:14px;font-weight:800;color:${col};flex-shrink:0;min-width:110px;">${_teamIco(t)} ${_esc(t.name)}</span>
-            <div style="flex:1;height:8px;background:rgba(255,255,255,.07);border-radius:4px;overflow:hidden;"><div style="height:100%;width:${pct}%;background:${col};border-radius:4px;"></div></div>
-            <span style="font-size:12px;color:rgba(255,255,255,.68);flex-shrink:0;min-width:130px;">📍 ${_esc(curName||'-')}</span>
-            <span style="font-size:12px;font-weight:800;color:${done?'#27ae60':stageCol[si]};flex-shrink:0;">${done?'✓ 완료':stageLbl[si]}</span>
+            <span style="font-size:14px;font-weight:800;color:${col};flex-shrink:0;min-width:110px;">${_teamIco(t)} ${_esc(t.name)}${cnt?` <span style="font-size:11px;color:rgba(255,255,255,.5);">${cnt}</span>`:''}</span>
+            <span style="flex:1;font-size:12px;color:rgba(255,255,255,.68);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${mem?'👥 '+_esc(mem):''}</span>
+            <span style="font-size:12px;color:#7aa8c8;flex-shrink:0;">${arr?'🏁 도착 '+arr:(req?'🚨 출동 '+req:'')}</span>
           </div>`;
         }).join(''):'<div style="font-size:12px;color:rgba(255,255,255,.3);padding:6px 0;">출동팀 미편성</div>'}
-        <div style="display:flex;justify-content:space-between;margin-top:8px;font-size:12px;color:#7aa8c8;">
-          <span>${lastLog?`최근: ${lastLog.time} ${_esc(lastLog.teamName)} ${_esc(lastLog.code||'')} 통과`:''}</span>
+        <div style="display:flex;justify-content:flex-end;margin-top:8px;font-size:12px;color:#7aa8c8;">
           <span>${r.handover&&r.handover.to?`🤝 인계: ${_esc(r.handover.to)}`:''}</span>
         </div>
-        ${(r.teams&&r.teams.length>0&&r.teams.every(t=>_teamDone(t)))?`<div style="background:rgba(39,174,96,.12);border:1px solid rgba(39,174,96,.35);border-radius:8px;padding:8px 12px;margin-top:8px;text-align:center;font-size:13px;font-weight:800;color:#27ae60;">🏁 전 팀 완료 — 상황 종료 대기중</div>`:''}
       </div>
       <div style="display:flex;gap:7px;margin-top:11px;padding-top:10px;border-top:1px solid rgba(255,255,255,.07);">
         <button onclick="_boardOpenDetail(${r.id},'advanced')" style="flex:1;padding:8px 0;border-radius:9px;border:1px solid rgba(79,168,208,.35);background:rgba(79,168,208,.1);color:#4fa8d0;font-size:12px;font-weight:700;cursor:pointer;">📍 타임라인</button>
@@ -871,7 +860,7 @@ function switchTab(idx,el){
   [1,2,3].forEach(i=>document.getElementById('nv'+i).classList.remove('on'));if(el)el.classList.add('on');closeDB();
   if(curApp==='rescue'){
     if(idx===1){showV('v-rescue-map');rMaps();updateRescueCross();try{renderRescueMap();}catch(e){}} // 복귀 시 핀 최신화
-    else{if(_rFocusResId)exitFocusMode();if(idx===2){showV('v-rescue-list');renderResList();}else{showV('v-rescue-stats');renderRescueStats();}}
+    else{if(idx===2){showV('v-rescue-list');renderResList();}else{showV('v-rescue-stats');renderRescueStats();}}
   } else if(curApp==='inspect'){
     if(idx===1){showV('v-inspect-map');rMaps();updateInspectCross();try{renderInspectMap();}catch(e){}}
     else if(idx===2){showV('v-inspect-list');renderFacList();}

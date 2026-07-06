@@ -456,11 +456,7 @@ const _RES_DEFAULT_CATS=['🏠 분소','🛖 탐방지원센터','🪧 다목적
 // Facility overlay pool: created once, show/hide on filter changes
 var _rFacPool=new Map(); // String(id) → {ov, el, type, lat, lng}
 var _rEvOvs=[],_rEvEls=[]; // event overlays only (rescues + hazards)
-var _rTeamOvs=[],_rTeamEls=[],_rTeamConnLines=[]; // team position markers + connector lines
-var _rFocusResId=null; // currently focused rescue id (focus mode)
-var _rFocusPolylines=[]; // route polylines for focus mode
-var _rRouteCache={}; // cacheKey → {path,duration,distance,fallback}
-var _rRouteInfo={}; // {resId:[{carMin,carKm,walkMin,walkKm},...]}}
+var _rTeamOvs=[],_rTeamEls=[]; // team chip markers
 function _buildRFacEl(f){
   const el=document.createElement('div');el.className='mpin-num';
   if(f.type.includes('다목적위치표지판')){
@@ -526,9 +522,8 @@ function renderRescueMap(){
   try{if(typeof _mergeCustomResTypes==='function')_mergeCustomResTypes();}catch(e){} // 커스텀 유형 아이콘 반영
   // Clear event overlays only — facility pool is reused
   _rEvOvs.forEach(o=>{try{o.setMap(null);}catch(e){}});_rEvOvs=[];_rEvEls=[];
-  // Clear team markers + connector lines
+  // Clear team markers
   _rTeamOvs.forEach(o=>{try{o.setMap(null);}catch(e){}});_rTeamOvs=[];_rTeamEls=[];
-  _rTeamConnLines.forEach(p=>{try{p.setMap(null);}catch(e){}});_rTeamConnLines=[];
   _updateResFilterPanels();
   const _showRes=resTypeF.size===0||resTypeF.has('🚨구조');
   const _showHaz=resTypeF.size===0||resTypeF.has('⚠️위험상황');
@@ -559,11 +554,9 @@ function renderRescueMap(){
     el.addEventListener('touchstart',e=>{_ts={x:e.touches[0].clientX,y:e.touches[0].clientY};},{passive:true});
     el.addEventListener('touchend',e=>{
       if(!_ts)return;const dx=e.changedTouches[0].clientX-_ts.x,dy=e.changedTouches[0].clientY-_ts.y;_ts=null;
-      if(Math.abs(dx)<8&&Math.abs(dy)<8){e.stopPropagation();e.preventDefault();
-        if(isOg&&r.teams&&r.teams.length)enterFocusMode(r.id);else openResPopup(r.id,'rescue');}
+      if(Math.abs(dx)<8&&Math.abs(dy)<8){e.stopPropagation();e.preventDefault();openResPopup(r.id,'rescue');}
     });
-    el.addEventListener('click',e=>{e.stopPropagation();
-      if(isOg&&r.teams&&r.teams.length)enterFocusMode(r.id);else openResPopup(r.id,'rescue');});
+    el.addEventListener('click',e=>{e.stopPropagation();openResPopup(r.id,'rescue');});
     const ov=new kakao.maps.CustomOverlay({position:new kakao.maps.LatLng(r.lat,r.lng),content:el,clickable:true,zIndex:isOg?8:3});
     ov._lat=r.lat;ov._lng=r.lng;ov._noClus=isOg;ov._ev={id:r.id,type:'rescue',title:r.title||'구조',status:r.status}; // 진행중 구조는 클러스터 제외 + 최상단
     ov.setMap(mapR);_rEvOvs.push(ov);_rEvEls.push(el);
@@ -588,15 +581,11 @@ function renderRescueMap(){
   try{_reclusterRescue();}catch(e){}
   // 🆘 조난자 위치 핀 (클러스터 제외, 최상단, 맥동)
   try{_drawSosPins();}catch(e){}
-  // 팀 위치 마커: 진행중 구조 팀의 현재 위치
+  // 팀 칩 마커: 진행중 구조의 출동팀
   _rebuildTeamChips();
   // 시설물: 풀 동기화 후 필터 적용 (DOM 재생성 없이 show/hide)
   _syncRFacPool();
-  // Focus mode: apply dimming to non-focused overlays
-  if(_rFocusResId){
-    _applyFocusDim();
-    _drawFocusRoutes(_rFocusResId);
-  }else if(window._popupDimOn){
+  if(window._popupDimOn){
     // 팝업 집중 상태 유지: 마커 재생성 후에도 흐림 재적용
     const rp=document.getElementById('resPopup');
     if(rp&&rp.classList.contains('on')&&selResId!=null){window._popupDimOn=false;_popupFocusDim(selResId);}
@@ -618,69 +607,44 @@ function _shortTeamName(n){
 }
 function _teamIco(t){return t.type==='heli'?'🚁':t.type==='vehicle'?'🚐':'🥾';}
 
-// 진행중 구조의 팀 위치 칩 마커를 모두 지우고 다시 그림
+// 진행중 구조의 출동팀 칩 마커를 모두 지우고 다시 그림 — 사고 지점 위에 팀 묶음 칩 하나
 function _rebuildTeamChips(){
   _rTeamOvs.forEach(o=>{try{o.setMap(null);}catch(e){}});_rTeamOvs=[];_rTeamEls=[];
-  _rTeamConnLines.forEach(p=>{try{p.setMap(null);}catch(e){}});_rTeamConnLines=[];
   if(!mapR)return;
-  (DB.g('rescues')||[]).filter(r=>r.status==='ongoing'&&r.teams&&r.teams.length).forEach(rescue=>{
-    // 같은 지점(±40m)에 모인 팀은 하나의 칩으로 묶음 — 합류(mergedInto) 팀은 제외
-    const _groups=[];
-    rescue.teams.forEach((team,ti)=>{
-      if(team.mergedInto)return; // 합류팀은 대표팀 칩이 대신함
-      const cur=team.wps&&team.wps[team.wpIdx>=0?team.wpIdx:0];
-      if(!cur||!cur.lat||!cur.lng)return;
-      const g=_groups.find(x=>_haversineKm(x.lat,x.lng,cur.lat,cur.lng)*1000<40);
-      if(g)g.items.push({team,ti});
-      else _groups.push({lat:cur.lat,lng:cur.lng,items:[{team,ti}]});
-    });
-    _groups.forEach(gr=>{
-      const {team,ti}=gr.items[0];
-      const cur={lat:gr.lat,lng:gr.lng};
-      // 합류로 흡수된 팀 수 표시 (mergedInto가 이 팀을 가리키는 팀들)
-      const mergedCnt=rescue.teams.filter(t=>t.mergedInto===team.id).length;
-      const extraCnt=gr.items.length-1+mergedCnt;
-      const typeIco=_teamIco(team);
-      const col=TEAM_COLORS[ti%TEAM_COLORS.length];
-      const el=document.createElement('div');
-      el.className='team-chip';
-      el.style.borderColor=col;el.style.color=col;
-      el.innerHTML=`${typeIco} <span>${_shortTeamName(team.name)}${extraCnt?' 외 '+extraCnt+'팀':''}</span>`;
-      el.dataset.ev='1';el.dataset.rid=String(rescue.id);
-      let _ts=null;
-      el.addEventListener('touchstart',e=>{_ts={x:e.touches[0].clientX,y:e.touches[0].clientY};},{passive:true});
-      el.addEventListener('touchend',ev=>{if(!_ts)return;const dx=ev.changedTouches[0].clientX-_ts.x,dy=ev.changedTouches[0].clientY-_ts.y;_ts=null;if(Math.abs(dx)<8&&Math.abs(dy)<8){ev.stopPropagation();ev.preventDefault();_showTeamChipPopup(rescue,gr);}});
-      el.addEventListener('click',ev=>{ev.stopPropagation();_showTeamChipPopup(rescue,gr);});
-      const ov=new kakao.maps.CustomOverlay({position:new kakao.maps.LatLng(cur.lat,cur.lng),content:el,clickable:true,yAnchor:1.5,zIndex:4});
-      ov.setMap(mapR);_rTeamOvs.push(ov);_rTeamEls.push(el);
-      // 팀 위치 → 사고 위치 점선 연결 (연관성 표시)
-      if(rescue.lat&&rescue.lng){
-        try{
-          const conn=new kakao.maps.Polyline({
-            path:[new kakao.maps.LatLng(cur.lat,cur.lng),new kakao.maps.LatLng(rescue.lat,rescue.lng)],
-            strokeWeight:2,strokeColor:'#ffffff',strokeOpacity:.65,strokeStyle:'shortdot',zIndex:2
-          });
-          conn.setMap(mapR);_rTeamConnLines.push(conn);
-        }catch(e){}
-      }
-    });
+  (DB.g('rescues')||[]).filter(r=>r.status==='ongoing'&&r.teams&&r.teams.length&&r.lat&&r.lng).forEach(rescue=>{
+    const teams=rescue.teams;
+    const first=teams[0];
+    const col=TEAM_COLORS[0];
+    const el=document.createElement('div');
+    el.className='team-chip';
+    el.style.borderColor=col;el.style.color=col;
+    el.innerHTML=`${_teamIco(first)} <span>${_shortTeamName(first.name)}${teams.length>1?' 외 '+(teams.length-1)+'팀':''}</span>`;
+    el.dataset.ev='1';el.dataset.rid=String(rescue.id);
+    let _ts=null;
+    el.addEventListener('touchstart',e=>{_ts={x:e.touches[0].clientX,y:e.touches[0].clientY};},{passive:true});
+    el.addEventListener('touchend',ev=>{if(!_ts)return;const dx=ev.changedTouches[0].clientX-_ts.x,dy=ev.changedTouches[0].clientY-_ts.y;_ts=null;if(Math.abs(dx)<8&&Math.abs(dy)<8){ev.stopPropagation();ev.preventDefault();_showTeamChipPopup(rescue);}});
+    el.addEventListener('click',ev=>{ev.stopPropagation();_showTeamChipPopup(rescue);});
+    // 사고 칩 바로 위에 표시 (yAnchor로 띄움)
+    const ov=new kakao.maps.CustomOverlay({position:new kakao.maps.LatLng(rescue.lat,rescue.lng),content:el,clickable:true,yAnchor:2.4,zIndex:4});
+    ov.setMap(mapR);_rTeamOvs.push(ov);_rTeamEls.push(el);
   });
 }
 
-// 지도 팀 칩 탭 → 출동 인원·상태 팝업 (겹친 팀·합류 팀 포함, 포커스 모드 진입 버튼)
-function _showTeamChipPopup(rescue,gr){
-  const teams=[];
-  (gr.items||[]).forEach(({team})=>{
-    teams.push(team);
-    (rescue.teams||[]).filter(t=>t.mergedInto===team.id).forEach(t=>teams.push(t));
-  });
+// 지도 팀 칩 탭 → 출동 인원 바텀시트 (아래로 내리면 닫힘)
+function _closeTeamSheet(){
+  const m=document.getElementById('teamSheetWrap');if(!m)return;
+  const s=document.getElementById('teamSheet');
+  if(s){s.style.transition='transform .2s cubic-bezier(.4,0,.2,1)';s.style.transform='translateY(105%)';}
+  m.style.background='rgba(0,0,0,0)';
+  setTimeout(()=>{try{m.remove();}catch(e){}},210);
+}
+function _showTeamChipPopup(rescue){
+  const teams=(rescue.teams||[]);
   if(!teams.length)return;
-  const STAGE=['출발','이동 중','환자 조우','하산·이송'];
-  let m=document.getElementById('teamChipModal');
-  if(!m){m=document.createElement('div');m.id='teamChipModal';document.body.appendChild(m);}
-  m.style.cssText='position:fixed;inset:0;z-index:9700;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;padding:24px;';
+  const old=document.getElementById('teamSheetWrap');if(old)old.remove();
+  const m=document.createElement('div');m.id='teamSheetWrap';
+  m.style.cssText='position:fixed;inset:0;z-index:9700;background:rgba(0,0,0,.45);transition:background .2s;';
   const rows=teams.map(t=>{
-    let si=0;try{if(typeof _teamStageIdx==='function')si=_teamStageIdx(t);}catch(e){}
     const mem=(t.members&&t.members.length)?t.members.join(', '):'';
     const cnt=t.memberCount?t.memberCount+'명':(t.members&&t.members.length?t.members.length+'명':'');
     const req=t.requestedAt?String(t.requestedAt).slice(11,16):'';
@@ -689,120 +653,32 @@ function _showTeamChipPopup(rescue,gr){
       <div style="display:flex;align-items:center;gap:7px;flex-wrap:wrap;">
         <span style="font-size:13px;font-weight:800;color:#e0edf8;">${_teamIco(t)} ${_esc(t.name)}</span>
         ${cnt?`<span style="font-size:10px;color:#7dd3fa;font-weight:700;">${cnt}</span>`:''}
-        ${t.mergedInto?'<span style="font-size:9px;color:#e8b34a;background:rgba(232,179,74,.1);border-radius:5px;padding:1px 6px;font-weight:700;">🤝 합류</span>':`<span style="font-size:10px;color:${si===2?'#e74c3c':si===3?'#27ae60':'#4fa8d0'};font-weight:700;">${STAGE[si]||''}</span>`}
       </div>
       ${mem?`<div style="font-size:12px;color:#b8d4e8;margin-top:5px;line-height:1.55;">👥 ${_esc(mem)}</div>`:''}
       ${(req||arr)?`<div style="font-size:10px;color:#5a7e98;margin-top:4px;">${req?'🚨 출동 '+req:''}${arr?(req?' · ':'')+'🏁 도착 '+arr:''}</div>`:''}
     </div>`;
   }).join('');
-  m.innerHTML=`<div style="background:#0a1828;border:1px solid rgba(79,168,208,.25);border-radius:14px;max-width:330px;width:100%;max-height:75vh;overflow-y:auto;padding:14px;">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;gap:8px;">
-      <span style="font-size:13px;font-weight:800;color:#e0edf8;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">🚑 출동팀 ${teams.length}팀 · ${_esc(rescue.title||'')}</span>
-      <button onclick="var e=document.getElementById('teamChipModal');if(e)e.remove();" style="background:none;border:none;color:rgba(255,255,255,.5);font-size:22px;cursor:pointer;line-height:1;flex-shrink:0;">×</button>
+  m.innerHTML=`<div id="teamSheet" style="position:absolute;bottom:0;left:0;right:0;background:#0a1828;border-top:1.5px solid rgba(79,168,208,.28);border-radius:16px 16px 0 0;max-height:70vh;overflow-y:auto;padding:0 14px calc(16px + env(safe-area-inset-bottom));transform:translateY(105%);transition:transform .25s cubic-bezier(.4,0,.2,1);box-shadow:0 -5px 28px rgba(0,0,0,.8);">
+    <div id="teamSheetHandle" style="position:sticky;top:0;background:#0a1828;padding:9px 0 7px;cursor:grab;user-select:none;touch-action:none;">
+      <div class="sheet-handle"></div>
+      <div style="font-size:13px;font-weight:800;color:#e0edf8;margin-top:8px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">🚑 출동팀 ${teams.length}팀 · ${_esc(rescue.title||'')}</div>
     </div>
     ${rows}
-    <button class="press-fx" onclick="var e=document.getElementById('teamChipModal');if(e)e.remove();enterFocusMode(${rescue.id});" style="width:100%;padding:11px;border-radius:9px;border:1px solid rgba(79,168,208,.35);background:rgba(79,168,208,.1);color:#4fa8d0;font-size:13px;font-weight:700;cursor:pointer;">🎯 이 사고 포커스 모드</button>
   </div>`;
-  m.onclick=function(e){if(e.target===m)m.remove();};
+  document.body.appendChild(m);
+  m.addEventListener('click',function(e){if(e.target===m)_closeTeamSheet();});
+  requestAnimationFrame(()=>{const s=document.getElementById('teamSheet');if(s)s.style.transform='translateY(0)';});
+  try{_initFPDrag('teamSheetHandle','teamSheet',_closeTeamSheet);}catch(e){}
 }
 function _haversineKm(lat1,lng1,lat2,lng2){
   const R=6371,dLat=(lat2-lat1)*Math.PI/180,dLng=(lng2-lng1)*Math.PI/180;
   const a=Math.sin(dLat/2)**2+Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLng/2)**2;
   return R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
 }
-function _fmtMin(min){
-  if(min<60)return Math.round(min)+'분';
-  const h=Math.floor(min/60),m=Math.round(min%60);
-  return h+'시간'+(m>0?' '+m+'분':'');
-}
-
-async function _fetchCarRoute(key,fromLat,fromLng,toLat,toLng){
-  if(_rRouteCache[key])return _rRouteCache[key];
-  try{
-    const url='https://apis-navi.kakaomobility.com/v1/directions?origin='+fromLng+','+fromLat+'&destination='+toLng+','+toLat+'&priority=RECOMMEND';
-    const resp=await fetch(url,{headers:{'Authorization':'KakaoAK 4ba2cd810d516a4f336d4dee5fa5eba5'}});
-    if(!resp.ok)throw new Error('HTTP '+resp.status);
-    const d=await resp.json();
-    const route=d.routes&&d.routes[0];
-    if(!route||route.result_code!==0)throw new Error('no route');
-    const sum=route.summary;
-    const path=[];
-    (route.sections||[]).forEach(sec=>{
-      (sec.roads||[]).forEach(road=>{
-        const vx=road.vertexes||[];
-        for(let i=0;i+1<vx.length;i+=2)path.push(new kakao.maps.LatLng(vx[i+1],vx[i]));
-      });
-    });
-    const result={path,duration:Math.round((sum.duration||0)/60),distance:+((sum.distance||0)/1000).toFixed(1),fallback:false};
-    _rRouteCache[key]=result;
-    return result;
-  }catch(e){
-    const km=+(_haversineKm(fromLat,fromLng,toLat,toLng)*1.35).toFixed(1);
-    const result={path:null,duration:Math.round(km/45*60),distance:km,fallback:true};
-    _rRouteCache[key]=result;
-    return result;
-  }
-}
-
-// 🚗 X분 X.Xkm · 🚶 X시간 X분 X.Xkm 형식 문자열
-function _routeInfoStr(info,showWalk){
-  const car=info.carMin!=null?(info.fallback?'🚗 약 ':'🚗 ')+_fmtMin(info.carMin)+' '+info.carKm+'km':'🚗 계산중…';
-  const walk=showWalk&&info.walkKm?' · 🚶 '+_fmtMin(info.walkMin)+' '+info.walkKm+'km':'';
-  return car+walk;
-}
-
-function _renderFocusPanelRouteInfo(resId){
-  const infos=_rRouteInfo[resId]||[];
-  infos.forEach((info,ti)=>{
-    const el=document.getElementById('rinfo-'+resId+'-'+ti);
-    if(!el||!info)return;
-    el.textContent=_routeInfoStr(info,true);
-    el.style.color=info.fallback?'rgba(240,192,64,.55)':'rgba(240,192,64,.85)';
-  });
-}
-
-function _getBaseByName(name){
-  return Object.values(SEORAK_BASES).find(b=>b.name===name)||null;
-}
-// 도로 접근 가능한 거점 중 사고지점에서 가장 가까운 곳 (대피소 등 도보전용 제외)
-function _nearestBase(lat,lng){
-  if(!(lat&&lng))return null;
-  let best=null,bd=Infinity;
-  Object.values(SEORAK_BASES).forEach(b=>{
-    if(/대피소/.test(b.name||''))return; // 대청봉대피소 등 차량 진입 불가 → 제외
-    if(!(b.lat&&b.lng))return;
-    const d=_haversineKm(lat,lng,b.lat,b.lng);
-    if(d<bd){bd=d;best=b;}
-  });
-  return best?Object.assign({},best,{distKm:bd}):null;
-}
-
-function _applyFocusDim(){
-  const fid=String(_rFocusResId);
-  // Event markers: dim if not the focused rescue
-  _rEvEls.forEach(el=>{
-    const isMe=el.dataset&&el.dataset.rid===fid;
-    el.style.opacity=isMe?'1':'0.12';
-  });
-  // Team markers: dim if not the focused rescue
-  _rTeamEls.forEach(el=>{
-    const rid=el.dataset&&el.dataset.rid;
-    el.style.opacity=rid===fid?'1':'0.12';
-  });
-  // Facility pool: dim all
-  _rFacPool.forEach(entry=>{entry.el.style.opacity='0.12';});
-}
-
-function _clearFocusDim(){
-  _rEvEls.forEach(el=>{el.style.opacity='';});
-  _rTeamEls.forEach(el=>{el.style.opacity='';});
-  _rFacPool.forEach(entry=>{entry.el.style.opacity='';});
-}
 
 // 팝업 집중: 사고 하나를 탭하면 나머지 사고·시설 마커 불투명도↓ → 여러 사고 동시 상황에서 시인성 확보
 // (전용 focus 모드보다 가벼움 · 팝업 닫으면 _clearPopupDim 으로 원복)
 function _popupFocusDim(rid){
-  if(_rFocusResId)return; // 정식 포커스 모드 중이면 그대로 둠
   const f=String(rid);
   _rEvEls.forEach(el=>{el.style.transition='opacity .2s';el.style.opacity=(el.dataset&&el.dataset.rid===f)?'1':'0.28';});
   _rTeamEls.forEach(el=>{el.style.transition='opacity .2s';el.style.opacity=(el.dataset&&el.dataset.rid===f)?'1':'0.28';});
@@ -810,357 +686,11 @@ function _popupFocusDim(rid){
   window._popupDimOn=true;
 }
 function _clearPopupDim(){
-  if(!window._popupDimOn||_rFocusResId)return;
+  if(!window._popupDimOn)return;
   window._popupDimOn=false;
   _rEvEls.forEach(el=>{el.style.opacity='';});
   _rTeamEls.forEach(el=>{el.style.opacity='';});
   _rFacPool.forEach(entry=>{entry.el.style.opacity='';});
-}
-
-function _clearFocusPolylines(){
-  _rFocusPolylines.forEach(p=>{try{p.setMap(null);}catch(e){}});
-  _rFocusPolylines=[];
-}
-
-function _drawFocusRoutes(resId){
-  _clearFocusPolylines();
-  // 길따라 라인(네비게이션식 경로)·차/도보 ETA 표시 제거 — 7/20 이후 카카오 걷기·차 길찾기 API 도입 후 재구현 예정.
-  // (아래 원본 로직은 비활성. 재구현 시 이 return만 제거)
-  return;
-  /* eslint-disable */ // 이하 비활성 코드
-  if(!mapR||!resId)return;
-  const rescue=(DB.g('rescues')||[]).find(r=>r.id===resId);
-  if(!rescue||!rescue.teams)return;
-  const bounds=new kakao.maps.LatLngBounds();
-  if(rescue.lat&&rescue.lng)bounds.extend(new kakao.maps.LatLng(rescue.lat,rescue.lng));
-  if(!_rRouteInfo[resId])_rRouteInfo[resId]=[];
-
-  rescue.teams.forEach((team,ti)=>{
-    const col=TEAM_COLORS[ti%TEAM_COLORS.length];
-    const wps=team.wps||[];
-    if(!wps.length)return;
-    const baseWp=wps.find(w=>w.isBase);
-    const baseCoords=baseWp?_getBaseByName(baseWp.name):null;
-    const trailPts=wps.filter(w=>!w.isBase&&w.lat&&w.lng);
-    if(!trailPts.length)return;
-
-    // Walk distance: 상행 구간만 합산 (하산은 역순 중복이므로 제외) × 등산로 보정계수
-    const ascPts=trailPts.filter(w=>!w.descent);
-    let walkKm=0;
-    for(let i=1;i<ascPts.length;i++)walkKm+=_haversineKm(ascPts[i-1].lat,ascPts[i-1].lng,ascPts[i].lat,ascPts[i].lng);
-    walkKm=+(walkKm*1.45).toFixed(1);
-    const walkMin=Math.round(walkKm/2.5*60);
-    _rRouteInfo[resId][ti]={carMin:null,carKm:null,walkMin,walkKm,fallback:true};
-
-    // Car segment: draw dashed placeholder immediately, then fetch actual road geometry
-    if(baseCoords){
-      const tp0=trailPts[0];
-      const placeholder=new kakao.maps.Polyline({
-        path:[new kakao.maps.LatLng(baseCoords.lat,baseCoords.lng),new kakao.maps.LatLng(tp0.lat,tp0.lng)],
-        strokeWeight:3,strokeColor:'#f0c040',strokeOpacity:.5,strokeStyle:'shortdash',map:mapR
-      });
-      _rFocusPolylines.push(placeholder);
-      bounds.extend(new kakao.maps.LatLng(baseCoords.lat,baseCoords.lng));
-      bounds.extend(new kakao.maps.LatLng(tp0.lat,tp0.lng));
-
-      // Base label
-      const baseLbl=document.createElement('div');
-      baseLbl.style.cssText='background:rgba(10,20,40,.9);border:1px solid #f0c040;border-radius:8px;padding:2px 7px;font-size:10px;font-weight:700;color:#f0c040;white-space:nowrap;pointer-events:none;';
-      baseLbl.textContent='🏠 '+(baseWp.name||'').replace('탐방지원센터','').replace('설악산국립공원사무소','공단사무소').slice(0,8);
-      const baseOv=new kakao.maps.CustomOverlay({position:new kakao.maps.LatLng(baseCoords.lat,baseCoords.lng),content:baseLbl,yAnchor:1.5,zIndex:5});
-      baseOv.setMap(mapR);_rFocusPolylines.push(baseOv);
-
-      // Async: fetch actual car route
-      const cacheKey=baseCoords.lat+','+baseCoords.lng+'>'+tp0.lat+','+tp0.lng;
-      _fetchCarRoute(cacheKey,baseCoords.lat,baseCoords.lng,tp0.lat,tp0.lng).then(result=>{
-        if(_rFocusResId!==resId||!mapR)return;
-        if(_rRouteInfo[resId]&&_rRouteInfo[resId][ti]){
-          _rRouteInfo[resId][ti].carMin=result.duration;
-          _rRouteInfo[resId][ti].carKm=result.distance;
-          _rRouteInfo[resId][ti].fallback=result.fallback;
-        }
-        if(!result.fallback&&result.path&&result.path.length>1){
-          try{placeholder.setMap(null);}catch(e){}
-          const roadLine=new kakao.maps.Polyline({
-            path:result.path,strokeWeight:4,strokeColor:'#f0c040',strokeOpacity:.9,strokeStyle:'solid',map:mapR
-          });
-          _rFocusPolylines.push(roadLine);
-        }else{
-          // Fallback: show dashed line at full opacity
-          try{placeholder.setStrokeOpacity(.75);}catch(e){}
-        }
-        _renderFocusPanelRouteInfo(resId);
-      });
-    }
-
-    // Walk segment: 흰 점선(경로 윤곽) + 팀 색상 실선 (시인성 향상)
-    if(trailPts.length>=2){
-      const walkPath=trailPts.map(w=>new kakao.maps.LatLng(w.lat,w.lng));
-      // 흰 점선 밑 레이어 — 배경 대비용
-      const whiteLine=new kakao.maps.Polyline({
-        path:walkPath,strokeWeight:7,strokeColor:'#ffffff',strokeOpacity:.22,strokeStyle:'solid',map:mapR
-      });
-      _rFocusPolylines.push(whiteLine);
-      // 팀 색상 실선 위 레이어
-      const walkLine=new kakao.maps.Polyline({
-        path:walkPath,strokeWeight:4,strokeColor:col,strokeOpacity:.92,strokeStyle:'solid',map:mapR
-      });
-      _rFocusPolylines.push(walkLine);
-      walkPath.forEach(p=>bounds.extend(p));
-
-      // 각 표지판 위치에 점 마커 + 번호 라벨 (하산 중복 좌표는 1회만)
-      const curWpIdx=team.wpIdx>=0?team.wpIdx:0;
-      const seenPos=new Set();
-      wps.forEach((w,wi)=>{
-        if(w.isBase||!w.lat||!w.lng)return;
-        const isCur=wi===curWpIdx;
-        const key=w.lat.toFixed(6)+','+w.lng.toFixed(6);
-        if(seenPos.has(key)&&!isCur)return;
-        seenPos.add(key);
-        const isPassed=wi<curWpIdx;
-        const dotEl=document.createElement('div');
-        if(isCur){
-          dotEl.style.cssText=`width:14px;height:14px;border-radius:50%;background:${col};border:2.5px solid #fff;box-shadow:0 0 0 3px ${col}55,0 0 12px ${col}99;animation:wpPulse 1.4s ease-in-out infinite;pointer-events:none;`;
-        }else{
-          dotEl.style.cssText=`width:9px;height:9px;border-radius:50%;background:${isPassed?col+'99':'rgba(255,255,255,.6)'};border:1.5px solid ${isPassed?col:'rgba(255,255,255,.85)'};pointer-events:none;`;
-        }
-        const dotOv=new kakao.maps.CustomOverlay({position:new kakao.maps.LatLng(w.lat,w.lng),content:dotEl,zIndex:isCur?7:6});
-        dotOv.setMap(mapR);_rFocusPolylines.push(dotOv);
-        // 표지판 번호 라벨: 전체 표시 (현재·사고지점은 강조, 나머지는 작게)
-        if(w.code||w.isTarget||w.isHosp){
-          const lbl=document.createElement('div');
-          const _nm=(w.name||'').replace(/^\d{2}-\d{2}\s*/,'').trim();  // 이름 앞 코드 중복 제거
-          const txt=w.isHosp?'🏥 '+w.name:(w.code||'')+((isCur||w.isTarget)&&_nm&&_nm!==w.code?' '+_nm.slice(0,8):'');
-          if(isCur||w.isTarget||w.isHosp){
-            const bc=isCur?col:w.isHosp?'#27ae60':'#e05050';
-            lbl.style.cssText=`background:rgba(8,18,36,.93);border:1.5px solid ${bc};border-radius:7px;padding:2px 6px;font-size:10px;font-weight:700;color:${bc};white-space:nowrap;pointer-events:none;`;
-          }else{
-            lbl.style.cssText='background:rgba(8,18,36,.78);border:1px solid rgba(255,255,255,.25);border-radius:5px;padding:1px 4px;font-size:9px;font-weight:600;color:rgba(255,255,255,.82);white-space:nowrap;pointer-events:none;font-family:monospace;';
-          }
-          lbl.textContent=txt;
-          const lblOv=new kakao.maps.CustomOverlay({position:new kakao.maps.LatLng(w.lat,w.lng),content:lbl,yAnchor:1.9,zIndex:isCur?8:5});
-          lblOv.setMap(mapR);_rFocusPolylines.push(lblOv);
-        }
-      });
-    }else if(trailPts.length===1){
-      bounds.extend(new kakao.maps.LatLng(trailPts[0].lat,trailPts[0].lng));
-    }
-
-    // (팀 이름 라벨은 팀 칩이 같은 자리에 이미 표시되므로 별도 라벨 생략)
-  });
-
-  _focusBounds=bounds;
-  _fitFocusBounds();
-}
-// 포커스 모드: 하단 패널에 경로가 가리지 않도록 패널 높이만큼 아래 여백을 줘서 맞춤
-let _focusBounds=null;
-function _fitFocusBounds(){
-  if(!mapR||!_focusBounds)return;
-  const panel=document.getElementById('focusModePanel');
-  const mapEl=document.getElementById('mapRescue');
-  const mh=(mapEl&&mapEl.offsetHeight)||window.innerHeight||600;
-  let bpad=Math.round(mh*0.42); // 패널 미표시 시 기본값
-  if(panel&&panel.classList.contains('on')&&panel.offsetHeight>0){
-    bpad=Math.min(panel.offsetHeight+24,Math.round(mh*0.72)); // 패널 높이 + 여유 (과도 방지 상한)
-  }
-  try{mapR.setBounds(_focusBounds,50,40,bpad,40);}catch(e){}
-}
-
-let _fpTeamOpen=new Set(); // 펼쳐진 팀 카드 인덱스
-function _fpToggleTeam(ti){_fpTeamOpen.has(ti)?_fpTeamOpen.delete(ti):_fpTeamOpen.add(ti);if(_rFocusResId)_renderFocusPanel(_rFocusResId);}
-
-function _renderFocusPanel(resId){
-  const panel=document.getElementById('focusModePanel');
-  const titleEl=document.getElementById('focusPanelTitle');
-  const teamsEl=document.getElementById('focusPanelTeams');
-  if(!panel||!titleEl||!teamsEl)return;
-  const rescue=(DB.g('rescues')||[]).find(r=>r.id===resId);
-  if(!rescue){exitFocusMode();return;}
-  const _elp=_elapsedStr(rescue.date);
-  titleEl.innerHTML='🔴 '+_esc(rescue.title)+(_elp?` <span class="js-elapsed" data-d="${_esc(rescue.date)}" style="color:#f0a500;font-size:10px;font-weight:700;">⏱ ${_elp}</span>`:'');
-  const teams=rescue.teams||[];
-  // 보고서·타임라인 버튼 (상단 고정)
-  const actionBtns=`<div style="display:flex;gap:6px;margin-bottom:10px;">
-    <button onclick="selResId=${resId};curResId=${resId};viewReport();" style="flex:1;padding:7px 0;border-radius:8px;border:1px solid rgba(79,168,208,.3);background:rgba(79,168,208,.1);color:#4fa8d0;font-size:11px;font-weight:700;cursor:pointer;">📄 보고서</button>
-    <button onclick="selResId=${resId};curResId=${resId};viewTimeline();" style="flex:1;padding:7px 0;border-radius:8px;border:1px solid rgba(79,168,208,.3);background:rgba(79,168,208,.1);color:#4fa8d0;font-size:11px;font-weight:700;cursor:pointer;">📍 타임라인</button>
-    <button onclick="selResId=${resId};curResId=${resId};endSit();" style="flex:none;padding:7px 10px;border-radius:8px;border:1px solid rgba(39,174,96,.3);background:rgba(39,174,96,.08);color:#27ae60;font-size:11px;font-weight:700;cursor:pointer;">✅ 종료</button>
-  </div>`;
-  if(!teams.length){
-    teamsEl.innerHTML=actionBtns+'<div style="font-size:11px;color:rgba(255,255,255,.35);text-align:center;padding:12px 0;">팀 없음 — 타임라인에서 팀 생성</div>';
-    panel.classList.add('on');return;
-  }
-  const stagePal=[
-    {c:'rgba(255,255,255,.4)',label:'출발'},
-    {c:'#4fa8d0',label:'이동중'},
-    {c:'#f0a500',label:'환자조우'},
-    {c:'#27ae60',label:'하산'},
-  ];
-  const rInfos=_rRouteInfo[resId]||[];
-  const teamCards=teams.map((team,ti)=>{
-    const col=TEAM_COLORS[ti%TEAM_COLORS.length];
-    const si=_teamStageIdx(team);
-    const pal=stagePal[si]||stagePal[3];
-    const typeIco=_teamIco(team);
-    const total=Math.max(team.wps.length-1,1);
-    const pct=Math.round((team.wpIdx/total)*100);
-    const atEnd=team.wpIdx>=team.wps.length-1;
-    const curWp=team.wps[team.wpIdx]||team.wps[0]||{};
-    const curName=(curWp.code?curWp.code+' ':'')+(curWp.name||'').replace(/^\d{2}-\d{2}\s*/,'').slice(0,14);
-    const info=rInfos[ti];
-    const baseWp=team.wps.find(w=>w.isBase);
-    const hasBase=baseWp&&_getBaseByName(baseWp.name);
-    const tps=team.wps.filter(w=>!w.isBase&&w.lat&&w.lng);
-    // 경로/ETA(차·도보) 표시 제거 — 7/20 카카오 걷기·차 길찾기 API 도입 후 재구현 예정
-    let routeStr='';
-    const isOpen=_fpTeamOpen.has(ti);
-    // 세부정보: 구성원 + 경유지 목록
-    let detailHtml='';
-    if(isOpen){
-      const mems=(team.members||[]);
-      const memStr=mems.length?mems.map(m=>_esc(m)).join(' · '):'<span style="opacity:.4;">구성원 미입력</span>';
-      const wpList=team.wps.map((w,wi)=>{
-        const stIco=w.status==='passed'?'✅':w.status==='active'?'▶':w.status==='skipped'?'⏭':'⬜';
-        const nm=(w.code?w.code+' ':'')+_esc((w.name||'-').replace(/^\d{2}-\d{2}\s*/,''));
-        const timeStr=w.passedAt?` <span style="color:rgba(255,255,255,.3);font-size:9px;">${w.passedAt.slice(11,16)}</span>`:'';
-        const flag=w.isBase?'🏠':w.isTarget?'🚨':w.descent?'🔽':'';
-        return`<div style="display:flex;align-items:center;gap:5px;padding:2px 0;${wi===team.wpIdx?'background:rgba(79,168,208,.07);border-radius:4px;margin:0 -3px;padding:2px 3px;':''}"><span style="font-size:10px;flex-shrink:0;">${stIco}</span><span style="font-size:10px;color:rgba(255,255,255,.7);flex:1;">${flag?flag+' ':''} ${nm}</span>${timeStr}</div>`;
-      }).join('');
-      detailHtml=`<div style="margin-top:7px;padding-top:7px;border-top:1px solid rgba(255,255,255,.07);">
-        <div style="font-size:10px;color:#4fa8d0;font-weight:700;margin-bottom:3px;">👥 구성원</div>
-        <div style="font-size:11px;color:rgba(255,255,255,.65);margin-bottom:7px;">${memStr}</div>
-        <div style="font-size:10px;color:#4fa8d0;font-weight:700;margin-bottom:3px;">📍 경유지</div>
-        <div style="font-size:10px;line-height:1.8;">${wpList||'<span style="opacity:.4;">경유지 없음</span>'}</div>
-        ${rescue.handover&&rescue.handover.team===team.name?`<div style="margin-top:5px;font-size:10px;color:#27ae60;">🤝 인계: ${_esc(rescue.handover.to)}</div>`:''}
-      </div>`;
-    }
-    const hasDescent=team.wps.some(w=>w.descent);
-    const actionBtn=(()=>{
-      if(atEnd&&curWp.isTarget&&!hasDescent)return`<button onclick="_focusDescentTeam(${resId},${ti})" style="background:rgba(39,174,96,.15);border:1px solid rgba(39,174,96,.4);color:#27ae60;border-radius:7px;padding:4px 11px;font-size:11px;font-weight:700;cursor:pointer;">${team.type==='heli'?'🏥 이송':'🔽 하산'}</button>`;
-      if(atEnd)return`<span style="font-size:10px;color:#27ae60;font-weight:700;">✓ ${hasDescent?(team.type==='heli'?'이송 완료':'하산 완료'):'완료'}</span>`;
-      const canReturn=!hasDescent&&team.wpIdx>0&&!curWp.isTarget;
-      return`${canReturn?`<button onclick="_focusReturnTeam(${resId},${ti})" style="background:rgba(230,126,34,.1);border:1px solid rgba(230,126,34,.3);color:#e67e22;border-radius:7px;padding:4px 8px;font-size:11px;font-weight:600;cursor:pointer;">↩️</button>`:''}<button onclick="_focusPassTeam(${resId},${ti})" style="background:rgba(79,168,208,.15);border:1px solid rgba(79,168,208,.35);color:#4fa8d0;border-radius:7px;padding:4px 12px;font-size:11px;font-weight:700;cursor:pointer;">▶ 통과</button>`;
-    })();
-    return `<div style="background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.07);border-radius:10px;padding:10px 11px;margin-bottom:8px;">
-      <div onclick="_fpToggleTeam(${ti})" style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;cursor:pointer;user-select:none;">
-        <span style="font-size:12px;font-weight:800;color:${col};">${typeIco} ${_esc(team.name)}</span>
-        <div style="display:flex;align-items:center;gap:6px;">
-          <span style="font-size:10px;font-weight:700;color:${pal.c};background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.08);padding:2px 8px;border-radius:10px;">${pal.label}</span>
-          <span style="font-size:11px;color:rgba(255,255,255,.3);">${isOpen?'▾':'▸'}</span>
-        </div>
-      </div>
-      <div style="height:5px;background:rgba(255,255,255,.07);border-radius:3px;overflow:hidden;margin-bottom:6px;">
-        <div style="height:100%;width:${pct}%;background:${col};border-radius:3px;transition:width .4s;"></div>
-      </div>
-      <div style="display:flex;align-items:center;justify-content:space-between;gap:6px;">
-        <span style="font-size:10px;color:rgba(255,255,255,.4);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">📍 ${_esc(curName||'-')} · ${team.wpIdx}/${total}</span>
-        <span style="display:flex;gap:5px;flex-shrink:0;">${actionBtn}</span>
-      </div>
-      ${routeStr}
-      ${detailHtml}
-    </div>`;
-  }).join('');
-  teamsEl.innerHTML=actionBtns+teamCards;
-  // 전 팀 완료 배너
-  if(teams.length>0&&teams.every(t=>_teamDone(t))){
-    teamsEl.innerHTML+=`<div style="background:rgba(39,174,96,.12);border:1.5px solid rgba(39,174,96,.45);border-radius:12px;padding:14px 16px;margin-top:4px;text-align:center;">
-      <div style="font-size:13px;font-weight:800;color:#27ae60;margin-bottom:6px;">🏁 전 팀 하산/이송 완료</div>
-      <div style="font-size:11px;color:rgba(255,255,255,.45);margin-bottom:10px;">상황을 종료하시겠습니까?</div>
-      <button onclick="selResId=${resId};curResId=${resId};endSit();" style="background:rgba(39,174,96,.2);border:1px solid rgba(39,174,96,.55);color:#27ae60;border-radius:8px;padding:8px 0;font-size:12px;font-weight:700;cursor:pointer;width:100%;">✅ 상황 종료</button>
-    </div>`;
-  }
-  panel.classList.add('on');
-}
-
-
-function enterFocusMode(resId){
-  if(!resId)return;
-  _rFocusResId=resId;
-  _rebuildTeamChips();
-  _applyFocusDim();
-  _drawFocusRoutes(resId);
-  _renderFocusPanel(resId);
-  // Close existing popup
-  const popup=document.getElementById('resPopup');if(popup)popup.classList.remove('on');
-  // 패널 슬라이드업(.3s) 후 실제 패널 높이로 경로 재맞춤 → 하단 가림 방지
-  setTimeout(_fitFocusBounds,360);
-}
-
-function exitFocusMode(){
-  _rFocusResId=null;
-  _fpTeamOpen.clear();
-  _clearFocusPolylines();
-  _clearFocusDim();
-  const panel=document.getElementById('focusModePanel');
-  if(panel)panel.classList.remove('on');
-}
-
-function _focusPassTeam(resId,teamIdx){
-  const _res=DB.g('rescues')||[];const _ri=_res.findIndex(x=>x.id===resId);
-  if(_ri<0)return;
-  const team=(_res[_ri].teams||[])[teamIdx];
-  if(!team)return;
-  const next=team.wpIdx+1;
-  if(next>=team.wps.length){toast('✅ 경로 끝 — 통과할 지점 없음');return;}
-  const passedWp=team.wps[team.wpIdx];
-  if(passedWp){passedWp.status='passed';passedWp.passedAt=now();}
-  team.wps[next].status='active';
-  team.wpIdx=next;
-  if(!_res[_ri].wpLog)_res[_ri].wpLog=[];
-  const _d=new Date();
-  _res[_ri].wpLog.push({time:_d.getHours().toString().padStart(2,'0')+':'+_d.getMinutes().toString().padStart(2,'0'),teamName:team.name,code:(passedWp&&passedWp.code)||'',wpName:(passedWp&&passedWp.name)||''});
-  DB.s('rescues',_res);
-  // Sync in-memory _tlTeams if same rescue is open in timeline
-  if(_tlWpResId===resId&&_tlTeams[teamIdx]){
-    _tlTeams[teamIdx]=Object.assign({},team,{collapsed:_tlTeams[teamIdx].collapsed});
-    if(_tlSelTeam===teamIdx){_tlWps=_tlTeams[teamIdx].wps;_tlWpIdx=_tlTeams[teamIdx].wpIdx;}
-  }
-  const curWp=team.wps[next]||{};
-  const wpLabel=(curWp.code?curWp.code+' ':'')+(curWp.name||'').slice(0,12);
-  toast('✅ '+team.name+': '+(wpLabel||'통과'));
-  if(next>=team.wps.length-1&&team.wps[next]&&team.wps[next].descent)_promptHandover(resId,team);
-  _renderFocusPanel(resId);
-  _checkAllTeamsDone(resId);
-  try{_clearFocusPolylines();_drawFocusRoutes(resId);}catch(e){}
-  _rebuildTeamChips();
-  _applyFocusDim();
-}
-
-// 포커스 패널: 팀 데이터 변경 공통 처리 (DB 저장 + 타임라인 동기화 + 재렌더)
-function _focusMutateTeam(resId,teamIdx,mutate){
-  const _res=DB.g('rescues')||[];const _ri=_res.findIndex(x=>x.id===resId);
-  if(_ri<0)return;
-  const team=(_res[_ri].teams||[])[teamIdx];
-  if(!team)return;
-  if(!mutate(team))return;
-  DB.s('rescues',_res);
-  if(_tlWpResId===resId&&_tlTeams[teamIdx]){
-    _tlTeams[teamIdx]=Object.assign({},team,{collapsed:_tlTeams[teamIdx].collapsed});
-    if(_tlSelTeam===teamIdx){_tlWps=_tlTeams[teamIdx].wps;_tlWpIdx=_tlTeams[teamIdx].wpIdx;}
-  }
-  _renderFocusPanel(resId);
-  try{_clearFocusPolylines();_drawFocusRoutes(resId);}catch(e){}
-  _rebuildTeamChips();
-  _applyFocusDim();
-}
-
-function _focusDescentTeam(resId,teamIdx){
-  _focusMutateTeam(resId,teamIdx,team=>{
-    if(!_appendDescentWps(team)){toast('⚠️ 환자 조우 후 가능');return false;}
-    toast(team.type==='heli'?'🏥 '+team.name+': 병원 이송 시작':'🔽 '+team.name+': 하산 시작');
-    return true;
-  });
-}
-
-function _focusReturnTeam(resId,teamIdx){
-  const _res=DB.g('rescues')||[];const _ri=_res.findIndex(x=>x.id===resId);
-  const team=_ri>=0?(_res[_ri].teams||[])[teamIdx]:null;
-  if(!team)return;
-  if(!confirm(team.name+' 복귀(하산)시킬까요? 남은 상행 구간은 취소됩니다.'))return;
-  _focusMutateTeam(resId,teamIdx,t=>{
-    if(!_appendReturnWps(t)){toast('⚠️ 복귀 불가 상태');return false;}
-    toast('↩️ '+t.name+': 복귀 경로 생성');
-    return true;
-  });
 }
 
 // ══════════════════════════════════════════
