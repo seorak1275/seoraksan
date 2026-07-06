@@ -644,14 +644,17 @@ function _showTeamChipPopup(rescue){
   const old=document.getElementById('teamSheetWrap');if(old)old.remove();
   const m=document.createElement('div');m.id='teamSheetWrap';
   m.style.cssText='position:fixed;inset:0;z-index:9700;background:rgba(0,0,0,.45);transition:background .2s;';
+  const _ds=n=>(typeof _deptShort==='function'?_deptShort(n):String(n||''));
+  const _tc=t=>((t.members&&t.members.length)||t.memberCount||0);
+  const _tot=teams.reduce((a,t)=>a+_tc(t),0);
   const rows=teams.map(t=>{
     const mem=(t.members&&t.members.length)?t.members.join(', '):'';
-    const cnt=t.memberCount?t.memberCount+'명':(t.members&&t.members.length?t.members.length+'명':'');
+    const cnt=_tc(t)?_tc(t)+'명':'';
     const req=t.requestedAt?String(t.requestedAt).slice(11,16):'';
     const arr=t.arrivedAt?String(t.arrivedAt).slice(11,16):'';
     return `<div style="background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.08);border-radius:10px;padding:10px 12px;margin-bottom:7px;">
       <div style="display:flex;align-items:center;gap:7px;flex-wrap:wrap;">
-        <span style="font-size:13px;font-weight:800;color:#e0edf8;">${_teamIco(t)} ${_esc(t.name)}</span>
+        <span style="font-size:13px;font-weight:800;color:#e0edf8;">${_teamIco(t)} ${_esc(_ds(t.name))}</span>
         ${cnt?`<span style="font-size:10px;color:#7dd3fa;font-weight:700;">${cnt}</span>`:''}
       </div>
       ${mem?`<div style="font-size:12px;color:#b8d4e8;margin-top:5px;line-height:1.55;">👥 ${_esc(mem)}</div>`:''}
@@ -661,7 +664,7 @@ function _showTeamChipPopup(rescue){
   m.innerHTML=`<div id="teamSheet" style="position:absolute;bottom:0;left:0;right:0;background:#0a1828;border-top:1.5px solid rgba(79,168,208,.28);border-radius:16px 16px 0 0;max-height:70vh;overflow-y:auto;padding:0 14px calc(16px + env(safe-area-inset-bottom));transform:translateY(105%);transition:transform .25s cubic-bezier(.4,0,.2,1);box-shadow:0 -5px 28px rgba(0,0,0,.8);">
     <div id="teamSheetHandle" style="position:sticky;top:0;background:#0a1828;padding:9px 0 7px;cursor:grab;user-select:none;touch-action:none;">
       <div class="sheet-handle"></div>
-      <div style="font-size:13px;font-weight:800;color:#e0edf8;margin-top:8px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">🚑 출동팀 ${teams.length}팀 · ${_esc(rescue.title||'')}</div>
+      <div style="font-size:13px;font-weight:800;color:#e0edf8;margin-top:8px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">🚑 출동팀 ${teams.length}팀${_tot?` · 총 ${_tot}명`:''} · ${_esc(rescue.title||'')}</div>
     </div>
     ${rows}
   </div>`;

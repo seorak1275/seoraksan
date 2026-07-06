@@ -686,7 +686,7 @@ function renderBoard(){
           const arr=t.arrivedAt?String(t.arrivedAt).slice(11,16):'';
           const req=t.requestedAt?String(t.requestedAt).slice(11,16):'';
           return `<div style="display:flex;align-items:center;gap:12px;padding:7px 0;border-top:1px solid rgba(255,255,255,.05);">
-            <span style="font-size:14px;font-weight:800;color:${col};flex-shrink:0;min-width:110px;">${_teamIco(t)} ${_esc(t.name)}${cnt?` <span style="font-size:11px;color:rgba(255,255,255,.5);">${cnt}</span>`:''}</span>
+            <span style="font-size:14px;font-weight:800;color:${col};flex-shrink:0;min-width:110px;">${_teamIco(t)} ${_esc(typeof _deptShort==='function'?_deptShort(t.name):t.name)}${cnt?` <span style="font-size:11px;color:rgba(255,255,255,.5);">${cnt}</span>`:''}</span>
             <span style="flex:1;font-size:12px;color:rgba(255,255,255,.68);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${mem?'👥 '+_esc(mem):''}</span>
             <span style="font-size:12px;color:#7aa8c8;flex-shrink:0;">${arr?'🏁 도착 '+arr:(req?'🚨 출동 '+req:'')}</span>
           </div>`;

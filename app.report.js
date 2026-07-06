@@ -239,10 +239,15 @@ let _tlBuildRegion='';
 
 function _hideRepFooter(){const f=document.getElementById('rep1BoFooter');if(f)f.style.display='none';}
 
+// 부서·기관명 줄임 표시 (특수산악구조대→특구대 등 · 환동해처럼 짧게) — 자르지 않고 치환만
+function _deptShort(n){let s=String(n||'');try{Object.entries(DEPT_SHORT).forEach(([k,v])=>{s=s.split(k).join(v);});}catch(e){}return s;}
+// 팀 인원수: 명단이 있으면 명단 수, 없으면 입력된 인원수
+function _teamCnt(t){return (t.members&&t.members.length)||t.memberCount||0;}
+
 function _renderCreateBtnsHtml(){
   return `<div style="display:flex;gap:8px;margin-bottom:10px;">
-    <button onclick="startTlBuild('nps')" style="flex:1;padding:11px 6px;border-radius:9px;background:rgba(79,168,208,.1);border:1px solid rgba(79,168,208,.3);color:#4fa8d0;font-size:12px;font-weight:700;cursor:pointer;">+ 공단 팀생성</button>
-    <button onclick="startTlBuild('agency')" style="flex:1;padding:11px 6px;border-radius:9px;background:rgba(126,200,163,.08);border:1px solid rgba(126,200,163,.25);color:#7ec8a0;font-size:12px;font-weight:700;cursor:pointer;">+ 유관기관 팀생성</button>
+    <button onclick="startTlBuild('nps')" style="flex:1;padding:11px 6px;border-radius:9px;background:rgba(79,168,208,.1);border:1px solid rgba(79,168,208,.3);color:#4fa8d0;font-size:12px;font-weight:700;cursor:pointer;">+ 공단 팀 출동</button>
+    <button onclick="startTlBuild('agency')" style="flex:1;padding:11px 6px;border-radius:9px;background:rgba(126,200,163,.08);border:1px solid rgba(126,200,163,.25);color:#7ec8a0;font-size:12px;font-weight:700;cursor:pointer;">+ 유관기관 팀 출동</button>
   </div>`;
 }
 
@@ -258,9 +263,9 @@ function _renderBuildPanelHtml(){
     return `<div onclick="toggleTlBuildMember('${s.name.replace(/'/g,"\\'")}',this)" style="cursor:pointer;background:${on?'rgba(126,200,163,.2)':'rgba(255,255,255,.04)'};color:${on?'#7ec8a0':'rgba(255,255,255,.45)'};border:1px solid ${on?'rgba(126,200,163,.4)':'rgba(255,255,255,.12)'};border-radius:20px;font-size:10px;font-weight:700;padding:4px 10px;">${s.name}${s.rank?` <span style="font-size:8px;opacity:.7;">${s.rank}</span>`:''}</div>`;
   }
   if(_tlBuildType==='nps'){
-    const _autoName=(myDept||'공단')+' '+(_tlTeams.filter(t=>t.id&&t.id.startsWith('nps_')).length+1)+'팀';
+    const _autoName=_deptShort(myDept||'공단')+' '+(_tlTeams.filter(t=>t.id&&t.id.startsWith('nps_')).length+1)+'팀';
     return `<div style="background:#0b1c30;border-radius:10px;padding:12px;border:.5px solid rgba(79,168,208,.3);margin-bottom:10px;">
-      <div style="font-size:11px;color:#4fa8d0;font-weight:700;margin-bottom:10px;">🥾 공단 팀생성</div>
+      <div style="font-size:11px;color:#4fa8d0;font-weight:700;margin-bottom:10px;">🥾 공단 팀 출동</div>
       <input id="tlBuildNameInput" type="text" class="fi" placeholder="${_autoName}" style="width:100%;box-sizing:border-box;margin-bottom:10px;">
       ${myDept?`<div style="font-size:10px;color:#4a7090;font-weight:600;margin-bottom:5px;">📂 ${myDept}</div>`:''}
       <div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:8px;">
@@ -276,7 +281,7 @@ function _renderBuildPanelHtml(){
       </div>
     </div>`;
   } else {
-    // 유관기관 팀생성 — 환동해/구조/구급(모두 소방)·소방항공·경찰·산림청·민간구조협력단·기타
+    // 유관기관 팀 출동 — 환동해/구조/구급(모두 소방)·소방항공·경찰·산림청·민간구조협력단·기타
     // 유형 선택 → 소속 지역 칩(기본값) → 팀명 자동 생성(직접 수정 가능)
     const hw=getHwandonghaTeam();
     const agTypes=_agTypeList(hw);
@@ -292,7 +297,7 @@ function _renderBuildPanelHtml(){
       </div>`;
     }
     return `<div style="background:#0b1c30;border-radius:10px;padding:12px;border:.5px solid rgba(126,200,163,.3);margin-bottom:10px;">
-      <div style="font-size:11px;color:#7ec8a0;font-weight:700;margin-bottom:10px;">🚒 유관기관 팀생성</div>
+      <div style="font-size:11px;color:#7ec8a0;font-weight:700;margin-bottom:10px;">🚒 유관기관 팀 출동</div>
       <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:5px;margin-bottom:10px;">
         ${agTypes.map(agChip).join('')}
       </div>
@@ -392,7 +397,7 @@ function confirmTlBuild(){
   if(_tlBuildType==='nps'){
     if(!_tlBuildMembers.length){toast('⚠️ 팀원을 선택하세요');return;}
     const _user=DB.g('currentUser')||{};
-    const _dept=_user.dept||'공단';
+    const _dept=_deptShort(_user.dept||'공단');
     const _npsNum=_tlTeams.filter(t=>t.id&&t.id.startsWith('nps_')).length+1;
     const name=(nameEl&&nameEl.value.trim())||(_dept+' '+_npsNum+'팀');
     _tlTeams.push({id:'nps_'+Date.now(),name,type:'foot',members:_tlBuildMembers.slice(),requestedAt:now(),arrivedAt:null,createdAt:new Date().toISOString()});
@@ -446,25 +451,34 @@ document.addEventListener('visibilitychange',function(){
 });
 
 function _tlTeamFullHtml(team,idx){
-  const typeIco=_teamIco(team);
-  const _mem=team.memberCount?` <span style="font-size:9px;color:rgba(255,255,255,.38);">${team.memberCount}명</span>`:'';
+  const cnt=_teamCnt(team);
   const _req=team.requestedAt?String(team.requestedAt).slice(11,16):'';
   const _arr=team.arrivedAt?String(team.arrivedAt).slice(11,16):'';
   const mems=(team.members||[]);
-  const memStr=mems.length?mems.map(m=>_esc(m)).join(' · '):'';
-  return `<div id="tlTeamCard_${idx}" style="background:rgba(255,255,255,.015);border:1.5px solid rgba(255,255,255,.08);border-radius:12px;margin-bottom:8px;padding:11px 13px;">
-    <span style="font-size:13px;font-weight:700;color:#c8dff0;">${typeIco} ${_esc(team.name)}${_mem}</span>
-    ${memStr?`<div style="font-size:11px;color:rgba(255,255,255,.65);margin-top:6px;line-height:1.55;">👥 ${memStr}</div>`:''}
-    <div style="display:flex;gap:5px;flex-wrap:wrap;margin-top:6px;">
-      ${_req?`<span style="font-size:10px;color:#7a96ad;background:rgba(255,255,255,.05);border-radius:6px;padding:2px 7px;">🚨 출동 ${_req}</span>`:''}
-      ${_arr?`<span style="font-size:10px;color:#3ad17a;background:rgba(39,174,96,.1);border-radius:6px;padding:2px 7px;">🏁 도착 ${_arr}</span>`:`<button onclick="event.stopPropagation();tlMarkArrival(${idx})" style="background:rgba(39,174,96,.12);border:1px solid rgba(39,174,96,.35);color:#5dbf8a;border-radius:6px;font-size:10px;font-weight:700;padding:3px 9px;cursor:pointer;">🏁 도착 기록</button>`}
-    </div>
+  const memStr=mems.length?mems.map(m=>_esc(m)).join('·'):'';
+  return `<div id="tlTeamCard_${idx}" style="display:flex;align-items:center;gap:6px;padding:6px 0;border-top:.5px solid rgba(255,255,255,.05);">
+    <span style="font-size:12px;font-weight:700;color:#c8dff0;flex-shrink:0;">${_teamIco(team)} ${_esc(_deptShort(team.name))}</span>
+    ${cnt?`<span style="font-size:10px;color:#7dd3fa;font-weight:700;flex-shrink:0;">${cnt}명</span>`:''}
+    <span style="flex:1;min-width:0;font-size:10.5px;color:rgba(255,255,255,.55);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${memStr?'👥 '+memStr:''}</span>
+    ${_req?`<span style="font-size:9.5px;color:#7a96ad;flex-shrink:0;">🚨${_req}</span>`:''}
+    ${_arr?`<span style="font-size:9.5px;color:#3ad17a;flex-shrink:0;">🏁${_arr}</span>`:`<button onclick="event.stopPropagation();tlMarkArrival(${idx})" style="flex-shrink:0;background:rgba(39,174,96,.12);border:1px solid rgba(39,174,96,.35);color:#5dbf8a;border-radius:6px;font-size:9.5px;font-weight:700;padding:2px 7px;cursor:pointer;">🏁 도착</button>`}
   </div>`;
+}
+// 출동팀 카드 헤더: 팀 수 + 총 인원
+function _tlTeamsHdrHtml(){
+  const tot=_tlTeams.reduce((a,t)=>a+_teamCnt(t),0);
+  return `🚑 출동팀${_tlTeams.length?' '+_tlTeams.length:''}${tot?` <span style="color:#7dd3fa;">· 총 ${tot}명</span>`:''}`;
+}
+function _tlTeamRowsHtml(){
+  return _tlTeams.length?_tlTeams.map((t,i)=>_tlTeamFullHtml(t,i)).join('')
+    :'<div style="font-size:11px;color:rgba(255,255,255,.3);padding:3px 0 5px;">아직 출동한 팀 없음</div>';
 }
 
 function _rerenderTlFull(){
   const el=document.getElementById('tlAllTeams');
-  if(el)el.innerHTML=_tlTeams.map((t,i)=>_tlTeamFullHtml(t,i)).join('');
+  if(el)el.innerHTML=_tlTeamRowsHtml();
+  const hd=document.getElementById('tlTeamHdr');
+  if(hd)hd.innerHTML=_tlTeamsHdrHtml();
   if(!_tlBuilding){const ba=document.getElementById('tlBuildArea');if(ba)ba.innerHTML=_renderCreateBtnsHtml();}
 }
 
@@ -1025,13 +1039,11 @@ function renderTimeline(r,viewMode,outId){
       </div>
       <!-- 📜 상황일지 (기록 바로 아래) -->
       ${_buildLogHtml(r)}
-      <!-- 팀별 경로 카드 -->
-      <div id="tlAllTeams" style="margin-top:10px;">
-        ${_tlTeams.map((t,i)=>_tlTeamFullHtml(t,i)).join('')}
-      </div>
-      <!-- 팀 생성 영역 -->
-      <div id="tlBuildArea">
-        ${_tlBuilding?_renderBuildPanelHtml():_renderCreateBtnsHtml()}
+      <!-- 🚑 출동팀: 한 카드에 팀별 한 줄 + 팀 출동 버튼 -->
+      <div style="background:#0b1c30;border:.5px solid rgba(79,168,208,.14);border-radius:12px;padding:11px 13px;margin-top:10px;">
+        <div id="tlTeamHdr" style="font-size:11px;color:#4fa8d0;font-weight:800;margin-bottom:4px;">${_tlTeamsHdrHtml()}</div>
+        <div id="tlAllTeams">${_tlTeamRowsHtml()}</div>
+        <div id="tlBuildArea" style="margin-top:9px;">${_tlBuilding?_renderBuildPanelHtml():_renderCreateBtnsHtml()}</div>
       </div>
       `;
   } else {
@@ -1114,16 +1126,18 @@ function renderTimeline(r,viewMode,outId){
       </div>
 
       <div style="background:#0b1c30;border-radius:10px;padding:11px 12px;border:.5px solid rgba(79,168,208,.12);margin-top:8px;">
-        <div style="font-size:11px;color:#4fa8d0;font-weight:700;margin-bottom:7px;">👥 출동 인원</div>
-        ${(r.members&&r.members.length)?`<div style="font-size:11px;color:#b8d4e8;margin-bottom:4px;"><span style="color:#4a7090;font-weight:600;">초동팀:</span> ${_esc(r.members.join(', '))}</div>`:''}
+        ${(()=>{
+          const tot=((r.members||[]).length)+(r.teams||[]).reduce((a,t)=>a+_teamCnt(t),0)+(r.extraTeams||[]).reduce((a,t)=>a+((t.members||[]).length),0);
+          return `<div style="font-size:11px;color:#4fa8d0;font-weight:700;margin-bottom:7px;">👥 출동 인원${tot?` <span style="color:#7dd3fa;">· 총 ${tot}명</span>`:''}</div>`;
+        })()}
+        ${(r.members&&r.members.length)?`<div style="font-size:11px;color:#b8d4e8;margin-bottom:3px;"><span style="color:#7ec8a0;font-weight:600;">🏃 초동팀 <span style="color:#7dd3fa;font-size:10px;">${r.members.length}명</span></span> <span style="color:#b8d4e8;">— ${_esc(r.members.join(', '))}</span></div>`:''}
         ${(r.teams&&r.teams.length)?r.teams.map(t=>{
-          const ico=_teamIco(t);
-          const mem=(t.members&&t.members.length)?': '+_esc(t.members.join(', ')):'';
-          const cnt=(!t.members||!t.members.length)&&t.memberCount?` <span style="color:#7a9cb8;font-size:10px;">${t.memberCount}명</span>`:'';
-          return `<div style="font-size:11px;color:#b8d4e8;margin-bottom:3px;"><span style="color:#7ec8a0;font-weight:600;">${ico} ${_esc(t.name)}</span>${mem}${cnt}</div>`;
+          const cnt=_teamCnt(t);
+          const mem=(t.members&&t.members.length)?` <span style="color:#b8d4e8;font-weight:400;">— ${_esc(t.members.join(', '))}</span>`:'';
+          return `<div style="font-size:11px;color:#b8d4e8;margin-bottom:3px;"><span style="color:#7ec8a0;font-weight:600;">${_teamIco(t)} ${_esc(_deptShort(t.name))}${cnt?` <span style="color:#7dd3fa;font-size:10px;">${cnt}명</span>`:''}</span>${mem}</div>`;
         }).join(''):''}
-        ${(!r.members||!r.members.length)&&(!r.teams||!r.teams.length)?'<div style="font-size:11px;color:rgba(255,255,255,.3);">미기재 — 타임라인에서 팀을 생성하면 자동 표시됩니다</div>':''}
-        ${(r.extraTeams&&r.extraTeams.length)?r.extraTeams.map(t=>`<div style="font-size:11px;color:#b8d4e8;margin-bottom:3px;"><span style="color:#7ec8a0;font-weight:600;">${_esc(t.teamName)}:</span> ${_esc((t.members||[]).join(', '))}</div>`).join(''):''}
+        ${(!r.members||!r.members.length)&&(!r.teams||!r.teams.length)?'<div style="font-size:11px;color:rgba(255,255,255,.3);">미기재 — 타임라인에서 팀을 출동시키면 자동 표시됩니다</div>':''}
+        ${(r.extraTeams&&r.extraTeams.length)?r.extraTeams.map(t=>`<div style="font-size:11px;color:#b8d4e8;margin-bottom:3px;"><span style="color:#7ec8a0;font-weight:600;">${_esc(_deptShort(t.teamName))}${(t.members||[]).length?` <span style="color:#7dd3fa;font-size:10px;">${(t.members||[]).length}명</span>`:''}</span>${(t.members||[]).length?` <span style="color:#b8d4e8;">— ${_esc((t.members||[]).join(', '))}</span>`:''}</div>`).join(''):''}
         ${(r.agencies)?(()=>{
           const ag=r.agencies;const parts=[];
           if(ag.hwandongha)parts.push(`🚒 ${(DB.g('extAgencyDisplayName')||'환동해 특수대응단').split(' ')[0]} ${ag.hwTeam||'?'}팀`);
@@ -2102,8 +2116,11 @@ function _renderFormTl(){
   const wrap=document.getElementById('formTlWrap');
   if(!wrap)return;
   wrap.innerHTML=`
-    <div id="tlAllTeams">${_tlTeams.map((t,i)=>_tlTeamFullHtml(t,i)).join('')}</div>
-    <div id="tlBuildArea">${_tlBuilding?_renderBuildPanelHtml():_renderCreateBtnsHtml()}</div>`;
+    <div style="background:#0b1c30;border:.5px solid rgba(79,168,208,.14);border-radius:12px;padding:11px 13px;">
+      <div id="tlTeamHdr" style="font-size:11px;color:#4fa8d0;font-weight:800;margin-bottom:4px;">${_tlTeamsHdrHtml()}</div>
+      <div id="tlAllTeams">${_tlTeamRowsHtml()}</div>
+      <div id="tlBuildArea" style="margin-top:9px;">${_tlBuilding?_renderBuildPanelHtml():_renderCreateBtnsHtml()}</div>
+    </div>`;
 }
 let _1boSubmitting=false;
 function switchRepTab(secId,el){
