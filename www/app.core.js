@@ -798,6 +798,23 @@ function _undoToast(msg,onUndo,onCommit,dur=5000){
   };
   _undoTimer=setTimeout(()=>{close();_undoCommit=null;try{onCommit&&onCommit();}catch(e){}},dur);
 }
+// iOS Safari가 100dvh를 실제 창보다 작게 고착시키는 버그 보정:
+// #app 높이가 창 높이와 12% 이상 어긋나면 픽셀로 강제(입력 중=키보드일 땐 건드리지 않음)
+function _fixAppHeight(){
+  try{
+    var app=document.getElementById('app');if(!app)return;
+    if(document.activeElement&&/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName))return;
+    var vh=window.innerHeight;if(!vh)return;
+    var h=app.getBoundingClientRect().height;
+    if(Math.abs(h-vh)>vh*0.12)app.style.height=Math.round(vh)+'px';
+    else if(app.style.height&&Math.abs(h-vh)<=vh*0.02)app.style.height='';
+  }catch(e){}
+}
+window.addEventListener('resize',function(){setTimeout(_fixAppHeight,80);});
+window.addEventListener('orientationchange',function(){setTimeout(_fixAppHeight,250);});
+document.addEventListener('visibilitychange',function(){if(!document.hidden)setTimeout(_fixAppHeight,150);});
+setTimeout(_fixAppHeight,500);setTimeout(_fixAppHeight,2000);
+
 function closeDB(){document.querySelectorAll('.dbcard').forEach(c=>c.classList.remove('on'));try{if(typeof _clearPopupDim==='function')_clearPopupDim();}catch(e){}}
 // dbcard(하단 조회 카드): X버튼 대신 손잡이를 아래로 내려서 닫기
 function _bindDbcardDrag(p){
