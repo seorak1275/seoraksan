@@ -533,9 +533,61 @@ function _fetchKma(url,asText){
   _KMA_PROXIES.forEach(function(p){chain.push(p(url));});
   var go=function(i){
     if(i>=chain.length)return Promise.reject(new Error('kma all sources failed'));
-    return fetch(chain[i]).then(read).catch(function(){return go(i+1);});
+    return fetch(chain[i]).then(read).then(function(v){window._kmaLastSrc=chain[i];return v;}).catch(function(){return go(i+1);});
   };
   return go(0);
+}
+// ── 특보 수신 진단 (관리자): 소스별 연결 상태 + 원문 + 파싱 결과를 한눈에 ──
+function kmaWarnDiag(){
+  var url='https://apihub.kma.go.kr/api/typ01/url/wrn_now_data_new.php?authKey='+KMA_KEY+'&disp=1';
+  var chain=[];
+  var w=(DB.g('kmaProxyUrl')||'').trim()||_KMA_DEFAULT_PROXY;
+  if(w)chain.push({name:'전용 프록시(Cloudflare)',u:w+(w.indexOf('?')>=0?'&':'?')+'url='+encodeURIComponent(url)});
+  chain.push({name:'기상청 직접',u:url});
+  _KMA_PROXIES.forEach(function(p,i){chain.push({name:'공개 프록시 '+(i+1),u:p(url)});});
+  toast('📡 특보 수신 진단 중...');
+  var rows=[];var firstTxt=null;
+  var run=function(i){
+    if(i>=chain.length)return Promise.resolve();
+    var t0=Date.now();
+    var ctl=('AbortController' in window)?new AbortController():null;
+    var timer=ctl?setTimeout(function(){ctl.abort();},8000):null;
+    return fetch(chain[i].u,ctl?{signal:ctl.signal}:{}).then(function(r){
+      if(timer)clearTimeout(timer);
+      return r.text().then(function(tx){
+        var ok=r.ok&&tx&&tx.length>2;
+        rows.push({name:chain[i].name,ok:ok,ms:Date.now()-t0,info:'HTTP '+r.status+' · '+tx.length+'자'});
+        if(ok&&firstTxt===null)firstTxt=tx;
+      });
+    }).catch(function(e){
+      if(timer)clearTimeout(timer);
+      rows.push({name:chain[i].name,ok:false,ms:Date.now()-t0,info:(e&&e.name==='AbortError')?'8초 초과(타임아웃)':'연결 실패(차단/다운)'});
+    }).then(function(){return run(i+1);});
+  };
+  run(0).then(function(){
+    var parsed=firstTxt!==null?_parseKmaWarnings(firstTxt):{};
+    var live=_kmaLiveList(parsed);
+    if(firstTxt!==null){_renderWeatherAlerts(parsed,false);} // 성공 시 즉시 반영(자동 발령 포함)
+    var srcHtml=rows.map(function(r){return '<div style="display:flex;gap:8px;align-items:center;padding:5px 0;border-bottom:1px solid rgba(255,255,255,.05);"><span style="flex:1;font-size:12px;color:#cfe2f2;">'+r.name+'</span><span style="font-size:10px;color:#5a7e98;">'+r.ms+'ms</span><span style="font-size:11px;font-weight:800;color:'+(r.ok?'#5fcf8f':'#ff8a73')+';">'+(r.ok?'✅ 성공':'❌ 실패')+'</span><span style="font-size:9px;color:#5a7e98;">'+r.info+'</span></div>';}).join('');
+    var prev=firstTxt!==null?String(firstTxt).slice(0,600):'(모든 소스 실패 — 원문 없음)';
+    var keyBad=firstTxt!==null&&/인증|auth|key|expired|유효/i.test(prev)&&!/#/.test(prev.slice(0,3));
+    var parseHtml=live.length
+      ?live.map(function(a){return '<div style="font-size:12px;color:#7ee0a8;padding:2px 0;">✅ '+a.type+_stageShort(a.stage)+(a.regions&&a.regions.length?' — '+a.regions.join('·'):'')+'</div>';}).join('')
+      :'<div style="font-size:12px;color:'+(firstTxt!==null?'#ffb04d':'#ff8a73')+';">'+(firstTxt!==null?'⚠️ 데이터는 수신됐지만 강원 영동 특보를 못 찾음 — 아래 원문을 확인하세요':'❌ 수신 실패 — 파싱 불가')+'</div>';
+    var ov=document.getElementById('kmaDiagOv');if(ov)ov.remove();
+    ov=document.createElement('div');ov.id='kmaDiagOv';
+    ov.style.cssText='position:fixed;inset:0;z-index:9800;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;padding:16px;';
+    ov.innerHTML='<div style="background:#0a1828;border:1px solid rgba(79,168,208,.3);border-radius:14px;max-width:420px;width:100%;max-height:82vh;overflow-y:auto;padding:15px;">'
+      +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;"><b style="font-size:14px;color:#e0edf8;">📡 기상청 특보 수신 진단</b><button onclick="document.getElementById(\'kmaDiagOv\').remove()" style="background:none;border:none;color:rgba(255,255,255,.5);font-size:20px;cursor:pointer;">×</button></div>'
+      +'<div style="font-size:10px;color:#5d92bc;font-weight:800;margin-bottom:4px;">연결 경로</div>'+srcHtml
+      +(keyBad?'<div style="margin-top:8px;font-size:11px;color:#ff8a73;background:rgba(231,76,60,.08);border:1px solid rgba(231,76,60,.3);border-radius:8px;padding:8px;">🔑 인증키(authKey) 문제로 보입니다 — 기상청 API허브에서 키 상태를 확인하세요</div>':'')
+      +'<div style="font-size:10px;color:#5d92bc;font-weight:800;margin:12px 0 4px;">파싱 결과 (강원 영동 필터)</div>'+parseHtml
+      +'<div style="font-size:10px;color:#5d92bc;font-weight:800;margin:12px 0 4px;">응답 원문 (앞 600자)</div>'
+      +'<pre style="font-size:9px;color:#8fb4cc;background:rgba(255,255,255,.03);border-radius:8px;padding:8px;white-space:pre-wrap;word-break:break-all;max-height:180px;overflow-y:auto;">'+String(prev).replace(/</g,'&lt;')+'</pre>'
+      +'<button onclick="document.getElementById(\'kmaDiagOv\').remove();_kmaWrnCache=null;_kmaWrnCacheAt=0;kmaWarnDiag();" style="margin-top:10px;width:100%;padding:9px;border-radius:9px;border:1px solid rgba(79,168,208,.35);background:rgba(79,168,208,.1);color:#4fa8d0;font-size:12px;font-weight:700;cursor:pointer;">🔄 다시 진단</button></div>';
+    ov.onclick=function(e){if(e.target===ov)ov.remove();};
+    document.body.appendChild(ov);
+  });
 }
 function _parsePCP(v){if(!v||v==='강수없음')return 0;if(v.includes('미만'))return 0.5;var n=parseFloat(v);return isNaN(n)?0:n;}
 function _ptyInfo(pty){var p=parseInt(pty||0);return{ico:p===0?'☀️':p===1||p===4?'🌧️':p===2?'🌨️':p===3?'❄️':'🌤️',desc:['맑음','비','비/눈','눈','소나기'][p]||'맑음'};}
@@ -550,23 +602,35 @@ function _parseKmaWarnings(txt){
   _kmaWrnCacheAt=Date.now();
   if(!txt||typeof txt!=='string')return alertMap;
   var gangwon=['속초','고성','양양','인제','영동','강원','산지'];
-  var wrnTypes=['호우','강풍','대설','태풍','폭풍해일','한파','폭염','풍랑','건조'];
+  var wrnTypes=['호우','강풍','대설','태풍','폭풍해일','한파','폭염','풍랑','건조','황사'];
+  // 코드 포맷 대응: wrn_now_data(_new).php가 한글 대신 코드로 응답하는 경우
+  // 컬럼: REG_UP,REG_UP_KO,REG_ID,REG_KO,TM_FC,TM_EF,WRN,LVL,CMD,...
+  var WRN_CODE={W:'강풍',R:'호우',C:'한파',D:'건조',O:'폭풍해일',V:'풍랑',T:'태풍',S:'대설',Y:'황사',H:'폭염'};
+  var LVL_CODE={'1':'주의보','2':'경보'};
   txt.split('\n').forEach(function(line){
     var l=line.trim();
     if(!l||l.startsWith('#'))return;
     // 헤더 행 건너뜀
     if(/^[A-Z_,\s]+$/.test(l))return;
-    var hasWrn=wrnTypes.some(function(t){return l.includes(t);});
-    if(!hasWrn)return;
-    var hasArea=gangwon.some(function(k){return l.includes(k);});
-    if(!hasArea)return;
-    var wrnType='';
+    var f=l.split(',').map(function(x){return x.trim();});
+    var wrnType='',level='',regionSrc=l;
+    // ① 한글 포맷 (disp=1)
     wrnTypes.forEach(function(t){if(!wrnType&&l.includes(t))wrnType=t;});
-    var level=l.includes('경보')&&!l.includes('주의보경보')?'경보':(l.includes('주의보')?'주의보':'');
+    if(wrnType){
+      level=l.includes('경보')&&!l.includes('주의보경보')?'경보':(l.includes('주의보')?'주의보':'');
+    }else if(f.length>=8){
+      // ② 코드 포맷
+      wrnType=WRN_CODE[(f[6]||'').toUpperCase()]||'';
+      level=LVL_CODE[f[7]]||'';
+      regionSrc=(f[1]||'')+' '+(f[3]||'');
+    }
     if(!wrnType||!level)return;
-    // 지역명 추출
-    var rName='강원 영동';
-    ['영동북부','영동남부','영동중부','영동','속초','고성','양양','인제','산지'].forEach(function(k){if(l.includes(k))rName=k;});
+    var hasArea=gangwon.some(function(k){return regionSrc.includes(k);});
+    if(!hasArea)return;
+    // 지역명: REG_KO 필드가 있으면 그대로(예: 강원북부산지), 없으면 키워드 추출
+    var rName='';
+    if(f.length>=8&&f[3]&&/[가-힣]/.test(f[3]))rName=f[3];
+    if(!rName){rName='강원 영동';['영동북부','영동남부','영동중부','영동','속초','고성','양양','인제','산지'].forEach(function(k){if(regionSrc.includes(k))rName=k;});}
     if(!alertMap[rName])alertMap[rName]={level:level,reasons:[]};
     if(level==='경보')alertMap[rName].level='경보';
     var reason=wrnType+(level==='경보'?'경보':'주의보');
@@ -2686,7 +2750,7 @@ function sosToRescue(id){
 // 앱 자체 업데이트 (OTA · Capgo 자체호스팅) — APK 전용. 웹/PWA는 서비스워커가 자동 갱신.
 // 번들(www)의 새 버전을 ota.json으로 알리면, 설치된 앱이 받아서 그 자리에서 교체(재빌드 불필요).
 // ══════════════════════════════════════════
-const OTA_VER='2026.07.07.68';                         // ← 현재 번들 버전 (릴리스마다 올림 · build-ota.sh가 ota.json에 반영)
+const OTA_VER='2026.07.07.69';                         // ← 현재 번들 버전 (릴리스마다 올림 · build-ota.sh가 ota.json에 반영)
 const OTA_MANIFEST='https://seorak1275.github.io/seoraksan/ota.json';
 let _otaInfo=null;
 function _otaPlugin(){try{return (window.Capacitor&&window.Capacitor.Plugins&&window.Capacitor.Plugins.CapacitorUpdater)||null;}catch(e){return null;}}

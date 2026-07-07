@@ -802,11 +802,11 @@ function renderAlertView(){
   let wxHtml='';
   if(kmaLive.length){
     wxHtml=`<div class="ao-wx">
-      <div style="font-size:10px;color:#5d92bc;font-weight:800;letter-spacing:.3px;margin-bottom:7px;">📡 기상청 실시간 발효 특보</div>
+      <div style="display:flex;align-items:center;margin-bottom:7px;"><span style="font-size:10px;color:#5d92bc;font-weight:800;letter-spacing:.3px;">📡 기상청 실시간 발효 특보</span>${isAdminUser()?`<button onclick="kmaWarnDiag()" style="margin-left:auto;background:rgba(79,168,208,.08);border:1px solid rgba(79,168,208,.25);color:#5d92bc;border-radius:7px;font-size:9px;font-weight:700;padding:2px 8px;cursor:pointer;">🔧 수신 진단</button>`:''}</div>
       ${kmaLive.map(a=>`<div class="ao-wx-chip"><span class="ao-level-badge ao-level-${a.stage.indexOf('Ⅱ')>=0?'Ⅱ단계':'Ⅰ단계'}">${_stageShort(a.stage)}</span> <span style="color:#dceaf6;">${_esc(a.type||'')}</span></div>`).join('')}
     </div>`;
   } else {
-    wxHtml=`<div class="ao-wx-empty">☀️ 현재 기상청 발효 특보 없음</div>`;
+    wxHtml=`<div class="ao-wx-empty" style="display:flex;align-items:center;gap:8px;"><span style="flex:1;">☀️ 현재 기상청 발효 특보 없음</span>${isAdminUser()?`<button onclick="kmaWarnDiag()" style="background:rgba(79,168,208,.08);border:1px solid rgba(79,168,208,.25);color:#5d92bc;border-radius:7px;font-size:9px;font-weight:700;padding:2px 8px;cursor:pointer;flex-shrink:0;">🔧 수신 진단</button>`:''}</div>`;
   }
 
   // 활성 특보운영 — 분소별 응소 현황 + 시간별 기상관측
