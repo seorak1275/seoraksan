@@ -612,6 +612,8 @@ function initFirebase(onReady){
           DB.s('notis',ns);updateBell();
           // OS 시스템 알림 (앱이 백그라운드일 때만)
           _showSystemNoti(d.msg,d.ico);
+          // 특보(op_*) 알림: 설정 켠 사용자는 본인 카카오톡으로도 수신
+          try{if(String(d.type||'').indexOf('op_')===0&&typeof _kakaoMsgOn==='function'&&_kakaoMsgOn()&&typeof _sendKakaoSelf==='function'&&_notiOn(d.type))_sendKakaoSelf(d.msg);}catch(e){}
         });
       },()=>{});
     _migrateLegacyCollections();
@@ -1078,7 +1080,7 @@ const NOTI_GROUPS=[
     {k:'화재',l:'화재·산불',sub:'산불·시설 화재',def:true,push:true},
     {k:'기타',l:'기타 위험',sub:'기타 위험상황',def:true,push:true},
     {k:'rescue_mobilize',l:'응소 요청',sub:'야간·산불 응소·재알림',def:true,push:true},
-    {k:'progress',l:'진행중 경과 알림',sub:'24시간 무소식 시 종료 확인 (하루 1회)',def:true,push:true},
+    {k:'progress',l:'진행중 경과 알림',sub:'24시간 무소식 시 종료 확인 — 최초 작성자에게 (하루 1회)',def:true,push:true},
     {k:'rescue_update',l:'추가보고·댓글',sub:'구조 추가보고·댓글',def:false,push:false},
     {k:'rescue_close',l:'상황 종료',sub:'구조 상황 종료',def:false,push:false},
   ]},
@@ -1132,6 +1134,8 @@ function pushNoti(msg,ico,type='info',link=null,pushCat=null,opts){
   }
   // 꺼진 폰까지 OS 푸시 — 관리자 전용은 전체 OS푸시를 보내지 않음(앱 내 벨로만, 전원 진동 방지)
   if(!adminOnly)_sendFcmPush('설악산 현장관리',msg,pushCat||type,link);
+  // 특보(op_*) 알림은 설정 켠 사용자의 카카오톡(나와의 채팅)으로도 발송
+  try{if(String(type).indexOf('op_')===0&&typeof _kakaoMsgOn==='function'&&_kakaoMsgOn()&&typeof _sendKakaoSelf==='function')_sendKakaoSelf(msg);}catch(e){}
   // 기기 간 Firestore 브로드캐스트 (adminOnly면 수신측에서 관리자만 표시)
   if(_fdb){
     _fdb.collection('sharedNotis').doc(String(id)).set({

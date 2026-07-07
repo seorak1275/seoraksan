@@ -47,6 +47,7 @@ function renderSettings(){
         <div class="stitle">📳 알림 동작</div>
         ${_notiPerm==='granted'?'':`<div onclick="_reqPerm&&_reqPerm('noti')" style="cursor:pointer;background:rgba(241,196,15,.08);border:1px solid rgba(241,196,15,.3);border-radius:8px;padding:9px 11px;margin-bottom:8px;font-size:11px;color:#e8c84a;line-height:1.5;">🔔 휴대폰 알림이 꺼져 있습니다. <b>탭하여 권한 허용</b> → 꺼진 폰에도 알림이 옵니다.</div>`}
         <div class="tog-row"><div><div class="tog-lbl">📳 진동</div><div class="tog-sub">알림이 오면 휴대폰을 진동시킵니다</div></div><div class="toggle ${_vibe?'on':'off'}" onclick="togVibrate(this)"></div></div>
+        <div class="tog-row"><div><div class="tog-lbl">💬 카카오톡 특보 알림</div><div class="tog-sub">특보 발령·변경·해제를 내 카카오톡(나와의 채팅)으로 받기</div></div><div class="toggle ${typeof _kakaoMsgOn==='function'&&_kakaoMsgOn()?'on':'off'}" onclick="togKakaoAlert(this)"></div></div>
       </div>
       <div class="scard">
         <div class="stitle" style="display:flex;align-items:center;justify-content:space-between;">🔔 알림 설정
@@ -231,6 +232,35 @@ function kakaoLogin(){
   //   커스텀스킴/네이티브키 추가 설정이 필요해 추후 별도 작업).
   var _native=(typeof _isNativeApp==='function'&&_isNativeApp());
   Kakao.Auth.authorize({redirectUri:_kakaoRedirectUri(),throughTalk:!_native});
+}
+// ── 카카오톡 특보 알림 (나와의 채팅으로 보내기) ─────────────────────
+// ※ 준비: 카카오 개발자 콘솔 > 카카오 로그인 > 동의항목에서
+//   '카카오톡 메시지 전송(talk_message)'을 활성화해야 발송됨.
+//   설정 > 알림 동작에서 켜면, 특보 발령·변경·해제 알림이 본인 카카오톡으로 감.
+function _kakaoMsgOn(){return localStorage.getItem('_kakaoAlertMsg')==='1';}
+function _sendKakaoSelf(text){
+  try{
+    if(!window.Kakao||!Kakao.API||!Kakao.Auth)return;
+    if(!Kakao.Auth.getAccessToken()){var _at=localStorage.getItem('_kkAT');if(_at)Kakao.Auth.setAccessToken(_at);}
+    if(!Kakao.Auth.getAccessToken())return;
+    var url=_kakaoRedirectUri();
+    Kakao.API.request({url:'/v2/api/talk/memo/default/send',data:{template_object:{object_type:'text',text:'⛰️ 설악산 현장관리\n'+text,link:{web_url:url,mobile_web_url:url},button_title:'앱 열기'}}})
+      .catch(function(e){
+        // talk_message 미동의(-402) → 1회만 재동의 안내
+        if(e&&(e.code===-402||String(e.msg||'').indexOf('scope')>=0)&&!window._kkScopeAsked){
+          window._kkScopeAsked=true;
+          if(confirm('카카오톡 알림을 보내려면 [카카오톡 메시지 전송] 동의가 필요합니다.\n동의 화면으로 이동할까요? (동의 후 다시 로그인됩니다)'))
+            Kakao.Auth.authorize({redirectUri:_kakaoRedirectUri(),scope:'talk_message'});
+        }
+      });
+  }catch(e){}
+}
+function togKakaoAlert(el){
+  var on=!_kakaoMsgOn();
+  localStorage.setItem('_kakaoAlertMsg',on?'1':'');
+  if(el)el.className='toggle '+(on?'on':'off');
+  if(on){toast('💬 카카오톡 특보 알림 켜짐 — 테스트 메시지 발송');_sendKakaoSelf('카카오톡 특보 알림이 켜졌습니다.\n특보 발령·변경·해제 시 이 채팅으로 알려드립니다.');}
+  else toast('💬 카카오톡 특보 알림 꺼짐');
 }
 function _handleKakaoCode(code,redirectUri){
   var _uri=redirectUri||_kakaoRedirectUri();
@@ -925,7 +955,7 @@ setInterval(function(){
   _weatherFetched=false;_wDetailCache=null;fetchWeather();
 },30*60*1000);
 
-// ── 진행중 구조 방치 감시: 보고서·타임라인에 24시간 동안 새 내용이 없을 때만 알림 ──────
+// ── 진행중 구조 방치 감시: 보고서·타임라인에 24시간 새 내용이 없으면 '최초 작성자에게만' 알림 ──────
 // (추가보고·📌 기록·댓글·팀 출동/도착·공단 공유·인계 등 모든 활동을 '새 내용'으로 집계.
 //  하루 한 번만 — 끝났는데 종료 처리를 잊은 건을 확인시키는 용도)
 const _STALE_HOURS=24;              // 무소식 임계(시간)
@@ -951,9 +981,14 @@ function _lastActivityTs(r){
   return t;
 }
 function _checkStaleRescues(){
+  // 최초 작성자(r.author)의 기기에서만 로컬 알림 — 전체 방송·OS푸시 없음
+  const u=DB.g('currentUser')||{};
+  if(!u.name)return;
+  if(!_notiOn('progress'))return;
   const res=DB.g('rescues')||[];
   const nowMs=Date.now();
   res.filter(r=>r.status==='ongoing').forEach(r=>{
+    if(!r.author||String(r.author).trim()!==String(u.name).trim())return;
     const last=_lastActivityTs(r);
     if(!last)return;
     const elapsedH=(nowMs-last)/3600000;
@@ -963,8 +998,9 @@ function _checkStaleRescues(){
     _staleAlerted[r.id]=nowMs;
     try{localStorage.setItem('_staleAlerted_v1',JSON.stringify(_staleAlerted));}catch(e){}
     const d=Math.floor(elapsedH/24);
-    pushNoti('💤 "'+(r.title||'진행중 구조')+'" — '+(d>=1?d+'일':Math.floor(elapsedH)+'시간')+' 동안 새 소식 없음. 상황이 끝났다면 종료 처리해 주세요',
-      '💤','progress',{app:'rescue',tab:2,id:r.id});
+    const msg='💤 내가 접수한 "'+(r.title||'진행중 구조')+'" — '+(d>=1?d+'일':Math.floor(elapsedH)+'시간')+' 동안 새 소식 없음. 상황이 끝났다면 종료 처리해 주세요';
+    try{const ns=DB.g('notis')||[];ns.unshift({id:nowMs,msg,ico:'💤',time:now(),read:false,link:{app:'rescue',tab:2,id:r.id}});if(ns.length>80)ns.splice(80);DB.s('notis',ns);updateBell();}catch(e){}
+    try{_showSystemNoti(msg,'💤');}catch(e){}
   });
 }
 setInterval(_checkStaleRescues,15*60*1000);
@@ -2650,7 +2686,7 @@ function sosToRescue(id){
 // 앱 자체 업데이트 (OTA · Capgo 자체호스팅) — APK 전용. 웹/PWA는 서비스워커가 자동 갱신.
 // 번들(www)의 새 버전을 ota.json으로 알리면, 설치된 앱이 받아서 그 자리에서 교체(재빌드 불필요).
 // ══════════════════════════════════════════
-const OTA_VER='2026.07.06.67';                         // ← 현재 번들 버전 (릴리스마다 올림 · build-ota.sh가 ota.json에 반영)
+const OTA_VER='2026.07.07.68';                         // ← 현재 번들 버전 (릴리스마다 올림 · build-ota.sh가 ota.json에 반영)
 const OTA_MANIFEST='https://seorak1275.github.io/seoraksan/ota.json';
 let _otaInfo=null;
 function _otaPlugin(){try{return (window.Capacitor&&window.Capacitor.Plugins&&window.Capacitor.Plugins.CapacitorUpdater)||null;}catch(e){return null;}}
