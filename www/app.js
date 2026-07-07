@@ -521,8 +521,18 @@ var _KMA_PROXIES=[
   function(u){return 'https://corsproxy.io/?url='+encodeURIComponent(u);}
 ];
 var _KMA_DEFAULT_PROXY='https://seoraksan-kma.yraphael.workers.dev'; // 기본 내장 프록시(Cloudflare Worker) — 관리자 설정 미입력 시 사용
+// 기상청 typ01 응답은 EUC-KR — UTF-8로 읽으면 한글이 �로 깨져 특보 파싱이 전부 실패한다.
+// UTF-8로 먼저 읽고 깨짐(U+FFFD)이 보이면 EUC-KR로 다시 디코딩.
+function _kmaReadText(r){
+  return r.arrayBuffer().then(function(buf){
+    var u8=new Uint8Array(buf);var txt='';
+    try{txt=new TextDecoder('utf-8').decode(u8);}catch(e){}
+    if(!txt||txt.indexOf('\uFFFD')>=0){try{txt=new TextDecoder('euc-kr').decode(u8);}catch(e){}}
+    return txt;
+  });
+}
 function _fetchKma(url,asText){
-  var read=function(r){if(!r||!r.ok)throw new Error('http '+(r&&r.status));return asText?r.text():r.json();};
+  var read=function(r){if(!r||!r.ok)throw new Error('http '+(r&&r.status));return asText?_kmaReadText(r):r.json();};
   var chain=[];
   // ① 관리자가 설정한 본인 소유 프록시(Cloudflare Worker) 우선 — 가장 안정적, 미입력 시 내장 기본값 사용
   var w=(DB.g('kmaProxyUrl')||'').trim()||_KMA_DEFAULT_PROXY;
@@ -554,7 +564,7 @@ function kmaWarnDiag(){
     var timer=ctl?setTimeout(function(){ctl.abort();},8000):null;
     return fetch(chain[i].u,ctl?{signal:ctl.signal}:{}).then(function(r){
       if(timer)clearTimeout(timer);
-      return r.text().then(function(tx){
+      return _kmaReadText(r).then(function(tx){
         var ok=r.ok&&tx&&tx.length>2;
         rows.push({name:chain[i].name,ok:ok,ms:Date.now()-t0,info:'HTTP '+r.status+' · '+tx.length+'자'});
         if(ok&&firstTxt===null)firstTxt=tx;
@@ -2750,7 +2760,7 @@ function sosToRescue(id){
 // 앱 자체 업데이트 (OTA · Capgo 자체호스팅) — APK 전용. 웹/PWA는 서비스워커가 자동 갱신.
 // 번들(www)의 새 버전을 ota.json으로 알리면, 설치된 앱이 받아서 그 자리에서 교체(재빌드 불필요).
 // ══════════════════════════════════════════
-const OTA_VER='2026.07.07.69';                         // ← 현재 번들 버전 (릴리스마다 올림 · build-ota.sh가 ota.json에 반영)
+const OTA_VER='2026.07.07.70';                         // ← 현재 번들 버전 (릴리스마다 올림 · build-ota.sh가 ota.json에 반영)
 const OTA_MANIFEST='https://seorak1275.github.io/seoraksan/ota.json';
 let _otaInfo=null;
 function _otaPlugin(){try{return (window.Capacitor&&window.Capacitor.Plugins&&window.Capacitor.Plugins.CapacitorUpdater)||null;}catch(e){return null;}}

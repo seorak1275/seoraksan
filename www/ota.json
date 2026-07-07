@@ -1,1 +1,1 @@
-{"version":"2026.07.07.69","url":"https://seorak1275.github.io/seoraksan/bundle.zip","notes":"기상특보 파서 코드포맷 대응 + 수신 진단 도구"}
+{"version":"2026.07.07.70","url":"https://seorak1275.github.io/seoraksan/bundle.zip","notes":"기상청 EUC-KR 디코딩 수정 — 특보 한글 깨짐으로 파싱 실패하던 문제"}
