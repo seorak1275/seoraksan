@@ -967,8 +967,13 @@ function openReportShare(rid){
   const b='width:100%;margin-bottom:7px;padding:12px;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;transition:transform .1s,opacity .1s;';
   m.innerHTML=`<div style="background:#0a1828;border:1px solid rgba(79,168,208,.25);border-radius:14px;max-width:300px;width:100%;padding:16px;max-height:85vh;overflow-y:auto;">
     <div style="font-size:14px;font-weight:800;color:#e0edf8;margin-bottom:12px;text-align:center;">📄 보고서</div>
-    <button class="press-fx" onclick="govReport(${rid},'status',false);this.closest('#repShareModal').remove();" style="${b}border:1px solid rgba(232,179,74,.4);background:rgba(232,179,74,.1);color:#e8b34a;">📑 처리현황 · 통과기록 포함 (한글용)</button>
-    <button class="press-fx" onclick="govReport(${rid},'status',true);this.closest('#repShareModal').remove();" style="${b}border:1px solid rgba(232,179,74,.4);background:rgba(232,179,74,.1);color:#e8b34a;">📑 처리현황 · 통과기록 제외 (한글용)</button>
+    <div style="border:1px solid rgba(232,179,74,.4);background:rgba(232,179,74,.07);border-radius:10px;padding:9px 10px 8px;margin-bottom:7px;">
+      <div style="font-size:12.5px;font-weight:800;color:#e8b34a;text-align:center;margin-bottom:7px;">📑 안전사고 처리현황 <span style="font-size:10px;font-weight:600;opacity:.75;">(한글용)</span></div>
+      <div style="display:flex;gap:6px;">
+        <button class="press-fx" onclick="govReport(${rid},'status',false);this.closest('#repShareModal').remove();" style="flex:1;padding:9px 4px;border-radius:8px;border:1px solid rgba(232,179,74,.4);background:rgba(232,179,74,.15);color:#e8b34a;font-size:12px;font-weight:700;cursor:pointer;">통과기록 포함</button>
+        <button class="press-fx" onclick="govReport(${rid},'status',true);this.closest('#repShareModal').remove();" style="flex:1;padding:9px 4px;border-radius:8px;border:1px solid rgba(232,179,74,.25);background:rgba(232,179,74,.05);color:#e8b34a;font-size:12px;font-weight:700;cursor:pointer;">통과기록 제외</button>
+      </div>
+    </div>
     <button class="press-fx" onclick="govReport(${rid},'trend');this.closest('#repShareModal').remove();" style="${b}border:1px solid rgba(232,179,74,.4);background:rgba(232,179,74,.1);color:#e8b34a;">📈 동향보고 (한글용)</button>
     <button class="press-fx" onclick="copyReportText(${rid});this.closest('#repShareModal').remove();" style="${b}border:1px solid rgba(79,168,208,.35);background:rgba(79,168,208,.1);color:#4fa8d0;">📋 텍스트 복사</button>
     <button class="press-fx" onclick="shareReportText(${rid});this.closest('#repShareModal').remove();" style="${b}border:1px solid rgba(39,174,96,.35);background:rgba(39,174,96,.1);color:#27ae60;">📤 공유</button>
