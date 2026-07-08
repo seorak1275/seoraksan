@@ -425,7 +425,6 @@ if(window.Kakao&&!Kakao.isInitialized()) Kakao.init(KAKAO_KEY);
       <span id="inspFilterIco">⚙️</span> 필터 <span id="inspFilterBadge" style="display:none;background:#e05050;color:#fff;border-radius:50%;width:17px;height:17px;font-size:9px;font-weight:800;align-items:center;justify-content:center;box-shadow:0 1px 5px rgba(224,80,80,.55);flex-shrink:0;"></span>
     </button>
     <button class="fab-gps" onclick="gpsTo('inspect')">📍</button>
-    <button class="map-ctrl" id="facHideBtn" onclick="toggleFacHidden()" style="left:auto;right:10px;top:52px;display:none;align-items:center;gap:4px;">🙈 시설가림</button>
     <button class="fab" style="background:#0c4838;color:#fff;" onclick="openAddFac()">＋</button>
     <!-- 필터 패널 (배경 오버레이 없음 → 지도 조작 가능) -->
     <div id="inspFilterPanel" style="display:none;position:absolute;bottom:0;left:0;right:0;z-index:20;background:#0a1828;border-radius:11px 11px 0 0;box-shadow:0 -3px 18px rgba(0,0,0,.7);max-height:52%;flex-direction:column;transition:transform .22s cubic-bezier(.4,0,.2,1);touch-action:none;">
@@ -450,7 +449,7 @@ if(window.Kakao&&!Kakao.isInitialized()) Kakao.init(KAKAO_KEY);
       <div class="dbgrab"><div class="dbhandle"></div></div>
       <div class="dbtitle" id="facPopTitle">시설물 핀을 탭하여 조회</div>
       <div class="dbmeta" id="facPopMeta"></div>
-      <div class="dbbtns">
+      <div class="dbbtns" id="facPopBtns" style="display:flex;flex-direction:row;gap:7px;">
         <button class="btn btn-blue" onclick="openFacDetail(window._selFacDetailId||selFacId)">📋 상세 보기</button>
       </div>
     </div>

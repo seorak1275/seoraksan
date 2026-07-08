@@ -575,14 +575,18 @@ function kmaWarnDiag(){
     }).then(function(){return run(i+1);});
   };
   run(0).then(function(){
+    var fromCache=false;
+    if(firstTxt===null){var lg=_loadKmaLast();if(lg&&lg.t){firstTxt=lg.t;fromCache=lg.at||true;}}
+    else{_saveKmaLast(firstTxt);}
     var parsed=firstTxt!==null?_parseKmaWarnings(firstTxt):{};
     var live=_kmaLiveList(parsed);
     if(firstTxt!==null){_renderWeatherAlerts(parsed,false);} // 성공 시 즉시 반영(자동 발령 포함)
     var srcHtml=rows.map(function(r){return '<div style="display:flex;gap:8px;align-items:center;padding:5px 0;border-bottom:1px solid rgba(255,255,255,.05);"><span style="flex:1;font-size:12px;color:#cfe2f2;">'+r.name+'</span><span style="font-size:10px;color:#5a7e98;">'+r.ms+'ms</span><span style="font-size:11px;font-weight:800;color:'+(r.ok?'#5fcf8f':'#ff8a73')+';">'+(r.ok?'✅ 성공':'❌ 실패')+'</span><span style="font-size:9px;color:#5a7e98;">'+r.info+'</span></div>';}).join('');
     var _lines=firstTxt!==null?String(firstTxt).split('\n').map(function(x){return x.trim();}).filter(function(x){return x&&x.charAt(0)!=='#';}):[];
     var _gw=_lines.filter(function(x){return /강원|속초|양양|고성|인제|설악|산지|영동|강풍/.test(x);});
-    var prev=firstTxt===null?'(모든 소스 실패 — 원문 없음)'
-      :('전체 데이터 행 '+_lines.length+'개 · 강원/영동/설악 관련 '+_gw.length+'개\n'
+    var _cacheNote=fromCache?('⚠️ 실시간 수신 실패 → 최근 캐시 사용'+(typeof fromCache==='number'?' ('+Math.round((Date.now()-fromCache)/60000)+'분 전)':'')+'\n'):'';
+    var prev=firstTxt===null?'(모든 소스 실패 + 캐시 없음 — 원문 없음)'
+      :(_cacheNote+'전체 데이터 행 '+_lines.length+'개 · 강원/영동/설악 관련 '+_gw.length+'개\n'
         +((_gw.length?_gw:_lines).slice(0,16).join('\n')||'(데이터 행 없음 — 주석/헤더만 수신됨)'));
     var keyBad=firstTxt!==null&&/인증|auth|key|expired|유효/i.test(prev)&&!/#/.test(prev.slice(0,3));
     var parseHtml=live.length
@@ -612,7 +616,8 @@ var _kmaWrnCache=null;
 var _kmaWrnCacheAt=0; // 기상특보 캐시 시각 — 구조 상황에선 발효/해제가 빨라 오래된 특보를 재사용하면 위험
 var _KMA_WRN_TTL=900000; // 15분
 // 설악산 인근 특보구역만 채택 (영월·횡성·원주 등 영서 도시는 제외)
-var _SETAK_REGIONS=['속초','고성','양양','인제','설악','영동북부','북부산지','강원북부','영동'];
+// 설악산 관할(강원 영동) 특보구역만 — '영동군'(충북) 등 오검출 방지 위해 바(bare) '영동' 미포함
+var _SETAK_REGIONS=['속초','고성','양양','인제','설악','영동북부','강원북부산지','북부산지'];
 function _parseKmaWarnings(txt){
   var alertMap={};
   _kmaWrnCache=txt;
@@ -711,6 +716,7 @@ function fetchWeather(){
     document.getElementById('wWind').textContent='💨 '+Math.round(wspd)+'m/s';
     var ws=document.getElementById('weatherStrip');if(ws)ws.style.display='flex';
     // 실제 기상특보 (기상청 발효 특보)
+    if(typeof wrnTxt==='string')_saveKmaLast(wrnTxt);
     var alertMap=_parseKmaWarnings(wrnTxt||'');
     _renderWeatherAlerts(alertMap);
   }).catch(function(e){
@@ -721,11 +727,13 @@ function fetchWeather(){
 }
 // ── 기상특보 주기적 재조회 (운영 중 실시간 자동 발령) ──
 var _kmaWarnPollTimer=null;
+function _saveKmaLast(txt){try{if(typeof txt==='string'&&txt.length>10)localStorage.setItem('_kmaWrnLast',JSON.stringify({t:txt,at:Date.now()}));}catch(e){}}
+function _loadKmaLast(){try{return JSON.parse(localStorage.getItem('_kmaWrnLast')||'null');}catch(e){return null;}}
 function _pollKmaWarnings(){
   if(document.visibilityState&&document.visibilityState!=='visible')return; // 백그라운드면 생략
   var url='https://apihub.kma.go.kr/api/typ01/url/wrn_now_data_new.php?authKey='+KMA_KEY+'&disp=1';
   _fetchKma(url,true).then(function(txt){
-    if(typeof txt==='string')_renderWeatherAlerts(_parseKmaWarnings(txt),false); // 공식 특보 → _syncAutoAlerts 자동 발령
+    if(typeof txt==='string'){_saveKmaLast(txt);_renderWeatherAlerts(_parseKmaWarnings(txt),false);} // 공식 특보 → _syncAutoAlerts 자동 발령
   }).catch(function(){});
 }
 function _startKmaWarnPoll(){
@@ -2776,7 +2784,7 @@ function sosToRescue(id){
 // 앱 자체 업데이트 (OTA · Capgo 자체호스팅) — APK 전용. 웹/PWA는 서비스워커가 자동 갱신.
 // 번들(www)의 새 버전을 ota.json으로 알리면, 설치된 앱이 받아서 그 자리에서 교체(재빌드 불필요).
 // ══════════════════════════════════════════
-const OTA_VER='2026.07.08.77';                         // ← 현재 번들 버전 (릴리스마다 올림 · build-ota.sh가 ota.json에 반영)
+const OTA_VER='2026.07.08.78';                         // ← 현재 번들 버전 (릴리스마다 올림 · build-ota.sh가 ota.json에 반영)
 const OTA_MANIFEST='https://seorak1275.github.io/seoraksan/ota.json';
 let _otaInfo=null;
 function _otaPlugin(){try{return (window.Capacitor&&window.Capacitor.Plugins&&window.Capacitor.Plugins.CapacitorUpdater)||null;}catch(e){return null;}}

@@ -127,9 +127,8 @@ var _iClusterOvs=[],_iItems=[];
 function _reclusterInspect(){
   if(!mapI)return;
   _iClusterOvs.forEach(o=>{try{o.setMap(null);}catch(e){}});_iClusterOvs=[];
-  // 클러스터(핀 묶음) 미사용 — 모든 시설물을 개별 핀으로 표시. 가리기 상태면 전부 숨김.
-  const hide=(typeof _facHidden==='function'&&_facHidden());
-  iOvs.forEach(o=>{try{o.setMap(hide?null:mapI);}catch(e){}});
+  // 클러스터(핀 묶음) 미사용 — 모든 시설물을 개별 핀으로 표시
+  iOvs.forEach(o=>{try{o.setMap(mapI);}catch(e){}});
 }
 const DC={lat:38.1328,lng:128.4107};
 // HTML/attribute escaping for user-generated content

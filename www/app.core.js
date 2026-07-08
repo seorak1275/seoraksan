@@ -1004,8 +1004,7 @@ function _warnPeriodStr(w){
   var days=Math.ceil((w.until-Date.now())/86400000);
   return (fr?fr+' ~ ':'~ ')+un+(days>=0?' (D-'+days+')':'');
 }
-// 시설물 지도 가리기(기기 로컬 토글)
-function _facHidden(){try{return localStorage.getItem('_facHidden')==='1';}catch(e){return false;}}
+
 function getAuthor(){const u=DB.g('currentUser')||{};return u.name||'미지정';}
 function getSelPills(id){return [...document.querySelectorAll(`#${id} .pill.on`)].map(p=>p.textContent);}
 function tPill(el){el.classList.toggle('on');}

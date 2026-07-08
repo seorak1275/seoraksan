@@ -168,6 +168,7 @@ function renderInspectMap(){
   const locs=['전체',...new Set(_signFacs.map(f=>(f.name.match(/\d+/)||[''])[0]).filter(Boolean)).values()].sort((a,b)=>a==='전체'?-1:a.localeCompare(b,'ko'));
   _updateInspFilterPanel(types,locs);
   const filtered=facs.filter(f=>{
+    if(!_facVisibleTo(f))return false; // 숨김 시설은 일반 사용자에게 미표시
     const wOk=facMapStatusF.size===0||(facMapStatusF.has('warn')&&!!_facWarn(f));
     const tOk=facMapTypeF.size===0||[...facMapTypeF].some(t=>f.type.includes(t));
     const lOk=facMapLocF.size===0||[...facMapLocF].some(v=>_facInZone(f,v));
@@ -176,6 +177,7 @@ function renderInspectMap(){
   filtered.forEach(f=>{
     if(!f.lat||!f.lng)return;
     const el=document.createElement('div');el.className='mpin '+(_facWarn(f)?'p-bad blink':'p-fac');el.innerHTML=f.type.split(' ')[0];
+    if(f.hidden)el.style.opacity='.4'; // 권한자에게만 보이는 숨김 시설 — 흐리게
     let _ts=null;
     el.addEventListener('touchstart',e=>{_ts={x:e.touches[0].clientX,y:e.touches[0].clientY};},{passive:true});
     el.addEventListener('touchend',e=>{
@@ -194,26 +196,17 @@ function renderInspectMap(){
   // 시설물 클러스터링 (밀집 시 개수 버블로 묶음)
   _iItems=iOvs.map(ov=>({ov,lat:ov._lat,lng:ov._lng}));
   try{_reclusterInspect();}catch(e){}
-  try{_updateFacHideBtn();}catch(e){}
 }
-// ── 시설물 가리기 토글 (권한자만) ──
-function toggleFacHidden(){
+// ── 개별 시설 숨김 토글 (권한자만) — 일반 사용자에게 이 시설만 안 보이게 ──
+function toggleFacHide(id){
   if(!_canManageFac()){toast('⚠️ 탐방시설과·개발자만 가능');return;}
-  const on=!_facHidden();
-  try{localStorage.setItem('_facHidden',on?'1':'');}catch(e){}
-  try{_reclusterInspect();}catch(e){}
+  const facs=DB.g('facilities')||[];const idx=facs.findIndex(x=>x.id===id);if(idx<0)return;
+  facs[idx].hidden=!facs[idx].hidden;
+  DB.s('facilities',facs);
+  try{renderInspectMap();}catch(e){}try{renderFacList();}catch(e){}
   try{if(typeof _syncRFacPool==='function')_syncRFacPool();}catch(e){}
-  try{if(typeof renderRescueMap==='function'&&curApp==='rescue')renderRescueMap();}catch(e){}
-  _updateFacHideBtn();
-  toast(on?'🙈 시설물 가림':'👁️ 시설물 표시');
-}
-function _updateFacHideBtn(){
-  const b=document.getElementById('facHideBtn');if(!b)return;
-  b.style.display=_canManageFac()?'flex':'none';
-  const on=_facHidden();
-  b.innerHTML=on?'👁️ 시설표시':'🙈 시설가림';
-  b.style.borderColor=on?'rgba(240,165,0,.6)':'rgba(255,255,255,.2)';
-  b.style.color=on?'#f0a500':'#c0d8ec';
+  try{openFacDetail(id);}catch(e){}
+  toast(facs[idx].hidden?'🙈 일반 사용자에게 숨김':'👁️ 다시 표시');
 }
 function setMapFacF(t,v){
   const set=t==='s'?facMapStatusF:t==='t'?facMapTypeF:facMapLocF;
@@ -443,7 +436,10 @@ function openFacFromMap(id){
   const w=_facWarn(f);
   document.getElementById('facPopMeta').innerHTML=
     (w?`<div style="color:#ff5a45;font-weight:800;">⚠️ 경고표시${w.reason?' · '+_esc(w.reason):''}</div><div style="font-size:10px;color:#c98;margin-bottom:3px;">${_esc(_warnPeriodStr(w))}</div>`:'')
-    +`📍 ${_esc(f.loc||'-')}`;
+    +`📍 ${_esc(f.loc||'-')}`+(f.hidden?'<div style="font-size:10px;color:#8a6d3b;margin-top:2px;">🙈 일반 사용자에게 숨김 중</div>':'');
+  const _bw=document.getElementById('facPopBtns');
+  if(_bw)_bw.innerHTML=`<button class="btn btn-blue" style="flex:1;" onclick="openFacDetail(${f.id})">📋 상세 보기</button>`
+    +(_canManageFac()?`<button class="btn" style="flex:1;background:rgba(255,255,255,.06);color:${f.hidden?'#f0a500':'#c0d8ec'};border:1px solid rgba(255,255,255,.15);" onclick="toggleFacHide(${f.id})">${f.hidden?'👁️ 표시':'🙈 가림'}</button>`:'');
   document.getElementById('resPopup').classList.remove('on');
   document.getElementById('facPopup').classList.add('on');
 }
@@ -458,6 +454,7 @@ function renderFacList(){
   const locs=[...new Set(_sf.map(f=>(f.name.match(/\d+/)||[''])[0]).filter(Boolean))].sort();
   _updateFacListFilterPanel(types,locs);
   const filtered=facs.filter(f=>{
+    if(!_facVisibleTo(f))return false;
     const sOk=facMapStatusF.size===0||(facMapStatusF.has('warn')&&!!_facWarn(f));
     const tOk=facMapTypeF.size===0||[...facMapTypeF].some(t=>f.type.includes(t));
     const lOk=facMapLocF.size===0||[...facMapLocF].some(v=>_facInZone(f,v));
@@ -474,7 +471,7 @@ function renderFacList(){
     const col=w?'#e05050':'rgba(120,150,175,.5)';
     return `<div class="lcard" style="padding:7px 10px;border-left:3px solid ${col};" onclick="openFacDetail(${f.id})">
       <div class="lico" style="width:30px;height:30px;font-size:14px;border-color:${col};color:${col};">${_esc(f.type.split(' ')[0])}</div>
-      <div class="linfo"><div class="lname" style="font-size:12px;">${_esc(f.name)}</div>
+      <div class="linfo"><div class="lname" style="font-size:12px;">${_esc(f.name)}${f.hidden?' <span style="font-size:9px;color:#8a6d3b;">🙈 숨김</span>':''}</div>
         <div class="lmeta">${_esc(f.type.split(' ').slice(1).join(' ')||f.type)} · ${_esc(f.loc||'-')} · ${f.lat?'📍':''}</div>
         ${w&&w.reason?`<span style="font-size:9px;color:#e05050;margin-top:2px;display:block;">⚠️ ${_esc(w.reason)}</span>`:''}
       </div>
@@ -529,7 +526,8 @@ function openFacDetail(id){
       <b style="color:#c0d8ec;">등록자:</b> ${_esc(f.author||'-')}
       ${f.note?`<br><b style="color:#c0d8ec;">비고:</b> ${_esc(f.note)}`:''}
     </div>
-    ${canMng?`<button class="btn" style="width:100%;margin-top:10px;background:${w?'rgba(224,80,80,.14)':'rgba(240,165,0,.12)'};color:${w?'#ff7a6e':'#f0a500'};border:1px solid ${w?'rgba(224,80,80,.4)':'rgba(240,165,0,.35)'};" onclick="openFacWarn(${f.id})">⚠️ 경고표시 ${w?'수정 / 해제':'설정'}</button>`:''}`;
+    ${canMng?`<button class="btn" style="width:100%;margin-top:10px;background:${w?'rgba(224,80,80,.14)':'rgba(240,165,0,.12)'};color:${w?'#ff7a6e':'#f0a500'};border:1px solid ${w?'rgba(224,80,80,.4)':'rgba(240,165,0,.35)'};" onclick="openFacWarn(${f.id})">⚠️ 경고표시 ${w?'수정 / 해제':'설정'}</button>
+    <button class="btn" style="width:100%;margin-top:7px;background:rgba(255,255,255,.05);color:${f.hidden?'#f0a500':'#b8d4e8'};border:1px solid rgba(255,255,255,.15);" onclick="toggleFacHide(${f.id})">${f.hidden?'👁️ 다시 표시 (현재 일반 사용자에게 숨김)':'🙈 일반 사용자에게 숨기기'}</button>`:''}`;
   const mapBtn=document.getElementById('facDetailMapBtn');
   if(mapBtn)mapBtn.style.display=(f.lat&&f.lng)?'block':'none';
   const adminBtns=document.getElementById('facDetailAdminBtns');

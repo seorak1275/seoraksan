@@ -105,12 +105,14 @@ function isAdminUser(){
       || localStorage.getItem('_tokenAdmin')==='1'
       || _authRole==='admin';
 }
-// 시설물 수정·삭제·가리기 권한: 개발자(마스터) + 탐방시설과 직원 (추가·등록은 누구나)
+// 시설물 수정·삭제·숨김 권한: 개발자(마스터) + 탐방시설과 직원 (추가·등록은 누구나)
 function _canManageFac(){
   if(typeof _isMasterAdmin==='function'&&_isMasterAdmin())return true;
   var u=DB.g('currentUser')||{};
   return u.dept==='탐방시설과';
 }
+// 이 시설이 나에게 보이는가: 숨김(hidden)이면 권한자에게만 보임(일반 사용자에겐 숨김)
+function _facVisibleTo(f){return !(f&&f.hidden)||_canManageFac();}
 // 개발자: 하드코딩된 개발자 카카오ID 본인 or 마스터 비밀번호 인증. 전체 초기화·본인 삭제방지 등에 사용
 function _isMasterAdmin(){
   var u=DB.g('currentUser')||{};
@@ -487,7 +489,7 @@ function _buildRFacEl(f){
 function _syncRFacPool(){
   if(!mapR)return;
   const _rm=DB.g('catFacMeta')||{};
-  const all=(DB.g('facilities')||[]).filter(f=>f.lat&&f.lng&&f.type&&(_rm[f.type]||{}).rescue);
+  const all=(DB.g('facilities')||[]).filter(f=>f.lat&&f.lng&&f.type&&(_rm[f.type]||{}).rescue&&_facVisibleTo(f));
   const validIds=new Set(all.map(f=>String(f.id)));
   // Remove pool entries whose facility was deleted or lost rescue status
   _rFacPool.forEach((entry,id)=>{
@@ -500,9 +502,9 @@ function _syncRFacPool(){
     const ov=new kakao.maps.CustomOverlay({position:new kakao.maps.LatLng(f.lat,f.lng),content:el,clickable:true});
     _rFacPool.set(String(f.id),{ov,el,type:f.type});
   });
+  // 숨김 처리된(삭제/hidden) 시설 오버레이 정리
+  _rFacPool.forEach((entry,id)=>{if(!validIds.has(id)){try{entry.ov.setMap(null);}catch(x){}_rFacPool.delete(id);}});
   _applyRFacFilter();
-  // 가리기 상태면 구조지도의 시설 오버레이도 전부 숨김
-  if(typeof _facHidden==='function'&&_facHidden())_rFacPool.forEach(e=>{try{e.ov.setMap(null);}catch(x){}});
 }
 function _applyRFacFilter(){
   if(!mapR)return;
