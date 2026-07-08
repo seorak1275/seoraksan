@@ -127,10 +127,9 @@ var _iClusterOvs=[],_iItems=[];
 function _reclusterInspect(){
   if(!mapI)return;
   _iClusterOvs.forEach(o=>{try{o.setMap(null);}catch(e){}});_iClusterOvs=[];
-  // 줌 아웃일수록 셀을 키워 더 적극적으로 묶음 → 멀리서 볼 때 핀 수 급감, 지도 부드러움
-  let lv=9;try{lv=mapI.getLevel();}catch(e){}
-  const cell=lv>=10?80:lv>=8?64:lv>=6?52:44;
-  _iClusterOvs=_clusterByPixels(mapI,_iItems,cell,(la,ln)=>_clusterZoom(mapI,la,ln),'fac');
+  // 클러스터(핀 묶음) 미사용 — 모든 시설물을 개별 핀으로 표시. 가리기 상태면 전부 숨김.
+  const hide=(typeof _facHidden==='function'&&_facHidden());
+  iOvs.forEach(o=>{try{o.setMap(hide?null:mapI);}catch(e){}});
 }
 const DC={lat:38.1328,lng:128.4107};
 // HTML/attribute escaping for user-generated content

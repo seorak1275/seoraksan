@@ -992,6 +992,20 @@ async function prevImg(inp,pid){
 function fillSel(id,arr){document.getElementById(id).innerHTML=arr.map(v=>`<option value="${v}">${v}</option>`).join('');}
 const SC=s=>s==='ok'?'#27ae60':s==='warn'?'#e67e22':'#c0392b';
 const SL=s=>s==='ok'?'양호':s==='warn'?'보수필요':'파손위험';
+// ── 시설물 경고표시 ──
+// warn={on,reason,from,until(ms|null=무제한),by,at}. 활성=on이고 (무제한 또는 종료일 이전).
+// 종료일이 지나면 자동으로 비활성(깜빡임 자동 중단).
+function _facWarn(f){var w=f&&f.warn;if(!w||!w.on)return null;if(w.until&&Date.now()>w.until)return null;return w;}
+function _warnPeriodStr(w){
+  if(!w)return '';
+  var fr=w.from?String(new Date(w.from).toLocaleDateString('ko-KR')).replace(/\. /g,'.').replace(/\.$/,''):'';
+  if(!w.until)return (fr?fr+' ~ ':'')+'무제한';
+  var un=String(new Date(w.until).toLocaleDateString('ko-KR')).replace(/\. /g,'.').replace(/\.$/,'');
+  var days=Math.ceil((w.until-Date.now())/86400000);
+  return (fr?fr+' ~ ':'~ ')+un+(days>=0?' (D-'+days+')':'');
+}
+// 시설물 지도 가리기(기기 로컬 토글)
+function _facHidden(){try{return localStorage.getItem('_facHidden')==='1';}catch(e){return false;}}
 function getAuthor(){const u=DB.g('currentUser')||{};return u.name||'미지정';}
 function getSelPills(id){return [...document.querySelectorAll(`#${id} .pill.on`)].map(p=>p.textContent);}
 function tPill(el){el.classList.toggle('on');}

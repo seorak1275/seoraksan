@@ -105,6 +105,12 @@ function isAdminUser(){
       || localStorage.getItem('_tokenAdmin')==='1'
       || _authRole==='admin';
 }
+// 시설물 수정·삭제·가리기 권한: 개발자(마스터) + 탐방시설과 직원 (추가·등록은 누구나)
+function _canManageFac(){
+  if(typeof _isMasterAdmin==='function'&&_isMasterAdmin())return true;
+  var u=DB.g('currentUser')||{};
+  return u.dept==='탐방시설과';
+}
 // 개발자: 하드코딩된 개발자 카카오ID 본인 or 마스터 비밀번호 인증. 전체 초기화·본인 삭제방지 등에 사용
 function _isMasterAdmin(){
   var u=DB.g('currentUser')||{};
@@ -458,7 +464,7 @@ var _rFacPool=new Map(); // String(id) → {ov, el, type, lat, lng}
 var _rEvOvs=[],_rEvEls=[]; // event overlays only (rescues + hazards)
 var _rTeamOvs=[],_rTeamEls=[]; // team chip markers
 function _buildRFacEl(f){
-  const el=document.createElement('div');el.className='mpin-num';
+  const el=document.createElement('div');el.className='mpin-num'+((typeof _facWarn==='function'&&_facWarn(f))?' blink':'');
   if(f.type.includes('다목적위치표지판')){
     const code=(f.name.match(/\d[\d\-]*\d|\d/)||[f.name.slice(0,6)])[0];
     el.textContent=code;el.title=f.name;
@@ -495,6 +501,8 @@ function _syncRFacPool(){
     _rFacPool.set(String(f.id),{ov,el,type:f.type});
   });
   _applyRFacFilter();
+  // 가리기 상태면 구조지도의 시설 오버레이도 전부 숨김
+  if(typeof _facHidden==='function'&&_facHidden())_rFacPool.forEach(e=>{try{e.ov.setMap(null);}catch(x){}});
 }
 function _applyRFacFilter(){
   if(!mapR)return;

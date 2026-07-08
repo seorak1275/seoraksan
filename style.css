@@ -170,6 +170,7 @@ button{-webkit-tap-highlight-color:transparent;touch-action:manipulation;}
 .sheet-handle{width:46px;height:5px;background:rgba(255,255,255,.3);border-radius:9px;margin:2px auto;}
 .mpin-shelter{border-color:#27ae60;}
 .p-ok{border-color:#27ae60;}.p-warn{border-color:#e67e22;}.p-bad{border-color:#c0392b;}
+.p-fac{border-color:#4a7a92;}
 .p-acc{border-color:#c0392b;background:#c0392b;color:#fff;}.p-rock{border-color:#7d3c98;background:#7d3c98;color:#fff;}
 .p-tree{border-color:#ca6f1e;background:#ca6f1e;color:#fff;}.p-fire{border-color:#a93226;background:#a93226;color:#fff;}
 .p-haz{border-color:#e67e22;background:#e67e22;color:#fff;}.p-etc{border-color:#5d6d7e;background:#4a5568;color:#fff;}
