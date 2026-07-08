@@ -777,6 +777,17 @@ function nowDT(){
   return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate())+'T'+pad(d.getHours())+':'+pad(d.getMinutes());
 }
 var _toastTimer=null;
+// 진행 중 표시(스피너 오버레이) — 작업이 끝날 때까지 유지. _busy(문구) 로 열고 _busyDone() 로 닫는다.
+function _busy(msg){
+  var el=document.getElementById('_busyOv');
+  if(!el){el=document.createElement('div');el.id='_busyOv';
+    el.style.cssText='position:fixed;inset:0;z-index:99995;background:rgba(4,10,20,.55);display:flex;align-items:center;justify-content:center;backdrop-filter:blur(1px);';
+    el.innerHTML='<div style="background:#0b1c30;border:1px solid rgba(79,168,208,.3);border-radius:14px;padding:20px 26px;display:flex;flex-direction:column;align-items:center;gap:13px;box-shadow:0 10px 34px rgba(0,0,0,.6);max-width:78vw;"><div style="width:30px;height:30px;border:3px solid rgba(79,168,208,.2);border-top-color:#4fa8d0;border-radius:50%;animation:spin .8s linear infinite;"></div><div id="_busyMsg" style="font-size:13px;color:#cfe2f2;font-weight:600;text-align:center;line-height:1.5;"></div></div>';
+    document.body.appendChild(el);}
+  var m=el.querySelector('#_busyMsg');if(m)m.textContent=msg||'처리 중…';
+  el.style.display='flex';
+}
+function _busyDone(){var el=document.getElementById('_busyOv');if(el)el.style.display='none';}
 function toast(m,dur){const t=document.getElementById('toast');t.textContent=m;t.classList.add('on');clearTimeout(_toastTimer);
   // 중요 메시지(실패·경고·오류)는 자동으로 4초간 표시 — 놓치지 않도록
   if(dur===undefined){dur=(/실패|오류|⚠️|에러|불가|없습니다|권한/.test(String(m)))?4000:2200;}

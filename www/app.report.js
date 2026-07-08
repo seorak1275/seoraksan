@@ -713,6 +713,7 @@ function _hwpxFill(entries,map){
 }
 // 문서 미리보기 인앱 오버레이 — 새 창 대신(PWA/앱에서 뒤로 못 돌아오는 문제 해결). ← 앱으로 버튼 + 🖨 인쇄
 function _docPreviewOverlay(docHtml,title){
+  try{_busyDone&&_busyDone();}catch(e){}
   let ov=document.getElementById('docPrevOv');if(ov)ov.remove();
   ov=document.createElement('div');ov.id='docPrevOv';
   ov.style.cssText='position:fixed;inset:0;z-index:99990;background:#222;display:flex;flex-direction:column;';
@@ -733,6 +734,7 @@ async function _hwpxGenFromBuf(buf,map,fname){
   const a=document.createElement('a');
   a.href=URL.createObjectURL(blob);a.download=fname;
   document.body.appendChild(a);a.click();setTimeout(()=>a.remove(),2000);
+  try{_busyDone&&_busyDone();}catch(e){}
   toast('📄 한글파일(hwpx) 생성 완료 — 한글에서 열어 확인하세요',5000);
 }
 async function _hwpxGenerate(tpl,map,fname){
@@ -823,7 +825,7 @@ async function govReport(rid,kind){
   });
   const _fname=(kind==='status'?'안전사고처리현황':'동향보고')+'_'+((r.date||'').slice(0,10)||'문서')+'.hwpx';
   try{
-    toast('📄 한글파일 생성 중…'); // 생성 시작 즉시 표시 (서버 서식 조회로 수 초 걸릴 수 있음)
+    _busy('📄 한글파일 생성 중…\n잠시만 기다려 주세요'); // 완료(미리보기/다운로드)까지 유지
     // 1) 관리자 업로드 서식(Firestore) 우선 — 오프라인이면 건너뛰고 내장 서식으로
     if(typeof _fdb!=='undefined'&&_fdb&&navigator.onLine){
       try{
@@ -840,7 +842,7 @@ async function govReport(rid,kind){
       await _hwpxGenFromBuf(await resp.arrayBuffer(),dataMap,_fname);
       return;
     }
-  }catch(e){try{toast('⚠️ 서식 생성 실패('+(e&&e.message||e)+') — HTML 방식으로 대체');}catch(_){}}
+  }catch(e){try{_busyDone&&_busyDone();}catch(_){}try{toast('⚠️ 서식 생성 실패('+(e&&e.message||e)+') — HTML 방식으로 대체');}catch(_){}}
   // ── 폴백: HTML 재현본 ──
   const th='border:1px solid #000;padding:5px 7px;font-weight:700;text-align:center;font-size:12.5px;white-space:nowrap;background:#fff;';
   const td='border:1px solid #000;padding:5px 8px;font-size:12.5px;line-height:1.5;';

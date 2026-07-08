@@ -555,7 +555,7 @@ function kmaWarnDiag(){
   if(w)chain.push({name:'전용 프록시(Cloudflare)',u:w+(w.indexOf('?')>=0?'&':'?')+'url='+encodeURIComponent(url)});
   chain.push({name:'기상청 직접',u:url});
   _KMA_PROXIES.forEach(function(p,i){chain.push({name:'공개 프록시 '+(i+1),u:p(url)});});
-  toast('📡 특보 수신 진단 중...');
+  _busy('📡 특보 수신 진단 중…');
   var rows=[];var firstTxt=null;
   var run=function(i){
     if(i>=chain.length)return Promise.resolve();
@@ -580,10 +580,10 @@ function kmaWarnDiag(){
     if(firstTxt!==null){_renderWeatherAlerts(parsed,false);} // 성공 시 즉시 반영(자동 발령 포함)
     var srcHtml=rows.map(function(r){return '<div style="display:flex;gap:8px;align-items:center;padding:5px 0;border-bottom:1px solid rgba(255,255,255,.05);"><span style="flex:1;font-size:12px;color:#cfe2f2;">'+r.name+'</span><span style="font-size:10px;color:#5a7e98;">'+r.ms+'ms</span><span style="font-size:11px;font-weight:800;color:'+(r.ok?'#5fcf8f':'#ff8a73')+';">'+(r.ok?'✅ 성공':'❌ 실패')+'</span><span style="font-size:9px;color:#5a7e98;">'+r.info+'</span></div>';}).join('');
     var _lines=firstTxt!==null?String(firstTxt).split('\n').map(function(x){return x.trim();}).filter(function(x){return x&&x.charAt(0)!=='#';}):[];
-    var _gw=_lines.filter(function(x){return x.indexOf('강원')>=0;});
+    var _gw=_lines.filter(function(x){return /강원|속초|양양|고성|인제|설악|산지|영동|강풍/.test(x);});
     var prev=firstTxt===null?'(모든 소스 실패 — 원문 없음)'
-      :('전체 데이터 행 '+_lines.length+'개 · 강원 포함 '+_gw.length+'개\n'
-        +((_gw.length?_gw:_lines).slice(0,14).join('\n')||'(데이터 행 없음 — 주석/헤더만 수신됨)'));
+      :('전체 데이터 행 '+_lines.length+'개 · 강원/영동/설악 관련 '+_gw.length+'개\n'
+        +((_gw.length?_gw:_lines).slice(0,16).join('\n')||'(데이터 행 없음 — 주석/헤더만 수신됨)'));
     var keyBad=firstTxt!==null&&/인증|auth|key|expired|유효/i.test(prev)&&!/#/.test(prev.slice(0,3));
     var parseHtml=live.length
       ?live.map(function(a){return '<div style="font-size:12px;color:#7ee0a8;padding:2px 0;">✅ '+a.type+_stageShort(a.stage)+(a.regions&&a.regions.length?' — '+a.regions.join('·'):'')+'</div>';}).join('')
@@ -601,6 +601,7 @@ function kmaWarnDiag(){
       +'<button onclick="document.getElementById(\'kmaDiagOv\').remove();_kmaWrnCache=null;_kmaWrnCacheAt=0;kmaWarnDiag();" style="margin-top:10px;width:100%;padding:9px;border-radius:9px;border:1px solid rgba(79,168,208,.35);background:rgba(79,168,208,.1);color:#4fa8d0;font-size:12px;font-weight:700;cursor:pointer;">🔄 다시 진단</button></div>';
     ov.onclick=function(e){if(e.target===ov)ov.remove();};
     document.body.appendChild(ov);
+    _busyDone();
   });
 }
 function _parsePCP(v){if(!v||v==='강수없음')return 0;if(v.includes('미만'))return 0.5;var n=parseFloat(v);return isNaN(n)?0:n;}
@@ -610,46 +611,53 @@ function _skyIco(sky,pty){var p=parseInt(pty||0);if(p===1||p===4)return'🌧️'
 var _kmaWrnCache=null;
 var _kmaWrnCacheAt=0; // 기상특보 캐시 시각 — 구조 상황에선 발효/해제가 빨라 오래된 특보를 재사용하면 위험
 var _KMA_WRN_TTL=900000; // 15분
+// 설악산 인근 특보구역만 채택 (영월·횡성·원주 등 영서 도시는 제외)
+var _SETAK_REGIONS=['속초','고성','양양','인제','설악','영동북부','북부산지','강원북부','영동'];
 function _parseKmaWarnings(txt){
   var alertMap={};
   _kmaWrnCache=txt;
   _kmaWrnCacheAt=Date.now();
   if(!txt||typeof txt!=='string')return alertMap;
-  var gangwon=['속초','고성','양양','인제','영동','강원','산지'];
   var wrnTypes=['호우','강풍','대설','태풍','폭풍해일','한파','폭염','풍랑','건조','황사'];
-  // 코드 포맷 대응: wrn_now_data(_new).php가 한글 대신 코드로 응답하는 경우
   // 컬럼: REG_UP,REG_UP_KO,REG_ID,REG_KO,TM_FC,TM_EF,WRN,LVL,CMD,...
   var WRN_CODE={W:'강풍',R:'호우',C:'한파',D:'건조',O:'폭풍해일',V:'풍랑',T:'태풍',S:'대설',Y:'황사',H:'폭염'};
-  var LVL_CODE={'1':'주의보','2':'경보'};
+  var _lvRank={'예비':0,'주의보':1,'경보':2};
   txt.split('\n').forEach(function(line){
     var l=line.trim();
-    if(!l||l.startsWith('#'))return;
-    // 헤더 행 건너뜀
-    if(/^[A-Z_,\s]+$/.test(l))return;
-    // 구분자: 쉼표 우선, 열이 부족하면 공백/탭으로 재분해 (disp=1은 공백정렬로 오는 경우가 많음)
-    var f=l.split(',').map(function(x){return x.trim();}).filter(function(x){return x!=='';});
+    if(!l||l.charAt(0)==='#')return;
+    if(/^[A-Z_,\s]+$/.test(l))return; // 헤더 행
+    // 구분자: 쉼표 우선, 열 부족하면 공백/탭 재분해
+    var f=l.split(',').map(function(x){return x.trim();});
     if(f.length<8){var f2=l.split(/[\s,]+/).filter(function(x){return x!=='';});if(f2.length>f.length)f=f2;}
-    var wrnType='',level='',regionSrc=l;
-    // ① 코드 포맷 우선 (WRN=W/R/S…, LVL=1/2) — 열이 충분하면 신뢰
-    if(f.length>=8&&WRN_CODE[(f[6]||'').toUpperCase()]&&LVL_CODE[f[7]]){
-      wrnType=WRN_CODE[(f[6]||'').toUpperCase()];
-      level=LVL_CODE[f[7]];
-      regionSrc=(f[1]||'')+' '+(f[3]||'');
-    }else{
-      // ② 한글 포맷 (WRN 필드가 '강풍' 등 한글로 오는 경우)
-      wrnTypes.forEach(function(t){if(!wrnType&&l.includes(t))wrnType=t;});
-      if(wrnType)level=l.includes('경보')&&!l.includes('주의보경보')?'경보':(l.includes('주의보')?'주의보':'');
+    var reg1=f[1]||'',reg2=f[3]||'',wrnRaw=f[6]||'',lvlRaw=f[7]||'';
+    // 특보 종류: WRN 필드(한글 단어 또는 코드), 실패 시 줄 전체 폴백
+    var wrnType='';
+    wrnTypes.forEach(function(t){if(!wrnType&&wrnRaw.indexOf(t)>=0)wrnType=t;});
+    if(!wrnType&&WRN_CODE[wrnRaw.toUpperCase()])wrnType=WRN_CODE[wrnRaw.toUpperCase()];
+    if(!wrnType)wrnTypes.forEach(function(t){if(!wrnType&&l.indexOf(t)>=0)wrnType=t;});
+    if(!wrnType)return;
+    // 등급: 예비 / 주의보 / 경보 (한글) 또는 1 / 2 (코드)
+    var level='';
+    if(lvlRaw.indexOf('예비')>=0)level='예비';
+    else if(lvlRaw.indexOf('경보')>=0)level='경보';
+    else if(lvlRaw.indexOf('주의보')>=0)level='주의보';
+    else if(lvlRaw==='2')level='경보';
+    else if(lvlRaw==='1')level='주의보';
+    if(!level){
+      if(l.indexOf('예비')>=0)level='예비';
+      else if(l.indexOf('경보')>=0&&l.indexOf('주의보')<0)level='경보';
+      else if(l.indexOf('주의보')>=0)level='주의보';
     }
-    if(!wrnType||!level)return;
-    var hasArea=gangwon.some(function(k){return regionSrc.includes(k);});
-    if(!hasArea)return;
-    // 지역명: REG_KO 필드가 있으면 그대로(예: 강원북부산지), 없으면 키워드 추출
-    var rName='';
-    if(f.length>=8&&f[3]&&/[가-힣]/.test(f[3]))rName=f[3];
-    if(!rName){rName='강원 영동';['영동북부','영동남부','영동중부','영동','속초','고성','양양','인제','산지'].forEach(function(k){if(regionSrc.includes(k))rName=k;});}
+    if(!level)return;
+    var regionSrc=(reg1+' '+reg2)||l;
+    // 설악산 인근만 채택
+    if(!_SETAK_REGIONS.some(function(k){return regionSrc.indexOf(k)>=0;}))return;
+    var rName=(reg2&&/[가-힣]/.test(reg2))?reg2:'';
+    if(!rName){rName='강원';_SETAK_REGIONS.forEach(function(k){if(regionSrc.indexOf(k)>=0)rName=k;});}
     if(!alertMap[rName])alertMap[rName]={level:level,reasons:[]};
-    if(level==='경보')alertMap[rName].level='경보';
-    var reason=wrnType+(level==='경보'?'경보':'주의보');
+    if((_lvRank[level]||0)>(_lvRank[alertMap[rName].level]||0))alertMap[rName].level=level;
+    var suffix=level==='예비'?'예비특보':(level==='경보'?'경보':'주의보');
+    var reason=wrnType+suffix;
     if(alertMap[rName].reasons.indexOf(reason)===-1)alertMap[rName].reasons.push(reason);
   });
   return alertMap;
@@ -797,12 +805,14 @@ function _renderWeatherAlerts(alertMap,estimated){
   wrap.innerHTML=Object.values(grouped).map(function(g){
     var ico=g.reasons.some(function(r){return r.includes('호우');})?'🌧️':g.reasons.some(function(r){return r.includes('강풍');})?'💨':g.reasons.some(function(r){return r.includes('대설');})?'❄️':'⚠️';
     var regionStr=g.regions.join('·');
-    var reasonStr=g.reasons.map(function(r){return r.replace('경보','').replace('주의보','');}).join(', ');
+    var reasonStr=g.reasons.map(function(r){return r.replace('예비특보','').replace('경보','').replace('주의보','');}).join(', ');
+    var lvTxt=g.level==='예비'?'예비특보':g.level;   // '예비' → '예비특보' 표기
+    var lvCls=g.level==='예비'?'예비특보':g.level;
     // estimated=true: 기상청 미연결로 open-meteo 관측값에서 추정한 특보 → 공식 특보와 명확히 구분
     if(estimated){
-      return'<div class="w-alert w-alert-추정">'+ico+' <b>추정 '+g.level+'</b> '+regionStr+' — '+reasonStr+' <span style="font-weight:400;opacity:.85;">· 기상청 미연결</span></div>';
+      return'<div class="w-alert w-alert-추정">'+ico+' <b>추정 '+lvTxt+'</b> '+regionStr+' — '+reasonStr+' <span style="font-weight:400;opacity:.85;">· 기상청 미연결</span></div>';
     }
-    return'<div class="w-alert w-alert-'+g.level+'">'+ico+' <b>'+g.level+'</b> '+regionStr+' — '+reasonStr+'</div>';
+    return'<div class="w-alert w-alert-'+lvCls+'">'+ico+' <b>'+lvTxt+'</b> '+regionStr+' — '+reasonStr+'</div>';
   }).join('');
   wrap.style.display='flex';
 }
@@ -2766,7 +2776,7 @@ function sosToRescue(id){
 // 앱 자체 업데이트 (OTA · Capgo 자체호스팅) — APK 전용. 웹/PWA는 서비스워커가 자동 갱신.
 // 번들(www)의 새 버전을 ota.json으로 알리면, 설치된 앱이 받아서 그 자리에서 교체(재빌드 불필요).
 // ══════════════════════════════════════════
-const OTA_VER='2026.07.08.72';                         // ← 현재 번들 버전 (릴리스마다 올림 · build-ota.sh가 ota.json에 반영)
+const OTA_VER='2026.07.08.73';                         // ← 현재 번들 버전 (릴리스마다 올림 · build-ota.sh가 ota.json에 반영)
 const OTA_MANIFEST='https://seorak1275.github.io/seoraksan/ota.json';
 let _otaInfo=null;
 function _otaPlugin(){try{return (window.Capacitor&&window.Capacitor.Plugins&&window.Capacitor.Plugins.CapacitorUpdater)||null;}catch(e){return null;}}

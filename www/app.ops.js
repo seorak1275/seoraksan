@@ -763,8 +763,8 @@ function _opLevel(op){const al=_opAlerts(op);if(!al.length)return'예비특보';
 function _kmaLiveList(alertMap){
   const seen={},out=[];
   Object.keys(alertMap||{}).forEach(k=>{(alertMap[k].reasons||[]).forEach(r=>{
-    const lvl=r.indexOf('경보')>=0?'경보':(r.indexOf('주의보')>=0?'주의보':'');
-    const type=r.replace('경보','').replace('주의보','');
+    const lvl=r.indexOf('예비특보')>=0?'예비':(r.indexOf('경보')>=0?'경보':(r.indexOf('주의보')>=0?'주의보':''));
+    const type=r.replace('예비특보','').replace('경보','').replace('주의보','');
     if(!type||!lvl)return;
     const stage=_kmaStage(lvl);
     if(!seen[type]){seen[type]={type,stage,regions:[k]};out.push(seen[type]);}
