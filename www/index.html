@@ -346,6 +346,7 @@ if(window.Kakao&&!Kakao.isInitialized()) Kakao.init(KAKAO_KEY);
       <div class="dbmeta" id="resPopMeta"></div>
       <div id="resPopRoutes" style="display:none;margin-bottom:6px;padding:0 2px;"></div>
       <div class="dbbtns" style="display:flex;flex-direction:row;gap:8px;">
+        <button class="btn btn-ghost" id="btnViewTeams" onclick="viewTeamsSheet()" style="display:none;flex:1;">👥 인원</button>
         <button class="btn btn-ghost" id="btnViewRep" onclick="viewReport()" style="display:none;flex:1;">📄 보고서</button>
         <button class="btn btn-blue" id="btnViewTl" onclick="viewTimeline()" style="display:none;flex:1;">📍 타임라인</button>
       </div>

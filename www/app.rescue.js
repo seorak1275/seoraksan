@@ -607,27 +607,15 @@ function _shortTeamName(n){
 }
 function _teamIco(t){return t.type==='heli'?'🚁':t.type==='vehicle'?'🚐':'🥾';}
 
-// 진행중 구조의 출동팀 칩 마커를 모두 지우고 다시 그림 — 사고 지점 위에 팀 묶음 칩 하나
+// 지도 팀 칩 표시 제거 — 출동 인원은 사고 팝업의 [👥 인원] 버튼으로 확인 (구 마커 청소만 유지)
 function _rebuildTeamChips(){
   _rTeamOvs.forEach(o=>{try{o.setMap(null);}catch(e){}});_rTeamOvs=[];_rTeamEls=[];
-  if(!mapR)return;
-  (DB.g('rescues')||[]).filter(r=>r.status==='ongoing'&&r.teams&&r.teams.length&&r.lat&&r.lng).forEach(rescue=>{
-    const teams=rescue.teams;
-    const first=teams[0];
-    const col=TEAM_COLORS[0];
-    const el=document.createElement('div');
-    el.className='team-chip';
-    el.style.borderColor=col;el.style.color=col;
-    el.innerHTML=`${_teamIco(first)} <span>${_shortTeamName(first.name)}${teams.length>1?' 외 '+(teams.length-1)+'팀':''}</span>`;
-    el.dataset.ev='1';el.dataset.rid=String(rescue.id);
-    let _ts=null;
-    el.addEventListener('touchstart',e=>{_ts={x:e.touches[0].clientX,y:e.touches[0].clientY};},{passive:true});
-    el.addEventListener('touchend',ev=>{if(!_ts)return;const dx=ev.changedTouches[0].clientX-_ts.x,dy=ev.changedTouches[0].clientY-_ts.y;_ts=null;if(Math.abs(dx)<8&&Math.abs(dy)<8){ev.stopPropagation();ev.preventDefault();_showTeamChipPopup(rescue);}});
-    el.addEventListener('click',ev=>{ev.stopPropagation();_showTeamChipPopup(rescue);});
-    // 사고 칩 바로 위에 표시 (yAnchor로 띄움)
-    const ov=new kakao.maps.CustomOverlay({position:new kakao.maps.LatLng(rescue.lat,rescue.lng),content:el,clickable:true,yAnchor:2.4,zIndex:4});
-    ov.setMap(mapR);_rTeamOvs.push(ov);_rTeamEls.push(el);
-  });
+}
+// 사고 팝업 → 출동 인원 바텀시트
+function viewTeamsSheet(){
+  const r=(DB.g('rescues')||[]).find(x=>String(x.id)===String(selResId));
+  if(r&&r.teams&&r.teams.length)_showTeamChipPopup(r);
+  else toast('출동팀 없음');
 }
 
 // 지도 팀 칩 탭 → 출동 인원 바텀시트 (아래로 내리면 닫힘)
@@ -1226,6 +1214,7 @@ function openResPopup(id,type='rescue'){
     document.getElementById('resPopMeta').innerHTML=_resPopMetaHtml(data);
     document.getElementById('btnViewRep').style.display='block';
     document.getElementById('btnViewTl').style.display='block';
+    const _bt=document.getElementById('btnViewTeams');if(_bt)_bt.style.display=(data.teams&&data.teams.length)?'block':'none';
     // 출동 거점·좌표복사(라우트) 블록 제거 — 팝업에 불필요
     const rEl=document.getElementById('resPopRoutes');
     if(rEl){rEl.innerHTML='';rEl.style.display='none';}
@@ -1243,6 +1232,7 @@ function openResPopup(id,type='rescue'){
     ].filter(Boolean).join('')||'<div style="color:#4a7090;font-size:11px;">상세 정보 없음</div>';
     document.getElementById('btnViewRep').style.display='none';
     document.getElementById('btnViewTl').style.display='none';
+    const _bt2=document.getElementById('btnViewTeams');if(_bt2)_bt2.style.display='none';
     const rEl2=document.getElementById('resPopRoutes');if(rEl2)rEl2.style.display='none';
   }
   document.getElementById('facPopup').classList.remove('on');

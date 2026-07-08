@@ -579,7 +579,11 @@ function kmaWarnDiag(){
     var live=_kmaLiveList(parsed);
     if(firstTxt!==null){_renderWeatherAlerts(parsed,false);} // 성공 시 즉시 반영(자동 발령 포함)
     var srcHtml=rows.map(function(r){return '<div style="display:flex;gap:8px;align-items:center;padding:5px 0;border-bottom:1px solid rgba(255,255,255,.05);"><span style="flex:1;font-size:12px;color:#cfe2f2;">'+r.name+'</span><span style="font-size:10px;color:#5a7e98;">'+r.ms+'ms</span><span style="font-size:11px;font-weight:800;color:'+(r.ok?'#5fcf8f':'#ff8a73')+';">'+(r.ok?'✅ 성공':'❌ 실패')+'</span><span style="font-size:9px;color:#5a7e98;">'+r.info+'</span></div>';}).join('');
-    var prev=firstTxt!==null?String(firstTxt).slice(0,600):'(모든 소스 실패 — 원문 없음)';
+    var _lines=firstTxt!==null?String(firstTxt).split('\n').map(function(x){return x.trim();}).filter(function(x){return x&&x.charAt(0)!=='#';}):[];
+    var _gw=_lines.filter(function(x){return x.indexOf('강원')>=0;});
+    var prev=firstTxt===null?'(모든 소스 실패 — 원문 없음)'
+      :('전체 데이터 행 '+_lines.length+'개 · 강원 포함 '+_gw.length+'개\n'
+        +((_gw.length?_gw:_lines).slice(0,14).join('\n')||'(데이터 행 없음 — 주석/헤더만 수신됨)'));
     var keyBad=firstTxt!==null&&/인증|auth|key|expired|유효/i.test(prev)&&!/#/.test(prev.slice(0,3));
     var parseHtml=live.length
       ?live.map(function(a){return '<div style="font-size:12px;color:#7ee0a8;padding:2px 0;">✅ '+a.type+_stageShort(a.stage)+(a.regions&&a.regions.length?' — '+a.regions.join('·'):'')+'</div>';}).join('')
@@ -622,17 +626,19 @@ function _parseKmaWarnings(txt){
     if(!l||l.startsWith('#'))return;
     // 헤더 행 건너뜀
     if(/^[A-Z_,\s]+$/.test(l))return;
-    var f=l.split(',').map(function(x){return x.trim();});
+    // 구분자: 쉼표 우선, 열이 부족하면 공백/탭으로 재분해 (disp=1은 공백정렬로 오는 경우가 많음)
+    var f=l.split(',').map(function(x){return x.trim();}).filter(function(x){return x!=='';});
+    if(f.length<8){var f2=l.split(/[\s,]+/).filter(function(x){return x!=='';});if(f2.length>f.length)f=f2;}
     var wrnType='',level='',regionSrc=l;
-    // ① 한글 포맷 (disp=1)
-    wrnTypes.forEach(function(t){if(!wrnType&&l.includes(t))wrnType=t;});
-    if(wrnType){
-      level=l.includes('경보')&&!l.includes('주의보경보')?'경보':(l.includes('주의보')?'주의보':'');
-    }else if(f.length>=8){
-      // ② 코드 포맷
-      wrnType=WRN_CODE[(f[6]||'').toUpperCase()]||'';
-      level=LVL_CODE[f[7]]||'';
+    // ① 코드 포맷 우선 (WRN=W/R/S…, LVL=1/2) — 열이 충분하면 신뢰
+    if(f.length>=8&&WRN_CODE[(f[6]||'').toUpperCase()]&&LVL_CODE[f[7]]){
+      wrnType=WRN_CODE[(f[6]||'').toUpperCase()];
+      level=LVL_CODE[f[7]];
       regionSrc=(f[1]||'')+' '+(f[3]||'');
+    }else{
+      // ② 한글 포맷 (WRN 필드가 '강풍' 등 한글로 오는 경우)
+      wrnTypes.forEach(function(t){if(!wrnType&&l.includes(t))wrnType=t;});
+      if(wrnType)level=l.includes('경보')&&!l.includes('주의보경보')?'경보':(l.includes('주의보')?'주의보':'');
     }
     if(!wrnType||!level)return;
     var hasArea=gangwon.some(function(k){return regionSrc.includes(k);});
@@ -2760,7 +2766,7 @@ function sosToRescue(id){
 // 앱 자체 업데이트 (OTA · Capgo 자체호스팅) — APK 전용. 웹/PWA는 서비스워커가 자동 갱신.
 // 번들(www)의 새 버전을 ota.json으로 알리면, 설치된 앱이 받아서 그 자리에서 교체(재빌드 불필요).
 // ══════════════════════════════════════════
-const OTA_VER='2026.07.08.71';                         // ← 현재 번들 버전 (릴리스마다 올림 · build-ota.sh가 ota.json에 반영)
+const OTA_VER='2026.07.08.72';                         // ← 현재 번들 버전 (릴리스마다 올림 · build-ota.sh가 ota.json에 반영)
 const OTA_MANIFEST='https://seorak1275.github.io/seoraksan/ota.json';
 let _otaInfo=null;
 function _otaPlugin(){try{return (window.Capacitor&&window.Capacitor.Plugins&&window.Capacitor.Plugins.CapacitorUpdater)||null;}catch(e){return null;}}

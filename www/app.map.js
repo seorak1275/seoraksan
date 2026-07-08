@@ -427,14 +427,6 @@ function _renderBoardPins(fit){
     const pos=new kakao.maps.LatLng(r.lat,r.lng);
     const ov=new kakao.maps.CustomOverlay({position:pos,content:el,yAnchor:1,zIndex:5,clickable:true});
     ov.setMap(_boardMap);_boardOvs.push(ov);bounds.extend(pos);n++;
-    // 출동팀 칩 (사고 지점 아래에 묶음 표시)
-    if(r.teams&&r.teams.length){
-      const t0=r.teams[0];
-      const tel=document.createElement('div');
-      tel.innerHTML=`<div style="background:${TEAM_COLORS[0]};border:1.5px solid #fff;color:#fff;border-radius:11px;padding:1px 7px;font-size:10px;font-weight:700;white-space:nowrap;box-shadow:0 1px 4px rgba(0,0,0,.5);">${_teamIco(t0)} ${_shortTeamName(t0.name)}${r.teams.length>1?' 외 '+(r.teams.length-1)+'팀':''}</div>`;
-      const tov=new kakao.maps.CustomOverlay({position:pos,content:tel,yAnchor:-0.2,zIndex:6});
-      tov.setMap(_boardMap);_boardOvs.push(tov);
-    }
   });
   (DB.g('hazards')||[]).filter(h=>h.lat&&h.lng&&(!h.hazStatus||h.hazStatus==='미조치'||h.hazStatus==='조치중')).forEach(h=>{
     const el=document.createElement('div');
