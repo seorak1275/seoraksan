@@ -1006,6 +1006,21 @@ function _warnPeriodStr(w){
 }
 
 function getAuthor(){const u=DB.g('currentUser')||{};return u.name||'미지정';}
+// ── 목록 이전/다음 순회 (사고·특보·시설 상세에서 위/아래 항목으로 빠르게 이동) ──
+// 각 목록 렌더 시 화면에 보이는 순서대로 id 배열을 저장 → 상세에서 그 순서대로 ◀▶ 이동
+var _navOrder={rescue:[],fac:[],alert:[]};
+function _navBtns(type,curId,fn){
+  var a=(_navOrder[type]||[]).map(String),i=a.indexOf(String(curId));
+  if(i<0||a.length<2)return '';
+  var prev=i>0?a[i-1]:'',next=i<a.length-1?a[i+1]:'';
+  var base='flex:1;padding:9px 4px;border-radius:9px;font-size:12.5px;font-weight:700;border:1px solid ';
+  var on='background:rgba(79,168,208,.12);color:#4fa8d0;border-color:rgba(79,168,208,.35);cursor:pointer;';
+  var off='background:rgba(255,255,255,.02);color:rgba(255,255,255,.2);border-color:rgba(255,255,255,.08);cursor:default;';
+  return '<div style="display:flex;align-items:center;gap:8px;margin-bottom:11px;">'
+    +'<button '+(prev?'onclick="'+fn+'('+prev+')"':'disabled')+' style="'+base+(prev?on:off)+'">◀ 이전</button>'
+    +'<span style="font-size:11px;color:#7a9cb8;font-weight:800;white-space:nowrap;">'+(i+1)+' / '+a.length+'</span>'
+    +'<button '+(next?'onclick="'+fn+'('+next+')"':'disabled')+' style="'+base+(next?on:off)+'">다음 ▶</button></div>';
+}
 function getSelPills(id){return [...document.querySelectorAll(`#${id} .pill.on`)].map(p=>p.textContent);}
 function tPill(el){el.classList.toggle('on');}
 function sPill(el,wrId){document.querySelectorAll(`#${wrId} .pill`).forEach(p=>p.classList.remove('on'));el.classList.add('on');

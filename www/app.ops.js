@@ -462,6 +462,7 @@ function renderFacList(){
   });
   // 경고표시 활성 우선 정렬
   filtered.sort((a,b)=>(_facWarn(b)?1:0)-(_facWarn(a)?1:0));
+  _navOrder.fac=filtered.map(f=>String(f.id)); // 상세 이전/다음 순서 = 목록(필터·정렬) 순서
   // 필터가 바뀌면 페이지 한도 리셋
   const _sig=[...facMapStatusF].join()+'|'+[...facMapTypeF].join()+'|'+[...facMapLocF].join();
   if(_sig!==_facListSig){_facListSig=_sig;_facListLimit=50;}
@@ -507,6 +508,7 @@ function openFacDetail(id){
   const w=_facWarn(f);const canMng=_canManageFac();
   document.getElementById('facDetailTitle').textContent=f.name;
   document.getElementById('facDetailContent').innerHTML=`
+    ${_navBtns('fac',id,'openFacDetail')}
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">
       <div style="font-size:32px;">${_esc(f.type.split(' ')[0])}</div>
       <div><div style="font-size:14px;font-weight:700;color:#e0edf8;">${_esc(f.name)}</div>
@@ -924,6 +926,7 @@ function renderAlertView(){
 
   // 이전 운영 이력 (보관·열람) — 클릭 시 상세 모달
   const closed=ops.filter(o=>o.closedAt).reverse();
+  _navOrder.alert=closed.map(o=>String(o.id)); // 특보 보관함 이전/다음 순서
   let histHtml='';
   if(closed.length){
     histHtml=`<div style="margin-top:18px;"><div class="ao-sec-hd"><span class="bar" style="background:#5d82a0;"></span>📜 특보운영 기록 보관함 <span style="font-size:10px;color:#46708f;font-weight:600;margin-left:auto;">총 ${closed.length}건</span></div>
@@ -1484,7 +1487,7 @@ function _incidentsInOp(op){
 function openAlertHistory(opId){
   const op=(DB.g('alertOps')||[]).find(o=>o.id===opId);
   if(!op){toast('기록을 찾을 수 없습니다');return;}
-  document.getElementById('alertHistBody').innerHTML=_renderAlertOpDetail(op);
+  document.getElementById('alertHistBody').innerHTML=_navBtns('alert',opId,'openAlertHistory')+_renderAlertOpDetail(op);
   document.getElementById('modalAlertHistory').classList.add('on');
 }
 function _renderAlertOpDetail(op){

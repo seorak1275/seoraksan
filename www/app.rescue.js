@@ -787,6 +787,7 @@ function renderResList(){
     if(!_resSortNewest)_rescues.reverse();
     const _og=_rescues.filter(r=>r.status==='ongoing');
     const _dn=_rescues.filter(r=>r.status!=='ongoing');
+    _navOrder.rescue=[..._og,..._dn].map(r=>String(r.id)); // 상세 이전/다음 순서 = 목록 표시 순서
     const _mkCard=r=>{
       const isOg=r.status==='ongoing';const ti=RES_TYPES[r.type]||RES_TYPES['기타'];
       const hasCoord=!!(r.lat&&r.lng);
@@ -1206,6 +1207,7 @@ function openRescueOverlay(id){
   m.style.cssText='position:fixed;inset:0;z-index:9000;background:rgba(0,0,0,.6);display:flex;align-items:flex-end;justify-content:center;';
   m.innerHTML=`<div style="background:#0a1828;width:100%;max-width:480px;max-height:85vh;overflow-y:auto;border-radius:14px 14px 0 0;padding:16px 16px calc(20px + env(safe-area-inset-bottom));box-shadow:0 -4px 20px rgba(0,0,0,.7);">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;gap:8px;"><span style="font-size:15px;font-weight:800;color:#e0edf8;line-height:1.3;">${ti.ico} ${_esc(data.title)}</span><button onclick="var e=document.getElementById('resOverlay');if(e)e.remove();" style="background:none;border:none;color:rgba(255,255,255,.5);font-size:24px;cursor:pointer;line-height:1;flex-shrink:0;">×</button></div>
+    ${_navBtns('rescue',id,'openResListDetail')}
     ${_resPopMetaHtml(data)}
     <div style="display:flex;gap:8px;margin-top:12px;">
       <button onclick="var e=document.getElementById('resOverlay');if(e)e.remove();selResId=${id};curResId=${id};viewReport();" style="flex:1;padding:11px;border-radius:9px;border:1px solid rgba(79,168,208,.35);background:rgba(79,168,208,.1);color:#4fa8d0;font-size:13px;font-weight:700;cursor:pointer;">📄 보고서</button>
