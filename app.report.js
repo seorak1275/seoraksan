@@ -708,6 +708,8 @@ function _hwpxFill(entries,map){
       s=s.split(ph).join(xv);
     });
     s=s.replace(/\{\{[^{}]{1,24}\}\}/g,''); // 값 없는 자리표시자 제거
+    // 캐시된 줄 배치(linesegarray) 제거 → 한글이 줄바꿈을 반영해 재배치(자간 압축 방지)
+    s=s.replace(/<hp:linesegarray>[\s\S]*?<\/hp:linesegarray>/g,'');
     return {name:en.name,data:enc.encode(s)};
   });
 }
@@ -757,7 +759,7 @@ async function govReport(rid,kind){
     ? r.injuries.map(i=>(typeof _injLabel==='function')?_injLabel(i):((i.part||'')+(i.type||''))).filter(Boolean).join(', ')
     : [(r.injuryParts||[]).join(','),(r.injuryTypes||[]).join(',')].filter(Boolean).join(' / ');
   const logs=_collectLogEntries(r).map(e=>({t:e.t,txt:e.label.replace(/^[^\w가-힣0-9]+\s?/,'')+(e.sub?' ('+e.sub+')':'')}));
-  const logLines=logs.map(l=>'- '+l.t+' '+l.txt);
+  const logLines=logs.map(l=>'  - '+l.t+' '+l.txt); // 띄어쓰기2 + '- ' + 시간 + 상황, 항목마다 줄바꿈
   // 동원인원 집계: 공단 대원 + 유관기관 팀(인원수)
   const npsNames=[...(r.members||[]),...((r.extraMembers||[]).map(m=>m.name||m))].filter(Boolean);
   const agTeams=(r.teams||[]).filter(t=>t.id&&String(t.id).startsWith('agency_'));

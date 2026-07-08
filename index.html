@@ -272,7 +272,7 @@ if(window.Kakao&&!Kakao.isInitialized()) Kakao.init(KAKAO_KEY);
   <div class="home-menu-bottom" style="flex-shrink:0;">
     <button class="mbtn-sm ext-hide" onclick="openApp('settings')"><span class="mbtn-sm-ico">⚙️</span><div class="mbtn-sm-text"><div class="mbtn-sm-title">내 설정</div><div class="mbtn-sm-desc">알림·계정·API키</div></div></button>
     <button class="mbtn-sm ext-hide" style="background:#150e2a;border:1px solid rgba(139,92,246,.2);position:relative;" onclick="openApp('admin')"><span class="mbtn-sm-ico">🔐</span><div class="mbtn-sm-text"><div class="mbtn-sm-title" style="color:#c4b5fd;">관리자 전용</div><div class="mbtn-sm-desc">관제·데이터 관리</div></div><span id="admBadge" style="display:none;position:absolute;top:8px;right:10px;background:#e74c3c;color:#fff;font-size:10px;font-weight:800;min-width:17px;height:17px;line-height:17px;text-align:center;border-radius:9px;padding:0 4px;box-shadow:0 0 0 2px #150e2a;">0</span></button>
-    <button class="mbtn-sm ext-hide" style="grid-column:1/-1;background:#06121f;border:1px solid rgba(79,168,208,.22);" onclick="openBoard()"><span class="mbtn-sm-ico">🖥️</span><div class="mbtn-sm-text"><div class="mbtn-sm-title" style="color:#7dd3fa;">본소 상황판</div><div class="mbtn-sm-desc">본소 모니터 거치용 관제 화면 — 지도+진행중 구조 (주소 뒤 ?board=1 북마크)</div></div></button>
+    <button class="mbtn-sm ext-hide" style="grid-column:1/-1;background:#06121f;border:1px solid rgba(79,168,208,.22);" onclick="openBoard()"><span class="mbtn-sm-ico">🖥️</span><div class="mbtn-sm-text"><div class="mbtn-sm-title" style="color:#7dd3fa;">상황판</div><div class="mbtn-sm-desc">본소 모니터 거치용 관제 화면 — 지도+진행중 구조 (주소 뒤 ?board=1 북마크)</div></div></button>
     <!-- 외부기관 전용: 로그아웃 버튼 -->
     <button id="extLogoutBtn" class="mbtn-sm" style="grid-column:1/-1;background:rgba(255,80,30,.08);border:1px solid rgba(255,80,30,.22);" onclick="extAgencyLogout()"><span class="mbtn-sm-ico">🚪</span><div class="mbtn-sm-text"><div class="mbtn-sm-title" style="color:#f08050;">로그아웃</div><div class="mbtn-sm-desc">외부기관 세션 종료</div></div></button>
   </div>
@@ -506,7 +506,7 @@ if(window.Kakao&&!Kakao.isInitialized()) Kakao.init(KAKAO_KEY);
 <div id="v-board" class="view" style="background:#040a14;padding:0;overflow:hidden;">
   <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 18px;border-bottom:1px solid rgba(79,168,208,.18);background:#040a14;z-index:5;flex-shrink:0;">
     <div style="display:flex;align-items:baseline;gap:12px;">
-      <span class="board-title" style="font-size:19px;font-weight:900;color:#e0edf8;">🏔️ 본소 상황판</span>
+      <span class="board-title" style="font-size:19px;font-weight:900;color:#e0edf8;">🏔️ 상황판</span>
       <span id="boardClock" class="board-clock" style="font-size:15px;font-weight:700;color:#4fa8d0;font-family:monospace;"></span>
     </div>
     <button onclick="closeBoard()" style="background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);color:rgba(255,255,255,.5);border-radius:9px;padding:7px 14px;font-size:13px;cursor:pointer;">✕ 닫기</button>

@@ -184,6 +184,28 @@ function _applyMapVOff(){
   window._mapVOffPx=off;
   return off;
 }
+// ── 설악산 국립공원 경계 오버레이 (park-boundary.json 1회 로드 후 여러 지도에 재사용) ──
+var _parkBoundary=null,_parkPendingMaps=[];
+function _paintPark(map,d){
+  if(!map||map._parkDrawn||typeof kakao==='undefined')return;
+  map._parkDrawn=true;
+  (d.rings||[]).forEach(function(ring){
+    var path=ring.map(function(p){return new kakao.maps.LatLng(p[1],p[0]);});
+    new kakao.maps.Polyline({path:path,strokeWeight:3.5,strokeColor:'#ffffff',strokeOpacity:.4,strokeStyle:'solid',map:map,zIndex:1});
+    new kakao.maps.Polyline({path:path,strokeWeight:2,strokeColor:d.color||'#ff3b30',strokeOpacity:.9,strokeStyle:'solid',map:map,zIndex:1});
+  });
+}
+function _drawParkBoundary(map){
+  if(!map||map._parkDrawn)return;
+  if(_parkBoundary){_paintPark(map,_parkBoundary);return;}
+  _parkPendingMaps.push(map);
+  if(_parkPendingMaps.length>1)return; // 이미 로드 중
+  fetch('./park-boundary.json').then(function(r){return r.json();}).then(function(d){
+    _parkBoundary=d;
+    _parkPendingMaps.forEach(function(m){_paintPark(m,d);});
+    _parkPendingMaps=[];
+  }).catch(function(){_parkPendingMaps=[];});
+}
 function initMaps(){
   function doInit(){
     if(mapR&&mapI)return; // Guard: don't recreate if already initialized
@@ -192,6 +214,7 @@ function initMaps(){
     mapR=new kakao.maps.Map(document.getElementById('mapRescue'),opt);
     mapI.setMapTypeId(kakao.maps.MapTypeId.HYBRID);
     mapR.setMapTypeId(kakao.maps.MapTypeId.HYBRID);
+    try{_drawParkBoundary(mapR);_drawParkBoundary(mapI);}catch(e){}
     kakao.maps.event.addListener(mapI,'click',closeDB);
     kakao.maps.event.addListener(mapR,'click',closeDB);
     var _saveMapCenterTimer=null;
@@ -400,11 +423,12 @@ function _initBoardMap(){
   if(!_boardMap){
     try{
       _boardMap=new kakao.maps.Map(el,{center:new kakao.maps.LatLng(DC.lat,DC.lng),level:9});
-      _boardMap.setMapTypeId(kakao.maps.MapTypeId.HYBRID); // HYBRID: 위성+벡터 — 타일 이음새가 벡터 레이어로 덮여 세로줄 없음
+      _boardMap.setMapTypeId(kakao.maps.MapTypeId.ROADMAP); // 위성 타일 이음새(세로줄) 제거 위해 벡터 지도 사용
     }catch(e){console.warn('boardMap',e);return;}
   }else{
     _boardMap.relayout();
   }
+  try{_drawParkBoundary(_boardMap);}catch(e){}
   // 창 크기 변경(모니터 회전·해상도 변경) 시 relayout
   if(!_boardResizeBound){
     _boardResizeBound=true;
