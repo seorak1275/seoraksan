@@ -1013,9 +1013,9 @@ function _navBtns(type,curId,fn){
   var a=(_navOrder[type]||[]).map(String),i=a.indexOf(String(curId));
   if(i<0||a.length<2)return '';
   var prev=i>0?a[i-1]:'',next=i<a.length-1?a[i+1]:'';
-  var base='flex:1;padding:9px 4px;border-radius:9px;font-size:12.5px;font-weight:700;border:1px solid ';
-  var on='background:rgba(79,168,208,.12);color:#4fa8d0;border-color:rgba(79,168,208,.35);cursor:pointer;';
-  var off='background:rgba(255,255,255,.02);color:rgba(255,255,255,.2);border-color:rgba(255,255,255,.08);cursor:default;';
+  var base='flex:1;padding:9px 4px;border-radius:9px;font-size:12.5px;font-weight:600;border:1px solid ';
+  var on='background:rgba(255,255,255,.04);color:#8fb0c8;border-color:rgba(255,255,255,.12);cursor:pointer;';
+  var off='background:rgba(255,255,255,.015);color:rgba(255,255,255,.18);border-color:rgba(255,255,255,.06);cursor:default;';
   return '<div style="display:flex;align-items:center;gap:8px;margin-bottom:11px;">'
     +'<button '+(prev?'onclick="'+fn+'('+prev+')"':'disabled')+' style="'+base+(prev?on:off)+'">◀ 이전</button>'
     +'<span style="font-size:11px;color:#7a9cb8;font-weight:800;white-space:nowrap;">'+(i+1)+' / '+a.length+'</span>'
