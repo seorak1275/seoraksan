@@ -444,10 +444,16 @@ function _boardDbg(){
     var appT=app?getComputedStyle(app).transform:'-';var appF=app?getComputedStyle(app).filter:'-';
     var bm=document.getElementById('boardMap');
     var kNode=bm&&bm.firstElementChild?bm.firstElementChild.offsetWidth:'-';
+    var stack=function(x,y){
+      var els=(document.elementsFromPoint?document.elementsFromPoint(x,y):[]).slice(0,7);
+      return els.map(function(e){var id=e.id?'#'+e.id:'';var c=(e.className&&e.className.toString?('.'+e.className.toString().trim().split(/\s+/).slice(0,2).join('.')):'');var op=getComputedStyle(e).opacity;var bg=getComputedStyle(e).backgroundColor;return e.tagName.toLowerCase()+id+c+' op'+op+' '+bg.replace(/\s/g,'');}).join('<br>&nbsp;&nbsp;');
+    };
     var txt='win '+win+'<br>'+R('app')+' | tf:'+(appT==='none'?'none':'YES')+' fl:'+(appF==='none'?'none':'YES')+' ov:'+(app?getComputedStyle(app).overflow:'-')
-      +'<br>'+R('boardMain')+'<br>'+R('boardMap')+' cW'+(bm?bm.clientWidth:'-')+' kNode'+kNode;
+      +'<br>'+R('boardMain')+'<br>'+R('boardMap')+' cW'+(bm?bm.clientWidth:'-')+' kNode'+kNode
+      +'<br><b style="color:#ffb84d;">@1300,500 (어두운쪽):</b><br>&nbsp;&nbsp;'+stack(1300,500)
+      +'<br><b style="color:#7dd3fa;">@1000,500 (밝은쪽):</b><br>&nbsp;&nbsp;'+stack(1000,500);
     var d=document.getElementById('_boardDbgBox');
-    if(!d){d=document.createElement('div');d.id='_boardDbgBox';d.style.cssText='position:fixed;top:60px;left:8px;z-index:99999;background:rgba(0,0,0,.82);color:#7dff9a;font:11px/1.5 monospace;padding:7px 9px;border-radius:7px;max-width:60vw;pointer-events:auto;border:1px solid #2a5;';d.onclick=function(){d.remove();};document.body.appendChild(d);}
+    if(!d){d=document.createElement('div');d.id='_boardDbgBox';d.style.cssText='position:fixed;top:60px;left:8px;z-index:99999;background:rgba(0,0,0,.82);color:#7dff9a;font:11px/1.5 monospace;padding:7px 9px;border-radius:7px;max-width:52vw;max-height:80vh;overflow:auto;pointer-events:auto;border:1px solid #2a5;';d.onclick=function(){d.remove();};document.body.appendChild(d);}
     d.innerHTML=txt+'<br><span style="color:#888;">(탭하면 닫힘)</span>';
   }catch(e){}
 }
