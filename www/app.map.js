@@ -415,25 +415,49 @@ function closeBoard(){clearInterval(_boardTimer);goHome();}
 
 // 상황판 지도: 진행중 구조/위험 핀 표시
 let _boardMap=null,_boardOvs=[],_boardResizeBound=false;
+// 상황판 지도 종류(위성 기본) — 기기별 저장
+let _boardMapType=(function(){try{return localStorage.getItem('_boardMapType')||'hybrid';}catch(e){return 'hybrid';}})();
+// relayout 잔상(세로 이음선) 제거: 크기 재계산 후 중심 재설정으로 전체 타일 강제 재렌더
+function _boardRedraw(){
+  if(!_boardMap)return;
+  try{
+    _boardMap.relayout();
+    var c=_boardMap.getCenter();
+    // 같은 좌표 setCenter는 무시될 수 있어 미세(약 1m) 이동 후 복귀 → 전체 타일 강제 재렌더
+    _boardMap.setCenter(new kakao.maps.LatLng(c.getLat()+0.00001,c.getLng()+0.00001));
+    _boardMap.setCenter(c);
+  }catch(e){}
+}
+function toggleBoardMapType(){
+  _boardMapType=_boardMapType==='hybrid'?'roadmap':'hybrid';
+  try{localStorage.setItem('_boardMapType',_boardMapType);}catch(e){}
+  if(_boardMap){try{_boardMap.setMapTypeId(_boardMapType==='hybrid'?kakao.maps.MapTypeId.HYBRID:kakao.maps.MapTypeId.ROADMAP);}catch(e){}}
+  var b=document.getElementById('boardMapTypeBtn');if(b)b.textContent=_boardMapType==='hybrid'?'🛰 위성':'🗺 일반';
+  _boardRedraw();setTimeout(_boardRedraw,250);
+  toast(_boardMapType==='hybrid'?'🛰 위성':'🗺 일반');
+}
 function _initBoardMap(){
   const el=document.getElementById('boardMap');
   if(!el||!window._KR)return;
   if(!_boardMap){
     try{
       _boardMap=new kakao.maps.Map(el,{center:new kakao.maps.LatLng(DC.lat,DC.lng),level:9});
-      _boardMap.setMapTypeId(kakao.maps.MapTypeId.ROADMAP); // 위성 타일 이음새(세로줄) 제거 위해 벡터 지도 사용
+      _boardMap.setMapTypeId(_boardMapType==='hybrid'?kakao.maps.MapTypeId.HYBRID:kakao.maps.MapTypeId.ROADMAP);
     }catch(e){console.warn('boardMap',e);return;}
   }else{
-    _boardMap.relayout();
+    _boardMap.setMapTypeId(_boardMapType==='hybrid'?kakao.maps.MapTypeId.HYBRID:kakao.maps.MapTypeId.ROADMAP);
+    _boardRedraw();
   }
   try{_drawParkBoundary(_boardMap);}catch(e){}
-  // 창 크기 변경(모니터 회전·해상도 변경) 시 relayout
+  var b=document.getElementById('boardMapTypeBtn');if(b)b.textContent=_boardMapType==='hybrid'?'🛰 위성':'🗺 일반';
+  // 창 크기 변경(모니터 회전·해상도 변경) 시 강제 재렌더
   if(!_boardResizeBound){
     _boardResizeBound=true;
-    window.addEventListener('resize',()=>{try{if(_boardMap&&document.getElementById('v-board').classList.contains('on'))_boardMap.relayout();}catch(e){}});
+    window.addEventListener('resize',()=>{try{if(_boardMap&&document.getElementById('v-board').classList.contains('on'))_boardRedraw();}catch(e){}});
   }
   _renderBoardPins(true); // 최초 1회만 전체 범위에 맞춤
-  setTimeout(()=>{try{_boardMap&&_boardMap.relayout();}catch(e){}},200);
+  // 컨테이너 최종 크기 전에 생성되면 옛 너비 지점에 세로 이음선이 남음 → 여러 시점에 강제 재렌더
+  [120,400,800,1400].forEach(function(ms){setTimeout(_boardRedraw,ms);});
 }
 function _renderBoardPins(fit){
   if(!_boardMap)return;

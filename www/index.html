@@ -507,7 +507,10 @@ if(window.Kakao&&!Kakao.isInitialized()) Kakao.init(KAKAO_KEY);
       <span class="board-title" style="font-size:19px;font-weight:900;color:#e0edf8;">🏔️ 상황판</span>
       <span id="boardClock" class="board-clock" style="font-size:15px;font-weight:700;color:#4fa8d0;font-family:monospace;"></span>
     </div>
-    <button onclick="closeBoard()" style="background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);color:rgba(255,255,255,.5);border-radius:9px;padding:7px 14px;font-size:13px;cursor:pointer;">✕ 닫기</button>
+    <div style="display:flex;align-items:center;gap:8px;">
+      <button id="boardMapTypeBtn" onclick="toggleBoardMapType()" style="background:rgba(79,168,208,.1);border:1px solid rgba(79,168,208,.3);color:#7fc4e0;border-radius:9px;padding:7px 14px;font-size:13px;font-weight:700;cursor:pointer;">🛰 위성</button>
+      <button onclick="closeBoard()" style="background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);color:rgba(255,255,255,.5);border-radius:9px;padding:7px 14px;font-size:13px;cursor:pointer;">✕ 닫기</button>
+    </div>
   </div>
   <div id="boardMain" style="flex:1;display:flex;min-height:0;">
     <div id="boardMap" style="flex:1;min-width:0;position:relative;background:#06101e;"></div>
