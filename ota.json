@@ -1,1 +1,1 @@
-{"version":"2026.07.09.84","url":"https://seorak1275.github.io/seoraksan/bundle.zip","notes":"상황판 세로 이음선 근본 제거: 컨테이너 최종 크기로 지도 재생성(ResizeObserver)"}
+{"version":"2026.07.09.85","url":"https://seorak1275.github.io/seoraksan/bundle.zip","notes":"상황판 지도: 전체화면 최종너비 도달 후(rAF) 생성 — 오른쪽 어두운 띠 제거"}

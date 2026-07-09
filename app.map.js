@@ -402,7 +402,8 @@ function openBoard(){
   _boardDetailId=null;
   const _bd=document.getElementById('boardDetail');if(_bd)_bd.style.display='none';
   const _bb=document.getElementById('boardBody');if(_bb)_bb.style.display='';
-  setTimeout(_initBoardMap,250);
+  // 지도는 컨테이너가 전체화면 최종 너비에 도달한 뒤 생성 (좁은 너비로 만들면 오른쪽에 어두운 띠 잔상)
+  requestAnimationFrame(function(){_boardMapWhenReady(0);});
   renderBoard();
   clearInterval(_boardTimer);
   _boardTimer=setInterval(()=>{
@@ -429,7 +430,17 @@ function _createBoardMap(el){
     _boardCreateW=el.clientWidth||0;
     try{_drawParkBoundary(_boardMap);}catch(e){}
     _renderBoardPins(true);
+    // 레이아웃 커밋 후 한 번 더 relayout (생성 직후 폭 계산 오차 보정)
+    requestAnimationFrame(function(){try{_boardMap&&_boardMap.relayout();}catch(e){}});
   }catch(e){console.warn('boardMap',e);}
+}
+// 컨테이너가 전체화면 최종 너비에 도달할 때까지 기다렸다 지도 생성 (좁은 너비 생성 방지)
+function _boardMapWhenReady(tries){
+  var el=document.getElementById('boardMap');
+  if(!el||!window._KR)return;
+  var w=el.clientWidth||0;
+  if(w>=Math.min((window.innerWidth||800)*0.4,300)||tries>=24){_initBoardMap();}
+  else requestAnimationFrame(function(){_boardMapWhenReady((tries||0)+1);});
 }
 function toggleBoardMapType(){
   _boardMapType=_boardMapType==='hybrid'?'roadmap':'hybrid';
