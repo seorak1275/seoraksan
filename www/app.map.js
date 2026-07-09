@@ -432,7 +432,24 @@ function _createBoardMap(el){
     _renderBoardPins(true);
     // 레이아웃 커밋 후 한 번 더 relayout (생성 직후 폭 계산 오차 보정)
     requestAnimationFrame(function(){try{_boardMap&&_boardMap.relayout();}catch(e){}});
+    try{_boardDbg();setTimeout(_boardDbg,700);}catch(e){}
   }catch(e){console.warn('boardMap',e);}
+}
+// ── 진단 배지 (원인 파악용, 임시) — 실측 폭을 화면에 표시 ──
+function _boardDbg(){
+  try{
+    var win=window.innerWidth+'x'+window.innerHeight;
+    var R=function(id){var e=document.getElementById(id);if(!e)return id+':none';var r=e.getBoundingClientRect();return id+' L'+Math.round(r.left)+' R'+Math.round(r.right)+' W'+Math.round(r.width);};
+    var app=document.getElementById('app');
+    var appT=app?getComputedStyle(app).transform:'-';var appF=app?getComputedStyle(app).filter:'-';
+    var bm=document.getElementById('boardMap');
+    var kNode=bm&&bm.firstElementChild?bm.firstElementChild.offsetWidth:'-';
+    var txt='win '+win+'<br>'+R('app')+' | tf:'+(appT==='none'?'none':'YES')+' fl:'+(appF==='none'?'none':'YES')+' ov:'+(app?getComputedStyle(app).overflow:'-')
+      +'<br>'+R('boardMain')+'<br>'+R('boardMap')+' cW'+(bm?bm.clientWidth:'-')+' kNode'+kNode;
+    var d=document.getElementById('_boardDbgBox');
+    if(!d){d=document.createElement('div');d.id='_boardDbgBox';d.style.cssText='position:fixed;top:60px;left:8px;z-index:99999;background:rgba(0,0,0,.82);color:#7dff9a;font:11px/1.5 monospace;padding:7px 9px;border-radius:7px;max-width:60vw;pointer-events:auto;border:1px solid #2a5;';d.onclick=function(){d.remove();};document.body.appendChild(d);}
+    d.innerHTML=txt+'<br><span style="color:#888;">(탭하면 닫힘)</span>';
+  }catch(e){}
 }
 // 컨테이너가 전체화면 최종 너비에 도달할 때까지 기다렸다 지도 생성 (좁은 너비 생성 방지)
 function _boardMapWhenReady(tries){
