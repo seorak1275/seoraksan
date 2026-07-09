@@ -1,1 +1,1 @@
-{"version":"2026.07.09.87","url":"https://seorak1275.github.io/seoraksan/bundle.zip","notes":"진단 배지: 어두운쪽/밝은쪽 픽셀의 요소 스택 표시(오버레이 색출)"}
+{"version":"2026.07.09.88","url":"https://seorak1275.github.io/seoraksan/bundle.zip","notes":"상황판 세로선 해결: #app 밖(body)으로 이동해 overflow 페인트 클리핑 차단 + 디버그 제거"}
