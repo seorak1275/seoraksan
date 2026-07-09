@@ -414,50 +414,53 @@ function openBoard(){
 function closeBoard(){clearInterval(_boardTimer);goHome();}
 
 // 상황판 지도: 진행중 구조/위험 핀 표시
-let _boardMap=null,_boardOvs=[],_boardResizeBound=false;
+let _boardMap=null,_boardOvs=[],_boardResizeBound=false,_boardCreateW=0;
 // 상황판 지도 종류(위성 기본) — 기기별 저장
 let _boardMapType=(function(){try{return localStorage.getItem('_boardMapType')||'hybrid';}catch(e){return 'hybrid';}})();
-// relayout 잔상(세로 이음선) 제거: 크기 재계산 후 중심 재설정으로 전체 타일 강제 재렌더
-function _boardRedraw(){
-  if(!_boardMap)return;
+// 세로 이음선(카카오 relayout 잔상)의 근본 원인: 지도가 컨테이너 최종 너비 '전'에 생성되면
+// 나중에 드러난 오른쪽 영역이 재렌더되지 않아 어둡게 남음. relayout으로는 안 지워지므로
+// '현재 컨테이너 실제 크기'로 지도를 새로 생성한다(원천 차단).
+function _createBoardMap(el){
   try{
-    _boardMap.relayout();
-    var c=_boardMap.getCenter();
-    // 같은 좌표 setCenter는 무시될 수 있어 미세(약 1m) 이동 후 복귀 → 전체 타일 강제 재렌더
-    _boardMap.setCenter(new kakao.maps.LatLng(c.getLat()+0.00001,c.getLng()+0.00001));
-    _boardMap.setCenter(c);
-  }catch(e){}
+    if(_boardMap){_boardOvs.forEach(o=>{try{o.setMap(null);}catch(e){}});_boardOvs=[];}
+    el.innerHTML='';
+    _boardMap=new kakao.maps.Map(el,{center:new kakao.maps.LatLng(DC.lat,DC.lng),level:9});
+    _boardMap.setMapTypeId(_boardMapType==='hybrid'?kakao.maps.MapTypeId.HYBRID:kakao.maps.MapTypeId.ROADMAP);
+    _boardCreateW=el.clientWidth||0;
+    try{_drawParkBoundary(_boardMap);}catch(e){}
+    _renderBoardPins(true);
+  }catch(e){console.warn('boardMap',e);}
 }
 function toggleBoardMapType(){
   _boardMapType=_boardMapType==='hybrid'?'roadmap':'hybrid';
   try{localStorage.setItem('_boardMapType',_boardMapType);}catch(e){}
-  if(_boardMap){try{_boardMap.setMapTypeId(_boardMapType==='hybrid'?kakao.maps.MapTypeId.HYBRID:kakao.maps.MapTypeId.ROADMAP);}catch(e){}}
+  if(_boardMap){try{_boardMap.setMapTypeId(_boardMapType==='hybrid'?kakao.maps.MapTypeId.HYBRID:kakao.maps.MapTypeId.ROADMAP);_boardMap.relayout();}catch(e){}}
   var b=document.getElementById('boardMapTypeBtn');if(b)b.textContent=_boardMapType==='hybrid'?'🛰 위성':'🗺 일반';
-  _boardRedraw();setTimeout(_boardRedraw,250);
   toast(_boardMapType==='hybrid'?'🛰 위성':'🗺 일반');
 }
 function _initBoardMap(){
   const el=document.getElementById('boardMap');
   if(!el||!window._KR)return;
-  if(!_boardMap){
-    try{
-      _boardMap=new kakao.maps.Map(el,{center:new kakao.maps.LatLng(DC.lat,DC.lng),level:9});
-      _boardMap.setMapTypeId(_boardMapType==='hybrid'?kakao.maps.MapTypeId.HYBRID:kakao.maps.MapTypeId.ROADMAP);
-    }catch(e){console.warn('boardMap',e);return;}
-  }else{
-    _boardMap.setMapTypeId(_boardMapType==='hybrid'?kakao.maps.MapTypeId.HYBRID:kakao.maps.MapTypeId.ROADMAP);
-    _boardRedraw();
-  }
-  try{_drawParkBoundary(_boardMap);}catch(e){}
+  _createBoardMap(el); // 열 때마다 현재 크기로 새로 생성
   var b=document.getElementById('boardMapTypeBtn');if(b)b.textContent=_boardMapType==='hybrid'?'🛰 위성':'🗺 일반';
-  // 창 크기 변경(모니터 회전·해상도 변경) 시 강제 재렌더
-  if(!_boardResizeBound){
-    _boardResizeBound=true;
-    window.addEventListener('resize',()=>{try{if(_boardMap&&document.getElementById('v-board').classList.contains('on'))_boardRedraw();}catch(e){}});
+  // 컨테이너 크기가 바뀌면(전체화면 확정·모니터 회전 등) 그 즉시 감지 → 너비가 달라졌으면 새로 생성
+  if(window.ResizeObserver&&!el._ro){
+    el._ro=new ResizeObserver(function(){
+      if(!_boardMap||!document.getElementById('v-board').classList.contains('on'))return;
+      var w=el.clientWidth||0;
+      if(Math.abs(w-_boardCreateW)>4){
+        clearTimeout(el._roT);
+        el._roT=setTimeout(function(){if(document.getElementById('v-board').classList.contains('on'))_createBoardMap(el);},140);
+      }else{try{_boardMap.relayout();}catch(e){}}
+    });
+    el._ro.observe(el);
   }
-  _renderBoardPins(true); // 최초 1회만 전체 범위에 맞춤
-  // 컨테이너 최종 크기 전에 생성되면 옛 너비 지점에 세로 이음선이 남음 → 여러 시점에 강제 재렌더
-  [120,400,800,1400].forEach(function(ms){setTimeout(_boardRedraw,ms);});
+  // ResizeObserver 미지원 브라우저 대비: 여러 시점에 크기 검사 후 필요 시 재생성
+  [200,600,1200].forEach(function(ms){setTimeout(function(){
+    if(!_boardMap||!document.getElementById('v-board').classList.contains('on'))return;
+    var w=el.clientWidth||0;
+    if(Math.abs(w-_boardCreateW)>4)_createBoardMap(el);else{try{_boardMap.relayout();}catch(e){}}
+  },ms);});
 }
 function _renderBoardPins(fit){
   if(!_boardMap)return;
