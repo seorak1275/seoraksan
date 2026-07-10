@@ -788,19 +788,18 @@ function openFacIssueDetail(id){
     const mg=it.mgr;const mgc=_gColor(mg.grade);
     h+=`<div style="background:#060d1a;border-radius:10px;padding:11px;margin-bottom:9px;border-left:3px solid ${mg.decision==='ok'?'#27ae60':'#f0a500'};">
       <div style="font-size:11px;font-weight:800;color:#f0a500;margin-bottom:6px;">🔎 2. 담당자 검토 <span style="color:#5a7e98;font-weight:400;">· ${_esc(mg.by||'-')} · ${_fmtWhen(mg.at)}</span></div>
-      <div style="font-size:12px;color:#cfe2f2;margin-bottom:4px;">재평가 등급: <b style="color:${mgc};">${_gLabel(mg.grade)}</b> · 판정: <b style="color:${mg.decision==='ok'?'#7ec8a0':'#ff9a6e'};">${mg.decision==='ok'?'이상 없음(종료)':'문제 있음 → 현장확인'}</b></div>
+      <div style="font-size:12px;color:#cfe2f2;margin-bottom:4px;">재평가 등급: <b style="color:${mgc};">${_gLabel(mg.grade)}</b> · 판정: <b style="color:${mg.decision==='ok'?'#7ec8a0':'#ff9a6e'};">${mg.decision==='ok'?'이상없음 회신·종료':'D·E 판정 → 현장확인'}</b></div>
       ${mg.opinion?`<div style="font-size:12px;color:#cfe2f2;line-height:1.6;">💬 ${_esc(mg.opinion)}</div>`:''}
     </div>`;
   } else if(stage===2 && !closed && canReview){
+    const _rg=it.grade;const _rde=_rg==='D'||_rg==='E';
     h+=`<div style="background:rgba(240,165,0,.06);border:1px solid rgba(240,165,0,.3);border-radius:10px;padding:11px;margin-bottom:9px;">
       <div style="font-size:11px;font-weight:800;color:#f0a500;margin-bottom:7px;">🔎 2. 담당자 재평가</div>
-      <div style="font-size:10px;color:#9bbdd4;margin-bottom:4px;">재평가 등급</div>
-      <select id="fiMgrGrade" class="fsel" style="margin-bottom:8px;">${['A','B','C','D','E'].map(g=>`<option value="${g}"${g===it.grade?' selected':''}>${_gLabel(g)}</option>`).join('')}</select>
-      <textarea id="fiMgrOpinion" class="fta" rows="2" placeholder="검토 의견 (예: 현장 낙석 위험 확인됨, 통제 필요)" style="margin-bottom:8px;"></textarea>
-      <div style="display:flex;gap:6px;">
-        <button onclick="facIssueReview(${it.id},'ok')" style="flex:1;background:rgba(39,174,96,.15);color:#7ec8a0;border:1px solid rgba(39,174,96,.35);border-radius:8px;padding:9px;font-size:12px;font-weight:800;cursor:pointer;">이상 없음 · 종료</button>
-        <button onclick="facIssueReview(${it.id},'problem')" style="flex:1.4;background:#c0392b;color:#fff;border:none;border-radius:8px;padding:9px;font-size:12px;font-weight:800;cursor:pointer;">문제 있음 → 현장확인 요청</button>
-      </div>
+      <div style="font-size:10px;color:#9bbdd4;margin-bottom:4px;">재평가 등급 <span style="color:#5a7e98;font-weight:400;">— 등급에 따라 처리 경로가 정해집니다</span></div>
+      <select id="fiMgrGrade" class="fsel" onchange="_fiMgrUpdate()" style="margin-bottom:6px;">${['A','B','C','D','E'].map(g=>`<option value="${g}"${g===it.grade?' selected':''}>${_gLabel(g)}</option>`).join('')}</select>
+      <div id="fiMgrHint" style="font-size:10px;line-height:1.5;margin-bottom:8px;color:${_rde?'#ff9a6e':'#7ec8a0'};">${_rde?'D·E 등급: <b>지역담당구역자 현장확인</b> 단계로 넘어갑니다':'A·B·C 등급: 판정 사유를 회신하고 <b>이상없음 종료</b>됩니다 (사유 필수)'}</div>
+      <textarea id="fiMgrOpinion" class="fta" rows="2" placeholder="${_rde?'검토 의견 (선택 — 예: 데크 침하 심함, 통제 검토)':'판정 사유 (필수 — 왜 이 등급인지 회신)'}" style="margin-bottom:8px;"></textarea>
+      <button id="fiMgrBtn" onclick="facIssueReview(${it.id})" style="width:100%;background:${_rde?'#c0392b':'#1e7a4e'};color:#fff;border:none;border-radius:8px;padding:10px;font-size:12px;font-weight:800;cursor:pointer;">${_rde?'⚠️ '+_rg+'등급 확정 → 지역담당 현장확인 요청':'✅ '+_rg+'등급 · 사유 회신 후 이상없음 종료'}</button>
     </div>`;
   } else if(stage<2){
     h+=`<div style="background:rgba(255,255,255,.02);border:1px dashed rgba(255,255,255,.1);border-radius:10px;padding:10px;margin-bottom:9px;font-size:11px;color:#5a7e98;">🔎 2. 담당자 검토 — 대기 중${canReview?' (담당자: 위 알림/목록에서 검토)':''}</div>`;
@@ -863,25 +862,40 @@ function openFacIssueDetail(id){
   document.getElementById('facIssueDetailBody').innerHTML=h;
   document.getElementById('modalFacIssueDetail').classList.add('on');
 }
-function facIssueReview(id,decision){
+// 재평가 등급 선택에 따라 안내문·버튼을 즉시 갱신 (D·E=현장확인 / A·B·C=사유 회신·종료)
+function _fiMgrUpdate(){
+  const g=document.getElementById('fiMgrGrade')?.value||'';
+  const de=g==='D'||g==='E';
+  const hint=document.getElementById('fiMgrHint');
+  if(hint){hint.style.color=de?'#ff9a6e':'#7ec8a0';
+    hint.innerHTML=de?'D·E 등급: <b>지역담당구역자 현장확인</b> 단계로 넘어갑니다':'A·B·C 등급: 판정 사유를 회신하고 <b>이상없음 종료</b>됩니다 (사유 필수)';}
+  const ta=document.getElementById('fiMgrOpinion');
+  if(ta)ta.placeholder=de?'검토 의견 (선택 — 예: 데크 침하 심함, 통제 검토)':'판정 사유 (필수 — 왜 이 등급인지 회신)';
+  const b=document.getElementById('fiMgrBtn');
+  if(b){b.style.background=de?'#c0392b':'#1e7a4e';
+    b.textContent=de?('⚠️ '+g+'등급 확정 → 지역담당 현장확인 요청'):('✅ '+g+'등급 · 사유 회신 후 이상없음 종료');}
+}
+// 담당자 재평가 — 등급이 경로를 결정: D·E → 3단계(현장확인) / A·B·C → 사유 회신 후 이상없음 종료
+function facIssueReview(id){
   if(!(_isFacManager()||_isMasterAdmin())){toast('⚠️ 시설물 담당자만 검토할 수 있습니다');return;}
   const it=_facIssueById(id);if(!it)return;
   const grade=document.getElementById('fiMgrGrade')?.value||it.grade;
   const opinion=(document.getElementById('fiMgrOpinion')?.value||'').trim();
-  if(decision==='problem'&&!opinion){toast('⚠️ 문제 있음은 검토 의견을 적어주세요');return;}
-  it.mgr={grade,opinion,by:getAuthor(),at:Date.now(),decision};
-  if(decision==='ok'){
-    it.status='closed';it.stage=2;it.closeReason='담당자 이상없음 판정';it.closedBy=getAuthor();it.closedAt=Date.now();
-    _issueLog(it,`담당자 검토 — 이상없음 종료 (${_gLabel(grade)})`);
+  const de=grade==='D'||grade==='E';
+  if(!de&&!opinion){toast('⚠️ A·B·C 판정은 사유(왜 이 등급인지)를 적어 회신하세요');return;}
+  it.mgr={grade,opinion,by:getAuthor(),at:Date.now(),decision:de?'problem':'ok'};
+  if(!de){
+    it.status='closed';it.stage=2;it.closeReason='담당자 '+grade+'등급 판정 — 이상없음 회신';it.closedBy=getAuthor();it.closedAt=Date.now();
+    _issueLog(it,`담당자 검토 — ${_gLabel(grade)} 사유 회신·이상없음 종료`);
     _saveFacIssue(it);
-    _notiFacFollow(`✅ 점검 검토 종료(이상없음) · ${it.facName} — ${getAuthor()}`,_facIssueLink(id),it);
-    toast('✅ 이상없음 판정 — 종료');
+    _notiFacFollow(`✅ 점검 검토 종료(${_gLabel(grade)}) · ${it.facName} — ${getAuthor()}`,_facIssueLink(id),it);
+    toast('✅ '+grade+'등급 회신 — 이상없음 종료');
   }else{
     it.stage=3;
-    _issueLog(it,`담당자 검토 — 문제확인, 현장확인 요청 (${_gLabel(grade)})`);
+    _issueLog(it,`담당자 검토 — ${_gLabel(grade)} 확정, 지역담당 현장확인 요청`);
     _saveFacIssue(it);
     _notiFacFollow(`🥾 점검 현장확인 요청 · ${it.facName} (${_gLabel(grade)}) — 지역담당구역자 확인 필요`,_facIssueLink(id),it);
-    toast('⚠️ 문제 확인 — 현장확인 단계로');
+    toast('⚠️ '+grade+'등급 — 현장확인 단계로');
   }
   openFacIssueDetail(id);try{renderFacIssues();}catch(e){}try{renderInspectMap();}catch(e){}
 }
