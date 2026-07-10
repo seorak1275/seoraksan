@@ -725,7 +725,7 @@ function submitFacIssue(){
     grade:_facIssueGrade,desc,loc,lat,lng,
     photo:_photoUrl('prevFacIssue'),
     reporter:getAuthor(),reporterKakaoId:String(u.kakaoId||''),
-    createdAt:id,stage:1,status:'open',log:[]
+    createdAt:id,stage:2,status:'open',log:[]  // 접수 완료 → 담당자 검토(2단계) 대기
   };
   _issueLog(it,`접수 (등급 ${it.grade})`);
   _saveFacIssue(it);
@@ -739,7 +739,7 @@ function submitFacIssue(){
 // ── 하자 상세 + 단계별 조치 ──
 function _issueStageBar(cur,closed){
   return `<div style="display:flex;gap:3px;margin:10px 0;">`+[1,2,3,4].map(s=>{
-    const st=FAC_ISTAGE[s];const done=closed?true:(cur>s);const active=!closed&&cur===s;
+    const st=FAC_ISTAGE[s];const done=closed?(cur>=s):(cur>s);const active=!closed&&cur===s;
     const bg=done?'rgba(39,174,96,.18)':active?st.c:'rgba(255,255,255,.04)';
     const col=done?'#7ec8a0':active?'#08121e':'rgba(255,255,255,.35)';
     return `<div style="flex:1;text-align:center;background:${bg};color:${col};border-radius:6px;padding:5px 2px;font-size:9px;font-weight:800;line-height:1.3;">${done?'✓':st.ico}<br>${st.l}</div>`;
