@@ -876,11 +876,11 @@ function _fiMgrUpdate(){
     b.textContent=de?('⚠️ '+g+'등급 확정 → 지역담당 현장확인 요청'):('✅ '+g+'등급 · 사유 회신 후 이상없음 종료');}
 }
 // 담당자 재평가 — 등급이 경로를 결정: D·E → 3단계(현장확인) / A·B·C → 사유 회신 후 이상없음 종료
-function facIssueReview(id){
+// 상세 모달·담당 업무함 양쪽에서 호출 — 값은 래퍼가 읽고 코어가 처리
+function _facIssueReviewCore(id,grade,opinion,fromWork){
   if(!(_isFacManager()||_isMasterAdmin())){toast('⚠️ 시설물 담당자만 검토할 수 있습니다');return;}
   const it=_facIssueById(id);if(!it)return;
-  const grade=document.getElementById('fiMgrGrade')?.value||it.grade;
-  const opinion=(document.getElementById('fiMgrOpinion')?.value||'').trim();
+  grade=grade||it.grade;
   const de=grade==='D'||grade==='E';
   if(!de&&!opinion){toast('⚠️ A·B·C 판정은 사유(왜 이 등급인지)를 적어 회신하세요');return;}
   it.mgr={grade,opinion,by:getAuthor(),at:Date.now(),decision:de?'problem':'ok'};
@@ -897,31 +897,42 @@ function facIssueReview(id){
     _notiFacFollow(`🥾 점검 현장확인 요청 · ${it.facName} (${_gLabel(grade)}) — 지역담당구역자 확인 필요`,_facIssueLink(id),it);
     toast('⚠️ '+grade+'등급 — 현장확인 단계로');
   }
-  openFacIssueDetail(id);try{renderFacIssues();}catch(e){}try{renderInspectMap();}catch(e){}
+  _facIssueAfterAction(id,fromWork);
 }
-function facIssueZone(id){
+function facIssueReview(id){
+  _facIssueReviewCore(id,document.getElementById('fiMgrGrade')?.value||'',(document.getElementById('fiMgrOpinion')?.value||'').trim(),false);
+}
+function _facIssueZoneCore(id,note,fromWork){
   if(!((typeof _isMember==='function')?_isMember():true)){toast('⚠️ 멤버만 가능');return;}
   const it=_facIssueById(id);if(!it)return;
   if(Number(it.stage)!==3){toast('현재 단계가 아닙니다');return;}
-  const note=(document.getElementById('fiZoneNote')?.value||'').trim();
   it.zone={note,by:getAuthor(),at:Date.now()};it.stage=4;
   _issueLog(it,'지역담당구역자 현장확인 완료 → 시설과 이관');
   _saveFacIssue(it);
   _notiFacFollow(`🔧 점검 시설과 이관 · ${it.facName} — 현장확인 완료`,_facIssueLink(id),it);
   toast('✅ 현장확인 완료 — 시설과 이관');
-  openFacIssueDetail(id);try{renderFacIssues();}catch(e){}
+  _facIssueAfterAction(id,fromWork);
 }
-function facIssueDept(id){
+function facIssueZone(id){_facIssueZoneCore(id,(document.getElementById('fiZoneNote')?.value||'').trim(),false);}
+function _facIssueDeptCore(id,note,fromWork){
   if(!_canManageFac()){toast('⚠️ 탐방시설과·개발자만 가능');return;}
   const it=_facIssueById(id);if(!it)return;
-  const note=(document.getElementById('fiDeptNote')?.value||'').trim();
   it.dept={note,by:getAuthor(),at:Date.now()};
   it.status='closed';it.closeReason='시설과 조치 완료';it.closedBy=getAuthor();it.closedAt=Date.now();
   _issueLog(it,'시설과 조치 완료 — 종료');
   _saveFacIssue(it);
   _notiFacFollow(`✅ 점검 처리 완료 · ${it.facName} — ${getAuthor()}`,_facIssueLink(id),it);
   toast('✅ 조치 완료 — 종료');
-  openFacIssueDetail(id);try{renderFacIssues();}catch(e){}try{renderInspectMap();}catch(e){}
+  _facIssueAfterAction(id,fromWork);
+}
+function facIssueDept(id){_facIssueDeptCore(id,(document.getElementById('fiDeptNote')?.value||'').trim(),false);}
+// 조치 후 공통 새로고침 — 업무함에서 처리했으면 목록에 남고, 모달에서 했으면 모달 갱신
+function _facIssueAfterAction(id,fromWork){
+  if(!fromWork)try{openFacIssueDetail(id);}catch(e){}
+  try{renderFacIssues();}catch(e){}
+  try{renderInspectMap();}catch(e){}
+  try{renderFacWork();}catch(e){}
+  try{_updateFacWorkBadge();}catch(e){}
 }
 function facIssueClose(id){
   if(!(_isFacManager()||_canManageFac()||_isMasterAdmin())){toast('⚠️ 권한 없음');return;}
@@ -993,6 +1004,120 @@ function renderFacIssues(){
 function _toggleClosedIssues(){
   const l=document.getElementById('fiClosedList');const t=document.getElementById('fiClosedToggle');
   if(!l)return;const show=l.style.display==='none';l.style.display=show?'block':'none';if(t)t.textContent=show?'· 숨기기':'· 보기';
+}
+
+// ══════════════════════════════════════════
+// 담당 업무함 (하단 네비 4번째 탭 — 담당자·시설과·개발자만)
+// 검토 회신·현장확인·조치를 목록에서 바로 처리
+// ══════════════════════════════════════════
+function _facWorkVisible(){return _isFacManager()||_canManageFac()||_isMasterAdmin();}
+// 내가 지금 답할 수 있는 건수 (탭 배지)
+function _facWorkCount(){
+  const canReview=_isFacManager()||_isMasterAdmin();
+  const canDept=_canManageFac();
+  let n=0;
+  _facIssueOpen().forEach(it=>{const s=Number(it.stage||1);
+    if(s<=2){if(canReview)n++;}
+    else if(s===3)n++;                 // 현장확인은 멤버 누구나 기록 가능
+    else if(s===4){if(canDept)n++;}
+  });
+  return n;
+}
+function _updateFacWorkBadge(){
+  const b=document.getElementById('nv4Badge');if(!b)return;
+  const n=_facWorkVisible()?_facWorkCount():0;
+  b.style.display=n?'block':'none';b.textContent=n>99?'99+':String(n);
+}
+// 업무함 인라인 폼 래퍼 (요소 ID가 항목별 fw*_id — 모달의 fi*와 충돌 없음)
+function fwReview(id){_facIssueReviewCore(id,document.getElementById('fwMgrGrade_'+id)?.value||'',(document.getElementById('fwMgrOpinion_'+id)?.value||'').trim(),true);}
+function fwZone(id){_facIssueZoneCore(id,(document.getElementById('fwZoneNote_'+id)?.value||'').trim(),true);}
+function fwDept(id){_facIssueDeptCore(id,(document.getElementById('fwDeptNote_'+id)?.value||'').trim(),true);}
+function _fwMgrUpdate(id){
+  const g=document.getElementById('fwMgrGrade_'+id)?.value||'';
+  const de=g==='D'||g==='E';
+  const hint=document.getElementById('fwMgrHint_'+id);
+  if(hint){hint.style.color=de?'#ff9a6e':'#7ec8a0';
+    hint.innerHTML=de?'D·E: <b>지역담당 현장확인</b>으로 넘어갑니다':'A·B·C: 사유 회신 후 <b>이상없음 종료</b> (사유 필수)';}
+  const ta=document.getElementById('fwMgrOpinion_'+id);
+  if(ta)ta.placeholder=de?'검토 의견 (선택)':'판정 사유 (필수 — 왜 이 등급인지)';
+  const b=document.getElementById('fwMgrBtn_'+id);
+  if(b){b.style.background=de?'#c0392b':'#1e7a4e';
+    b.textContent=de?('⚠️ '+g+'등급 확정 → 현장확인 요청'):('✅ '+g+'등급 · 회신 후 종료');}
+}
+function renderFacWork(){
+  const wrap=document.getElementById('facWorkWrap');if(!wrap)return;
+  const canReview=_isFacManager()||_isMasterAdmin();
+  const canDept=_canManageFac();
+  const open=_facIssueOpen().sort((a,b)=>b.createdAt-a.createdAt);
+  const s2=open.filter(it=>Number(it.stage||1)<=2);
+  const s3=open.filter(it=>Number(it.stage)===3);
+  const s4=open.filter(it=>Number(it.stage)===4);
+  const closed=_facIssues().filter(x=>x.status==='closed').sort((a,b)=>(b.closedAt||b.createdAt)-(a.closedAt||a.createdAt)).slice(0,10);
+
+  const head=(ico,title,cnt,c)=>`<div style="font-size:12px;font-weight:800;color:${c};margin:15px 0 7px;">${ico} ${title}${cnt?` <span style="background:${c};color:#08121e;border-radius:9px;padding:0 7px;font-size:10px;margin-left:2px;">${cnt}</span>`:''}</div>`;
+  const card=(it,body)=>{
+    const gc=_gColor(it.grade);
+    return `<div style="background:#0a1828;border:1px solid rgba(255,255,255,.06);border-left:3px solid ${gc};border-radius:11px;padding:11px;margin-bottom:9px;">
+      <div style="display:flex;align-items:center;gap:9px;cursor:pointer;" onclick="openFacIssueDetail(${it.id})">
+        ${it.photo?`<img src="${_esc(it.photo)}" style="width:44px;height:44px;border-radius:8px;object-fit:cover;flex-shrink:0;">`:`<div style="width:44px;height:44px;border-radius:8px;background:#060d1a;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;">🏗️</div>`}
+        <div style="flex:1;min-width:0;">
+          <div style="font-size:12px;font-weight:700;color:#e0edf8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;"><span style="color:${gc};font-weight:900;">${_esc(it.grade)}</span> · ${_esc(it.facName)}</div>
+          <div style="font-size:10px;color:#7a9cb8;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${it.tags&&it.tags.length?'<span style="color:#4fa8d0;">'+_esc(it.tags.join(', '))+'</span> · ':''}${_esc(it.reporter||'')} · ${_fmtWhen(it.createdAt)}</div>
+        </div>
+        <span style="font-size:10px;color:#4fa8d0;flex-shrink:0;">상세 ›</span>
+      </div>
+      ${it.desc?`<div style="font-size:11px;color:#9bbdd4;margin-top:6px;line-height:1.5;">${_esc(it.desc)}</div>`:''}
+      ${body||''}
+    </div>`;
+  };
+  const formWrap=inner=>`<div style="margin-top:9px;border-top:1px dashed rgba(255,255,255,.08);padding-top:9px;">${inner}</div>`;
+
+  let h=`<div style="font-size:11px;color:#9bbdd4;line-height:1.6;background:rgba(240,165,0,.05);border:1px solid rgba(240,165,0,.15);border-radius:9px;padding:8px 11px;">🔧 <b style="color:#f0a500;">담당 업무함</b> — 점검 회신·현장확인·조치를 여기서 바로 처리합니다.</div>`;
+
+  // ── 1. 담당자 검토 대기 (인라인 회신) ──
+  h+=head('🔎','담당자 검토 대기',s2.length,'#f0a500');
+  if(!s2.length)h+=`<div class="muted" style="font-size:11px;">검토 대기 없음</div>`;
+  else h+=s2.map(it=>{
+    if(!canReview)return card(it,formWrap(`<div style="font-size:10px;color:#5a7e98;">담당자 회신 대기 중</div>`));
+    const de0=it.grade==='D'||it.grade==='E';
+    return card(it,formWrap(`
+      <div style="font-size:10px;color:#9bbdd4;margin-bottom:4px;">재평가 등급 — 등급이 처리 경로를 정합니다</div>
+      <select id="fwMgrGrade_${it.id}" class="fsel" onchange="_fwMgrUpdate(${it.id})" style="margin-bottom:5px;">${['A','B','C','D','E'].map(g=>`<option value="${g}"${g===it.grade?' selected':''}>${_gLabel(g)}</option>`).join('')}</select>
+      <div id="fwMgrHint_${it.id}" style="font-size:10px;line-height:1.5;margin-bottom:6px;color:${de0?'#ff9a6e':'#7ec8a0'};">${de0?'D·E: <b>지역담당 현장확인</b>으로 넘어갑니다':'A·B·C: 사유 회신 후 <b>이상없음 종료</b> (사유 필수)'}</div>
+      <textarea id="fwMgrOpinion_${it.id}" class="fta" rows="2" placeholder="${de0?'검토 의견 (선택)':'판정 사유 (필수 — 왜 이 등급인지)'}" style="margin-bottom:7px;"></textarea>
+      <button id="fwMgrBtn_${it.id}" onclick="fwReview(${it.id})" style="width:100%;background:${de0?'#c0392b':'#1e7a4e'};color:#fff;border:none;border-radius:8px;padding:9px;font-size:12px;font-weight:800;cursor:pointer;">${de0?'⚠️ '+it.grade+'등급 확정 → 현장확인 요청':'✅ '+it.grade+'등급 · 회신 후 종료'}</button>`));
+  }).join('');
+
+  // ── 2. 지역담당 현장확인 대기 ──
+  h+=head('🥾','지역담당 현장확인 대기',s3.length,'#b07cd0');
+  if(!s3.length)h+=`<div class="muted" style="font-size:11px;">현장확인 대기 없음</div>`;
+  else h+=s3.map(it=>card(it,formWrap(`
+      ${it.mgr&&it.mgr.opinion?`<div style="font-size:10px;color:#f0a500;margin-bottom:6px;">🔎 담당자 의견: ${_esc(it.mgr.opinion)}</div>`:''}
+      <textarea id="fwZoneNote_${it.id}" class="fta" rows="2" placeholder="현장 확인 결과 (예: 데크 3판 파손 확인, 임시 통제 설치)" style="margin-bottom:7px;"></textarea>
+      <button onclick="fwZone(${it.id})" style="width:100%;background:#7a4a9e;color:#fff;border:none;border-radius:8px;padding:9px;font-size:12px;font-weight:800;cursor:pointer;">현장확인 완료 → 시설과 이관</button>`))).join('');
+
+  // ── 3. 시설과 조치 대기 ──
+  h+=head('🔧','시설과 조치 대기',s4.length,'#e67e22');
+  if(!s4.length)h+=`<div class="muted" style="font-size:11px;">조치 대기 없음</div>`;
+  else h+=s4.map(it=>{
+    if(!canDept)return card(it,formWrap(`<div style="font-size:10px;color:#5a7e98;">탐방시설과 조치 대기 중${it.zone&&it.zone.note?' · 🥾 '+_esc(it.zone.note):''}</div>`));
+    return card(it,formWrap(`
+      ${it.zone&&it.zone.note?`<div style="font-size:10px;color:#b07cd0;margin-bottom:6px;">🥾 현장확인: ${_esc(it.zone.note)}</div>`:''}
+      <textarea id="fwDeptNote_${it.id}" class="fta" rows="2" placeholder="조치 내용 (예: 데크 교체 완료 / 예산 반영 예정)" style="margin-bottom:7px;"></textarea>
+      <button onclick="fwDept(${it.id})" style="width:100%;background:#0c4838;color:#fff;border:none;border-radius:8px;padding:9px;font-size:12px;font-weight:800;cursor:pointer;">조치 완료 → 종료</button>`));
+  }).join('');
+
+  // ── 4. 최근 종료 ──
+  if(closed.length){
+    h+=head('✅','최근 종료',0,'#7ec8a0');
+    h+=closed.map(it=>`<div onclick="openFacIssueDetail(${it.id})" style="background:rgba(255,255,255,.02);border-radius:9px;padding:8px 11px;margin-bottom:5px;cursor:pointer;opacity:.75;display:flex;align-items:center;gap:8px;">
+      <span style="color:${_gColor(it.grade)};font-weight:900;font-size:12px;flex-shrink:0;">${_esc(it.grade)}</span>
+      <span style="flex:1;min-width:0;font-size:11px;color:#9bbdd4;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${_esc(it.facName)}</span>
+      <span style="font-size:9px;color:#5a7e98;flex-shrink:0;">${_esc(it.closeReason||'종료')}</span>
+    </div>`).join('');
+  }
+  wrap.innerHTML=h;
+  try{_updateFacWorkBadge();}catch(e){}
 }
 
 var _editFacId=null;

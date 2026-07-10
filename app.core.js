@@ -525,7 +525,10 @@ function initFirebase(onReady){
       clearTimeout(_remoteUpdateTimer);
       _remoteUpdateTimer=setTimeout(function(){
         if(window.curApp==='rescue'){renderResList();try{renderRescueMap();}catch(e){}}
-        else if(window.curApp==='inspect'){renderFacList();renderInspectMap();try{renderFacIssues();}catch(e){}}
+        else if(window.curApp==='inspect'){renderFacList();renderInspectMap();try{renderFacIssues();}catch(e){}
+          // 담당 업무함: 보이는 중이면 입력(회신 작성) 보호 위해 배지만 갱신, 숨겨져 있으면 재렌더
+          try{var _vw=document.getElementById('v-inspect-work');
+            if(_vw&&!_vw.classList.contains('on'))renderFacWork();else _updateFacWorkBadge();}catch(e){}}
         else if(window.curApp==='alert')renderAlertView();
         else if(window.curApp==='stats')renderFullStats();
       },400);

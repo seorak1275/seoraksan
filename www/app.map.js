@@ -858,7 +858,12 @@ function openApp(mode){
   document.querySelectorAll('.view').forEach(v=>v.classList.remove('on'));
   document.getElementById('appHdr').style.display='block';
   const bn=document.getElementById('bnav');
-  function setNv(){[1,2,3].forEach(i=>document.getElementById('nv'+i).classList.remove('on'));document.getElementById('nv1').classList.add('on');}
+  function setNv(){[1,2,3,4].forEach(i=>{var e=document.getElementById('nv'+i);if(e)e.classList.remove('on');});document.getElementById('nv1').classList.add('on');}
+  // 담당 업무함 탭(nv4): 시설물 앱 + 담당자·시설과·개발자만 표시
+  try{var _nv4=document.getElementById('nv4');
+    if(_nv4)_nv4.style.display=(mode==='inspect'&&typeof _facWorkVisible==='function'&&_facWorkVisible())?'':'none';
+    if(mode==='inspect')try{_updateFacWorkBadge();}catch(e){}
+  }catch(e){}
   if(mode==='rescue'){
     document.getElementById('topTitle').textContent='재난/구조 관리';
     document.getElementById('nvl2').textContent='목록';
@@ -911,13 +916,14 @@ function _showAdminDenied(){
 }
 function switchTab(idx,el){
   if(isExternal()&&idx!==1){toast('⚠️ 외부기관 계정은 지도만 이용 가능합니다');return;}
-  [1,2,3].forEach(i=>document.getElementById('nv'+i).classList.remove('on'));if(el)el.classList.add('on');closeDB();
+  [1,2,3,4].forEach(i=>{var e=document.getElementById('nv'+i);if(e)e.classList.remove('on');});if(el)el.classList.add('on');closeDB();
   if(curApp==='rescue'){
     if(idx===1){showV('v-rescue-map');rMaps();updateRescueCross();try{renderRescueMap();}catch(e){}} // 복귀 시 핀 최신화
     else{if(idx===2){showV('v-rescue-list');renderResList();}else{showV('v-rescue-stats');renderRescueStats();}}
   } else if(curApp==='inspect'){
     if(idx===1){showV('v-inspect-map');rMaps();updateInspectCross();try{renderInspectMap();}catch(e){}}
     else if(idx===2){showV('v-inspect-list');renderFacList();}
+    else if(idx===4){showV('v-inspect-work');try{renderFacWork();}catch(e){}}
     else{showV('v-inspect-stats');renderInspectStats();}
   }
 }

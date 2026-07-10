@@ -489,6 +489,11 @@ if(window.Kakao&&!Kakao.isInitialized()) Kakao.init(KAKAO_KEY);
   </div>
 </div>
 
+<!-- ══ 시설물 담당 업무함 (담당자·시설과·개발자만) ══ -->
+<div id="v-inspect-work" class="view">
+  <div class="bpad" id="facWorkWrap"></div>
+</div>
+
 <!-- ══ 특보운영 ══ -->
 <div id="v-alert" class="view" style="flex-direction:column;overflow:hidden;">
   <div id="crisisBanner" class="crisis-banner"></div>
@@ -576,6 +581,7 @@ if(window.Kakao&&!Kakao.isInitialized()) Kakao.init(KAKAO_KEY);
   <div class="navi on" id="nv1" onclick="switchTab(1,this)"><div class="navi-ico">🗺️</div><span class="navi-lbl">지도</span></div>
   <div class="navi ext-hide" id="nv2" onclick="switchTab(2,this)"><div class="navi-ico">📋</div><span class="navi-lbl" id="nvl2">목록</span></div>
   <div class="navi ext-hide" id="nv3" onclick="switchTab(3,this)"><div class="navi-ico">📊</div><span class="navi-lbl">통계</span></div>
+  <div class="navi ext-hide" id="nv4" style="display:none;" onclick="switchTab(4,this)"><div class="navi-ico" style="position:relative;">🔧<span id="nv4Badge" style="display:none;position:absolute;top:-4px;right:-11px;background:#e05050;color:#fff;border-radius:9px;min-width:15px;height:15px;font-size:9px;font-weight:800;line-height:15px;text-align:center;padding:0 3px;box-shadow:0 1px 5px rgba(224,80,80,.5);">0</span></div><span class="navi-lbl">담당</span></div>
 </div>
 <div class="toast" id="toast"></div>
 <div id="undoBar" style="display:none;position:absolute;bottom:80px;left:50%;transform:translateX(-50%);background:#0b1c30;color:#e0edf8;padding:9px 9px 9px 18px;border-radius:24px;font-size:13px;font-weight:600;border:1px solid rgba(231,76,60,.4);box-shadow:0 4px 16px rgba(0,0,0,.6);z-index:101;max-width:92%;align-items:center;gap:12px;">
