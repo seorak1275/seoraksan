@@ -483,7 +483,7 @@ if(window.Kakao&&!Kakao.isInitialized()) Kakao.init(KAKAO_KEY);
       <div class="stat-box" style="border-color:#c0392b;"><div class="stat-num bad" id="fs-warn">0</div><div class="stat-lbl">경고표시</div></div>
       <div class="stat-box" style="border-color:#6a8aa0;"><div class="stat-num" id="fs-nogps" style="color:#8aa6bc;">0</div><div class="stat-lbl">GPS 없음</div></div>
     </div>
-    <div class="scard"><div class="stitle" style="display:flex;justify-content:space-between;align-items:center;">🚨 하자 신고 처리<button onclick="openFacIssueReport(null)" style="background:rgba(224,80,80,.12);color:#ff8a80;border:1px solid rgba(224,80,80,.3);border-radius:7px;padding:4px 10px;font-size:11px;font-weight:700;cursor:pointer;">＋ 신고</button></div><div id="facIssueWrap"></div></div>
+    <div class="scard"><div class="stitle">🔧 시설물 점검 처리 <span class="muted" style="font-size:10px;font-weight:400;">· 지도·목록에서 시설 선택 후 점검</span></div><div id="facIssueWrap"></div></div>
     <div class="scard"><div class="stitle">⚠️ 경고표시 중</div><div id="facWarnWrap"></div></div>
     <div class="scard"><div class="stitle">종류별 분포</div><div id="facTypeStatWrap"></div></div>
   </div>
@@ -828,13 +828,12 @@ if(window.Kakao&&!Kakao.isInitialized()) Kakao.init(KAKAO_KEY);
   </div>
 </div>
 
-<!-- ══ 모달: 시설물 하자 신고 (1단계 접수) ══ -->
+<!-- ══ 모달: 시설물 점검 등록 (1단계) ══ -->
 <div id="modalFacIssue" class="modal">
   <div class="mbox">
-    <div class="mhdr"><span class="mtitle">🚨 시설물 하자 신고</span><button class="mclose" onclick="closeM('modalFacIssue')">×</button></div>
-    <div style="font-size:11px;color:#7a9cb8;background:rgba(224,80,80,.06);border:1px solid rgba(224,80,80,.18);border-radius:8px;padding:8px 10px;margin-bottom:10px;line-height:1.55;">순찰 중 발견한 시설 하자를 접수합니다. 접수하면 <b style="color:#f0a500;">시설물 담당자</b>가 재평가·회신합니다.</div>
-    <div id="fiFacFixed" style="background:#060d1a;border-radius:9px;padding:10px 12px;margin-bottom:10px;display:none;"></div>
-    <div class="fg" id="fiFacNameWrap" style="display:none;"><span class="fl">대상 시설</span><input type="text" id="fiFacName" class="fi" placeholder="예: 비선대 데크 / 이정표 03"></div>
+    <div class="mhdr"><span class="mtitle">🔧 시설물 점검</span><button class="mclose" onclick="closeM('modalFacIssue')">×</button></div>
+    <div style="font-size:11px;color:#7a9cb8;background:rgba(79,168,208,.06);border:1px solid rgba(79,168,208,.18);border-radius:8px;padding:8px 10px;margin-bottom:10px;line-height:1.55;">순찰 중 시설물을 점검·기록합니다. 등록하면 <b style="color:#f0a500;">시설물 담당자</b>가 검토·회신합니다.</div>
+    <div id="fiFacFixed" style="background:#060d1a;border-radius:9px;padding:10px 12px;margin-bottom:10px;"></div>
     <div class="fg">
       <span class="fl">등급 (시설물 안전등급 A~E)</span>
       <div style="display:flex;gap:5px;" id="fiGradeRow">
@@ -846,29 +845,25 @@ if(window.Kakao&&!Kakao.isInitialized()) Kakao.init(KAKAO_KEY);
       </div>
       <div id="fiGradeDesc" style="font-size:11px;color:#7a9cb8;margin-top:6px;min-height:16px;">등급을 선택하세요</div>
     </div>
-    <div class="fg"><span class="fl">하자 내용</span><textarea id="fiDesc" class="fta" rows="2" placeholder="예: 데크 상판 3판 파손, 통행 위험"></textarea></div>
-    <div class="fg"><span class="fl">위치 설명</span><input type="text" id="fiLocIn" class="fi" placeholder="예: 비선대 0.3km 지점"></div>
     <div class="fg">
-      <span class="fl">GPS 좌표 <span class="muted" style="font-weight:400;">(선택)</span></span>
-      <div class="gps-row"><input type="text" id="fiGpsIn" class="fi" placeholder="위도, 경도">
-        <button class="sm-btn" onclick="gpsFromMap('fiGpsIn','inspect')">🗺</button>
-        <button class="sm-btn" onclick="gpsFromPhone('fiGpsIn')">📍GPS</button>
-      </div>
+      <span class="fl">점검 내용 <span class="muted" style="font-weight:400;">(버튼 선택 · 중복 가능)</span></span>
+      <div style="display:flex;flex-wrap:wrap;gap:6px;" id="fiTagRow"></div>
     </div>
-    <div class="fg"><span class="fl">현장 사진</span>
+    <div class="fg"><span class="fl">상세 내용 <span class="muted" style="font-weight:400;">(선택)</span></span><textarea id="fiDesc" class="fta" rows="2" placeholder="예: 데크 상판 3판 파손, 통행 위험 / 이정표 도색 벗겨짐"></textarea></div>
+    <div class="fg"><span class="fl">현장 사진 <span style="color:#ff8a80;font-weight:700;">필수</span></span>
       <div class="photo-slot" onclick="document.getElementById('fileFacIssue').click()">
         <input type="file" id="fileFacIssue" accept="image/*" capture="environment" style="display:none;" onchange="prevImg(this,'prevFacIssue')">
-        <div id="prevFacIssue">📸 촬영 또는 앨범</div>
+        <div id="prevFacIssue">📸 촬영 또는 앨범 (필수)</div>
       </div>
     </div>
-    <button class="btn-submit" style="background:#c0392b;color:#fff;" onclick="submitFacIssue()">🚨 하자 신고 접수</button>
+    <button class="btn-submit" style="background:#1a6ea0;color:#fff;" onclick="submitFacIssue()">🔧 점검 등록</button>
   </div>
 </div>
 
-<!-- ══ 모달: 시설물 하자 상세·처리 ══ -->
+<!-- ══ 모달: 시설물 점검 상세·처리 ══ -->
 <div id="modalFacIssueDetail" class="modal">
   <div class="mbox">
-    <div class="mhdr"><span class="mtitle">🛠️ 하자 처리 현황</span><button class="mclose" onclick="closeM('modalFacIssueDetail')">×</button></div>
+    <div class="mhdr"><span class="mtitle">🛠️ 점검 처리 현황</span><button class="mclose" onclick="closeM('modalFacIssueDetail')">×</button></div>
     <div id="facIssueDetailBody"></div>
   </div>
 </div>

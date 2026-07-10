@@ -1148,7 +1148,7 @@ const NOTI_GROUPS=[
   {title:'🏗️ 시설물 점검', items:[
     {k:'fac_bad',l:'위험 시설물',sub:'파손 심각 등록',def:true,push:true},
     {k:'fac_warn',l:'보수 필요',sub:'보수필요 판정',def:false,push:false},
-    {k:'fac_issue',l:'시설물 하자 신고',sub:'하자 접수·검토·현장확인 (담당자 위주)',def:true,push:true},
+    {k:'fac_issue',l:'시설물 점검',sub:'점검 등록·검토·현장확인 (담당자 위주)',def:true,push:true},
   ]},
   {title:'🌀 재난대응 (특보·위기경보)', items:[
     {k:'op_start',l:'특보운영 시작',sub:'특보운영 개시',def:true,push:true},
