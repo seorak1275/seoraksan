@@ -439,6 +439,7 @@ function openFacFromMap(id){
     +`📍 ${_esc(f.loc||'-')}`+(f.hidden?'<div style="font-size:10px;color:#8a6d3b;margin-top:2px;">🙈 일반 사용자에게 숨김 중</div>':'');
   const _bw=document.getElementById('facPopBtns');
   if(_bw)_bw.innerHTML=`<button class="btn btn-blue" style="flex:1;" onclick="openFacDetail(${f.id})">📋 상세 보기</button>`
+    +`<button class="btn" style="flex:1;background:rgba(224,80,80,.12);color:#ff8a80;border:1px solid rgba(224,80,80,.3);" onclick="openFacIssueReport(${f.id})">🚨 하자 신고</button>`
     +(_canManageFac()?`<button class="btn" style="flex:1;background:rgba(255,255,255,.06);color:${f.hidden?'#f0a500':'#c0d8ec'};border:1px solid rgba(255,255,255,.15);" onclick="toggleFacHide(${f.id})">${f.hidden?'👁️ 표시':'🙈 가림'}</button>`:'');
   document.getElementById('resPopup').classList.remove('on');
   document.getElementById('facPopup').classList.add('on');
@@ -495,6 +496,7 @@ function renderInspectStats(){
   const tm={};facs.forEach(f=>{tm[f.type]=(tm[f.type]||0)+1;});
   document.getElementById('facTypeStatWrap').innerHTML=Object.entries(tm).map(([k,v])=>
     `<div class="type-row" style="pointer-events:none;"><span class="t-ico">${_esc(k.split(' ')[0])}</span><span class="t-lbl">${_esc(k.split(' ').slice(1).join(' '))}</span><span class="t-cnt">${v}개</span></div>`).join('');
+  try{renderFacIssues();}catch(e){}
   const wr=document.getElementById('facWarnWrap');
   if(wr)wr.innerHTML=warned.length?warned.map(f=>{const w=_facWarn(f);
     return `<div onclick="openFacDetail(${f.id})" style="background:#060d1a;border-radius:8px;padding:9px 11px;margin-bottom:5px;cursor:pointer;border-left:3px solid #e05050;"><div style="font-size:12px;font-weight:700;color:#ff7a6e;">⚠️ ${_esc(f.type.split(' ')[0])} ${_esc(f.name)}</div>${w.reason?`<div style="font-size:11px;color:rgba(255,255,255,.55);margin-top:2px;">${_esc(w.reason)}</div>`:''}<div style="font-size:10px;color:#8a6;margin-top:2px;">${_esc(_warnPeriodStr(w))}</div></div>`;
@@ -528,7 +530,8 @@ function openFacDetail(id){
       <b style="color:#c0d8ec;">등록자:</b> ${_esc(f.author||'-')}
       ${f.note?`<br><b style="color:#c0d8ec;">비고:</b> ${_esc(f.note)}`:''}
     </div>
-    ${canMng?`<button class="btn" style="width:100%;margin-top:10px;background:${w?'rgba(224,80,80,.14)':'rgba(240,165,0,.12)'};color:${w?'#ff7a6e':'#f0a500'};border:1px solid ${w?'rgba(224,80,80,.4)':'rgba(240,165,0,.35)'};" onclick="openFacWarn(${f.id})">⚠️ 경고표시 ${w?'수정 / 해제':'설정'}</button>
+    <button class="btn" style="width:100%;margin-top:10px;background:rgba(224,80,80,.12);color:#ff8a80;border:1px solid rgba(224,80,80,.3);" onclick="openFacIssueReport(${f.id})">🚨 하자 신고 (사진·위치·등급)</button>
+    ${canMng?`<button class="btn" style="width:100%;margin-top:7px;background:${w?'rgba(224,80,80,.14)':'rgba(240,165,0,.12)'};color:${w?'#ff7a6e':'#f0a500'};border:1px solid ${w?'rgba(224,80,80,.4)':'rgba(240,165,0,.35)'};" onclick="openFacWarn(${f.id})">⚠️ 경고표시 ${w?'수정 / 해제':'설정'}</button>
     <button class="btn" style="width:100%;margin-top:7px;background:rgba(255,255,255,.05);color:${f.hidden?'#f0a500':'#b8d4e8'};border:1px solid rgba(255,255,255,.15);" onclick="toggleFacHide(${f.id})">${f.hidden?'👁️ 다시 표시 (현재 일반 사용자에게 숨김)':'🙈 일반 사용자에게 숨기기'}</button>`:''}`;
   const mapBtn=document.getElementById('facDetailMapBtn');
   if(mapBtn)mapBtn.style.display=(f.lat&&f.lng)?'block':'none';
@@ -608,6 +611,361 @@ function viewOnFacMap(){
     try{if(mapI){mapI.setCenter(new kakao.maps.LatLng(f.lat,f.lng));mapI.setLevel(4);}renderInspectMap();}catch(e){}
     openFacFromMap(f.id);
   },220);
+}
+
+// ══════════════════════════════════════════
+// 시설물 하자 신고 4단계 처리 워크플로
+//  1 접수(누구나: 사진·위치·등급) → 2 담당자 재평가·의견 → 3 지역담당구역자 현장확인 → 4 시설과 조치·종료
+//  · 접수 즉시 '시설물 담당자'에게만 알림(전체 진동 없음)
+//  · 등급 A~E = 시설물 안전등급 (A 우수 ~ E 불량)
+// ══════════════════════════════════════════
+const FAC_GRADES={
+  A:{l:'A 우수',c:'#27ae60',d:'문제 없음·양호'},
+  B:{l:'B 양호',c:'#7ec8a0',d:'경미한 결함 — 관찰'},
+  C:{l:'C 보통',c:'#f0c040',d:'보조부재 손상 — 주의'},
+  D:{l:'D 미흡',c:'#e67e22',d:'주요부재 손상 — 긴급 보수'},
+  E:{l:'E 불량',c:'#e05050',d:'심각 — 즉시 사용제한·조치'},
+};
+const FAC_ISTAGE={
+  1:{l:'접수',ico:'📥',c:'#4fa8d0',who:'시설물 담당자 검토 대기'},
+  2:{l:'담당자 검토',ico:'🔎',c:'#f0a500',who:'시설물 담당자 재평가 중'},
+  3:{l:'구역 현장확인',ico:'🥾',c:'#9b59b6',who:'지역담당구역자 현장확인 중'},
+  4:{l:'시설과 조치',ico:'🔧',c:'#e67e22',who:'탐방시설과 현장확인·조치 중'},
+};
+function _fmtWhen(ms){if(!ms)return '-';const d=new Date(ms);const p=n=>String(n).padStart(2,'0');return `${p(d.getMonth()+1)}/${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`;}
+function _facIssues(){return DB.g('facIssues')||[];}
+function _facIssueById(id){return _facIssues().find(x=>String(x.id)===String(id));}
+function _facIssueOpen(){return _facIssues().filter(x=>x.status!=='closed');}
+function _gLabel(g){return (FAC_GRADES[g]||{}).l||(g||'-');}
+function _gColor(g){return (FAC_GRADES[g]||{}).c||'#7a9cb8';}
+// 내 검토 대기(담당자 배정됨 + 2단계 이하) 개수 — 배지용
+function _facIssueMineWaiting(){
+  if(!(_isFacManager()||_isMasterAdmin()))return 0;
+  return _facIssueOpen().filter(it=>Number(it.stage||1)<=2).length;
+}
+function _issueLog(it,act){(it.log=it.log||[]).push({at:Date.now(),by:getAuthor(),act});}
+function _saveFacIssue(it){
+  const arr=_facIssues();const i=arr.findIndex(x=>String(x.id)===String(it.id));
+  if(i>=0)arr[i]=it;else arr.push(it);
+  DB.s('facIssues',arr);
+}
+function _facIssueLink(id){return {app:'inspect',issue:id};}
+// 담당자에게만(없으면 관리자에게) 하자 알림 — 전체 진동/FCM 없음
+function _notiFacManagers(msg,link){
+  const mgrs=_facManagers();
+  if(mgrs.length)pushNoti(msg,'🚨','fac_issue',link,null,{targetKakaoIds:mgrs});
+  else pushNoti(msg,'🚨','fac_issue',link,null,{adminOnly:true}); // 담당자 미지정 시 관리자에게
+}
+// 담당자 + 신고자에게 진행 알림
+function _notiFacFollow(msg,link,it){
+  const ids=_facManagers().slice();
+  if(it&&it.reporterKakaoId)ids.push(String(it.reporterKakaoId));
+  const uniq=[...new Set(ids.filter(Boolean))];
+  if(uniq.length)pushNoti(msg,'🏗️','fac_issue',link,null,{targetKakaoIds:uniq});
+}
+
+let _facIssueGrade='';     // 신고 폼에서 선택한 등급
+let _facIssueForFacId=null;// 특정 시설에 대한 신고면 그 id
+function _pickIssueGrade(g){
+  _facIssueGrade=g;
+  ['A','B','C','D','E'].forEach(k=>{
+    const el=document.getElementById('fiG_'+k);if(!el)return;
+    const on=k===g;const c=_gColor(k);
+    el.style.background=on?c:'rgba(255,255,255,.03)';
+    el.style.color=on?'#08121e':(k===g?'#fff':'rgba(255,255,255,.55)');
+    el.style.borderColor=on?c:'rgba(255,255,255,.12)';
+    el.style.fontWeight=on?'900':'700';
+  });
+  const d=document.getElementById('fiGradeDesc');
+  if(d)d.innerHTML=g?`<span style="color:${_gColor(g)};font-weight:700;">${_gLabel(g)}</span> — ${(FAC_GRADES[g]||{}).d||''}`:'등급을 선택하세요';
+}
+// 하자 신고 폼 열기 (facId 없으면 자유 입력)
+function openFacIssueReport(facId){
+  _facIssueForFacId=facId||null;
+  _facIssueGrade='';
+  const f=facId?(DB.g('facilities')||[]).find(x=>x.id===facId):null;
+  const nameWrap=document.getElementById('fiFacNameWrap');
+  const fixed=document.getElementById('fiFacFixed');
+  if(f){
+    fixed.style.display='block';
+    fixed.innerHTML=`<div style="font-size:13px;font-weight:800;color:#e0edf8;">${_esc(f.type.split(' ')[0])} ${_esc(f.name)}</div><div style="font-size:11px;color:#7a9cb8;margin-top:2px;">📍 ${_esc(f.loc||'-')}</div>`;
+    nameWrap.style.display='none';
+  }else{
+    fixed.style.display='none';
+    nameWrap.style.display='block';
+    document.getElementById('fiFacName').value='';
+  }
+  document.getElementById('fiDesc').value='';
+  const gi=document.getElementById('fiGpsIn');if(gi)gi.value=f&&f.lat?f.lat.toFixed(5)+', '+f.lng.toFixed(5):'';
+  const li=document.getElementById('fiLocIn');
+  if(li)li.value=f?(f.loc||''):'';
+  const pv=document.getElementById('prevFacIssue');if(pv){pv.innerHTML='📸 촬영 또는 앨범';pv.dataset.url='';}
+  const fi=document.getElementById('fileFacIssue');if(fi)fi.value='';
+  _pickIssueGrade('');
+  // 시설과 없이 자유입력이면 십자선/GPS 시도
+  if(!f){try{gpsFromMap('fiGpsIn','inspect');}catch(e){}}
+  try{closeM('modalFacDetail');}catch(e){}
+  try{document.getElementById('facPopup').classList.remove('on');}catch(e){}
+  document.getElementById('modalFacIssue').classList.add('on');
+}
+function submitFacIssue(){
+  if(!_facIssueGrade){toast('⚠️ 등급(A~E)을 선택하세요');return;}
+  const f=_facIssueForFacId?(DB.g('facilities')||[]).find(x=>x.id===_facIssueForFacId):null;
+  const freeName=(document.getElementById('fiFacName')?.value||'').trim();
+  const facName=f?(f.type.split(' ')[0]+' '+f.name):(freeName||'시설물(미지정)');
+  const desc=(document.getElementById('fiDesc')?.value||'').trim();
+  const loc=(document.getElementById('fiLocIn')?.value||'').trim()||(f?f.loc:'')||'';
+  const gs=(document.getElementById('fiGpsIn')?.value||'');
+  let lat=f?f.lat:null,lng=f?f.lng:null;
+  if(gs){const p=gs.split(',');const a=parseFloat(p[0]),b=parseFloat(p[1]);if(!isNaN(a)&&!isNaN(b)){lat=a;lng=b;}}
+  const u=DB.g('currentUser')||{};
+  const id=Date.now();
+  const it={
+    id,facId:f?f.id:null,facName,facType:f?f.type:'',
+    grade:_facIssueGrade,desc,loc,lat,lng,
+    photo:_photoUrl('prevFacIssue'),
+    reporter:getAuthor(),reporterKakaoId:String(u.kakaoId||''),
+    createdAt:id,stage:1,status:'open',log:[]
+  };
+  _issueLog(it,`접수 (등급 ${it.grade})`);
+  _saveFacIssue(it);
+  try{_registerPendingPhoto('prevFacIssue',{key:'facIssues',id,field:'photo'});}catch(e){}
+  _notiFacManagers(`🚨 시설물 하자 신고 [${it.grade}등급] ${facName}${loc?' · '+loc:''} — ${it.reporter}`,_facIssueLink(id));
+  closeM('modalFacIssue');
+  toast('✅ 하자 신고 접수 — 담당자 검토 요청');
+  try{renderFacIssues();}catch(e){}try{renderInspectMap();}catch(e){}
+}
+
+// ── 하자 상세 + 단계별 조치 ──
+function _issueStageBar(cur,closed){
+  return `<div style="display:flex;gap:3px;margin:10px 0;">`+[1,2,3,4].map(s=>{
+    const st=FAC_ISTAGE[s];const done=closed?true:(cur>s);const active=!closed&&cur===s;
+    const bg=done?'rgba(39,174,96,.18)':active?st.c:'rgba(255,255,255,.04)';
+    const col=done?'#7ec8a0':active?'#08121e':'rgba(255,255,255,.35)';
+    return `<div style="flex:1;text-align:center;background:${bg};color:${col};border-radius:6px;padding:5px 2px;font-size:9px;font-weight:800;line-height:1.3;">${done?'✓':st.ico}<br>${st.l}</div>`;
+  }).join('')+`</div>`;
+}
+function openFacIssueDetail(id){
+  const it=_facIssueById(id);if(!it){toast('신고를 찾을 수 없습니다');return;}
+  const closed=it.status==='closed';const stage=Number(it.stage||1);
+  const canReview=_isFacManager()||_isMasterAdmin();
+  const canZone=(typeof _isMember==='function')?_isMember():true;
+  const canDept=_canManageFac();
+  const gc=_gColor(it.grade);
+  let h=`
+    <div style="display:flex;align-items:center;gap:9px;margin-bottom:4px;">
+      <div style="background:${gc};color:#08121e;font-weight:900;border-radius:8px;padding:4px 10px;font-size:15px;">${_esc(it.grade)}</div>
+      <div style="flex:1;min-width:0;"><div style="font-size:14px;font-weight:800;color:#e0edf8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${_esc(it.facName)}</div>
+        <div style="font-size:10px;color:#7a9cb8;">신고 등급: <span style="color:${gc};font-weight:700;">${_gLabel(it.grade)}</span></div></div>
+      ${closed?'<span style="background:rgba(39,174,96,.18);color:#7ec8a0;font-size:11px;font-weight:800;border-radius:7px;padding:4px 9px;">✅ 종료</span>':`<span style="background:${FAC_ISTAGE[stage].c};color:#08121e;font-size:11px;font-weight:800;border-radius:7px;padding:4px 9px;">${FAC_ISTAGE[stage].ico} ${FAC_ISTAGE[stage].l}</span>`}
+    </div>
+    ${_issueStageBar(stage,closed)}
+    ${closed?'':`<div style="font-size:11px;color:${FAC_ISTAGE[stage].c};text-align:center;margin-bottom:8px;">▶ ${FAC_ISTAGE[stage].who}</div>`}`;
+
+  // 1) 신고 내용
+  h+=`<div style="background:#060d1a;border-radius:10px;padding:11px;margin-bottom:9px;">
+    <div style="font-size:11px;font-weight:800;color:#4fa8d0;margin-bottom:6px;">📥 1. 신고 접수 <span style="color:#5a7e98;font-weight:400;">· ${_esc(it.reporter||'-')} · ${_fmtWhen(it.createdAt)}</span></div>
+    ${it.photo?`<img src="${_esc(it.photo)}" style="width:100%;border-radius:8px;margin-bottom:7px;max-height:240px;object-fit:cover;" onclick="window.open('${_esc(it.photo)}','_blank')">`:''}
+    <div style="font-size:12px;color:#cfe2f2;line-height:1.6;">${it.desc?_esc(it.desc):'<span style="color:#5a7e98;">상세 설명 없음</span>'}</div>
+    <div style="font-size:11px;color:#7a9cb8;margin-top:5px;">📍 ${_esc(it.loc||'-')}${it.lat?` <span style="font-family:monospace;color:#4a7090;">(${it.lat.toFixed(4)}, ${it.lng.toFixed(4)})</span>`:''}</div>
+  </div>`;
+
+  // 2) 담당자 검토
+  if(it.mgr){
+    const mg=it.mgr;const mgc=_gColor(mg.grade);
+    h+=`<div style="background:#060d1a;border-radius:10px;padding:11px;margin-bottom:9px;border-left:3px solid ${mg.decision==='ok'?'#27ae60':'#f0a500'};">
+      <div style="font-size:11px;font-weight:800;color:#f0a500;margin-bottom:6px;">🔎 2. 담당자 검토 <span style="color:#5a7e98;font-weight:400;">· ${_esc(mg.by||'-')} · ${_fmtWhen(mg.at)}</span></div>
+      <div style="font-size:12px;color:#cfe2f2;margin-bottom:4px;">재평가 등급: <b style="color:${mgc};">${_gLabel(mg.grade)}</b> · 판정: <b style="color:${mg.decision==='ok'?'#7ec8a0':'#ff9a6e'};">${mg.decision==='ok'?'이상 없음(종료)':'문제 있음 → 현장확인'}</b></div>
+      ${mg.opinion?`<div style="font-size:12px;color:#cfe2f2;line-height:1.6;">💬 ${_esc(mg.opinion)}</div>`:''}
+    </div>`;
+  } else if(stage===2 && !closed && canReview){
+    h+=`<div style="background:rgba(240,165,0,.06);border:1px solid rgba(240,165,0,.3);border-radius:10px;padding:11px;margin-bottom:9px;">
+      <div style="font-size:11px;font-weight:800;color:#f0a500;margin-bottom:7px;">🔎 2. 담당자 재평가</div>
+      <div style="font-size:10px;color:#9bbdd4;margin-bottom:4px;">재평가 등급</div>
+      <select id="fiMgrGrade" class="fsel" style="margin-bottom:8px;">${['A','B','C','D','E'].map(g=>`<option value="${g}"${g===it.grade?' selected':''}>${_gLabel(g)}</option>`).join('')}</select>
+      <textarea id="fiMgrOpinion" class="fta" rows="2" placeholder="검토 의견 (예: 현장 낙석 위험 확인됨, 통제 필요)" style="margin-bottom:8px;"></textarea>
+      <div style="display:flex;gap:6px;">
+        <button onclick="facIssueReview(${it.id},'ok')" style="flex:1;background:rgba(39,174,96,.15);color:#7ec8a0;border:1px solid rgba(39,174,96,.35);border-radius:8px;padding:9px;font-size:12px;font-weight:800;cursor:pointer;">이상 없음 · 종료</button>
+        <button onclick="facIssueReview(${it.id},'problem')" style="flex:1.4;background:#c0392b;color:#fff;border:none;border-radius:8px;padding:9px;font-size:12px;font-weight:800;cursor:pointer;">문제 있음 → 현장확인 요청</button>
+      </div>
+    </div>`;
+  } else if(stage<2){
+    h+=`<div style="background:rgba(255,255,255,.02);border:1px dashed rgba(255,255,255,.1);border-radius:10px;padding:10px;margin-bottom:9px;font-size:11px;color:#5a7e98;">🔎 2. 담당자 검토 — 대기 중${canReview?' (담당자: 위 알림/목록에서 검토)':''}</div>`;
+  }
+
+  // 3) 지역담당구역자 현장확인
+  if(it.zone){
+    h+=`<div style="background:#060d1a;border-radius:10px;padding:11px;margin-bottom:9px;border-left:3px solid #9b59b6;">
+      <div style="font-size:11px;font-weight:800;color:#b07cd0;margin-bottom:6px;">🥾 3. 구역 현장확인 <span style="color:#5a7e98;font-weight:400;">· ${_esc(it.zone.by||'-')} · ${_fmtWhen(it.zone.at)}</span></div>
+      <div style="font-size:12px;color:#cfe2f2;line-height:1.6;">${it.zone.note?_esc(it.zone.note):'<span style="color:#5a7e98;">확인 완료</span>'}</div>
+    </div>`;
+  } else if(stage===3 && !closed && canZone){
+    h+=`<div style="background:rgba(155,89,182,.07);border:1px solid rgba(155,89,182,.3);border-radius:10px;padding:11px;margin-bottom:9px;">
+      <div style="font-size:11px;font-weight:800;color:#b07cd0;margin-bottom:7px;">🥾 3. 지역담당구역자 현장확인</div>
+      <textarea id="fiZoneNote" class="fta" rows="2" placeholder="현장 확인 결과 (예: 데크 3판 파손 확인, 임시 통제 설치)" style="margin-bottom:8px;"></textarea>
+      <button onclick="facIssueZone(${it.id})" style="width:100%;background:#7a4a9e;color:#fff;border:none;border-radius:8px;padding:9px;font-size:12px;font-weight:800;cursor:pointer;">현장확인 완료 → 시설과 이관</button>
+    </div>`;
+  } else if(stage<3 && !closed){
+    h+=`<div style="background:rgba(255,255,255,.02);border:1px dashed rgba(255,255,255,.1);border-radius:10px;padding:10px;margin-bottom:9px;font-size:11px;color:#5a7e98;">🥾 3. 구역 현장확인 — 담당자 확인 후 진행</div>`;
+  }
+
+  // 4) 시설과 조치
+  if(it.dept){
+    h+=`<div style="background:#060d1a;border-radius:10px;padding:11px;margin-bottom:9px;border-left:3px solid #27ae60;">
+      <div style="font-size:11px;font-weight:800;color:#7ec8a0;margin-bottom:6px;">🔧 4. 시설과 조치 <span style="color:#5a7e98;font-weight:400;">· ${_esc(it.dept.by||'-')} · ${_fmtWhen(it.dept.at)}</span></div>
+      <div style="font-size:12px;color:#cfe2f2;line-height:1.6;">${it.dept.note?_esc(it.dept.note):'<span style="color:#5a7e98;">조치 완료</span>'}</div>
+    </div>`;
+  } else if(stage===4 && !closed && canDept){
+    h+=`<div style="background:rgba(39,174,96,.06);border:1px solid rgba(39,174,96,.3);border-radius:10px;padding:11px;margin-bottom:9px;">
+      <div style="font-size:11px;font-weight:800;color:#7ec8a0;margin-bottom:7px;">🔧 4. 탐방시설과 현장확인·조치</div>
+      <textarea id="fiDeptNote" class="fta" rows="2" placeholder="조치 내용 (예: 데크 교체 완료 / 예산 반영 예정)" style="margin-bottom:8px;"></textarea>
+      <button onclick="facIssueDept(${it.id})" style="width:100%;background:#0c4838;color:#fff;border:none;border-radius:8px;padding:9px;font-size:12px;font-weight:800;cursor:pointer;">조치 완료 → 종료</button>
+    </div>`;
+  } else if(stage<4 && !closed){
+    h+=`<div style="background:rgba(255,255,255,.02);border:1px dashed rgba(255,255,255,.1);border-radius:10px;padding:10px;margin-bottom:9px;font-size:11px;color:#5a7e98;">🔧 4. 시설과 조치 — 현장확인 후 진행</div>`;
+  }
+
+  if(closed){
+    h+=`<div style="background:rgba(39,174,96,.08);border:1px solid rgba(39,174,96,.3);border-radius:10px;padding:10px 12px;margin-bottom:9px;text-align:center;">
+      <div style="font-size:12px;font-weight:800;color:#7ec8a0;">✅ 처리 종료</div>
+      <div style="font-size:10px;color:#7a9cb8;margin-top:3px;">${_esc(it.closeReason||'')}${it.closedBy?' · '+_esc(it.closedBy):''}${it.closedAt?' · '+_fmtWhen(it.closedAt):''}</div>
+    </div>`;
+  }
+
+  // 관리(종료·삭제) — 시설과·마스터, 또는 접수 단계 신고자 본인
+  const isReporter=String((DB.g('currentUser')||{}).kakaoId||'')===String(it.reporterKakaoId||'##');
+  const canDelete=canDept||_isMasterAdmin()||(isReporter&&stage===1&&!closed);
+  h+=`<div style="display:flex;gap:6px;margin-top:4px;">`;
+  if(!closed&&(canReview||canDept))h+=`<button onclick="facIssueClose(${it.id})" style="flex:1;background:rgba(255,255,255,.05);color:#b8d4e8;border:1px solid rgba(255,255,255,.15);border-radius:8px;padding:8px;font-size:11px;cursor:pointer;">조기 종료</button>`;
+  if(closed&&canDept)h+=`<button onclick="facIssueReopen(${it.id})" style="flex:1;background:rgba(240,165,0,.1);color:#f0a500;border:1px solid rgba(240,165,0,.3);border-radius:8px;padding:8px;font-size:11px;cursor:pointer;">재개</button>`;
+  if(canDelete)h+=`<button onclick="facIssueDelete(${it.id})" style="flex:1;background:rgba(224,80,80,.1);color:#ff8a80;border:1px solid rgba(224,80,80,.25);border-radius:8px;padding:8px;font-size:11px;cursor:pointer;">🗑️ 삭제</button>`;
+  h+=`</div>`;
+
+  // 처리 이력
+  if(it.log&&it.log.length){
+    h+=`<div style="margin-top:10px;border-top:1px solid rgba(255,255,255,.06);padding-top:8px;"><div style="font-size:10px;color:#5a7e98;font-weight:700;margin-bottom:4px;">📜 처리 이력</div>`
+      +it.log.slice().reverse().map(l=>`<div style="font-size:10px;color:#6a8296;line-height:1.6;">· ${_fmtWhen(l.at)} · ${_esc(l.by||'')} — ${_esc(l.act||'')}</div>`).join('')+`</div>`;
+  }
+
+  document.getElementById('facIssueDetailBody').innerHTML=h;
+  document.getElementById('modalFacIssueDetail').classList.add('on');
+}
+function facIssueReview(id,decision){
+  if(!(_isFacManager()||_isMasterAdmin())){toast('⚠️ 시설물 담당자만 검토할 수 있습니다');return;}
+  const it=_facIssueById(id);if(!it)return;
+  const grade=document.getElementById('fiMgrGrade')?.value||it.grade;
+  const opinion=(document.getElementById('fiMgrOpinion')?.value||'').trim();
+  if(decision==='problem'&&!opinion){toast('⚠️ 문제 있음은 검토 의견을 적어주세요');return;}
+  it.mgr={grade,opinion,by:getAuthor(),at:Date.now(),decision};
+  if(decision==='ok'){
+    it.status='closed';it.stage=2;it.closeReason='담당자 이상없음 판정';it.closedBy=getAuthor();it.closedAt=Date.now();
+    _issueLog(it,`담당자 검토 — 이상없음 종료 (${_gLabel(grade)})`);
+    _saveFacIssue(it);
+    _notiFacFollow(`✅ 하자 검토 종료(이상없음) · ${it.facName} — ${getAuthor()}`,_facIssueLink(id),it);
+    toast('✅ 이상없음 판정 — 종료');
+  }else{
+    it.stage=3;
+    _issueLog(it,`담당자 검토 — 문제확인, 현장확인 요청 (${_gLabel(grade)})`);
+    _saveFacIssue(it);
+    _notiFacFollow(`🥾 하자 현장확인 요청 · ${it.facName} (${_gLabel(grade)}) — 지역담당구역자 확인 필요`,_facIssueLink(id),it);
+    toast('⚠️ 문제 확인 — 현장확인 단계로');
+  }
+  openFacIssueDetail(id);try{renderFacIssues();}catch(e){}try{renderInspectMap();}catch(e){}
+}
+function facIssueZone(id){
+  if(!((typeof _isMember==='function')?_isMember():true)){toast('⚠️ 멤버만 가능');return;}
+  const it=_facIssueById(id);if(!it)return;
+  if(Number(it.stage)!==3){toast('현재 단계가 아닙니다');return;}
+  const note=(document.getElementById('fiZoneNote')?.value||'').trim();
+  it.zone={note,by:getAuthor(),at:Date.now()};it.stage=4;
+  _issueLog(it,'지역담당구역자 현장확인 완료 → 시설과 이관');
+  _saveFacIssue(it);
+  _notiFacFollow(`🔧 하자 시설과 이관 · ${it.facName} — 현장확인 완료`,_facIssueLink(id),it);
+  toast('✅ 현장확인 완료 — 시설과 이관');
+  openFacIssueDetail(id);try{renderFacIssues();}catch(e){}
+}
+function facIssueDept(id){
+  if(!_canManageFac()){toast('⚠️ 탐방시설과·개발자만 가능');return;}
+  const it=_facIssueById(id);if(!it)return;
+  const note=(document.getElementById('fiDeptNote')?.value||'').trim();
+  it.dept={note,by:getAuthor(),at:Date.now()};
+  it.status='closed';it.closeReason='시설과 조치 완료';it.closedBy=getAuthor();it.closedAt=Date.now();
+  _issueLog(it,'시설과 조치 완료 — 종료');
+  _saveFacIssue(it);
+  _notiFacFollow(`✅ 하자 처리 완료 · ${it.facName} — ${getAuthor()}`,_facIssueLink(id),it);
+  toast('✅ 조치 완료 — 종료');
+  openFacIssueDetail(id);try{renderFacIssues();}catch(e){}try{renderInspectMap();}catch(e){}
+}
+function facIssueClose(id){
+  if(!(_isFacManager()||_canManageFac()||_isMasterAdmin())){toast('⚠️ 권한 없음');return;}
+  if(!confirm('이 하자 신고를 종료할까요?'))return;
+  const it=_facIssueById(id);if(!it)return;
+  it.status='closed';it.closeReason='관리자 조기 종료';it.closedBy=getAuthor();it.closedAt=Date.now();
+  _issueLog(it,'조기 종료');
+  _saveFacIssue(it);
+  toast('종료됨');openFacIssueDetail(id);try{renderFacIssues();}catch(e){}try{renderInspectMap();}catch(e){}
+}
+function facIssueReopen(id){
+  if(!_canManageFac()){toast('⚠️ 권한 없음');return;}
+  const it=_facIssueById(id);if(!it)return;
+  it.status='open';delete it.closeReason;delete it.closedBy;delete it.closedAt;
+  if(!it.stage||it.stage<1)it.stage=1;
+  _issueLog(it,'재개');
+  _saveFacIssue(it);
+  toast('재개됨');openFacIssueDetail(id);try{renderFacIssues();}catch(e){}
+}
+function facIssueDelete(id){
+  const it=_facIssueById(id);if(!it)return;
+  const isReporter=String((DB.g('currentUser')||{}).kakaoId||'')===String(it.reporterKakaoId||'##');
+  if(!(_canManageFac()||_isMasterAdmin()||(isReporter&&Number(it.stage)===1&&it.status!=='closed'))){toast('⚠️ 삭제 권한 없음');return;}
+  if(!confirm('이 하자 신고를 삭제할까요?'))return;
+  DB.s('facIssues',_facIssues().filter(x=>String(x.id)!==String(id)));
+  try{closeM('modalFacIssueDetail');}catch(e){}
+  toast('🗑️ 삭제');try{renderFacIssues();}catch(e){}try{renderInspectMap();}catch(e){}
+}
+// ── 하자 목록 (시설 통계 탭 상단 카드) ──
+function renderFacIssues(){
+  const wrap=document.getElementById('facIssueWrap');if(!wrap)return;
+  const all=_facIssues();
+  const open=all.filter(x=>x.status!=='closed').sort((a,b)=>(Number(a.stage||1)-Number(b.stage||1))||(b.createdAt-a.createdAt));
+  const closed=all.filter(x=>x.status==='closed').sort((a,b)=>(b.closedAt||b.createdAt)-(a.closedAt||a.createdAt));
+  const mineWait=_facIssueMineWaiting();
+  let h='';
+  if(mineWait&&(_isFacManager()||_isMasterAdmin())){
+    h+=`<div style="background:rgba(240,165,0,.1);border:1px solid rgba(240,165,0,.4);border-radius:9px;padding:9px 11px;margin-bottom:9px;font-size:12px;font-weight:700;color:#f0a500;">🔧 검토 대기 ${mineWait}건 — 시설물 담당자 확인 필요</div>`;
+  }
+  if(!open.length){
+    h+=`<div class="muted" style="font-size:12px;padding:5px 0;">진행 중인 하자 신고 없음</div>`;
+  }else{
+    h+=open.map(it=>{
+      const st=FAC_ISTAGE[Number(it.stage||1)]||FAC_ISTAGE[1];const gc=_gColor(it.grade);
+      return `<div onclick="openFacIssueDetail(${it.id})" style="background:#060d1a;border-radius:9px;padding:9px 11px;margin-bottom:6px;cursor:pointer;border-left:3px solid ${gc};display:flex;align-items:center;gap:9px;">
+        <div style="background:${gc};color:#08121e;font-weight:900;border-radius:6px;padding:2px 7px;font-size:12px;flex-shrink:0;">${_esc(it.grade)}</div>
+        <div style="flex:1;min-width:0;">
+          <div style="font-size:12px;font-weight:700;color:#e0edf8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${_esc(it.facName)}</div>
+          <div style="font-size:10px;color:#7a9cb8;margin-top:1px;">${_esc(it.loc||'')}${it.reporter?' · '+_esc(it.reporter):''}</div>
+        </div>
+        <span style="background:${st.c}22;color:${st.c};font-size:9px;font-weight:800;border-radius:6px;padding:3px 7px;flex-shrink:0;">${st.ico} ${st.l}</span>
+      </div>`;
+    }).join('');
+  }
+  if(closed.length){
+    h+=`<div style="font-size:10px;color:#5a7e98;margin-top:9px;">✅ 종료 ${closed.length}건`+
+      (closed.length?` <span onclick="_toggleClosedIssues()" id="fiClosedToggle" style="color:#4fa8d0;cursor:pointer;">· 보기</span>`:'')+`</div>`
+      +`<div id="fiClosedList" style="display:none;margin-top:5px;">`+closed.slice(0,30).map(it=>{
+        const gc=_gColor(it.grade);
+        return `<div onclick="openFacIssueDetail(${it.id})" style="background:rgba(255,255,255,.02);border-radius:8px;padding:7px 10px;margin-bottom:4px;cursor:pointer;opacity:.7;display:flex;align-items:center;gap:8px;">
+          <div style="background:${gc}55;color:#cfe2f2;font-weight:800;border-radius:5px;padding:1px 6px;font-size:11px;">${_esc(it.grade)}</div>
+          <div style="flex:1;min-width:0;font-size:11px;color:#9bbdd4;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${_esc(it.facName)}</div>
+          <span style="font-size:9px;color:#5a7e98;">${_esc(it.closeReason||'종료')}</span>
+        </div>`;
+      }).join('')+`</div>`;
+  }
+  wrap.innerHTML=h;
+}
+function _toggleClosedIssues(){
+  const l=document.getElementById('fiClosedList');const t=document.getElementById('fiClosedToggle');
+  if(!l)return;const show=l.style.display==='none';l.style.display=show?'block':'none';if(t)t.textContent=show?'· 숨기기':'· 보기';
 }
 
 var _editFacId=null;
@@ -1842,6 +2200,8 @@ function renderAdmMembers(){
   const fu=_admMemberFilter==='전체'?unified:unified.filter(u=>u.dept===_admMemberFilter);
   const adminCnt=fu.filter(u=>roleOf(u.kakaoId)==='admin').length;
   const memberCnt=fu.filter(u=>roleOf(u.kakaoId)==='member').length;
+  const facMgrs=_facManagers();
+  const facMgrCnt=fu.filter(u=>facMgrs.indexOf(String(u.kakaoId))>=0).length;
 
   const deptOpts=['행정과','재난안전과','탐방시설과','자원보전과','특수산악구조대','대청분소','백담분소','오색분소','한계산성분소','점봉산분소'];
   const rankOpts=['주임','계장','팀장','과장','분소장','소장'];
@@ -1861,7 +2221,8 @@ function renderAdmMembers(){
     </div>
   </div>
   <div style="font-size:11px;color:#7a9cb8;margin-bottom:8px;line-height:1.6;">카카오 로그인 이력 + DB 접근 권한을 한 곳에서 관리합니다. 역할을 지정하면 즉시 적용됩니다.</div>
-  <div style="font-size:11px;color:#9bbdd4;margin-bottom:8px;">총 <b style="color:#e0edf8;">${fu.length}</b>명 · 관리자 <b style="color:#5dbf8a;">${adminCnt}</b> · 멤버 <b style="color:#4fa8d0;">${memberCnt}</b>${pendingNew.length?` · <b style="color:#e67e22;">신규 ${pendingNew.length}</b>`:''}</div>`;
+  <div style="font-size:11px;color:#9bbdd4;margin-bottom:8px;">총 <b style="color:#e0edf8;">${fu.length}</b>명 · 관리자 <b style="color:#5dbf8a;">${adminCnt}</b> · 멤버 <b style="color:#4fa8d0;">${memberCnt}</b>${facMgrCnt?` · 🔧담당 <b style="color:#f0a500;">${facMgrCnt}</b>`:''}${pendingNew.length?` · <b style="color:#e67e22;">신규 ${pendingNew.length}</b>`:''}</div>
+  <div style="font-size:10px;color:#7a9cb8;background:rgba(240,165,0,.06);border:1px solid rgba(240,165,0,.18);border-radius:8px;padding:7px 9px;margin-bottom:10px;line-height:1.55;">🔧 <b style="color:#f0a500;">시설물 담당자</b>: 순찰자가 올린 <b>하자 신고</b>를 재평가·회신하는 사람입니다. 지정된 담당자에게만 신고 알림이 갑니다. 이름 옆 🔧 버튼으로 지정하세요.</div>`;
 
   // ── 신규 승인 대기 섹션 (최상단 강조) ──
   if(pendingNew.length){
@@ -1890,13 +2251,15 @@ function renderAdmMembers(){
     html+=fu.map(u=>{
       const role=roleOf(u.kakaoId);
       const roleBadge=role==='admin'?'<span style="color:#5dbf8a;font-size:10px;font-weight:700;">관리자</span>':role==='member'?'<span style="color:#4fa8d0;font-size:10px;font-weight:700;">멤버</span>':'<span style="color:#7a5040;font-size:10px;">미등록</span>';
+      const isFacMgr=facMgrs.indexOf(String(u.kakaoId))>=0;
+      const facMgrBadge=isFacMgr?'<span style="color:#f0a500;font-size:10px;font-weight:700;">🔧담당</span>':'';
       const appBadge=u.approvalStatus==='approved'?'<span style="color:#7ec8a0;font-size:9px;">✅승인</span>':(u.approvalStatus?'<span style="color:#e67e22;font-size:9px;">⏳대기</span>':'');
       const editId='adme_'+u.kakaoId;
       return `<div style="padding:8px 0;border-bottom:1px solid rgba(255,255,255,.05);">
         <div style="display:flex;align-items:center;gap:8px;">
           ${u.kakaoImg?`<img src="${_esc(_imgHttps(u.kakaoImg))}" style="width:32px;height:32px;border-radius:50%;object-fit:cover;flex-shrink:0;" onerror="this.style.display='none'">`:`<div style="width:32px;height:32px;border-radius:50%;background:#1a3a5a;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0;">👤</div>`}
           <div style="flex:1;min-width:0;">
-            <div style="font-size:12px;font-weight:700;color:#e0edf8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${_esc(u.name||'이름없음')} ${roleBadge} ${appBadge}</div>
+            <div style="font-size:12px;font-weight:700;color:#e0edf8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${_esc(u.name||'이름없음')} ${roleBadge} ${facMgrBadge} ${appBadge}</div>
             <div style="font-size:10px;color:#4a7090;margin-top:1px;">${_esc(u.dept)}${u.rank?' · '+_esc(u.rank):''} <span style="font-family:monospace;color:#2a5060;">ID ${_esc(u.kakaoId)}</span></div>
             ${u.reg?`<div style="font-size:9px;color:#3a5a6a;margin-top:1px;">📅 등록 ${new Date(u.reg).toLocaleString('ko-KR',{year:'2-digit',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'})}</div>`:''}
           </div>
@@ -1908,6 +2271,7 @@ function renderAdmMembers(){
               <option value="member"${role==='member'?' selected':''}>멤버</option>
               <option value="admin"${role==='admin'?' selected':''}>관리자</option>
             </select>`}
+            <button onclick="_toggleFacManager('${_escq(u.kakaoId)}')" title="시설물 하자 신고 담당자 지정/해제" style="background:${isFacMgr?'rgba(240,165,0,.18)':'rgba(255,255,255,.04)'};color:${isFacMgr?'#f0a500':'#6a8296'};border:1px solid ${isFacMgr?'rgba(240,165,0,.4)':'rgba(255,255,255,.12)'};border-radius:6px;padding:4px 7px;font-size:10px;cursor:pointer;">🔧</button>
             <button onclick="_toggleAdmMemberEdit('${_escq(editId)}')" style="background:rgba(79,168,208,.12);color:#4fa8d0;border:1px solid rgba(79,168,208,.25);border-radius:6px;padding:4px 7px;font-size:10px;cursor:pointer;">수정</button>
             ${role==='none'&&!_isDeveloper(u.kakaoId)?`<button onclick="grantMember('${_escq(u.kakaoId)}')" style="background:rgba(39,174,96,.15);color:#7ec8a0;border:1px solid rgba(39,174,96,.3);border-radius:6px;padding:4px 7px;font-size:10px;cursor:pointer;">승인</button>`:''}
             ${!_isDeveloper(u.kakaoId)?`<button onclick="removeStaff('${_escq(u.kakaoId)}')" style="background:rgba(192,57,43,.15);color:#ff8a80;border:1px solid rgba(192,57,43,.25);border-radius:6px;padding:4px 7px;font-size:10px;cursor:pointer;">삭제</button>`:''}
@@ -2240,6 +2604,17 @@ function _aclAddById(){
   if(!id){toast('⚠️ 카카오 ID를 입력하세요');return;}
   if(!/^\d+$/.test(id)){toast('⚠️ 카카오 ID는 숫자여야 합니다');return;}
   _aclSetRole(id,'member');
+}
+// ── 시설물 담당자 지정/해제 (관리자만) — 하자 신고 접수 시 이들에게만 알림, 재평가 권한 ──
+function _toggleFacManager(kakaoId){
+  if(!isAdminUser()){toast('⚠️ 관리자만 가능');return;}
+  kakaoId=String(kakaoId);
+  const list=(DB.g('facManagers')||[]).map(String).filter(Boolean);
+  const i=list.indexOf(kakaoId);
+  if(i>=0){list.splice(i,1);toast('🔧 시설물 담당자 해제');}
+  else{list.push(kakaoId);toast('🔧 시설물 담당자 지정 — 하자 신고 알림 대상');}
+  DB.s('facManagers',list);
+  try{renderAdmMembers();}catch(e){}
 }
 // ── 자동 승인 모드 ── (발표·대량 가입 시 1탭으로 이후 가입자 전원 자동 입장)
 function _isAutoApprove(){return !!DB.g('autoApprove');}

@@ -113,6 +113,13 @@ function _canManageFac(){
 }
 // 이 시설이 나에게 보이는가: 숨김(hidden)이면 권한자에게만 보임(일반 사용자에겐 숨김)
 function _facVisibleTo(f){return !(f&&f.hidden)||_canManageFac();}
+// ── 시설물 담당자(하자 접수 재평가자) — 직원관리에서 지정, facManagers에 카카오ID 저장 ──
+function _facManagers(){return (DB.g('facManagers')||[]).map(String).filter(Boolean);}
+function _isFacManager(kakaoId){
+  var k=String(kakaoId||((DB.g('currentUser')||{}).kakaoId)||'');
+  if(!k)return false;
+  return _facManagers().indexOf(k)>=0;
+}
 // 개발자: 하드코딩된 개발자 카카오ID 본인 or 마스터 비밀번호 인증. 전체 초기화·본인 삭제방지 등에 사용
 function _isMasterAdmin(){
   var u=DB.g('currentUser')||{};

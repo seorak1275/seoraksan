@@ -109,9 +109,9 @@ const _FB_CFG={
 // _SHARED_COLL: 항목마다 개별 Firestore 문서 (Race Condition 방지)
 // facilities: 시설물 다수(표지판 169+)·점검사진 누적으로 단일문서 1MB 한계·동시편집 덮어쓰기 위험 → 건별 문서로 전환
 // history: 점검이력은 무제한으로 계속 쌓이는 로그성 데이터라 단일문서 그대로 두면 매 점검마다 전체가 전원에게 재전송됨 → 건별 문서로 전환
-const _SHARED_COLL=['rescues','hazards','facilities','history'];
+const _SHARED_COLL=['rescues','hazards','facilities','history','facIssues'];
 // _SHARED_DOC: 단일 문서에 JSON 배열 저장 (관리자 전용, 동시 쓰기 없음)
-const _SHARED_DOC=['alertOps','staff','catFac','catFacMeta','pendingUsers','approvedUsers','deletedKakaoIds','adminOwnerKakaoId','adminApprovalCode','extAgencies','extAgencyCode','extAgencyDisplayName','geminiApiKey','kmaProxyUrl','_acl','loginLog','trailStatus','crisisLevel','weatherBrief','weatherLog','trailLog','sosBlocked','autoApprove','pushLog','devKakaoId','notiPolicy','customResTypes'];
+const _SHARED_DOC=['alertOps','staff','catFac','catFacMeta','pendingUsers','approvedUsers','deletedKakaoIds','adminOwnerKakaoId','adminApprovalCode','extAgencies','extAgencyCode','extAgencyDisplayName','geminiApiKey','kmaProxyUrl','_acl','loginLog','trailStatus','crisisLevel','weatherBrief','weatherLog','trailLog','sosBlocked','autoApprove','pushLog','devKakaoId','notiPolicy','customResTypes','facManagers'];
 // 시설물 레거시(단일문서) 폴백/시드 동기화 상태
 let _legacyFacBackup=null; // appData/facilities(구버전)의 백업 — 컬렉션 비었을 때 화면 폴백
 let _facSeedReady=false;   // 시설물 첫 스냅샷·레거시 백업 확인 완료(시드 레이스 방지)
@@ -525,7 +525,7 @@ function initFirebase(onReady){
       clearTimeout(_remoteUpdateTimer);
       _remoteUpdateTimer=setTimeout(function(){
         if(window.curApp==='rescue'){renderResList();try{renderRescueMap();}catch(e){}}
-        else if(window.curApp==='inspect'){renderFacList();renderInspectMap();}
+        else if(window.curApp==='inspect'){renderFacList();renderInspectMap();try{renderFacIssues();}catch(e){}}
         else if(window.curApp==='alert')renderAlertView();
         else if(window.curApp==='stats')renderFullStats();
       },400);
@@ -605,6 +605,10 @@ function initFirebase(onReady){
           if(d.deviceId===_MY_DEVICE_ID)return; // 내가 보낸 것
           _maxSharedNotiAt=Math.max(_maxSharedNotiAt,d.at||0);
           if(d.adminOnly&&!(typeof isAdminUser==='function'&&isAdminUser()))return; // 관리자 전용 알림은 관리자만 수신
+          if(d.targetKakaoIds&&d.targetKakaoIds.length){ // 대상 지정 알림: 지정된 카카오ID만 수신
+            var _myK=String((DB.g('currentUser')||{}).kakaoId||'');
+            if(!_myK||d.targetKakaoIds.map(String).indexOf(_myK)<0)return;
+          }
           // 앱 내 벨 알림 추가
           const ns=DB.g('notis')||[];
           ns.unshift({id:d.id||Date.now(),msg:d.msg,ico:d.ico,time:d.timeStr||now(),read:false,link:d.link||null});
@@ -1144,6 +1148,7 @@ const NOTI_GROUPS=[
   {title:'🏗️ 시설물 점검', items:[
     {k:'fac_bad',l:'위험 시설물',sub:'파손 심각 등록',def:true,push:true},
     {k:'fac_warn',l:'보수 필요',sub:'보수필요 판정',def:false,push:false},
+    {k:'fac_issue',l:'시설물 하자 신고',sub:'하자 접수·검토·현장확인 (담당자 위주)',def:true,push:true},
   ]},
   {title:'🌀 재난대응 (특보·위기경보)', items:[
     {k:'op_start',l:'특보운영 시작',sub:'특보운영 개시',def:true,push:true},
@@ -1180,23 +1185,28 @@ function _effectiveNotiSettings(){const m={};NOTI_GROUPS.forEach(g=>g.items.forE
 function _ensureNotiDefaults(){return DB.g('notiSetting')||{};}
 function pushNoti(msg,ico,type='info',link=null,pushCat=null,opts){
   const adminOnly=!!(opts&&opts.adminOnly); // 관리자에게만 보낼 알림(권한 요청 등)
-  if(type!=='info'&&!_notiOn(type))return; // 개인설정·관리자정책 기준으로 꺼져 있으면 표시 안 함
+  // 특정 카카오ID들에게만 보낼 알림(시설물 담당자 등) — 전체 진동·푸시 없이 대상자 기기에서만 표시
+  const targets=(opts&&Array.isArray(opts.targetKakaoIds))?opts.targetKakaoIds.map(String).filter(Boolean):null;
+  // 대상 지정 알림은 발신자 개인설정과 무관하게 반드시 브로드캐스트(대상자에게 도달해야 함)
+  if(type!=='info'&&!targets&&!_notiOn(type))return; // 개인설정·관리자정책 기준으로 꺼져 있으면 표시 안 함
   // pushCat 미지정 시: 카테고리 정의에 push:false면 OS 푸시 끔(앱 내 종만)
   if(pushCat===null)pushCat=(NOTI_PUSH[type]===false)?'info':type;
   const id=Date.now();
-  // 내 벨에 추가 — 관리자 전용 알림인데 내가 관리자가 아니면(요청자 본인) 추가 안 함
-  if(!adminOnly||(typeof isAdminUser==='function'&&isAdminUser())){
+  const _myK=String((DB.g('currentUser')||{}).kakaoId||'');
+  const _iAmTarget=!targets||(_myK&&targets.indexOf(_myK)>=0);
+  // 내 벨에 추가 — 관리자 전용인데 관리자 아니거나 / 대상 지정인데 내가 대상 아니면 추가 안 함
+  if((!adminOnly||(typeof isAdminUser==='function'&&isAdminUser()))&&_iAmTarget){
     const ns=DB.g('notis')||[];ns.unshift({id,msg,ico,time:now(),read:false,link});
     if(ns.length>80)ns.splice(80);DB.s('notis',ns);updateBell();
   }
-  // 꺼진 폰까지 OS 푸시 — 관리자 전용은 전체 OS푸시를 보내지 않음(앱 내 벨로만, 전원 진동 방지)
-  if(!adminOnly)_sendFcmPush('설악산 현장관리',msg,pushCat||type,link);
+  // 꺼진 폰까지 OS 푸시 — 관리자 전용·대상 지정은 전체 OS푸시를 보내지 않음(앱 내 벨로만, 전원 진동 방지)
+  if(!adminOnly&&!targets)_sendFcmPush('설악산 현장관리',msg,pushCat||type,link);
   // 특보(op_*) 알림은 설정 켠 사용자의 카카오톡(나와의 채팅)으로도 발송
   try{if(String(type).indexOf('op_')===0&&typeof _kakaoMsgOn==='function'&&_kakaoMsgOn()&&typeof _sendKakaoSelf==='function')_sendKakaoSelf(msg);}catch(e){}
-  // 기기 간 Firestore 브로드캐스트 (adminOnly면 수신측에서 관리자만 표시)
+  // 기기 간 Firestore 브로드캐스트 (adminOnly·targetKakaoIds면 수신측에서 필터)
   if(_fdb){
     _fdb.collection('sharedNotis').doc(String(id)).set({
-      id,msg,ico,type:type||'info',link:link||null,adminOnly:adminOnly,
+      id,msg,ico,type:type||'info',link:link||null,adminOnly:adminOnly,targetKakaoIds:targets||null,
       at:id,timeStr:now(),deviceId:_MY_DEVICE_ID
     }).catch(()=>{});
   }
@@ -1362,7 +1372,8 @@ function goNotiLink(link){
   if(!link||!link.app) return;
   openApp(link.app);
   if(link.tab) setTimeout(()=>switchTab(link.tab,document.getElementById('nv'+link.tab)),200);
-  if(link.id) setTimeout(()=>{
+  if(link.issue) setTimeout(()=>{try{openFacIssueDetail(link.issue);}catch(e){}},300);
+  else if(link.id) setTimeout(()=>{
     if(link.app==='rescue') openResPopup(link.id,'rescue');
     else if(link.app==='inspect') openFacDetail(link.id);
   },300);

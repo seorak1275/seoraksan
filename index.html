@@ -483,6 +483,7 @@ if(window.Kakao&&!Kakao.isInitialized()) Kakao.init(KAKAO_KEY);
       <div class="stat-box" style="border-color:#c0392b;"><div class="stat-num bad" id="fs-warn">0</div><div class="stat-lbl">경고표시</div></div>
       <div class="stat-box" style="border-color:#6a8aa0;"><div class="stat-num" id="fs-nogps" style="color:#8aa6bc;">0</div><div class="stat-lbl">GPS 없음</div></div>
     </div>
+    <div class="scard"><div class="stitle" style="display:flex;justify-content:space-between;align-items:center;">🚨 하자 신고 처리<button onclick="openFacIssueReport(null)" style="background:rgba(224,80,80,.12);color:#ff8a80;border:1px solid rgba(224,80,80,.3);border-radius:7px;padding:4px 10px;font-size:11px;font-weight:700;cursor:pointer;">＋ 신고</button></div><div id="facIssueWrap"></div></div>
     <div class="scard"><div class="stitle">⚠️ 경고표시 중</div><div id="facWarnWrap"></div></div>
     <div class="scard"><div class="stitle">종류별 분포</div><div id="facTypeStatWrap"></div></div>
   </div>
@@ -824,6 +825,51 @@ if(window.Kakao&&!Kakao.isInitialized()) Kakao.init(KAKAO_KEY);
     <div id="facDetailMapBtn" style="margin-top:7px;display:none;">
       <button class="btn" style="width:100%;background:rgba(79,168,208,.1);color:#4fa8d0;border:1px solid rgba(79,168,208,.3);" onclick="viewOnFacMap()">🗺️ 지도에서 보기</button>
     </div>
+  </div>
+</div>
+
+<!-- ══ 모달: 시설물 하자 신고 (1단계 접수) ══ -->
+<div id="modalFacIssue" class="modal">
+  <div class="mbox">
+    <div class="mhdr"><span class="mtitle">🚨 시설물 하자 신고</span><button class="mclose" onclick="closeM('modalFacIssue')">×</button></div>
+    <div style="font-size:11px;color:#7a9cb8;background:rgba(224,80,80,.06);border:1px solid rgba(224,80,80,.18);border-radius:8px;padding:8px 10px;margin-bottom:10px;line-height:1.55;">순찰 중 발견한 시설 하자를 접수합니다. 접수하면 <b style="color:#f0a500;">시설물 담당자</b>가 재평가·회신합니다.</div>
+    <div id="fiFacFixed" style="background:#060d1a;border-radius:9px;padding:10px 12px;margin-bottom:10px;display:none;"></div>
+    <div class="fg" id="fiFacNameWrap" style="display:none;"><span class="fl">대상 시설</span><input type="text" id="fiFacName" class="fi" placeholder="예: 비선대 데크 / 이정표 03"></div>
+    <div class="fg">
+      <span class="fl">등급 (시설물 안전등급 A~E)</span>
+      <div style="display:flex;gap:5px;" id="fiGradeRow">
+        <div id="fiG_A" onclick="_pickIssueGrade('A')" style="flex:1;text-align:center;padding:9px 0;border-radius:8px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.03);color:rgba(255,255,255,.55);font-size:14px;font-weight:700;cursor:pointer;">A</div>
+        <div id="fiG_B" onclick="_pickIssueGrade('B')" style="flex:1;text-align:center;padding:9px 0;border-radius:8px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.03);color:rgba(255,255,255,.55);font-size:14px;font-weight:700;cursor:pointer;">B</div>
+        <div id="fiG_C" onclick="_pickIssueGrade('C')" style="flex:1;text-align:center;padding:9px 0;border-radius:8px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.03);color:rgba(255,255,255,.55);font-size:14px;font-weight:700;cursor:pointer;">C</div>
+        <div id="fiG_D" onclick="_pickIssueGrade('D')" style="flex:1;text-align:center;padding:9px 0;border-radius:8px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.03);color:rgba(255,255,255,.55);font-size:14px;font-weight:700;cursor:pointer;">D</div>
+        <div id="fiG_E" onclick="_pickIssueGrade('E')" style="flex:1;text-align:center;padding:9px 0;border-radius:8px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.03);color:rgba(255,255,255,.55);font-size:14px;font-weight:700;cursor:pointer;">E</div>
+      </div>
+      <div id="fiGradeDesc" style="font-size:11px;color:#7a9cb8;margin-top:6px;min-height:16px;">등급을 선택하세요</div>
+    </div>
+    <div class="fg"><span class="fl">하자 내용</span><textarea id="fiDesc" class="fta" rows="2" placeholder="예: 데크 상판 3판 파손, 통행 위험"></textarea></div>
+    <div class="fg"><span class="fl">위치 설명</span><input type="text" id="fiLocIn" class="fi" placeholder="예: 비선대 0.3km 지점"></div>
+    <div class="fg">
+      <span class="fl">GPS 좌표 <span class="muted" style="font-weight:400;">(선택)</span></span>
+      <div class="gps-row"><input type="text" id="fiGpsIn" class="fi" placeholder="위도, 경도">
+        <button class="sm-btn" onclick="gpsFromMap('fiGpsIn','inspect')">🗺</button>
+        <button class="sm-btn" onclick="gpsFromPhone('fiGpsIn')">📍GPS</button>
+      </div>
+    </div>
+    <div class="fg"><span class="fl">현장 사진</span>
+      <div class="photo-slot" onclick="document.getElementById('fileFacIssue').click()">
+        <input type="file" id="fileFacIssue" accept="image/*" capture="environment" style="display:none;" onchange="prevImg(this,'prevFacIssue')">
+        <div id="prevFacIssue">📸 촬영 또는 앨범</div>
+      </div>
+    </div>
+    <button class="btn-submit" style="background:#c0392b;color:#fff;" onclick="submitFacIssue()">🚨 하자 신고 접수</button>
+  </div>
+</div>
+
+<!-- ══ 모달: 시설물 하자 상세·처리 ══ -->
+<div id="modalFacIssueDetail" class="modal">
+  <div class="mbox">
+    <div class="mhdr"><span class="mtitle">🛠️ 하자 처리 현황</span><button class="mclose" onclick="closeM('modalFacIssueDetail')">×</button></div>
+    <div id="facIssueDetailBody"></div>
   </div>
 </div>
 
