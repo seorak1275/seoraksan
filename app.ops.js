@@ -633,6 +633,7 @@ const FAC_ISTAGE={
   4:{l:'시설과 조치',ico:'🔧',c:'#e67e22',who:'탐방시설과 현장확인·조치 중'},
 };
 function _fmtWhen(ms){if(!ms)return '-';const d=new Date(ms);const p=n=>String(n).padStart(2,'0');return `${p(d.getMonth()+1)}/${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`;}
+function _fmtDateK(ms){if(!ms)return '-';const d=new Date(ms);return (d.getMonth()+1)+'/'+d.getDate();}
 function _facIssues(){return DB.g('facIssues')||[];}
 function _facIssueById(id){return _facIssues().find(x=>String(x.id)===String(id));}
 function _facIssueOpen(){return _facIssues().filter(x=>x.status!=='closed');}
@@ -821,18 +822,39 @@ function openFacIssueDetail(id){
     h+=`<div style="background:rgba(255,255,255,.02);border:1px dashed rgba(255,255,255,.1);border-radius:10px;padding:10px;margin-bottom:9px;font-size:11px;color:#5a7e98;">🥾 3. 구역 현장확인 — 담당자 확인 후 진행</div>`;
   }
 
-  // 4) 시설과 조치
+  // 4) 시설과 조치 — 완료 시 조치 후 등급(A~E) 선택, 오래 걸리면 조치 예정일 등록
+  const planBanner=(!closed&&it.plan&&it.plan.until)?(()=>{const od=it.plan.until<Date.now();
+    return `<div style="background:${od?'rgba(224,80,80,.08)':'rgba(79,168,208,.07)'};border:1px solid ${od?'rgba(224,80,80,.35)':'rgba(79,168,208,.25)'};border-radius:9px;padding:8px 11px;margin-bottom:8px;">
+      <div style="font-size:11px;font-weight:800;color:${od?'#ff7a6e':'#4fa8d0'};">🗓️ ${_fmtDateK(it.plan.until)}까지 조치 예정${od?' — 예정일 지남':''}</div>
+      ${it.plan.note?`<div style="font-size:11px;color:#9bbdd4;margin-top:3px;">${_esc(it.plan.note)}</div>`:''}
+      <div style="font-size:9px;color:#5a7e98;margin-top:2px;">${_esc(it.plan.by||'')} · ${_fmtWhen(it.plan.at)}</div>
+    </div>`;})():'';
   if(it.dept){
     h+=`<div style="background:#060d1a;border-radius:10px;padding:11px;margin-bottom:9px;border-left:3px solid #27ae60;">
       <div style="font-size:11px;font-weight:800;color:#7ec8a0;margin-bottom:6px;">🔧 4. 시설과 조치 <span style="color:#5a7e98;font-weight:400;">· ${_esc(it.dept.by||'-')} · ${_fmtWhen(it.dept.at)}</span></div>
+      ${it.dept.grade?`<div style="font-size:12px;color:#cfe2f2;margin-bottom:4px;">조치 후 등급: <b style="color:${_gColor(it.dept.grade)};">${_gLabel(it.dept.grade)}</b></div>`:''}
       <div style="font-size:12px;color:#cfe2f2;line-height:1.6;">${it.dept.note?_esc(it.dept.note):'<span style="color:#5a7e98;">조치 완료</span>'}</div>
     </div>`;
   } else if(stage===4 && !closed && canDept){
+    const defG=(it.mgr&&it.mgr.grade)||it.grade;
+    const planVal=it.plan&&it.plan.until?new Date(it.plan.until-new Date().getTimezoneOffset()*60000).toISOString().slice(0,10):'';
     h+=`<div style="background:rgba(39,174,96,.06);border:1px solid rgba(39,174,96,.3);border-radius:10px;padding:11px;margin-bottom:9px;">
       <div style="font-size:11px;font-weight:800;color:#7ec8a0;margin-bottom:7px;">🔧 4. 탐방시설과 현장확인·조치</div>
+      ${planBanner}
+      <div style="font-size:10px;color:#9bbdd4;margin-bottom:4px;">조치 후 등급 (A~E)</div>
+      <select id="fiDeptGrade" class="fsel" style="margin-bottom:8px;">${['A','B','C','D','E'].map(g=>`<option value="${g}"${g===defG?' selected':''}>${_gLabel(g)}</option>`).join('')}</select>
       <textarea id="fiDeptNote" class="fta" rows="2" placeholder="조치 내용 (예: 데크 교체 완료 / 예산 반영 예정)" style="margin-bottom:8px;"></textarea>
-      <button onclick="facIssueDept(${it.id})" style="width:100%;background:#0c4838;color:#fff;border:none;border-radius:8px;padding:9px;font-size:12px;font-weight:800;cursor:pointer;">조치 완료 → 종료</button>
+      <button onclick="facIssueDept(${it.id})" style="width:100%;background:#0c4838;color:#fff;border:none;border-radius:8px;padding:10px;font-size:12px;font-weight:800;cursor:pointer;">✅ 조치 완료 → 종료</button>
+      <div style="display:flex;align-items:center;gap:8px;margin:10px 0 7px;"><div style="flex:1;height:1px;background:rgba(255,255,255,.08);"></div><span style="font-size:10px;color:#5a7e98;white-space:nowrap;">고치는 데 시간이 오래 걸리면</span><div style="flex:1;height:1px;background:rgba(255,255,255,.08);"></div></div>
+      <div style="display:flex;gap:6px;">
+        <input type="date" id="fiDeptUntil" class="fi" style="flex:1;box-sizing:border-box;" value="${planVal}">
+        <button onclick="facIssueDeptPlan(${it.id})" style="flex-shrink:0;background:rgba(79,168,208,.15);color:#4fa8d0;border:1px solid rgba(79,168,208,.4);border-radius:8px;padding:0 13px;font-size:11px;font-weight:800;cursor:pointer;">🗓️ ${it.plan?'예정 변경':'예정 등록'}</button>
+      </div>
+      <div style="font-size:9px;color:#5a7e98;margin-top:4px;">예정 등록 시 종료되지 않고 '${'~'}까지 조치 예정'으로 표시됩니다</div>
     </div>`;
+  } else if(stage===4 && !closed){
+    h+=`<div style="background:rgba(255,255,255,.02);border:1px dashed rgba(255,255,255,.1);border-radius:10px;padding:10px;margin-bottom:9px;">
+      <div style="font-size:11px;color:#5a7e98;margin-bottom:${it.plan?'7px':'0'};">🔧 4. 시설과 조치 — 탐방시설과 처리 대기 중</div>${planBanner}</div>`;
   } else if(stage<4 && !closed){
     h+=`<div style="background:rgba(255,255,255,.02);border:1px dashed rgba(255,255,255,.1);border-radius:10px;padding:10px;margin-bottom:9px;font-size:11px;color:#5a7e98;">🔧 4. 시설과 조치 — 현장확인 후 진행</div>`;
   }
@@ -914,18 +936,35 @@ function _facIssueZoneCore(id,note,fromWork){
   _facIssueAfterAction(id,fromWork);
 }
 function facIssueZone(id){_facIssueZoneCore(id,(document.getElementById('fiZoneNote')?.value||'').trim(),false);}
-function _facIssueDeptCore(id,note,fromWork){
+function _facIssueDeptCore(id,note,grade,fromWork){
   if(!_canManageFac()){toast('⚠️ 탐방시설과·개발자만 가능');return;}
   const it=_facIssueById(id);if(!it)return;
-  it.dept={note,by:getAuthor(),at:Date.now()};
-  it.status='closed';it.closeReason='시설과 조치 완료';it.closedBy=getAuthor();it.closedAt=Date.now();
-  _issueLog(it,'시설과 조치 완료 — 종료');
+  grade=grade||(it.mgr&&it.mgr.grade)||it.grade; // 조치 후 최종 등급 (미선택 시 직전 등급 유지)
+  it.dept={note,grade,by:getAuthor(),at:Date.now()};
+  delete it.plan; // 예정 상태 해소
+  it.status='closed';it.closeReason='시설과 조치 완료 ('+grade+'등급)';it.closedBy=getAuthor();it.closedAt=Date.now();
+  _issueLog(it,`시설과 조치 완료 — ${_gLabel(grade)} · 종료`);
   _saveFacIssue(it);
-  _notiFacFollow(`✅ 점검 처리 완료 · ${it.facName} — ${getAuthor()}`,_facIssueLink(id),it);
-  toast('✅ 조치 완료 — 종료');
+  _notiFacFollow(`✅ 점검 조치 완료(${_gLabel(grade)}) · ${it.facName} — ${getAuthor()}`,_facIssueLink(id),it);
+  toast('✅ 조치 완료('+grade+'등급) — 종료');
   _facIssueAfterAction(id,fromWork);
 }
-function facIssueDept(id){_facIssueDeptCore(id,(document.getElementById('fiDeptNote')?.value||'').trim(),false);}
+function facIssueDept(id){_facIssueDeptCore(id,(document.getElementById('fiDeptNote')?.value||'').trim(),document.getElementById('fiDeptGrade')?.value||'',false);}
+// 조치 예정 등록 — 수리에 시간이 걸릴 때 '언제까지 조치하겠다'를 남김 (종료 안 됨, 예정일 지나면 배지 재점등)
+function _facIssueDeptPlanCore(id,dateVal,note,fromWork){
+  if(!_canManageFac()){toast('⚠️ 탐방시설과·개발자만 가능');return;}
+  const it=_facIssueById(id);if(!it)return;
+  if(!dateVal){toast('⚠️ 조치 예정일을 선택하세요');return;}
+  const until=new Date(dateVal+'T23:59:59').getTime();
+  if(until<Date.now()){toast('⚠️ 예정일이 과거입니다');return;}
+  it.plan={until,note,by:getAuthor(),at:Date.now()};
+  _issueLog(it,'조치 예정 등록 — '+_fmtDateK(until)+'까지'+(note?' ('+note+')':''));
+  _saveFacIssue(it);
+  _notiFacFollow(`🗓️ 조치 예정 · ${it.facName} — ${_fmtDateK(until)}까지 (${getAuthor()})`,_facIssueLink(id),it);
+  toast('🗓️ '+_fmtDateK(until)+'까지 조치 예정 등록');
+  _facIssueAfterAction(id,fromWork);
+}
+function facIssueDeptPlan(id){_facIssueDeptPlanCore(id,document.getElementById('fiDeptUntil')?.value||'',(document.getElementById('fiDeptNote')?.value||'').trim(),false);}
 // 조치 후 공통 새로고침 — 업무함에서 처리했으면 목록에 남고, 모달에서 했으면 모달 갱신
 function _facIssueAfterAction(id,fromWork){
   if(!fromWork)try{openFacIssueDetail(id);}catch(e){}
@@ -982,6 +1021,7 @@ function renderFacIssues(){
         <div style="flex:1;min-width:0;">
           <div style="font-size:12px;font-weight:700;color:#e0edf8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${_esc(it.facName)}</div>
           <div style="font-size:10px;color:#7a9cb8;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${it.tags&&it.tags.length?'<span style="color:#4fa8d0;">'+_esc(it.tags.join(', '))+'</span> · ':''}${_esc(it.loc||'')}${it.reporter?' · '+_esc(it.reporter):''}</div>
+          ${it.plan&&it.plan.until?`<div style="font-size:9px;font-weight:700;color:${it.plan.until<Date.now()?'#ff7a6e':'#4fa8d0'};margin-top:2px;">🗓️ ${_fmtDateK(it.plan.until)}까지 조치 예정${it.plan.until<Date.now()?' — 지남':''}</div>`:''}
         </div>
         <span style="background:${st.c}22;color:${st.c};font-size:9px;font-weight:800;border-radius:6px;padding:3px 7px;flex-shrink:0;">${st.ico} ${st.l}</span>
       </div>`;
@@ -1019,7 +1059,7 @@ function _facWorkCount(){
   _facIssueOpen().forEach(it=>{const s=Number(it.stage||1);
     if(s<=2){if(canReview)n++;}
     else if(s===3)n++;                 // 현장확인은 멤버 누구나 기록 가능
-    else if(s===4){if(canDept)n++;}
+    else if(s===4){if(canDept&&!(it.plan&&it.plan.until>Date.now()))n++;} // 조치 예정 등록분은 예정일 지나면 재점등
   });
   return n;
 }
@@ -1031,7 +1071,8 @@ function _updateFacWorkBadge(){
 // 업무함 인라인 폼 래퍼 (요소 ID가 항목별 fw*_id — 모달의 fi*와 충돌 없음)
 function fwReview(id){_facIssueReviewCore(id,document.getElementById('fwMgrGrade_'+id)?.value||'',(document.getElementById('fwMgrOpinion_'+id)?.value||'').trim(),true);}
 function fwZone(id){_facIssueZoneCore(id,(document.getElementById('fwZoneNote_'+id)?.value||'').trim(),true);}
-function fwDept(id){_facIssueDeptCore(id,(document.getElementById('fwDeptNote_'+id)?.value||'').trim(),true);}
+function fwDept(id){_facIssueDeptCore(id,(document.getElementById('fwDeptNote_'+id)?.value||'').trim(),document.getElementById('fwDeptGrade_'+id)?.value||'',true);}
+function fwDeptPlan(id){_facIssueDeptPlanCore(id,document.getElementById('fwDeptUntil_'+id)?.value||'',(document.getElementById('fwDeptNote_'+id)?.value||'').trim(),true);}
 function _fwMgrUpdate(id){
   const g=document.getElementById('fwMgrGrade_'+id)?.value||'';
   const de=g==='D'||g==='E';
@@ -1100,11 +1141,21 @@ function renderFacWork(){
   h+=head('🔧','시설과 조치 대기',s4.length,'#e67e22');
   if(!s4.length)h+=`<div class="muted" style="font-size:11px;">조치 대기 없음</div>`;
   else h+=s4.map(it=>{
-    if(!canDept)return card(it,formWrap(`<div style="font-size:10px;color:#5a7e98;">탐방시설과 조치 대기 중${it.zone&&it.zone.note?' · 🥾 '+_esc(it.zone.note):''}</div>`));
+    const pb=(it.plan&&it.plan.until)?(()=>{const od=it.plan.until<Date.now();
+      return `<div style="font-size:10px;font-weight:800;color:${od?'#ff7a6e':'#4fa8d0'};margin-bottom:6px;">🗓️ ${_fmtDateK(it.plan.until)}까지 조치 예정${od?' — 예정일 지남':''}${it.plan.note?` <span style="color:#7a9cb8;font-weight:400;">· ${_esc(it.plan.note)}</span>`:''}</div>`;})():'';
+    if(!canDept)return card(it,formWrap(`${pb}<div style="font-size:10px;color:#5a7e98;">탐방시설과 조치 대기 중${it.zone&&it.zone.note?' · 🥾 '+_esc(it.zone.note):''}</div>`));
+    const defG=(it.mgr&&it.mgr.grade)||it.grade;
+    const planVal=it.plan&&it.plan.until?new Date(it.plan.until-new Date().getTimezoneOffset()*60000).toISOString().slice(0,10):'';
     return card(it,formWrap(`
-      ${it.zone&&it.zone.note?`<div style="font-size:10px;color:#b07cd0;margin-bottom:6px;">🥾 현장확인: ${_esc(it.zone.note)}</div>`:''}
+      ${pb}${it.zone&&it.zone.note?`<div style="font-size:10px;color:#b07cd0;margin-bottom:6px;">🥾 현장확인: ${_esc(it.zone.note)}</div>`:''}
+      <div style="font-size:10px;color:#9bbdd4;margin-bottom:4px;">조치 후 등급 (A~E)</div>
+      <select id="fwDeptGrade_${it.id}" class="fsel" style="margin-bottom:6px;">${['A','B','C','D','E'].map(g=>`<option value="${g}"${g===defG?' selected':''}>${_gLabel(g)}</option>`).join('')}</select>
       <textarea id="fwDeptNote_${it.id}" class="fta" rows="2" placeholder="조치 내용 (예: 데크 교체 완료 / 예산 반영 예정)" style="margin-bottom:7px;"></textarea>
-      <button onclick="fwDept(${it.id})" style="width:100%;background:#0c4838;color:#fff;border:none;border-radius:8px;padding:9px;font-size:12px;font-weight:800;cursor:pointer;">조치 완료 → 종료</button>`));
+      <button onclick="fwDept(${it.id})" style="width:100%;background:#0c4838;color:#fff;border:none;border-radius:8px;padding:9px;font-size:12px;font-weight:800;cursor:pointer;">✅ 조치 완료 → 종료</button>
+      <div style="display:flex;gap:6px;margin-top:7px;">
+        <input type="date" id="fwDeptUntil_${it.id}" class="fi" style="flex:1;box-sizing:border-box;" value="${planVal}">
+        <button onclick="fwDeptPlan(${it.id})" style="flex-shrink:0;background:rgba(79,168,208,.15);color:#4fa8d0;border:1px solid rgba(79,168,208,.4);border-radius:8px;padding:0 12px;font-size:11px;font-weight:800;cursor:pointer;">🗓️ ${it.plan?'예정 변경':'예정 등록'}</button>
+      </div>`));
   }).join('');
 
   // ── 4. 최근 종료 ──
