@@ -204,7 +204,7 @@ if(window.Kakao&&!Kakao.isInitialized()) Kakao.init(KAKAO_KEY);
 </div>
 <div class="noti-bg" id="notiBg" onclick="closeNoti()"></div>
 <div class="noti-panel" id="notiPanel">
-  <div class="noti-phdr"><span class="noti-ptitle">🔔 알림</span><button class="noti-pclose" onclick="closeNoti()">×</button></div>
+  <div class="noti-phdr"><span class="noti-ptitle">🔔 알림 <span style="font-size:9px;font-weight:400;color:rgba(255,255,255,.35);">· 7일 후 자동 삭제</span></span><button class="noti-pclose" onclick="closeNoti()">×</button></div>
   <div class="noti-scroll" id="notiList"></div>
   <div class="noti-acts"><button class="noti-act-btn" onclick="markAllRead()">✓ 모두 읽음</button><button class="noti-act-btn" onclick="clearNotis()">🗑 삭제</button></div>
 </div>

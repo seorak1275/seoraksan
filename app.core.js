@@ -1350,7 +1350,19 @@ function updateBell(){
   const cnt=(DB.g('notis')||[]).filter(n=>!n.read).length;
   ['bellCnt','bellCntHome'].forEach(id=>{const e=document.getElementById(id);if(!e)return;e.textContent=cnt>9?'9+':cnt;e.classList.toggle('on',cnt>0);});
 }
+// 알림 보관 7일 — 일주일 지난 알림은 자동 삭제 (id = Date.now() 기반)
+const _NOTI_KEEP_MS=7*24*60*60*1000;
+function _pruneOldNotis(){
+  try{
+    const ns=DB.g('notis')||[];if(!ns.length)return;
+    const cutoff=Date.now()-_NOTI_KEEP_MS;
+    const kept=ns.filter(n=>!(Number(n.id)>0&&Number(n.id)<cutoff));
+    if(kept.length!==ns.length){DB.s('notis',kept);updateBell();}
+  }catch(e){}
+}
+setTimeout(_pruneOldNotis,3000); // 부팅 후 1회 정리(벨 카운트 정확화)
 function openNoti(){
+  _pruneOldNotis();
   const ns=DB.g('notis')||[];
   document.getElementById('notiList').innerHTML=ns.length
     ?ns.map(n=>{
@@ -1359,11 +1371,11 @@ function openNoti(){
       return `<div class="ni ${n.read?'read':'unread'}" style="${hasLink?'cursor:pointer;':''}" ${hasLink?`onclick="${linkStr}"`:''}  >
         <div style="position:relative;flex-shrink:0;">
           <div class="ni-ico">${n.ico}</div>
-          ${n.read?'':'<div style="position:absolute;top:-2px;right:-2px;width:7px;height:7px;background:#e05050;border-radius:50%;border:1.5px solid #0b1c30;"></div>'}
+          ${n.read?'':'<div style="position:absolute;top:-2px;right:-3px;width:6px;height:6px;background:#e05050;border-radius:50%;border:1px solid #0b1c30;"></div>'}
         </div>
         <div style="flex:1;min-width:0;">
           <div class="ni-msg">${_esc(n.msg)}</div>
-          <div class="ni-t">${n.time}${hasLink?' · <span style="color:#4fa8d0;font-size:10px;">탭하여 이동 →</span>':''}</div>
+          <div class="ni-t">${n.time}${hasLink?' · <span style="color:#4fa8d0;">탭하여 이동 →</span>':''}</div>
         </div>
       </div>`;
     }).join('')
