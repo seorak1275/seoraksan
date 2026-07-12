@@ -1366,7 +1366,7 @@ function _opAlerts(op){
 }
 // 운영 인력 단계 = 발령된 특보 중 최고 단계
 function _opLevel(op){const al=_opAlerts(op);if(!al.length)return'예비특보';return al.reduce((hi,a)=>_stageRank(a.stage)>_stageRank(hi)?a.stage:hi,al[0].stage);}
-// 기상청 발효 특보(alertMap)를 {type,stage,issuedAtMs} 목록으로 정규화 (타입별 최고등급 + 발효시각)
+// 기상청 발효 특보(alertMap)를 {type,stage,issuedAtMs,announcedAtMs} 목록으로 정규화 (타입별 최고등급 + 발효·발표시각)
 function _kmaLiveList(alertMap){
   const seen={},out=[];
   Object.keys(alertMap||{}).forEach(k=>{(alertMap[k].reasons||[]).forEach(r=>{
@@ -1375,10 +1375,14 @@ function _kmaLiveList(alertMap){
     if(!type||!lvl)return;
     const stage=_kmaStage(lvl);
     const efMs=(alertMap[k].efs||{})[r]||0; // 기상청 발효시각(TM_EF), 없으면 0
-    if(!seen[type]){seen[type]={type,stage,regions:[k],issuedAtMs:efMs};out.push(seen[type]);}
+    const fcMs=(alertMap[k].fcs||{})[r]||0; // 기상청 발표시각(TM_FC), 없으면 0
+    if(!seen[type]){seen[type]={type,stage,regions:[k],issuedAtMs:efMs,announcedAtMs:fcMs};out.push(seen[type]);}
     else{
-      if(_stageRank(stage)>_stageRank(seen[type].stage)){seen[type].stage=stage;seen[type].issuedAtMs=efMs;}
-      else if(_stageRank(stage)===_stageRank(seen[type].stage)&&efMs&&(!seen[type].issuedAtMs||efMs<seen[type].issuedAtMs))seen[type].issuedAtMs=efMs;
+      if(_stageRank(stage)>_stageRank(seen[type].stage)){seen[type].stage=stage;seen[type].issuedAtMs=efMs;seen[type].announcedAtMs=fcMs;}
+      else if(_stageRank(stage)===_stageRank(seen[type].stage)){
+        if(efMs&&(!seen[type].issuedAtMs||efMs<seen[type].issuedAtMs))seen[type].issuedAtMs=efMs;
+        if(fcMs&&(!seen[type].announcedAtMs||fcMs<seen[type].announcedAtMs))seen[type].announcedAtMs=fcMs;
+      }
       if(seen[type].regions.indexOf(k)<0)seen[type].regions.push(k);
     }
   });});
@@ -1438,6 +1442,7 @@ function renderAlertView(){
         else{const h=Math.floor(diff/3600000),mi=Math.floor((diff%3600000)/60000);dur=h>0?h+'시간'+(mi>0?' '+mi+'분':'')+'째 발효 중':mi+'분째 발효 중';}
       }
       const when=a.issuedAt?String(a.issuedAt).slice(5,16):'';
+      const fc=a.announcedAt?String(a.announcedAt).slice(5,16):''; // 발표시각(TM_FC) — 발효와 다를 수 있음
       const rg=(a.regions&&a.regions.length)?a.regions.join(' · '):'';
       const acol=ALERT_LEVEL_COLORS[a.stage]||'#4fa8d0';
       return `<div style="background:rgba(255,255,255,.03);border:1px solid ${acol}44;border-radius:10px;padding:8px 11px;margin-bottom:6px;">
@@ -1447,7 +1452,7 @@ function renderAlertView(){
           ${dur?`<span style="font-size:10.5px;color:${future?'#9ce0f0':'#f0c060'};font-weight:800;">⏱ ${dur}</span>`:''}
           ${isAdminUser()?`<span onclick="removeAlertItem(${active.id},${ai})" style="cursor:pointer;color:#ff6b5b;margin-left:auto;font-weight:800;padding:0 4px;">×</span>`:''}
         </div>
-        <div style="font-size:10.5px;color:#8fb4cc;margin-top:4px;line-height:1.5;">${when?`🕐 ${future?_esc(when)+' 발효 예정':'발효 '+_esc(when)}`:''}${rg?`<br>📍 ${_esc(rg)}`:''}</div>
+        <div style="font-size:10.5px;color:#8fb4cc;margin-top:4px;line-height:1.5;">${(fc||when)?`🕐 ${fc?`발표 ${_esc(fc)}`:''}${fc&&when?' · ':''}${when?(future?_esc(when)+' 발효 예정':'발효 '+_esc(when)):''}`:''}${rg?`<br>📍 ${_esc(rg)}`:''}</div>
       </div>`;
     }).join('');
     // 히어로 배너 + 요약 stat + 상세
@@ -1759,11 +1764,15 @@ function _syncAutoAlerts(liveList){
   //    (뒤늦게 접속해 감지해도 '16:00 발효'처럼 실제 발효 시각으로 기록되도록)
   liveList.forEach(a=>{
     const ex=active.alerts.find(x=>x.type===a.type);
-    const efMs=a.issuedAtMs||0,ms=efMs||Date.now();
+    const efMs=a.issuedAtMs||0,ms=efMs||Date.now(),fcMs=a.announcedAtMs||0;
     const efTag=efMs?'('+_alertMsShort(efMs)+(efMs>Date.now()?' 발효 예정':' 발효')+')':''; // 미래 발효(예: 17시 발표→18시 발효) 구분
-    if(!ex){active.alerts.push({type:a.type,stage:a.stage,source:'auto',issuedAt:_alertMsStr(ms),issuedAtMs:ms,regions:a.regions||[]});added.push(a.type+_stageShort(a.stage)+efTag);}
-    else if(ex.source==='auto'&&ex.stage!==a.stage){const prev=ex.stage;ex.stage=a.stage;ex.issuedAt=_alertMsStr(ms);ex.issuedAtMs=ms;ex.regions=a.regions||ex.regions||[];changed.push(a.type+' '+_stageShort(prev)+'→'+_stageShort(a.stage)+efTag);}
-    else if(ex.source==='auto'&&efMs&&Math.abs((ex.issuedAtMs||0)-efMs)>60000){ex.issuedAt=_alertMsStr(efMs);ex.issuedAtMs=efMs;timeFixed=true;} // 감지 시각으로 기록됐던 기존 건을 실제 발효시각으로 조용히 보정
+    if(!ex){active.alerts.push({type:a.type,stage:a.stage,source:'auto',issuedAt:_alertMsStr(ms),issuedAtMs:ms,announcedAt:fcMs?_alertMsStr(fcMs):'',announcedAtMs:fcMs,regions:a.regions||[]});added.push(a.type+_stageShort(a.stage)+efTag);}
+    else if(ex.source==='auto'&&ex.stage!==a.stage){const prev=ex.stage;ex.stage=a.stage;ex.issuedAt=_alertMsStr(ms);ex.issuedAtMs=ms;if(fcMs){ex.announcedAt=_alertMsStr(fcMs);ex.announcedAtMs=fcMs;}ex.regions=a.regions||ex.regions||[];changed.push(a.type+' '+_stageShort(prev)+'→'+_stageShort(a.stage)+efTag);}
+    else if(ex.source==='auto'&&((efMs&&Math.abs((ex.issuedAtMs||0)-efMs)>60000)||(fcMs&&Math.abs((ex.announcedAtMs||0)-fcMs)>60000))){ // 감지 시각으로 기록됐던 기존 건을 실제 발효·발표시각으로 조용히 보정
+      if(efMs){ex.issuedAt=_alertMsStr(efMs);ex.issuedAtMs=efMs;}
+      if(fcMs){ex.announcedAt=_alertMsStr(fcMs);ex.announcedAtMs=fcMs;}
+      timeFixed=true;
+    }
   });
   // 2) 자동분 중 기상청에서 해제된 종류 → 자동 해제 (수동분 보존)
   active.alerts=active.alerts.filter(x=>{

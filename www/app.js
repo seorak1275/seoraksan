@@ -590,7 +590,12 @@ function kmaWarnDiag(){
         +((_gw.length?_gw:_lines).slice(0,16).join('\n')||'(데이터 행 없음 — 주석/헤더만 수신됨)'));
     var keyBad=firstTxt!==null&&/인증|auth|key|expired|유효/i.test(prev)&&!/#/.test(prev.slice(0,3));
     var parseHtml=live.length
-      ?live.map(function(a){return '<div style="font-size:12px;color:#7ee0a8;padding:2px 0;">✅ '+a.type+_stageShort(a.stage)+(a.regions&&a.regions.length?' — '+a.regions.join('·'):'')+(a.issuedAtMs?' <span style="color:#8fb4cc;">('+_alertMsShort(a.issuedAtMs)+' 발효)</span>':'')+'</div>';}).join('')
+      ?live.map(function(a){
+        var ts=[];
+        if(a.announcedAtMs)ts.push('발표 '+_alertMsShort(a.announcedAtMs));
+        if(a.issuedAtMs)ts.push(a.issuedAtMs>Date.now()?_alertMsShort(a.issuedAtMs)+' 발효 예정':'발효 '+_alertMsShort(a.issuedAtMs));
+        return '<div style="font-size:12px;color:#7ee0a8;padding:2px 0;">✅ '+a.type+_stageShort(a.stage)+(a.regions&&a.regions.length?' — '+a.regions.join('·'):'')+(ts.length?' <span style="color:#8fb4cc;">('+ts.join(' · ')+')</span>':'')+'</div>';
+      }).join('')
       :'<div style="font-size:12px;color:'+(firstTxt!==null?'#ffb04d':'#ff8a73')+';">'+(firstTxt!==null?'⚠️ 데이터는 수신됐지만 강원 영동 특보를 못 찾음 — 아래 원문을 확인하세요':'❌ 수신 실패 — 파싱 불가')+'</div>';
     var ov=document.getElementById('kmaDiagOv');if(ov)ov.remove();
     ov=document.createElement('div');ov.id='kmaDiagOv';
@@ -666,9 +671,11 @@ function _parseKmaWarnings(txt){
     var suffix=level==='예비'?'예비특보':(level==='경보'?'경보':'주의보');
     var reason=wrnType+suffix;
     if(alertMap[rName].reasons.indexOf(reason)===-1)alertMap[rName].reasons.push(reason);
-    // 발효시각(TM_EF, f[5]) 보관 — 감지(접속) 시각이 아닌 실제 발효 시각을 운영·알림에 쓴다
+    // 발표시각(TM_FC, f[4])·발효시각(TM_EF, f[5]) 보관 — 감지(접속) 시각이 아닌 실제 시각을 운영·알림에 쓴다
     var efMs=_kmaTmMs(f[5]);
     if(efMs){var efs=alertMap[rName].efs||(alertMap[rName].efs={});if(!efs[reason]||efMs<efs[reason])efs[reason]=efMs;}
+    var fcMs=_kmaTmMs(f[4]);
+    if(fcMs){var fcs=alertMap[rName].fcs||(alertMap[rName].fcs={});if(!fcs[reason]||fcMs<fcs[reason])fcs[reason]=fcMs;}
   });
   return alertMap;
 }
@@ -2797,7 +2804,7 @@ function sosToRescue(id){
 // 앱 자체 업데이트 (OTA · Capgo 자체호스팅) — APK 전용. 웹/PWA는 서비스워커가 자동 갱신.
 // 번들(www)의 새 버전을 ota.json으로 알리면, 설치된 앱이 받아서 그 자리에서 교체(재빌드 불필요).
 // ══════════════════════════════════════════
-const OTA_VER='2026.07.12.102';                         // ← 현재 번들 버전 (릴리스마다 올림 · build-ota.sh가 ota.json에 반영)
+const OTA_VER='2026.07.12.103';                         // ← 현재 번들 버전 (릴리스마다 올림 · build-ota.sh가 ota.json에 반영)
 const OTA_MANIFEST='https://seorak1275.github.io/seoraksan/ota.json';
 let _otaInfo=null;
 function _otaPlugin(){try{return (window.Capacitor&&window.Capacitor.Plugins&&window.Capacitor.Plugins.CapacitorUpdater)||null;}catch(e){return null;}}
