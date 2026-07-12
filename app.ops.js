@@ -555,16 +555,16 @@ function _facInfoHtml(f){
   const shortRows=[
     sRow('종류',`<span style="color:${col};font-weight:700;">${_esc(f.type)}</span>`),
     sRow('위치',_esc(f.loc||'')),
+    sRow('관리번호',f.mgmt?`<span style="font-family:monospace;font-size:10.5px;letter-spacing:.2px;">${_esc(f.mgmt)}</span>`:''),
+    sRow('좌표',f.lat?`<span style="font-family:monospace;font-size:10.5px;">${f.lat.toFixed(5)}, ${f.lng.toFixed(5)}</span>`:''),
     sRow('설치',_esc(f.install||'')),
     sRow('등록',_esc(f.author||''))
   ].join('');
   // 긴 정보(하단 전폭)
   const rows=[];
   const row=(k,v)=>{if(v)rows.push(`<div style="display:flex;gap:8px;padding:2.5px 0;"><span style="min-width:50px;flex-shrink:0;font-size:10.5px;color:#5d86a3;font-weight:700;">${k}</span><span style="flex:1;font-size:11.5px;color:#c9dcec;line-height:1.5;word-break:break-all;">${v}</span></div>`);};
-  row('관리번호',f.mgmt?`<span style="font-family:monospace;letter-spacing:.3px;">${_esc(f.mgmt)}</span>`:'');
   row('규격',_esc(f.spec||''));
   row('구조',_esc(f.struct||''));
-  row('좌표',f.lat?f.lat.toFixed(5)+', '+f.lng.toFixed(5):'');
   row('비고',_esc(f.note||''));
   const iss=(DB.g('facIssues')||[]).filter(i=>i.facId===f.id).sort((a,b)=>(b.id||0)-(a.id||0)).slice(0,2);
   const issHtml=iss.map(i=>`<div onclick="event.stopPropagation();openFacIssueDetail(${i.id})" style="display:flex;align-items:center;gap:7px;background:rgba(255,255,255,.03);border-radius:8px;padding:6px 9px;margin-top:5px;cursor:pointer;">
