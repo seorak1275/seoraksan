@@ -590,7 +590,7 @@ function kmaWarnDiag(){
         +((_gw.length?_gw:_lines).slice(0,16).join('\n')||'(데이터 행 없음 — 주석/헤더만 수신됨)'));
     var keyBad=firstTxt!==null&&/인증|auth|key|expired|유효/i.test(prev)&&!/#/.test(prev.slice(0,3));
     var parseHtml=live.length
-      ?live.map(function(a){return '<div style="font-size:12px;color:#7ee0a8;padding:2px 0;">✅ '+a.type+_stageShort(a.stage)+(a.regions&&a.regions.length?' — '+a.regions.join('·'):'')+'</div>';}).join('')
+      ?live.map(function(a){return '<div style="font-size:12px;color:#7ee0a8;padding:2px 0;">✅ '+a.type+_stageShort(a.stage)+(a.regions&&a.regions.length?' — '+a.regions.join('·'):'')+(a.issuedAtMs?' <span style="color:#8fb4cc;">('+_alertMsShort(a.issuedAtMs)+' 발효)</span>':'')+'</div>';}).join('')
       :'<div style="font-size:12px;color:'+(firstTxt!==null?'#ffb04d':'#ff8a73')+';">'+(firstTxt!==null?'⚠️ 데이터는 수신됐지만 강원 영동 특보를 못 찾음 — 아래 원문을 확인하세요':'❌ 수신 실패 — 파싱 불가')+'</div>';
     var ov=document.getElementById('kmaDiagOv');if(ov)ov.remove();
     ov=document.createElement('div');ov.id='kmaDiagOv';
@@ -618,6 +618,8 @@ var _KMA_WRN_TTL=900000; // 15분
 // 설악산 인근 특보구역만 채택 (영월·횡성·원주 등 영서 도시는 제외)
 // 설악산 관할(강원 영동) 특보구역만 — '영동군'(충북) 등 오검출 방지 위해 바(bare) '영동' 미포함
 var _SETAK_REGIONS=['속초','고성','양양','인제','설악','강원북부산지','북부산지'];
+// TM_EF/TM_FC(YYYYMMDDHHMM) → ms. 형식이 다르거나 열이 밀렸으면 0 (호출부가 감지 시각으로 폴백)
+function _kmaTmMs(s){var d=String(s||'').replace(/\D/g,'');if(d.length<12||d.slice(0,2)!=='20')return 0;var t=new Date(+d.slice(0,4),+d.slice(4,6)-1,+d.slice(6,8),+d.slice(8,10),+d.slice(10,12)).getTime();return isNaN(t)?0:t;}
 function _parseKmaWarnings(txt){
   var alertMap={};
   _kmaWrnCache=txt;
@@ -664,6 +666,9 @@ function _parseKmaWarnings(txt){
     var suffix=level==='예비'?'예비특보':(level==='경보'?'경보':'주의보');
     var reason=wrnType+suffix;
     if(alertMap[rName].reasons.indexOf(reason)===-1)alertMap[rName].reasons.push(reason);
+    // 발효시각(TM_EF, f[5]) 보관 — 감지(접속) 시각이 아닌 실제 발효 시각을 운영·알림에 쓴다
+    var efMs=_kmaTmMs(f[5]);
+    if(efMs){var efs=alertMap[rName].efs||(alertMap[rName].efs={});if(!efs[reason]||efMs<efs[reason])efs[reason]=efMs;}
   });
   return alertMap;
 }
@@ -2372,6 +2377,7 @@ function _initSosWatch(){
   window._sosWatchBound=true;
   try{
     _fdb.collection('sos').onSnapshot(function(snap){
+      window._sosRetryMs=0; // 수신 성공 → 재시도 백오프 초기화
       // 팀이 발급(active:true)했고 48시간 이내인 것만 — 밤샘·다일 구조 커버, 옛 링크 자동 무효
       _sosPings=DB.g('sosBlocked')?[]:snap.docs.map(d=>d.data()).filter(p=>p&&p.active===true&&Date.now()-(p.issuedAt||p.ts||0)<48*3600000);
       // 위치가 새로 수신된 조난자 알림(최초 스냅샷·미수신 토큰은 제외)
@@ -2406,7 +2412,14 @@ function _initSosWatch(){
           }catch(e){}
         },350);
       }
-    },function(err){try{_logErr&&_logErr('sos listen: '+(err&&err.message||err));}catch(e){}});
+    },function(err){
+      // 오류 시 onSnapshot은 영구 해제됨 — 익명 인증 완료 전 구독(permission 오류) 등 일시 오류 후
+      // SOS 수신이 죽은 채 방치되지 않도록 백오프 재구독 (10s→20s→…최대 5분)
+      try{if(!window._sosErrLogged){window._sosErrLogged=true;_logErr&&_logErr('sos listen: '+(err&&err.message||err));}}catch(e){}
+      window._sosWatchBound=false;
+      var d=window._sosRetryMs=Math.min((window._sosRetryMs||5000)*2,300000);
+      setTimeout(function(){try{_initSosWatch();}catch(e){}},d);
+    });
   }catch(e){}
 }
 function _sosBadgeCount(){return _sosLocated().length;}
@@ -2784,7 +2797,7 @@ function sosToRescue(id){
 // 앱 자체 업데이트 (OTA · Capgo 자체호스팅) — APK 전용. 웹/PWA는 서비스워커가 자동 갱신.
 // 번들(www)의 새 버전을 ota.json으로 알리면, 설치된 앱이 받아서 그 자리에서 교체(재빌드 불필요).
 // ══════════════════════════════════════════
-const OTA_VER='2026.07.12.99';                         // ← 현재 번들 버전 (릴리스마다 올림 · build-ota.sh가 ota.json에 반영)
+const OTA_VER='2026.07.12.100';                         // ← 현재 번들 버전 (릴리스마다 올림 · build-ota.sh가 ota.json에 반영)
 const OTA_MANIFEST='https://seorak1275.github.io/seoraksan/ota.json';
 let _otaInfo=null;
 function _otaPlugin(){try{return (window.Capacitor&&window.Capacitor.Plugins&&window.Capacitor.Plugins.CapacitorUpdater)||null;}catch(e){return null;}}

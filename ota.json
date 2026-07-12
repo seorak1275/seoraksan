@@ -1,1 +1,1 @@
-{"version":"2026.07.12.99","url":"https://seorak1275.github.io/seoraksan/bundle.zip","notes":"ota.json JSON 깨짐 수정 — notes 첫 줄만·따옴표 제거 (deploy/build-ota 방어 처리)"}
+{"version":"2026.07.12.100","url":"https://seorak1275.github.io/seoraksan/bundle.zip","notes":"기상특보 발효시각(TM_EF) 기록 — 접속 시각이 아닌 실제 발효 시각으로 표시·알림 + SOS 리스너 오류 시 자동 재구독 + 지도 미로딩 단계 로그"}

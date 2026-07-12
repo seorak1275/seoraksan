@@ -1270,6 +1270,10 @@ let _alertLevel='',_alertType='',_respLoc='',_respRole='',_reportInterval=60;
 let _reportLoc='',_reportOpId=null,_alertReminderTimer=null;
 // '2026-06-24 21:30' → ms (관측 보고 알림 주기 계산용)
 function _alertTimeMs(s){if(!s)return 0;const m=String(s).match(/(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})/);if(!m)return 0;return new Date(+m[1],+m[2]-1,+m[3],+m[4],+m[5]).getTime();}
+// ms → 'YYYY-MM-DD HH:MM' (now()와 같은 표기)
+function _alertMsStr(ms){const d=new Date(ms),p=n=>('0'+n).slice(-2);return d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate())+' '+p(d.getHours())+':'+p(d.getMinutes());}
+// ms → 알림용 짧은 표기: 오늘이면 'HH:MM', 아니면 'MM-DD HH:MM'
+function _alertMsShort(ms){const s=_alertMsStr(ms);return s.slice(0,10)===_alertMsStr(Date.now()).slice(0,10)?s.slice(11):s.slice(5);}
 // 단계별 필요 인원 (사무소/분소 기준)
 function _reqOf(level,reqType){const req=ALERT_REQS[level]||{};return reqType==='사무소'?(req.사무소||[]):(req.분소||[]);}
 // 특정 관측소의 최신 관측 보고
@@ -1362,7 +1366,7 @@ function _opAlerts(op){
 }
 // 운영 인력 단계 = 발령된 특보 중 최고 단계
 function _opLevel(op){const al=_opAlerts(op);if(!al.length)return'예비특보';return al.reduce((hi,a)=>_stageRank(a.stage)>_stageRank(hi)?a.stage:hi,al[0].stage);}
-// 기상청 발효 특보(alertMap)를 {type,stage} 목록으로 정규화 (타입별 최고등급)
+// 기상청 발효 특보(alertMap)를 {type,stage,issuedAtMs} 목록으로 정규화 (타입별 최고등급 + 발효시각)
 function _kmaLiveList(alertMap){
   const seen={},out=[];
   Object.keys(alertMap||{}).forEach(k=>{(alertMap[k].reasons||[]).forEach(r=>{
@@ -1370,9 +1374,11 @@ function _kmaLiveList(alertMap){
     const type=r.replace('예비특보','').replace('경보','').replace('주의보','');
     if(!type||!lvl)return;
     const stage=_kmaStage(lvl);
-    if(!seen[type]){seen[type]={type,stage,regions:[k]};out.push(seen[type]);}
+    const efMs=(alertMap[k].efs||{})[r]||0; // 기상청 발효시각(TM_EF), 없으면 0
+    if(!seen[type]){seen[type]={type,stage,regions:[k],issuedAtMs:efMs};out.push(seen[type]);}
     else{
-      if(_stageRank(stage)>_stageRank(seen[type].stage))seen[type].stage=stage;
+      if(_stageRank(stage)>_stageRank(seen[type].stage)){seen[type].stage=stage;seen[type].issuedAtMs=efMs;}
+      else if(_stageRank(stage)===_stageRank(seen[type].stage)&&efMs&&(!seen[type].issuedAtMs||efMs<seen[type].issuedAtMs))seen[type].issuedAtMs=efMs;
       if(seen[type].regions.indexOf(k)<0)seen[type].regions.push(k);
     }
   });});
@@ -1738,19 +1744,22 @@ function _syncAutoAlerts(liveList){
   }
   active.alerts=active.alerts||_opAlerts(active);
   const liveByType={};liveList.forEach(a=>{liveByType[a.type]=a;});
-  const added=[],changed=[],removed=[];
-  // 1) 추가 + 자동분 단계 동기화
+  const added=[],changed=[],removed=[];let timeFixed=false;
+  // 1) 추가 + 자동분 단계 동기화 — 시각은 기상청 발효시각(TM_EF) 우선, 없으면 감지 시각
+  //    (뒤늦게 접속해 감지해도 '16:00 발효'처럼 실제 발효 시각으로 기록되도록)
   liveList.forEach(a=>{
     const ex=active.alerts.find(x=>x.type===a.type);
-    if(!ex){active.alerts.push({type:a.type,stage:a.stage,source:'auto',issuedAt:now(),issuedAtMs:Date.now(),regions:a.regions||[]});added.push(a.type+_stageShort(a.stage));}
-    else if(ex.source==='auto'&&ex.stage!==a.stage){const prev=ex.stage;ex.stage=a.stage;ex.issuedAt=now();ex.issuedAtMs=Date.now();ex.regions=a.regions||ex.regions||[];changed.push(a.type+' '+_stageShort(prev)+'→'+_stageShort(a.stage));}
+    const efMs=a.issuedAtMs||0,ms=efMs||Date.now();
+    if(!ex){active.alerts.push({type:a.type,stage:a.stage,source:'auto',issuedAt:_alertMsStr(ms),issuedAtMs:ms,regions:a.regions||[]});added.push(a.type+_stageShort(a.stage)+(efMs?'('+_alertMsShort(efMs)+' 발효)':''));}
+    else if(ex.source==='auto'&&ex.stage!==a.stage){const prev=ex.stage;ex.stage=a.stage;ex.issuedAt=_alertMsStr(ms);ex.issuedAtMs=ms;ex.regions=a.regions||ex.regions||[];changed.push(a.type+' '+_stageShort(prev)+'→'+_stageShort(a.stage)+(efMs?'('+_alertMsShort(efMs)+' 발효)':''));}
+    else if(ex.source==='auto'&&efMs&&Math.abs((ex.issuedAtMs||0)-efMs)>60000){ex.issuedAt=_alertMsStr(efMs);ex.issuedAtMs=efMs;timeFixed=true;} // 감지 시각으로 기록됐던 기존 건을 실제 발효시각으로 조용히 보정
   });
   // 2) 자동분 중 기상청에서 해제된 종류 → 자동 해제 (수동분 보존)
   active.alerts=active.alerts.filter(x=>{
     if(x.source==='auto'&&!liveByType[x.type]){removed.push(x.type+_stageShort(x.stage));return false;}
     return true;
   });
-  if(!created&&!added.length&&!changed.length&&!removed.length)return; // 변경 없음
+  if(!created&&!added.length&&!changed.length&&!removed.length&&!timeFixed)return; // 변경 없음
   DB.s('alertOps',ops);
   if(active.alerts.length)_startAlertReminder();
   // 기기별 1회만 알림 (중복 푸시 방지)

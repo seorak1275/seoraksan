@@ -39,6 +39,8 @@ if(window.Kakao&&!Kakao.isInitialized()) Kakao.init(KAKAO_KEY);
       done=true;clearTimeout(_attemptTimer);
       try{ kakao.maps.load(function(){window._KR=true;if(window._KCB)window._KCB();}); }
       catch(e){window._KMapsErr='로드콜백 오류: '+e.message;}
+      // sdk.js 자체는 받았는데 내부 모듈 로딩이 멈춘 경우 — 15s 로그에 어느 단계에서 멈췄는지 남긴다
+      setTimeout(function(){if(!window._KR&&!window._KMapsErr)window._KMapsErr='SDK 수신 후 초기화 무응답('+tries+'회차)';},6000);
     };
     s.onerror=function(){ done=true;clearTimeout(_attemptTimer); window._KMapsErr='SDK 로드 실패('+tries+'회)'; if(tries<4)setTimeout(loadSDK,1200*tries); };
     document.head.appendChild(s);
