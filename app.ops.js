@@ -177,6 +177,8 @@ function renderInspectMap(){
   filtered.forEach(f=>{
     if(!f.lat||!f.lng)return;
     const el=document.createElement('div');el.className='mpin '+(_facWarn(f)?'p-bad blink':'p-fac');el.innerHTML=f.type.split(' ')[0];
+    // 종류별 색 — 테두리+바탕 틴트로 한눈에 구분 (경고표시는 빨간 깜빡임 유지)
+    if(!_facWarn(f)){const _tc=_facTypeColor(f.type);el.style.borderColor=_tc;el.style.background=`linear-gradient(0deg,${_tc}44,${_tc}44),#0b1c30`;}
     if(f.hidden)el.style.opacity='.4'; // 권한자에게만 보이는 숨김 시설 — 흐리게
     let _ts=null;
     el.addEventListener('touchstart',e=>{_ts={x:e.touches[0].clientX,y:e.touches[0].clientY};},{passive:true});
@@ -189,6 +191,7 @@ function renderInspectMap(){
     el.addEventListener('click',e=>{e.stopPropagation();openFacFromMap(f.id);});
     const ov=new kakao.maps.CustomOverlay({position:new kakao.maps.LatLng(f.lat,f.lng),content:el,clickable:true});
     ov._lat=f.lat;ov._lng=f.lng;
+    ov._sign=!!(f.type&&f.type.includes('다목적위치표지판')); // 줌아웃 시 표지판만 표시하기 위한 플래그
     // 지도 부착은 _reclusterInspect가 결정(밀집 핀은 버블로 묶음) — 초기 수백개 일괄 부착/제거 비용 제거
     iOvs.push(ov);iEls.push(el);
   });
@@ -196,6 +199,52 @@ function renderInspectMap(){
   // 시설물 클러스터링 (밀집 시 개수 버블로 묶음)
   _iItems=iOvs.map(ov=>({ov,lat:ov._lat,lng:ov._lng}));
   try{_reclusterInspect();}catch(e){}
+}
+// ── 내 주변 시설물: GPS 기준 가까운 순 목록 + 바로 점검 (점검 나갈 때 한 번에) ──
+function openNearFacs(){
+  const old=document.getElementById('nearFacOv');if(old){old.remove();return;} // 토글
+  toast('📍 내 위치 확인 중...');
+  if(!navigator.geolocation){toast('⚠️ 이 기기는 위치를 지원하지 않습니다');return;}
+  navigator.geolocation.getCurrentPosition(
+    p=>_showNearFacs(p.coords.latitude,p.coords.longitude),
+    ()=>toast('⚠️ 위치를 가져올 수 없습니다 — GPS 확인'),
+    {enableHighAccuracy:true,timeout:10000,maximumAge:30000});
+}
+function _showNearFacs(la,ln){
+  const _meta=DB.g('catFacMeta')||{};const admin=isAdminUser();
+  const facs=(DB.g('facilities')||[]).filter(f=>f.lat&&f.lng&&_facVisibleTo(f)&&(admin||!(_meta[f.type]||{}).adminOnly));
+  const near=facs.map(f=>({f,d:_haversine(la,ln,f.lat,f.lng)})).sort((a,b)=>a.d-b.d).slice(0,15);
+  if(!near.length){toast('주변에 등록된 시설물이 없습니다');return;}
+  const old=document.getElementById('nearFacOv');if(old)old.remove();
+  const ov=document.createElement('div');ov.id='nearFacOv';
+  ov.style.cssText='position:absolute;bottom:9px;left:9px;right:9px;z-index:16;background:#0b1c30;border:1px solid rgba(79,168,208,.2);border-radius:14px;box-shadow:0 -4px 20px rgba(0,0,0,.7);max-height:52vh;display:flex;flex-direction:column;';
+  const rows=near.map(n=>{
+    const col=_facTypeColor(n.f.type);
+    const cg=_facCurGrade(n.f);
+    const dist=n.d<1000?Math.round(n.d)+'m':(n.d/1000).toFixed(1)+'km';
+    return `<div style="display:flex;align-items:center;gap:8px;padding:7px 4px;border-bottom:1px solid rgba(255,255,255,.04);">
+      <span onclick="_nearFacGo(${n.f.id})" style="width:26px;height:26px;border-radius:50%;background:${col}30;border:1.5px solid ${col};display:inline-flex;align-items:center;justify-content:center;font-size:12px;flex-shrink:0;cursor:pointer;">${_esc(n.f.type.split(' ')[0])}</span>
+      <span onclick="_nearFacGo(${n.f.id})" style="flex:1;min-width:0;cursor:pointer;">
+        <span style="display:block;font-size:12px;font-weight:700;color:#dceaf6;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${_esc(n.f.name)} ${cg?`<span style="color:${_gColor(cg.g)};font-size:10.5px;font-weight:900;">${_esc(cg.g)}</span>`:''}</span>
+        <span style="display:block;font-size:9.5px;color:#5d86a3;">${_esc(n.f.type.split(' ').slice(1).join(' ')||'')} · <b style="color:#7fc4e0;">${dist}</b></span>
+      </span>
+      <button onclick="document.getElementById('nearFacOv').remove();openFacIssueReport(${n.f.id})" style="flex-shrink:0;padding:6px 11px;border-radius:8px;border:1px solid rgba(79,168,208,.35);background:rgba(79,168,208,.12);color:#4fa8d0;font-size:11px;font-weight:800;cursor:pointer;-webkit-appearance:none;appearance:none;">🔧 점검</button>
+    </div>`;
+  }).join('');
+  ov.innerHTML=`
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 13px 7px;flex-shrink:0;">
+      <span style="font-size:12px;font-weight:800;color:#7fc4e0;">📍 내 주변 시설물 <span style="font-size:9px;color:#46708f;font-weight:600;">가까운 순 ${near.length}개</span></span>
+      <button onclick="document.getElementById('nearFacOv').remove()" style="background:none;border:none;color:rgba(255,255,255,.45);font-size:18px;cursor:pointer;padding:0 2px;line-height:1;">×</button>
+    </div>
+    <div style="overflow-y:auto;padding:0 13px 10px;">${rows}</div>`;
+  const host=document.querySelector('#v-inspect-map .mapwrap')||document.getElementById('v-inspect-map');
+  (host||document.body).appendChild(ov);
+}
+function _nearFacGo(id){
+  const f=(DB.g('facilities')||[]).find(x=>x.id===id);if(!f)return;
+  const nv=document.getElementById('nearFacOv');if(nv)nv.remove();
+  try{if(mapI&&f.lat){mapI.setLevel(Math.min(mapI.getLevel(),4));mapI.panTo(new kakao.maps.LatLng(f.lat,f.lng));}}catch(e){}
+  openFacFromMap(id);
 }
 // ── 개별 시설 숨김 토글 (권한자만) — 일반 사용자에게 이 시설만 안 보이게 ──
 function toggleFacHide(id){
@@ -205,8 +254,15 @@ function toggleFacHide(id){
   DB.s('facilities',facs);
   try{renderInspectMap();}catch(e){}try{renderFacList();}catch(e){}
   try{if(typeof _syncRFacPool==='function')_syncRFacPool();}catch(e){}
-  try{openFacDetail(id);}catch(e){}
+  try{_refreshFacSurface(id);}catch(e){}
   toast(facs[idx].hidden?'🙈 일반 사용자에게 숨김':'👁️ 다시 표시');
+}
+// 열려 있는 화면(지도 팝업 또는 상세 모달)만 새로고침 — 지도에서 눌렀는데 모달이 뜨는 것 방지
+function _refreshFacSurface(id){
+  const fp=document.getElementById('facPopup');
+  if(fp&&fp.classList.contains('on')){openFacFromMap(id);return;}
+  const md=document.getElementById('modalFacDetail');
+  if(md&&md.classList.contains('on'))openFacDetail(id);
 }
 function setMapFacF(t,v){
   const set=t==='s'?facMapStatusF:t==='t'?facMapTypeF:facMapLocF;
@@ -429,18 +485,86 @@ function _closeResListFilter(){
   p.style.transform='translateY(100%)';
   setTimeout(()=>{p.style.display='none';p.style.transform='translateY(0)';},220);
 }
+// ── 시설물 종류별 고정 색 (핀·목록·팝업 공통 — 종류를 색으로 즉시 구분) ──
+const FAC_TYPE_COLORS={'다목적위치표지판':'#5a7e98','교량':'#4fa8d0','데크/계단':'#e67e22','안전난간':'#46ad5f','대피소':'#7ec8a0','탐방지원센터':'#f0c060','사찰':'#c8845a','건축물':'#d4699b','목재계단':'#a5912c','계곡시설':'#2fa3c4','장소':'#b055c9'};
+function _facTypeColor(t){
+  const label=(String(t||'').split(' ').slice(1).join(' ')||t||'').trim();
+  if(FAC_TYPE_COLORS[label])return FAC_TYPE_COLORS[label];
+  let h=0;for(let i=0;i<label.length;i++)h=(h*31+label.charCodeAt(i))>>>0; // 사용자 정의 종류도 항상 같은 색
+  return ['#4fa8d0','#e67e22','#b055c9','#46ad5f','#f0c060','#2fa3c4','#d4699b','#a5912c'][h%8];
+}
+// ── 시설물 현재 안전등급: 최신 점검(조치후>재평가>점검) 등급 우선, 없으면 시설물 자체 등급(관리대장) ──
+function _facCurGrade(f){
+  let g='',at=0,src='';
+  (DB.g('facIssues')||[]).forEach(i=>{
+    if(i.facId!==f.id)return;
+    [i.dept&&i.dept.grade&&{g:i.dept.grade,at:i.dept.at||i.id||0,src:'조치후'},
+     i.mgr&&i.mgr.grade&&{g:i.mgr.grade,at:i.mgr.at||i.id||0,src:'재평가'},
+     i.grade&&{g:i.grade,at:i.id||0,src:'점검'}].forEach(c=>{if(c&&c.at>=at){at=c.at;g=c.g;src=c.src;}});
+  });
+  if(g)return{g,src};
+  if(f.grade)return{g:f.grade,src:f.gradeBy||'관리대장'};
+  return null;
+}
+function _facGradeBadge(f){
+  const cg=_facCurGrade(f);if(!cg)return'';
+  const c=_gColor(cg.g);
+  return `<span style="display:inline-flex;align-items:center;gap:4px;background:${c}22;border:1.5px solid ${c};color:${c};border-radius:7px;padding:1px 7px;font-size:11px;font-weight:900;vertical-align:middle;">${_esc(cg.g)}<span style="font-size:8.5px;font-weight:600;opacity:.75;">${_esc(cg.src)}</span></span>`;
+}
+// 사진 전체 보기 (탭하면 크게)
+function _facPhotoView(url){
+  const ov=document.createElement('div');
+  ov.style.cssText='position:fixed;inset:0;z-index:99000;background:rgba(0,0,0,.92);display:flex;align-items:center;justify-content:center;cursor:pointer;';
+  ov.innerHTML=`<img src="${_esc(url)}" style="max-width:100%;max-height:92%;object-fit:contain;">`;
+  ov.onclick=()=>ov.remove();
+  document.body.appendChild(ov);
+}
+// 관리 액션 소형 버튼 (한 줄 · 화면 안 가리게)
+const _mBtnS=c=>`flex:1;padding:6px 2px;border-radius:8px;border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.04);color:${c};font-size:10px;font-weight:700;cursor:pointer;-webkit-appearance:none;appearance:none;`;
+// ── 시설물 정보 공용 빌더 (지도 팝업 · 목록 상세 동일 내용) ──
+function _facInfoHtml(f){
+  const w=_facWarn(f);
+  const col=_facTypeColor(f.type);
+  const rows=[];
+  const row=(k,v)=>{if(v)rows.push(`<div style="display:flex;gap:8px;padding:2.5px 0;"><span style="min-width:50px;flex-shrink:0;font-size:10.5px;color:#5d86a3;font-weight:700;">${k}</span><span style="flex:1;font-size:11.5px;color:#c9dcec;line-height:1.5;word-break:break-all;">${v}</span></div>`);};
+  row('종류',`<span style="color:${col};font-weight:700;">${_esc(f.type)}</span>`);
+  row('위치',_esc(f.loc||''));
+  row('관리번호',f.mgmt?`<span style="font-family:monospace;letter-spacing:.3px;">${_esc(f.mgmt)}</span>`:'');
+  row('규격',_esc(f.spec||''));
+  row('구조',_esc(f.struct||''));
+  row('설치',_esc(f.install||''));
+  row('좌표',f.lat?f.lat.toFixed(5)+', '+f.lng.toFixed(5):'');
+  row('등록',_esc(f.author||''));
+  row('비고',_esc(f.note||''));
+  const iss=(DB.g('facIssues')||[]).filter(i=>i.facId===f.id).sort((a,b)=>(b.id||0)-(a.id||0)).slice(0,2);
+  const issHtml=iss.map(i=>`<div onclick="event.stopPropagation();openFacIssueDetail(${i.id})" style="display:flex;align-items:center;gap:7px;background:rgba(255,255,255,.03);border-radius:8px;padding:6px 9px;margin-top:5px;cursor:pointer;">
+      <span style="background:${_gColor(i.grade)}26;color:${_gColor(i.grade)};font-weight:900;border-radius:6px;padding:1px 7px;font-size:11px;flex-shrink:0;">${_esc(i.grade||'-')}</span>
+      <span style="flex:1;font-size:10.5px;color:#9fc0da;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${_esc(i.desc||(i.tags&&i.tags.join(', '))||'점검')}</span>
+      <span style="font-size:9px;color:#5a7e98;flex-shrink:0;">${i.id?new Date(i.id).toLocaleDateString('ko-KR',{month:'2-digit',day:'2-digit'}):''}</span>
+    </div>`).join('');
+  return `
+    ${w?`<div style="background:rgba(224,80,80,.1);border:1px solid rgba(224,80,80,.4);border-radius:9px;padding:7px 10px;margin-bottom:8px;font-size:11px;color:#ffb0a5;line-height:1.6;"><b style="color:#ff5a45;">⚠️ 경고표시</b>${w.reason?' — '+_esc(w.reason):''} <span style="color:#c98;font-size:10px;">${_esc(_warnPeriodStr(w))}</span></div>`:''}
+    ${f.photo?`<img src="${_esc(f.photo)}" loading="lazy" onclick="_facPhotoView('${_escq(f.photo)}')" style="width:100%;max-height:150px;object-fit:cover;border-radius:10px;cursor:pointer;margin-bottom:8px;display:block;" alt="">`:''}
+    <div style="background:#060d1a;border-radius:10px;padding:8px 11px;">${rows.join('')}</div>
+    ${issHtml?`<div style="font-size:10px;color:#5d86a3;font-weight:800;margin-top:8px;">🔧 최근 점검</div>${issHtml}`:''}`;
+}
 function openFacFromMap(id){
   const f=(DB.g('facilities')||[]).find(x=>x.id===id);if(!f)return;
   selFacId=id;window._selFacDetailId=id;
-  document.getElementById('facPopTitle').textContent=f.type.split(' ')[0]+' '+f.name;
-  const w=_facWarn(f);
-  document.getElementById('facPopMeta').innerHTML=
-    (w?`<div style="color:#ff5a45;font-weight:800;">⚠️ 경고표시${w.reason?' · '+_esc(w.reason):''}</div><div style="font-size:10px;color:#c98;margin-bottom:3px;">${_esc(_warnPeriodStr(w))}</div>`:'')
-    +`📍 ${_esc(f.loc||'-')}`+(f.hidden?'<div style="font-size:10px;color:#8a6d3b;margin-top:2px;">🙈 일반 사용자에게 숨김 중</div>':'');
+  const col=_facTypeColor(f.type);
+  document.getElementById('facPopTitle').innerHTML=
+    `<span style="display:inline-flex;align-items:center;gap:7px;flex-wrap:wrap;"><span style="width:25px;height:25px;border-radius:50%;background:${col}33;border:2px solid ${col};display:inline-flex;align-items:center;justify-content:center;font-size:12px;flex-shrink:0;">${_esc(f.type.split(' ')[0])}</span><span>${_esc(f.name)}</span>${_facGradeBadge(f)}${f.hidden?'<span style="font-size:9px;color:#8a6d3b;">🙈 숨김중</span>':''}</span>`;
+  document.getElementById('facPopMeta').innerHTML=_facInfoHtml(f);
   const _bw=document.getElementById('facPopBtns');
-  if(_bw)_bw.innerHTML=`<button class="btn btn-blue" style="flex:1;" onclick="openFacDetail(${f.id})">📋 상세 보기</button>`
-    +`<button class="btn" style="flex:1;background:rgba(79,168,208,.14);color:#4fa8d0;border:1px solid rgba(79,168,208,.35);" onclick="openFacIssueReport(${f.id})">🔧 점검</button>`
-    +(_canManageFac()?`<button class="btn" style="flex:1;background:rgba(255,255,255,.06);color:${f.hidden?'#f0a500':'#c0d8ec'};border:1px solid rgba(255,255,255,.15);" onclick="toggleFacHide(${f.id})">${f.hidden?'👁️ 표시':'🙈 가림'}</button>`:'');
+  const mng=_canManageFac();
+  if(_bw)_bw.innerHTML=
+    `<button class="btn" style="width:100%;padding:11px;background:rgba(79,168,208,.16);color:#4fa8d0;border:1px solid rgba(79,168,208,.4);font-weight:800;" onclick="openFacIssueReport(${f.id})">🔧 점검 등록</button>`
+    +(mng?`<div style="display:flex;gap:5px;">
+      <button onclick="openFacWarn(${f.id})" style="${_mBtnS('#f0a500')}">⚠️ 경고</button>
+      <button onclick="toggleFacHide(${f.id})" style="${_mBtnS(f.hidden?'#f0a500':'#8aa6bc')}">${f.hidden?'👁️ 표시':'🙈 숨김'}</button>
+      <button onclick="openEditFac(${f.id})" style="${_mBtnS('#8aa6bc')}">✏️ 수정</button>
+      <button onclick="deleteFac(${f.id})" style="${_mBtnS('#ff8a73')}">🗑 삭제</button>
+    </div>`:'');
   document.getElementById('resPopup').classList.remove('on');
   document.getElementById('facPopup').classList.add('on');
 }
@@ -470,13 +594,15 @@ function renderFacList(){
   const _tot=filtered.length;
   let html=filtered.slice(0,_facListLimit).map(f=>{
     const w=_facWarn(f);
-    const col=w?'#e05050':'rgba(120,150,175,.5)';
+    const col=w?'#e05050':_facTypeColor(f.type);
+    const cg=_facCurGrade(f);
     return `<div class="lcard" style="padding:7px 10px;border-left:3px solid ${col};" onclick="openFacDetail(${f.id})">
-      <div class="lico" style="width:30px;height:30px;font-size:14px;border-color:${col};color:${col};">${_esc(f.type.split(' ')[0])}</div>
+      <div class="lico" style="width:30px;height:30px;font-size:14px;border-color:${col};color:${col};background:${col}1e;">${_esc(f.type.split(' ')[0])}</div>
       <div class="linfo"><div class="lname" style="font-size:12px;">${_esc(f.name)}${f.hidden?' <span style="font-size:9px;color:#8a6d3b;">🙈 숨김</span>':''}</div>
         <div class="lmeta">${_esc(f.type.split(' ').slice(1).join(' ')||f.type)} · ${_esc(f.loc||'-')} · ${f.lat?'📍':''}</div>
         ${w&&w.reason?`<span style="font-size:9px;color:#e05050;margin-top:2px;display:block;">⚠️ ${_esc(w.reason)}</span>`:''}
       </div>
+      ${cg?`<span class="lbadge" style="background:${_gColor(cg.g)}22;color:${_gColor(cg.g)};font-weight:900;">${_esc(cg.g)}</span>`:''}
       ${w?`<span class="lbadge" style="background:#e0505022;color:#e05050;">⚠️ 경고</span>`:''}
     </div>`;
   }).join('');
@@ -509,30 +635,21 @@ function openFacDetail(id){
   selFacId=id;window._selFacDetailId=id;
   const w=_facWarn(f);const canMng=_canManageFac();
   document.getElementById('facDetailTitle').textContent=f.name;
+  const _dcol=_facTypeColor(f.type);
   document.getElementById('facDetailContent').innerHTML=`
     ${_navBtns('fac',id,'openFacDetail')}
-    <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">
-      <div style="font-size:32px;">${_esc(f.type.split(' ')[0])}</div>
-      <div><div style="font-size:14px;font-weight:700;color:#e0edf8;">${_esc(f.name)}</div>
-        <div style="font-size:11px;color:#7a9cb8;margin-top:2px;">${_esc(f.type.split(' ').slice(1).join(' ')||f.type)}</div>
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
+      <div style="width:38px;height:38px;border-radius:50%;background:${_dcol}33;border:2px solid ${_dcol};display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;">${_esc(f.type.split(' ')[0])}</div>
+      <div style="flex:1;min-width:0;"><div style="font-size:14px;font-weight:700;color:#e0edf8;">${_esc(f.name)} ${_facGradeBadge(f)}</div>
+        <div style="font-size:11px;color:${_dcol};margin-top:2px;">${_esc(f.type.split(' ').slice(1).join(' ')||f.type)}${f.hidden?' <span style="color:#8a6d3b;">· 🙈 숨김중</span>':''}</div>
       </div>
     </div>
-    ${w?`<div style="background:rgba(224,80,80,.1);border:1px solid rgba(224,80,80,.4);border-radius:9px;padding:10px 12px;margin-bottom:10px;">
-      <div style="font-size:13px;font-weight:800;color:#ff5a45;">⚠️ 경고표시 (지도에 빨간색 깜빡임)</div>
-      ${w.reason?`<div style="font-size:12px;color:#f0c9c0;margin-top:4px;">${_esc(w.reason)}</div>`:'<div style="font-size:11px;color:#9c7a72;margin-top:4px;">사유 미입력</div>'}
-      <div style="font-size:11px;color:#c98;margin-top:4px;">🕐 ${_esc(_warnPeriodStr(w))}${w.by?' · '+_esc(w.by):''}</div>
-    </div>`:''}
-    <div style="background:#060d1a;border-radius:9px;padding:11px 12px;font-size:12px;color:#7a9cb8;line-height:2.1;">
-      <b style="color:#c0d8ec;">종류:</b> ${_esc(f.type)}<br>
-      <b style="color:#c0d8ec;">위치:</b> ${_esc(f.loc||'-')}<br>
-      <b style="color:#c0d8ec;">좌표:</b> ${f.lat?f.lat.toFixed(5)+', '+f.lng.toFixed(5):'GPS 미등록'}<br>
-      <b style="color:#c0d8ec;">설치일:</b> ${_esc(f.install||'-')}<br>
-      <b style="color:#c0d8ec;">등록자:</b> ${_esc(f.author||'-')}
-      ${f.note?`<br><b style="color:#c0d8ec;">비고:</b> ${_esc(f.note)}`:''}
-    </div>
-    <button class="btn" style="width:100%;margin-top:10px;background:rgba(79,168,208,.14);color:#4fa8d0;border:1px solid rgba(79,168,208,.35);" onclick="openFacIssueReport(${f.id})">🔧 점검 등록 (사진·등급·점검내용)</button>
-    ${canMng?`<button class="btn" style="width:100%;margin-top:7px;background:${w?'rgba(224,80,80,.14)':'rgba(240,165,0,.12)'};color:${w?'#ff7a6e':'#f0a500'};border:1px solid ${w?'rgba(224,80,80,.4)':'rgba(240,165,0,.35)'};" onclick="openFacWarn(${f.id})">⚠️ 경고표시 ${w?'수정 / 해제':'설정'}</button>
-    <button class="btn" style="width:100%;margin-top:7px;background:rgba(255,255,255,.05);color:${f.hidden?'#f0a500':'#b8d4e8'};border:1px solid rgba(255,255,255,.15);" onclick="toggleFacHide(${f.id})">${f.hidden?'👁️ 다시 표시 (현재 일반 사용자에게 숨김)':'🙈 일반 사용자에게 숨기기'}</button>`:''}`;
+    ${_facInfoHtml(f)}
+    <button class="btn" style="width:100%;margin-top:10px;background:rgba(79,168,208,.16);color:#4fa8d0;border:1px solid rgba(79,168,208,.4);font-weight:800;" onclick="openFacIssueReport(${f.id})">🔧 점검 등록 (사진·등급·점검내용)</button>
+    ${canMng?`<div style="display:flex;gap:5px;margin-top:7px;">
+      <button onclick="openFacWarn(${f.id})" style="${_mBtnS('#f0a500')}">⚠️ 경고 ${w?'수정/해제':''}</button>
+      <button onclick="toggleFacHide(${f.id})" style="${_mBtnS(f.hidden?'#f0a500':'#8aa6bc')}">${f.hidden?'👁️ 표시':'🙈 숨김'}</button>
+    </div>`:''}`;
   const mapBtn=document.getElementById('facDetailMapBtn');
   if(mapBtn)mapBtn.style.display=(f.lat&&f.lng)?'block':'none';
   const adminBtns=document.getElementById('facDetailAdminBtns');
@@ -589,7 +706,7 @@ function saveFacWarn(id){
   facs[idx].warn={on:true,reason,from:prev.from||Date.now(),until,by:getAuthor(),at:Date.now()};
   DB.s('facilities',facs);
   const ov=document.getElementById('facWarnOv');if(ov)ov.remove();
-  try{renderInspectMap();}catch(e){}try{renderFacList();}catch(e){}try{openFacDetail(id);}catch(e){}
+  try{renderInspectMap();}catch(e){}try{renderFacList();}catch(e){}try{_refreshFacSurface(id);}catch(e){}
   toast('⚠️ 경고표시 켜짐');updateSummary();
 }
 function clearFacWarn(id){
@@ -598,7 +715,7 @@ function clearFacWarn(id){
   facs[idx].warn={on:false,clearedBy:getAuthor(),clearedAt:Date.now()};
   DB.s('facilities',facs);
   const ov=document.getElementById('facWarnOv');if(ov)ov.remove();
-  try{renderInspectMap();}catch(e){}try{renderFacList();}catch(e){}try{openFacDetail(id);}catch(e){}
+  try{renderInspectMap();}catch(e){}try{renderFacList();}catch(e){}try{_refreshFacSurface(id);}catch(e){}
   toast('✅ 경고표시 해제');updateSummary();
 }
 function viewOnFacMap(){
@@ -1209,6 +1326,7 @@ function deleteFac(id){
   if(!confirm('이 시설물을 삭제하시겠습니까?'))return;
   DB.s('facilities',(DB.g('facilities')||[]).filter(f=>f.id!==id));
   closeM('modalFacDetail');
+  try{document.getElementById('facPopup').classList.remove('on');}catch(e){}
   try{renderInspectMap();}catch(e){}renderFacList();toast('🗑️ 삭제');updateSummary();
 }
 function submitAddFac(){

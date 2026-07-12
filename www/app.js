@@ -555,27 +555,30 @@ function kmaWarnDiag(){
   if(w)chain.push({name:'전용 프록시(Cloudflare)',u:w+(w.indexOf('?')>=0?'&':'?')+'url='+encodeURIComponent(url)});
   chain.push({name:'기상청 직접',u:url});
   _KMA_PROXIES.forEach(function(p,i){chain.push({name:'공개 프록시 '+(i+1),u:p(url)});});
-  _busy('📡 특보 수신 진단 중…');
-  var rows=[];var firstTxt=null;
-  var run=function(i){
-    if(i>=chain.length)return Promise.resolve();
+  // 백그라운드 진단: 화면을 막지 않고 전 소스를 병렬로 확인 → 완료되면 결과 창 + 토스트
+  if(window._kmaDiagBusy){toast('📡 진단이 이미 진행 중입니다 — 잠시만요');return;}
+  window._kmaDiagBusy=true;
+  toast('📡 수신 진단 시작 — 그동안 다른 작업 하셔도 됩니다 (완료되면 알려드려요)',4000);
+  var rows=[];var firstTxt=null;var firstIdx=99;
+  Promise.all(chain.map(function(c,idx){
     var t0=Date.now();
     var ctl=('AbortController' in window)?new AbortController():null;
     var timer=ctl?setTimeout(function(){ctl.abort();},8000):null;
-    return fetch(chain[i].u,ctl?{signal:ctl.signal}:{}).then(function(r){
+    return fetch(c.u,ctl?{signal:ctl.signal}:{}).then(function(r){
       if(timer)clearTimeout(timer);
       return _kmaReadText(r).then(function(tx){
         var valid=_kmaWrnValid(tx);
         var ok=r.ok&&tx&&tx.length>2;
-        rows.push({name:chain[i].name,ok:ok&&valid,ms:Date.now()-t0,info:'HTTP '+r.status+' · '+tx.length+'자'+(ok&&!valid?' · ⚠️형식무효(에러응답)':'')});
-        if(ok&&valid&&firstTxt===null)firstTxt=tx;
+        rows[idx]={name:c.name,ok:ok&&valid,ms:Date.now()-t0,info:'HTTP '+r.status+' · '+tx.length+'자'+(ok&&!valid?' · ⚠️형식무효(에러응답)':'')};
+        if(ok&&valid&&idx<firstIdx){firstIdx=idx;firstTxt=tx;} // 우선순위 높은 소스(전용 프록시>직접>공개) 채택
       });
     }).catch(function(e){
       if(timer)clearTimeout(timer);
-      rows.push({name:chain[i].name,ok:false,ms:Date.now()-t0,info:(e&&e.name==='AbortError')?'8초 초과(타임아웃)':'연결 실패(차단/다운)'});
-    }).then(function(){return run(i+1);});
-  };
-  run(0).then(function(){
+      rows[idx]={name:c.name,ok:false,ms:Date.now()-t0,info:(e&&e.name==='AbortError')?'8초 초과(타임아웃)':'연결 실패(차단/다운)'};
+    });
+  })).then(function(){
+    window._kmaDiagBusy=false;
+    toast('✅ 수신 진단 완료');
     var fromCache=false;
     if(firstTxt===null){var lg=_loadKmaLast();if(lg&&lg.t){firstTxt=lg.t;fromCache=lg.at||true;}}
     else{_saveKmaLast(firstTxt);}
@@ -604,6 +607,7 @@ function kmaWarnDiag(){
     ov.innerHTML='<div style="background:#0a1828;border:1px solid rgba(79,168,208,.3);border-radius:14px;max-width:420px;width:100%;max-height:82vh;overflow-y:auto;padding:15px;">'
       +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;"><b style="font-size:14px;color:#e0edf8;">📡 기상청 특보 수신 진단</b><button onclick="document.getElementById(\'kmaDiagOv\').remove()" style="background:none;border:none;color:rgba(255,255,255,.5);font-size:20px;cursor:pointer;">×</button></div>'
       +'<div style="font-size:10px;color:#5d92bc;font-weight:800;margin-bottom:4px;">연결 경로</div>'+srcHtml
+      +((rows[0]&&!rows[0].ok&&rows.some(function(r){return r&&r.ok;}))?'<div style="margin-top:8px;font-size:11px;color:#ffb04d;background:rgba(240,165,0,.08);border:1px solid rgba(240,165,0,.3);border-radius:8px;padding:8px;line-height:1.6;">⚠️ 전용 프록시(Cloudflare)가 응답하지 않습니다. 지금은 공개 프록시로 수신되어 동작엔 문제없지만, 공개 프록시는 언제든 막힐 수 있으니 Cloudflare 대시보드에서 워커(seoraksan-kma) 상태를 확인하세요.</div>':'')
       +(keyBad?'<div style="margin-top:8px;font-size:11px;color:#ff8a73;background:rgba(231,76,60,.08);border:1px solid rgba(231,76,60,.3);border-radius:8px;padding:8px;">🔑 인증키(authKey) 문제로 보입니다 — 기상청 API허브에서 키 상태를 확인하세요</div>':'')
       +'<div style="font-size:10px;color:#5d92bc;font-weight:800;margin:12px 0 4px;">파싱 결과 (강원 영동 필터)</div>'+parseHtml
       +'<div style="font-size:10px;color:#5d92bc;font-weight:800;margin:12px 0 4px;">응답 원문 (앞 600자)</div>'
@@ -611,7 +615,6 @@ function kmaWarnDiag(){
       +'<button onclick="document.getElementById(\'kmaDiagOv\').remove();_kmaWrnCache=null;_kmaWrnCacheAt=0;kmaWarnDiag();" style="margin-top:10px;width:100%;padding:9px;border-radius:9px;border:1px solid rgba(79,168,208,.35);background:rgba(79,168,208,.1);color:#4fa8d0;font-size:12px;font-weight:700;cursor:pointer;">🔄 다시 진단</button></div>';
     ov.onclick=function(e){if(e.target===ov)ov.remove();};
     document.body.appendChild(ov);
-    _busyDone();
   });
 }
 function _parsePCP(v){if(!v||v==='강수없음')return 0;if(v.includes('미만'))return 0.5;var n=parseFloat(v);return isNaN(n)?0:n;}
@@ -2812,7 +2815,7 @@ function sosToRescue(id){
 // 앱 자체 업데이트 (OTA · Capgo 자체호스팅) — APK 전용. 웹/PWA는 서비스워커가 자동 갱신.
 // 번들(www)의 새 버전을 ota.json으로 알리면, 설치된 앱이 받아서 그 자리에서 교체(재빌드 불필요).
 // ══════════════════════════════════════════
-const OTA_VER='2026.07.12.104';                         // ← 현재 번들 버전 (릴리스마다 올림 · build-ota.sh가 ota.json에 반영)
+const OTA_VER='2026.07.12.105';                         // ← 현재 번들 버전 (릴리스마다 올림 · build-ota.sh가 ota.json에 반영)
 const OTA_MANIFEST='https://seorak1275.github.io/seoraksan/ota.json';
 let _otaInfo=null;
 function _otaPlugin(){try{return (window.Capacitor&&window.Capacitor.Plugins&&window.Capacitor.Plugins.CapacitorUpdater)||null;}catch(e){return null;}}

@@ -127,8 +127,10 @@ var _iClusterOvs=[],_iItems=[];
 function _reclusterInspect(){
   if(!mapI)return;
   _iClusterOvs.forEach(o=>{try{o.setMap(null);}catch(e){}});_iClusterOvs=[];
-  // 클러스터(핀 묶음) 미사용 — 모든 시설물을 개별 핀으로 표시
-  iOvs.forEach(o=>{try{o.setMap(mapI);}catch(e){}});
+  // 줌아웃(광역, level≥7)에서는 다목적위치표지판만 표시 — 핀이 뭉개지지 않게. 확대하면 전체 시설물 표시
+  let lv=6;try{lv=mapI.getLevel();}catch(e){}
+  const signOnly=lv>=7;
+  iOvs.forEach(o=>{try{o.setMap(signOnly&&!o._sign?null:mapI);}catch(e){}});
 }
 const DC={lat:38.1328,lng:128.4107};
 // HTML/attribute escaping for user-generated content

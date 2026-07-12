@@ -10,6 +10,9 @@ button{-webkit-tap-highlight-color:transparent;touch-action:manipulation;}
 button,.navi,.bnav,.pill,.chk-item,.btn,.btn-submit,.sm-btn,.mbtn,.mbtn-sm,.noti-act-btn,.mclose,.fab,.fab-gps,.map-ctrl,.adm-tab{user-select:none;-webkit-user-select:none;}
 /* 상단바(전 화면 공통 헤더)·홈 상단 로고 영역·알림 패널 헤더 — 로고·글자 길게 눌러도 선택/복사 안 되게 */
 .ahdr,.ahdr *,.no-sel,.no-sel *,.noti-phdr,.noti-phdr *{user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;}
+/* 상세 이전/다음 버튼 — 웹뷰가 버튼 기본(흰) 배경으로 그리지 못하게 클래스로 강제 */
+.navbtn{flex:1;padding:9px 4px;border-radius:9px;font-size:12.5px;font-weight:600;-webkit-appearance:none !important;appearance:none !important;background:#0e2136 !important;color:#5d86a3 !important;border:1px solid rgba(255,255,255,.07) !important;cursor:pointer;}
+.navbtn:disabled{background:transparent !important;color:rgba(255,255,255,.12) !important;border-color:rgba(255,255,255,.04) !important;cursor:default;}
 input,textarea,[contenteditable]{user-select:text;-webkit-user-select:text;}
 .sel-ok,.sel-ok *{user-select:text!important;-webkit-user-select:text!important;}
 img{-webkit-user-drag:none;}

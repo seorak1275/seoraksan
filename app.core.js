@@ -1020,15 +1020,11 @@ function _navBtns(type,curId,fn){
   var a=(_navOrder[type]||[]).map(String),i=a.indexOf(String(curId));
   if(i<0||a.length<2)return '';
   var prev=i>0?a[i-1]:'',next=i<a.length-1?a[i+1]:'';
-  // appearance:none — iOS 등에서 버튼 기본(밝은) 배경이 인라인 배경을 무시하고 그려지는 것 차단
-  var base='flex:1;padding:9px 4px;border-radius:9px;font-size:12.5px;font-weight:600;-webkit-appearance:none;appearance:none;border:1px solid ';
-  // 모달 배경(#0b1c30)보다 아주 살짝만 밝은 어두운 남색 — 배경에 녹아들게
-  var on='background:#0e2136;color:#5d86a3;border-color:rgba(255,255,255,.07);cursor:pointer;';
-  var off='background:transparent;color:rgba(255,255,255,.12);border-color:rgba(255,255,255,.04);cursor:default;';
+  // 배경·색은 style.css .navbtn(!important)이 강제 — 일부 웹뷰가 인라인 스타일을 무시하고 기본(흰) 배경으로 그리던 문제 차단
   return '<div style="display:flex;align-items:center;gap:8px;margin-bottom:11px;">'
-    +'<button '+(prev?'onclick="'+fn+'('+prev+')"':'disabled')+' style="'+base+(prev?on:off)+'">◀ 이전</button>'
+    +'<button class="navbtn" '+(prev?'onclick="'+fn+'('+prev+')"':'disabled')+'>◀ 이전</button>'
     +'<span style="font-size:11px;color:#7a9cb8;font-weight:800;white-space:nowrap;">'+(i+1)+' / '+a.length+'</span>'
-    +'<button '+(next?'onclick="'+fn+'('+next+')"':'disabled')+' style="'+base+(next?on:off)+'">다음 ▶</button></div>';
+    +'<button class="navbtn" '+(next?'onclick="'+fn+'('+next+')"':'disabled')+'>다음 ▶</button></div>';
 }
 function getSelPills(id){return [...document.querySelectorAll(`#${id} .pill.on`)].map(p=>p.textContent);}
 function tPill(el){el.classList.toggle('on');}
