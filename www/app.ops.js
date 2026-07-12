@@ -550,16 +550,21 @@ const _mBtnS=c=>`flex:1;padding:6px 2px;border-radius:8px;border:1px solid rgba(
 function _facInfoHtml(f){
   const w=_facWarn(f);
   const col=_facTypeColor(f.type);
+  // 짧은 정보(우측 열): 사진 옆에 나란히 — 세로 공간 절약
+  const sRow=(k,v)=>v?`<div style="display:flex;gap:6px;padding:2px 0;"><span style="min-width:32px;flex-shrink:0;font-size:10px;color:#5d86a3;font-weight:700;">${k}</span><span style="flex:1;min-width:0;font-size:11px;color:#c9dcec;line-height:1.45;word-break:break-all;">${v}</span></div>`:'';
+  const shortRows=[
+    sRow('종류',`<span style="color:${col};font-weight:700;">${_esc(f.type)}</span>`),
+    sRow('위치',_esc(f.loc||'')),
+    sRow('설치',_esc(f.install||'')),
+    sRow('등록',_esc(f.author||''))
+  ].join('');
+  // 긴 정보(하단 전폭)
   const rows=[];
   const row=(k,v)=>{if(v)rows.push(`<div style="display:flex;gap:8px;padding:2.5px 0;"><span style="min-width:50px;flex-shrink:0;font-size:10.5px;color:#5d86a3;font-weight:700;">${k}</span><span style="flex:1;font-size:11.5px;color:#c9dcec;line-height:1.5;word-break:break-all;">${v}</span></div>`);};
-  row('종류',`<span style="color:${col};font-weight:700;">${_esc(f.type)}</span>`);
-  row('위치',_esc(f.loc||''));
   row('관리번호',f.mgmt?`<span style="font-family:monospace;letter-spacing:.3px;">${_esc(f.mgmt)}</span>`:'');
   row('규격',_esc(f.spec||''));
   row('구조',_esc(f.struct||''));
-  row('설치',_esc(f.install||''));
   row('좌표',f.lat?f.lat.toFixed(5)+', '+f.lng.toFixed(5):'');
-  row('등록',_esc(f.author||''));
   row('비고',_esc(f.note||''));
   const iss=(DB.g('facIssues')||[]).filter(i=>i.facId===f.id).sort((a,b)=>(b.id||0)-(a.id||0)).slice(0,2);
   const issHtml=iss.map(i=>`<div onclick="event.stopPropagation();openFacIssueDetail(${i.id})" style="display:flex;align-items:center;gap:7px;background:rgba(255,255,255,.03);border-radius:8px;padding:6px 9px;margin-top:5px;cursor:pointer;">
@@ -569,8 +574,11 @@ function _facInfoHtml(f){
     </div>`).join('');
   return `
     ${w?`<div style="background:rgba(224,80,80,.1);border:1px solid rgba(224,80,80,.4);border-radius:9px;padding:7px 10px;margin-bottom:8px;font-size:11px;color:#ffb0a5;line-height:1.6;"><b style="color:#ff5a45;">⚠️ 경고표시</b>${w.reason?' — '+_esc(w.reason):''} <span style="color:#c98;font-size:10px;">${_esc(_warnPeriodStr(w))}</span></div>`:''}
-    ${f.photo?`<img src="${_esc(f.photo)}" loading="lazy" onclick="_facPhotoView('${_escq(f.photo)}')" style="width:100%;max-height:118px;object-fit:contain;background:#04101e;border-radius:10px;cursor:pointer;margin-bottom:8px;display:block;" alt="">`:''}
-    <div style="background:#060d1a;border-radius:10px;padding:8px 11px;">${rows.join('')}</div>
+    <div style="display:flex;gap:9px;margin-bottom:${rows.length||issHtml?'8px':'0'};align-items:stretch;">
+      ${f.photo?`<img src="${_esc(f.photo)}" loading="lazy" onclick="_facPhotoView('${_escq(f.photo)}')" style="width:42%;max-width:150px;aspect-ratio:4/3;object-fit:cover;border-radius:10px;cursor:pointer;flex-shrink:0;align-self:center;display:block;" alt="">`:''}
+      <div style="flex:1;min-width:0;background:#060d1a;border-radius:10px;padding:7px 9px;display:flex;flex-direction:column;justify-content:center;">${shortRows}</div>
+    </div>
+    ${rows.length?`<div style="background:#060d1a;border-radius:10px;padding:7px 11px;">${rows.join('')}</div>`:''}
     ${issHtml?`<div style="font-size:10px;color:#5d86a3;font-weight:800;margin-top:8px;">🔧 최근 점검</div>${issHtml}`:''}`;
 }
 function openFacFromMap(id){
