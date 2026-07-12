@@ -1,7 +1,1 @@
-{"version":"2026.07.12.98","url":"https://seorak1275.github.io/seoraksan/bundle.zip","notes":"배포 자동화 deploy.sh + CLAUDE.md 기능 색인 (토큰 절감)
-
-- deploy.sh: 캐시 버전 +1 → OTA_VER 자동 갱신 → 미러 → build-ota → 커밋 → 기능 브랜치 push → main 머지·push → 복귀까지 한 명령
-- CLAUDE.md: 작업 순서를 deploy.sh 기준으로 교체, 기능→파일:위치 색인 추가(세션 탐색 비용 절감), 요청 모아서 배포 규칙 명시
-
-Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>
-Claude-Session: https://claude.ai/code/session_01UryCE6yc2KeeE3mJmovMWw"}
+{"version":"2026.07.12.99","url":"https://seorak1275.github.io/seoraksan/bundle.zip","notes":"ota.json JSON 깨짐 수정 — notes 첫 줄만·따옴표 제거 (deploy/build-ota 방어 처리)"}

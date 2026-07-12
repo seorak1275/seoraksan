@@ -32,7 +32,9 @@ for f in index.html style.css app.core.js app.map.js app.rescue.js app.report.js
 done
 
 # ④ OTA 번들 (bundle.zip + ota.json, sw.js도 www로 동기화됨)
-sh build-ota.sh "$MSG"
+#    ota.json notes는 JSON 문자열이므로 커밋 메시지 첫 줄만, 따옴표·역슬래시 제거해 전달
+NOTE=$(printf '%s' "$MSG" | head -1 | tr -d '"\\')
+sh build-ota.sh "$NOTE"
 
 # ⑤ 커밋 + 기능 브랜치 push
 BR=$(git rev-parse --abbrev-ref HEAD)

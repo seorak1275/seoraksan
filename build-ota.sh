@@ -20,7 +20,8 @@ cp -f sw.js www/sw.js 2>/dev/null || true
 # 현재 번들 버전 = www/app.js 의 OTA_VER (단일 소스)
 VER=$(grep -o "const OTA_VER='[^']*'" www/app.js | head -1 | sed "s/const OTA_VER='//;s/'//")
 [ -z "$VER" ] && { echo "OTA_VER 를 www/app.js 에서 찾지 못했습니다"; exit 1; }
-NOTES="${1:-}"
+# notes는 ota.json(JSON) 문자열에 들어가므로 첫 줄만 + 따옴표·역슬래시 제거 (여러 줄이면 JSON 깨짐)
+NOTES=$(printf '%s' "${1:-}" | head -1 | tr -d '"\\')
 
 # www 전체를 zip (index.html 이 zip 루트에 오도록 www 안에서 압축)
 rm -f bundle.zip
