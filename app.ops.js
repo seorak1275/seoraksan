@@ -2945,7 +2945,7 @@ function renderAdmSys(){
       <div style="font-size:11px;color:#7a9cb8;margin-bottom:8px;">악용·오작동 시 전체 접수를 차단할 수 있습니다. 차단 중엔 1회용 링크도 발급되지 않고 수신 위치가 표시되지 않습니다.</div>
       ${(()=>{const blk=!!DB.g('sosBlocked');return `<button onclick="toggleSosBlock()" style="width:100%;padding:11px;border-radius:8px;border:1px solid ${blk?'rgba(39,174,96,.4)':'rgba(192,57,43,.4)'};background:${blk?'rgba(39,174,96,.12)':'rgba(192,57,43,.12)'};color:${blk?'#27ae60':'#e05050'};font-size:13px;font-weight:700;cursor:pointer;">${blk?'⛔ 현재 차단됨 — 탭하여 접수 허용':'🆗 현재 허용됨 — 탭하여 접수 차단'}</button>`;})()}
     </div>
-    <div class="scard" style="margin-bottom:8px;">
+    <div class="scard sel-ok" style="margin-bottom:8px;">
       <div class="stitle">🐞 오류 기록 <button onclick="localStorage.removeItem('_errLog');renderAdmSys();" style="float:right;background:none;border:none;color:rgba(255,255,255,.3);font-size:10px;cursor:pointer;">내 기록 비우기</button></div>
       <div style="font-size:10px;color:#5a8aaa;font-weight:700;margin:4px 0 3px;">📱 내 기기</div>
       ${(()=>{try{const log=JSON.parse(localStorage.getItem('_errLog')||'[]');return log.length?log.slice(0,8).map(e=>`<div style="font-size:10px;color:#b8856a;font-family:monospace;padding:2px 0;border-bottom:1px solid rgba(255,255,255,.04);">${e.t} ${_esc(e.m)}</div>`).join(''):'<div style="font-size:11px;color:rgba(255,255,255,.25);">기록된 오류 없음 ✅</div>';}catch(e){return'';}})()}
