@@ -565,9 +565,10 @@ function kmaWarnDiag(){
     return fetch(chain[i].u,ctl?{signal:ctl.signal}:{}).then(function(r){
       if(timer)clearTimeout(timer);
       return _kmaReadText(r).then(function(tx){
+        var valid=_kmaWrnValid(tx);
         var ok=r.ok&&tx&&tx.length>2;
-        rows.push({name:chain[i].name,ok:ok,ms:Date.now()-t0,info:'HTTP '+r.status+' · '+tx.length+'자'});
-        if(ok&&firstTxt===null)firstTxt=tx;
+        rows.push({name:chain[i].name,ok:ok&&valid,ms:Date.now()-t0,info:'HTTP '+r.status+' · '+tx.length+'자'+(ok&&!valid?' · ⚠️형식무효(에러응답)':'')});
+        if(ok&&valid&&firstTxt===null)firstTxt=tx;
       });
     }).catch(function(e){
       if(timer)clearTimeout(timer);
@@ -580,7 +581,7 @@ function kmaWarnDiag(){
     else{_saveKmaLast(firstTxt);}
     var parsed=firstTxt!==null?_parseKmaWarnings(firstTxt):{};
     var live=_kmaLiveList(parsed);
-    if(firstTxt!==null){_renderWeatherAlerts(parsed,false);} // 성공 시 즉시 반영(자동 발령 포함)
+    if(firstTxt!==null){_renderWeatherAlerts(parsed,false,!!fromCache);} // 실시간 수신만 자동 발령 동기화 — 캐시 폴백은 표시만(옛 데이터로 발령/해제 방지)
     var srcHtml=rows.map(function(r){return '<div style="display:flex;gap:8px;align-items:center;padding:5px 0;border-bottom:1px solid rgba(255,255,255,.05);"><span style="flex:1;font-size:12px;color:#cfe2f2;">'+r.name+'</span><span style="font-size:10px;color:#5a7e98;">'+r.ms+'ms</span><span style="font-size:11px;font-weight:800;color:'+(r.ok?'#5fcf8f':'#ff8a73')+';">'+(r.ok?'✅ 성공':'❌ 실패')+'</span><span style="font-size:9px;color:#5a7e98;">'+r.info+'</span></div>';}).join('');
     var _lines=firstTxt!==null?String(firstTxt).split('\n').map(function(x){return x.trim();}).filter(function(x){return x&&x.charAt(0)!=='#';}):[];
     var _gw=_lines.filter(function(x){return /강원|속초|양양|고성|인제|설악|산지|영동|강풍/.test(x);});
@@ -625,10 +626,12 @@ var _KMA_WRN_TTL=900000; // 15분
 var _SETAK_REGIONS=['속초','고성','양양','인제','설악','강원북부산지','북부산지'];
 // TM_EF/TM_FC(YYYYMMDDHHMM) → ms. 형식이 다르거나 열이 밀렸으면 0 (호출부가 감지 시각으로 폴백)
 function _kmaTmMs(s){var d=String(s||'').replace(/\D/g,'');if(d.length<12||d.slice(0,2)!=='20')return 0;var t=new Date(+d.slice(0,4),+d.slice(4,6)-1,+d.slice(6,8),+d.slice(8,10),+d.slice(10,12)).getTime();return isNaN(t)?0:t;}
+// typ01 정상 응답 판별 — 기상청 원문은 #START7777/#7777END 마커와 REG_UP 헤더를 포함.
+// 프록시가 200으로 돌려준 에러 HTML·빈 응답을 '특보 없음'으로 오인하면 발효 중 특보가 자동해제되므로 반드시 구분.
+function _kmaWrnValid(txt){return typeof txt==='string'&&(/START7777/.test(txt)||/REG_UP/.test(txt));}
 function _parseKmaWarnings(txt){
   var alertMap={};
-  _kmaWrnCache=txt;
-  _kmaWrnCacheAt=Date.now();
+  if(_kmaWrnValid(txt)){_kmaWrnCache=txt;_kmaWrnCacheAt=Date.now();} // 유효 응답만 캐시 (무효 입력으로 15분 캐시 오염 방지)
   if(!txt||typeof txt!=='string')return alertMap;
   var wrnTypes=['호우','강풍','대설','태풍','폭풍해일','한파','폭염','풍랑','건조','황사'];
   // 컬럼: REG_UP,REG_UP_KO,REG_ID,REG_KO,TM_FC,TM_EF,WRN,LVL,CMD,...
@@ -727,10 +730,14 @@ function fetchWeather(){
     document.getElementById('wDesc').textContent='속초 · '+desc;
     document.getElementById('wWind').textContent='💨 '+Math.round(wspd)+'m/s';
     var ws=document.getElementById('weatherStrip');if(ws)ws.style.display='flex';
-    // 실제 기상특보 (기상청 발효 특보)
-    if(typeof wrnTxt==='string')_saveKmaLast(wrnTxt);
-    var alertMap=_parseKmaWarnings(wrnTxt||'');
-    _renderWeatherAlerts(alertMap);
+    // 실제 기상특보 — 유효 응답만 공식 처리 (수신 실패를 '특보 없음'으로 오인해 자동해제하지 않도록)
+    if(_kmaWrnValid(wrnTxt)){
+      _saveKmaLast(wrnTxt);
+      _renderWeatherAlerts(_parseKmaWarnings(wrnTxt));
+    }else{
+      var lg=_loadKmaLast();
+      if(lg&&lg.t)_renderWeatherAlerts(_parseKmaWarnings(lg.t),false,true); // 최근 캐시 표시만 — 자동 발령/해제 동기화 금지
+    }
   }).catch(function(e){
     console.warn('KMA 오류, 폴백:',e);
     _weatherFetched=false; // 폴백도 실패할 수 있으니 재시도 가능하도록 해제
@@ -739,13 +746,13 @@ function fetchWeather(){
 }
 // ── 기상특보 주기적 재조회 (운영 중 실시간 자동 발령) ──
 var _kmaWarnPollTimer=null;
-function _saveKmaLast(txt){try{if(typeof txt==='string'&&txt.length>10)localStorage.setItem('_kmaWrnLast',JSON.stringify({t:txt,at:Date.now()}));}catch(e){}}
+function _saveKmaLast(txt){try{if(_kmaWrnValid(txt)){window._kmaLastRxMs=Date.now();localStorage.setItem('_kmaWrnLast',JSON.stringify({t:txt,at:Date.now()}));}}catch(e){}}
 function _loadKmaLast(){try{return JSON.parse(localStorage.getItem('_kmaWrnLast')||'null');}catch(e){return null;}}
 function _pollKmaWarnings(){
   if(document.visibilityState&&document.visibilityState!=='visible')return; // 백그라운드면 생략
   var url='https://apihub.kma.go.kr/api/typ01/url/wrn_now_data_new.php?authKey='+KMA_KEY+'&disp=1';
   _fetchKma(url,true).then(function(txt){
-    if(typeof txt==='string'){_saveKmaLast(txt);_renderWeatherAlerts(_parseKmaWarnings(txt),false);} // 공식 특보 → _syncAutoAlerts 자동 발령
+    if(_kmaWrnValid(txt)){_saveKmaLast(txt);_renderWeatherAlerts(_parseKmaWarnings(txt),false);} // 유효 응답만 공식 처리 → _syncAutoAlerts 자동 발령/해제
   }).catch(function(){});
 }
 function _startKmaWarnPoll(){
@@ -794,18 +801,19 @@ function _fetchWeatherFallback(realWrnTxt){
         if(reasons.length)alertMap[rNames[i]]={level:level,reasons:reasons};
       });
       // 기상청 특보(typ01)가 실제로 수신됐으면 추정값 대신 진짜 발효 특보 표시
-      if(typeof realWrnTxt==='string'&&realWrnTxt.length){
+      if(_kmaWrnValid(realWrnTxt)){
         _renderWeatherAlerts(_parseKmaWarnings(realWrnTxt),false);
       }else{
         _renderWeatherAlerts(alertMap,true);
       }
     }).catch(function(e){console.warn('날씨 폴백 실패:',e);_weatherFetched=false;});
 }
-function _renderWeatherAlerts(alertMap,estimated){
+function _renderWeatherAlerts(alertMap,estimated,noSync){
   // 특보운영 연동: 공식 발효 특보만 자동 발령 근거로 사용(추정값 제외)
+  // noSync=true: 오래된 캐시 등 '표시용' 데이터 — 화면엔 그리되 자동 발령/해제 동기화는 하지 않음
   try{
     window._kmaLiveAlerts=estimated?[]:_kmaLiveList(alertMap);
-    if(!estimated){
+    if(!estimated&&!noSync){
       _syncAutoAlerts(window._kmaLiveAlerts);
       if(window.curApp==='alert'&&typeof renderAlertView==='function')renderAlertView();
     }
@@ -870,7 +878,7 @@ function _fetchWeatherDetail(){
   ]).then(function(all){
     _wDetailFetching=false;
     // 권역 중 하나라도 성공하면 기상청 데이터로 처리(나머지 권역 프록시 실패는 허용)
-    var wrnTxtOk=(typeof all[2]==='string'&&all[2].length>0);
+    var wrnTxtOk=_kmaWrnValid(all[2]);
     var wrnMap=_parseKmaWarnings(all[2]||'');
     var anyOk=all[0].some(function(x){return x&&x.response&&x.response.header&&x.response.header.resultCode==='00';});
     // 기온(typ02) 실패해도 특보(typ01)가 살아 있으면 진짜 기상청 특보를 폴백 렌더러로 넘김
@@ -2804,7 +2812,7 @@ function sosToRescue(id){
 // 앱 자체 업데이트 (OTA · Capgo 자체호스팅) — APK 전용. 웹/PWA는 서비스워커가 자동 갱신.
 // 번들(www)의 새 버전을 ota.json으로 알리면, 설치된 앱이 받아서 그 자리에서 교체(재빌드 불필요).
 // ══════════════════════════════════════════
-const OTA_VER='2026.07.12.103';                         // ← 현재 번들 버전 (릴리스마다 올림 · build-ota.sh가 ota.json에 반영)
+const OTA_VER='2026.07.12.104';                         // ← 현재 번들 버전 (릴리스마다 올림 · build-ota.sh가 ota.json에 반영)
 const OTA_MANIFEST='https://seorak1275.github.io/seoraksan/ota.json';
 let _otaInfo=null;
 function _otaPlugin(){try{return (window.Capacitor&&window.Capacitor.Plugins&&window.Capacitor.Plugins.CapacitorUpdater)||null;}catch(e){return null;}}

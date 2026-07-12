@@ -1410,16 +1410,23 @@ function renderAlertView(){
   if(_alertTab===3){_wrapEl.innerHTML=_renderAlertInput(active);return;}
 
   // ── 목록 탭 ──
-  // 기상청 실시간 발효 특보 (자동 발령 근거)
+  // 기상청 실시간 발효 특보 (자동 발령 근거) + 마지막 정상 수신 시각(두절 감지)
   const kmaLive=window._kmaLiveAlerts||[];
+  const _rxAt=window._kmaLastRxMs||((typeof _loadKmaLast==='function'&&(_loadKmaLast()||{}).at)||0);
+  let rxChip='';
+  if(_rxAt){
+    const rxMin=Math.floor((Date.now()-_rxAt)/60000);
+    const rxStale=rxMin>=30; // 폴링 10분 주기 — 30분 넘게 못 받으면 두절 표시
+    rxChip=`<span style="font-size:9px;font-weight:${rxStale?'800':'600'};color:${rxStale?'#ff8a73':'#46708f'};margin-left:6px;flex-shrink:0;">${rxStale?`⚠️ 수신 두절 ${rxMin>=60?Math.floor(rxMin/60)+'시간':rxMin+'분'}`:`${_alertMsShort(_rxAt)} 수신`}</span>`;
+  }
   let wxHtml='';
   if(kmaLive.length){
     wxHtml=`<div class="ao-wx">
-      <div style="display:flex;align-items:center;margin-bottom:7px;"><span style="font-size:10px;color:#5d92bc;font-weight:800;letter-spacing:.3px;">📡 기상청 실시간 발효 특보</span>${isAdminUser()?`<button onclick="kmaWarnDiag()" style="margin-left:auto;background:rgba(79,168,208,.08);border:1px solid rgba(79,168,208,.25);color:#5d92bc;border-radius:7px;font-size:9px;font-weight:700;padding:2px 8px;cursor:pointer;">🔧 수신 진단</button>`:''}</div>
+      <div style="display:flex;align-items:center;margin-bottom:7px;"><span style="font-size:10px;color:#5d92bc;font-weight:800;letter-spacing:.3px;">📡 기상청 실시간 발효 특보</span>${rxChip}${isAdminUser()?`<button onclick="kmaWarnDiag()" style="margin-left:auto;background:rgba(79,168,208,.08);border:1px solid rgba(79,168,208,.25);color:#5d92bc;border-radius:7px;font-size:9px;font-weight:700;padding:2px 8px;cursor:pointer;">🔧 수신 진단</button>`:''}</div>
       ${kmaLive.map(a=>`<div class="ao-wx-chip"><span class="ao-level-badge ao-level-${a.stage.indexOf('Ⅱ')>=0?'Ⅱ단계':'Ⅰ단계'}">${_stageShort(a.stage)}</span> <span style="color:#dceaf6;">${_esc(a.type||'')}</span></div>`).join('')}
     </div>`;
   } else {
-    wxHtml=`<div class="ao-wx-empty" style="display:flex;align-items:center;gap:8px;"><span style="flex:1;">☀️ 현재 기상청 발효 특보 없음</span>${isAdminUser()?`<button onclick="kmaWarnDiag()" style="background:rgba(79,168,208,.08);border:1px solid rgba(79,168,208,.25);color:#5d92bc;border-radius:7px;font-size:9px;font-weight:700;padding:2px 8px;cursor:pointer;flex-shrink:0;">🔧 수신 진단</button>`:''}</div>`;
+    wxHtml=`<div class="ao-wx-empty" style="display:flex;align-items:center;gap:8px;"><span style="flex:1;">☀️ 현재 기상청 발효 특보 없음${rxChip}</span>${isAdminUser()?`<button onclick="kmaWarnDiag()" style="background:rgba(79,168,208,.08);border:1px solid rgba(79,168,208,.25);color:#5d92bc;border-radius:7px;font-size:9px;font-weight:700;padding:2px 8px;cursor:pointer;flex-shrink:0;">🔧 수신 진단</button>`:''}</div>`;
   }
 
   // 활성 특보운영 — 분소별 응소 현황 + 시간별 기상관측
@@ -1523,39 +1530,124 @@ function renderAlertView(){
   if(wrap) wrap.innerHTML=wxHtml+`<div id="alertActiveWrap">`+activeHtml+`</div>`+histHtml;
 }
 
-// ── 특보운영 통계 탭 ──
+// ── 특보운영 통계 탭 — 일수 기준 (건수 아님: 같은 특보가 여러 날 이어지면 날짜별 1일씩 집계) ──
+// 특보 종류별 고정 색 — 다크 배경 대비·색각이상 분리 검증 완료 팔레트. 종류에 고정(순위와 무관)
+const ALERT_TYPE_COLORS={'호우':'#3388c2','대설':'#2fa3c4','강풍':'#46ad5f','폭염':'#cc7527','한파':'#6f7ee6','태풍':'#b055c9','풍랑':'#0f8f6d','건조':'#a5912c','황사':'#b25a28','폭풍해일':'#d4699b'};
+function _alertTypeColor(t){return ALERT_TYPE_COLORS[t]||'#8aa0b4';}
+function alertStatYear(y){window._alertStatYear=y;renderAlertView();}
 function _renderAlertStats(ops){
   ops=ops||DB.g('alertOps')||[];
-  const active=ops.find(o=>!o.closedAt);
-  const closed=ops.filter(o=>o.closedAt);
-  if(!ops.length){
-    return `<div class="ao-empty"><div class="ao-empty-ico">📊</div><div class="ao-empty-msg">특보운영 기록이 없습니다</div></div>`;
-  }
-  // 단계별 / 종류별 집계 (발령된 모든 특보 기준)
-  const lvlMap={},typeMap={};
-  ops.forEach(o=>{const lv=_opLevel(o);lvlMap[lv]=(lvlMap[lv]||0)+1;(_opAlerts(o)||[]).forEach(a=>{const t=a.type||'기타';typeMap[t]=(typeMap[t]||0)+1;});});
-  const totResp=ops.reduce((s,o)=>s+(o.responders||[]).length,0);
-  const totRep=ops.reduce((s,o)=>s+(o.reports||[]).length,0);
-  const closedOps=closed.filter(o=>o.closedAtMs&&o.startedAtMs);
-  const avgHrs=closedOps.length?(closedOps.reduce((s,o)=>s+((o.closedAtMs||0)-(o.startedAtMs||0)),0)/closedOps.length/3600000):0;
-  const lvlColor={'예비특보':'#27ae60','Ⅰ단계(주의보)':'#e67e22','Ⅱ단계(경보)':'#c0392b','Ⅲ단계':'#7d3c98'};
-  const safeMax=o=>Math.max(...Object.values(o),1);
-  const barRow=(k,v,max,col)=>`<div style="margin-bottom:5px;"><div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:2px;"><span style="color:#c0d8ec;">${_esc(k)}</span><span style="color:${col};font-weight:700;">${v}건</span></div><div style="height:4px;background:rgba(255,255,255,.06);border-radius:2px;overflow:hidden;"><div style="height:100%;width:${Math.round(v/max*100)}%;background:${col};border-radius:2px;"></div></div></div>`;
-  const mini=(label,val,col)=>`<div style="background:#060d1a;border-radius:9px;padding:11px 6px;text-align:center;"><div style="font-size:20px;font-weight:800;color:${col||'#e0edf8'};line-height:1.1;">${val}</div><div style="font-size:10px;color:#7a9cb8;margin-top:3px;">${label}</div></div>`;
-  const ord=['예비특보','Ⅰ단계(주의보)','Ⅱ단계(경보)','Ⅲ단계'];
-  const lvlRows=Object.entries(lvlMap).sort((a,b)=>ord.indexOf(a[0])-ord.indexOf(b[0])).map(([k,v])=>barRow(k,v,safeMax(lvlMap),lvlColor[k]||'#4fa8d0')).join('');
-  const typeRows=Object.entries(typeMap).sort((a,b)=>b[1]-a[1]).map(([k,v])=>barRow(k,v,safeMax(typeMap),'#4fa8d0')).join('');
+  if(!ops.length)return `<div class="ao-empty"><div class="ao-empty-ico">📊</div><div class="ao-empty-msg">특보운영 기록이 없습니다</div></div>`;
+  // 1) 발효 구간 수집: 특보별 발효시각 → 운영종료(진행 중이면 현재)
+  const spans=[];
+  ops.forEach(o=>{
+    const s0=o.startedAtMs||_alertTimeMs(o.startedAt)||0;
+    const e0=o.closedAtMs||_alertTimeMs(o.closedAt)||Date.now();
+    _opAlerts(o).forEach(a=>{
+      const f=a.issuedAtMs||_alertTimeMs(a.issuedAt)||s0;
+      if(!f||f>Date.now())return;                            // 시각 없음·발효 예정(미래)은 집계 제외
+      const t=Math.max(f,Math.min(e0,f+366*86400000));       // 손상 데이터 방어(1년 상한)
+      spans.push({type:a.type||'기타',stage:a.stage||'',from:f,to:t});
+    });
+  });
+  if(!spans.length)return `<div class="ao-empty"><div class="ao-empty-ico">📊</div><div class="ao-empty-msg">집계할 특보 데이터가 없습니다</div></div>`;
+  // 2) 일 단위 전개 — 연도별 {전체·월별·종류별·단계별} 발효일 집합 (Set이라 중복 자동 제거)
+  const Y={};
+  spans.forEach(sp=>{
+    const d=new Date(sp.from);d.setHours(0,0,0,0);
+    for(let g=0;d.getTime()<=sp.to&&g<366;g++,d.setDate(d.getDate()+1)){
+      const yr=d.getFullYear(),mo=d.getMonth(),k=(mo+1)*100+d.getDate();
+      const y=Y[yr]||(Y[yr]={days:new Set(),type:{},typeStage:{},month:Array.from({length:12},()=>new Set()),monthTypes:Array.from({length:12},()=>({})),stage:{}});
+      y.days.add(k);y.month[mo].add(k);
+      (y.type[sp.type]||(y.type[sp.type]=new Set())).add(k);
+      y.typeStage[sp.type]=Math.max(y.typeStage[sp.type]||0,_stageRank(sp.stage));
+      (y.monthTypes[mo][sp.type]||(y.monthTypes[mo][sp.type]=new Set())).add(k);
+      const sg=_stageRank(sp.stage)>=2?'경보 이상':(_stageRank(sp.stage)===1?'주의보':'예비특보');
+      (y.stage[sg]||(y.stage[sg]=new Set())).add(k);
+    }
+  });
+  const years=Object.keys(Y).map(Number).sort((a,b)=>b-a);
+  let sel=window._alertStatYear;
+  if(years.indexOf(sel)<0)sel=years[0];
+  const y=Y[sel];
+  // 3) 연도 요약 (운영 세션은 시작 연도 기준)
+  const opsY=ops.filter(o=>new Date(o.startedAtMs||_alertTimeMs(o.startedAt)||0).getFullYear()===sel);
+  const _opSpan=o=>{const st=o.startedAtMs||_alertTimeMs(o.startedAt)||0;const en=o.closedAtMs||_alertTimeMs(o.closedAt)||Date.now();return st?Math.max(0,en-st):0;};
+  const totalHr=opsY.reduce((s,o)=>s+_opSpan(o),0)/3600000;
+  const longest=opsY.reduce((mx,o)=>Math.max(mx,_opSpan(o)),0);
+  const totResp=opsY.reduce((s,o)=>s+(o.responders||[]).length,0);
+  const totRep=opsY.reduce((s,o)=>s+(o.reports||[]).length,0);
+  const typeRank=Object.keys(y.type).map(t=>({t,d:y.type[t].size})).sort((a,b)=>b.d-a.d);
+  const top=typeRank[0];
+  const warnDays=(y.stage['경보 이상']||new Set()).size;
+  const yearDen=sel===new Date().getFullYear()?Math.max(1,Math.ceil((Date.now()-new Date(sel,0,1).getTime())/86400000)):365;
+  // 월별 발효일수 — 세로 막대 (크기 비교 → 단일 색조, 값 직접 표기)
+  const monthMax=Math.max(...y.month.map(s=>s.size),1);
+  const monthBars=y.month.map((s,i)=>{
+    const v=s.size;
+    const bd=Object.keys(y.monthTypes[i]).map(t=>t+' '+y.monthTypes[i][t].size+'일').join(', ');
+    return `<div title="${sel}년 ${i+1}월 — 발효 ${v}일${bd?' ('+_escq(bd)+')':''}" style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%;min-width:0;">
+      ${v?`<div style="font-size:8.5px;color:#7a9cb8;margin-bottom:2px;">${v}</div>`:''}
+      <div style="width:100%;max-width:18px;height:${v?Math.max(4,Math.round(v/monthMax*70)):0}px;background:#3388c2;border-radius:3px 3px 0 0;"></div>
+    </div>`;
+  }).join('');
+  const monthLabels=y.month.map((s,i)=>`<div style="flex:1;text-align:center;font-size:8.5px;color:${s.size?'#7a9cb8':'#3a5a75'};">${i+1}</div>`).join('');
+  // 종류별 발효일수 — 순위 막대 (정체성 → 종류 고정색 + 전 항목 직접 라벨)
+  const maxTypeDays=top?top.d:1;
+  const typeRows=typeRank.map(r=>{
+    const col=_alertTypeColor(r.t);
+    const stg=y.typeStage[r.t]||0;
+    const stgTxt=stg>=2?'경보':(stg===1?'주의보':'예비');
+    let topMo=-1,topMoD=0;
+    y.monthTypes.forEach((m,i)=>{const dd=m[r.t]?m[r.t].size:0;if(dd>topMoD){topMoD=dd;topMo=i;}});
+    return `<div title="${_escq(r.t)} ${r.d}일 · 최고 ${stgTxt}" style="display:flex;align-items:center;gap:8px;padding:5px 0;">
+      <span style="display:inline-flex;align-items:center;gap:5px;min-width:60px;flex-shrink:0;"><span style="width:8px;height:8px;border-radius:50%;background:${col};flex-shrink:0;"></span><span style="font-size:11.5px;color:#c0d8ec;font-weight:700;">${_esc(r.t)}</span></span>
+      <div style="flex:1;height:10px;background:rgba(255,255,255,.05);border-radius:5px;overflow:hidden;"><div style="height:100%;width:${Math.max(3,Math.round(r.d/maxTypeDays*100))}%;background:${col};border-radius:5px;"></div></div>
+      <span style="font-size:11.5px;color:#e0edf8;font-weight:800;min-width:30px;text-align:right;flex-shrink:0;">${r.d}일</span>
+      <span style="font-size:9px;color:#5a7e98;min-width:62px;text-align:right;flex-shrink:0;">최고 ${stgTxt}${topMo>=0?' · 주로 '+(topMo+1)+'월':''}</span>
+    </div>`;
+  }).join('');
+  // 단계별 발효일수 (상태색 — 심각도 고정)
+  const SG=[['경보 이상','#ff6b5b'],['주의보','#e67e22'],['예비특보','#27ae60']];
+  const sgMax=Math.max(...SG.map(p=>(y.stage[p[0]]||new Set()).size),1);
+  const sgRows=SG.map(p=>{
+    const v=(y.stage[p[0]]||new Set()).size;
+    if(!v)return'';
+    return `<div style="display:flex;align-items:center;gap:8px;padding:4px 0;">
+      <span style="font-size:11px;color:#c0d8ec;min-width:60px;flex-shrink:0;">${p[0]}</span>
+      <div style="flex:1;height:8px;background:rgba(255,255,255,.05);border-radius:4px;overflow:hidden;"><div style="height:100%;width:${Math.max(3,Math.round(v/sgMax*100))}%;background:${p[1]};border-radius:4px;"></div></div>
+      <span style="font-size:11px;color:#e0edf8;font-weight:800;min-width:30px;text-align:right;">${v}일</span>
+    </div>`;
+  }).join('');
+  const mini=(label,val,col,sub)=>`<div style="background:#060d1a;border-radius:10px;padding:11px 8px;text-align:center;"><div style="font-size:19px;font-weight:800;color:${col||'#e0edf8'};line-height:1.15;">${val}</div><div style="font-size:9.5px;color:#7a9cb8;margin-top:3px;">${label}</div>${sub?`<div style="font-size:8.5px;color:#4a7090;margin-top:1px;">${sub}</div>`:''}</div>`;
+  const fmtH=h=>h>=48?(h/24).toFixed(h>=240?0:1)+'일':Math.round(h)+'시간';
   return `<div style="padding:2px 2px 10px;">
+    <div style="display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap;">${years.map(v=>`<div class="pill${v===sel?' on':''}" onclick="alertStatYear(${v})">${v}년</div>`).join('')}</div>
     <div class="scard" style="margin-bottom:10px;">
-      <div class="stitle">🌀 특보운영 종합</div>
-      <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:6px;margin-bottom:6px;">
-        ${mini('총 운영',ops.length,'#4fa8d0')}${mini('운영중',active?1:0,active?'#c0392b':'#4fa8d0')}
-        ${mini('누적 응소',totResp+'명','#7ee0a8')}${mini('누적 관측',totRep+'건','#a8cdf5')}
+      <div class="stitle">📊 ${sel}년 특보 발효 현황 <span style="font-size:9px;font-weight:400;color:#5a7e98;">· 일수 기준</span></div>
+      <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:6px;">
+        ${mini('특보 발효일',y.days.size+'일','#4fa8d0','연중 '+Math.round(y.days.size/yearDen*100)+'%')}
+        ${top?mini('최다 특보','<span style="display:inline-flex;align-items:center;gap:5px;"><span style="width:8px;height:8px;border-radius:50%;background:'+_alertTypeColor(top.t)+';"></span>'+_esc(top.t)+'</span>','#e0edf8',top.d+'일 발효'):mini('최다 특보','-','#e0edf8')}
+        ${mini('경보 이상',warnDays+'일',warnDays?'#ff6b5b':'#27ae60',warnDays?'':'경보 발효 없음')}
+        ${mini('비상근무',fmtH(totalHr),'#7ee0a8',opsY.length?opsY.length+'회 운영':'')}
       </div>
-      ${avgHrs?`<div style="font-size:11px;color:#5a8aaa;text-align:center;margin-top:4px;">평균 운영 시간 ${avgHrs>=1?avgHrs.toFixed(1)+'시간':Math.round(avgHrs*60)+'분'} · 종료 ${closed.length}건</div>`:''}
     </div>
-    ${lvlRows?`<div class="scard" style="margin-bottom:10px;"><div class="stitle">📶 단계별</div>${lvlRows}</div>`:''}
-    ${typeRows?`<div class="scard"><div class="stitle">🌧️ 특보 종류별</div>${typeRows}</div>`:''}
+    <div class="scard" style="margin-bottom:10px;">
+      <div class="stitle">🗓️ 월별 발효일수</div>
+      <div style="display:flex;align-items:flex-end;gap:3px;height:90px;padding-top:4px;">${monthBars}</div>
+      <div style="display:flex;gap:3px;margin-top:4px;">${monthLabels}</div>
+    </div>
+    ${typeRows?`<div class="scard" style="margin-bottom:10px;"><div class="stitle">🌧️ 종류별 발효일수</div>${typeRows}<div style="font-size:8.5px;color:#46708f;margin-top:6px;">같은 날 여러 특보는 종류별로 각각 1일씩 집계</div></div>`:''}
+    ${sgRows?`<div class="scard" style="margin-bottom:10px;"><div class="stitle">📶 단계별 발효일수</div>${sgRows}</div>`:''}
+    <div class="scard">
+      <div class="stitle">🌀 ${sel}년 운영 활동</div>
+      <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:6px;">
+        ${mini('응소 연인원',totResp+'명','#7ee0a8')}
+        ${mini('관측 보고',totRep+'건','#a8cdf5')}
+        ${mini('평균 운영',opsY.length?fmtH(totalHr/opsY.length):'-','#a8cdf5')}
+        ${mini('최장 운영',longest?fmtH(longest/3600000):'-','#f0c060')}
+      </div>
+    </div>
   </div>`;
 }
 
@@ -1781,6 +1873,13 @@ function _syncAutoAlerts(liveList){
   });
   if(!created&&!added.length&&!changed.length&&!removed.length&&!timeFixed)return; // 변경 없음
   DB.s('alertOps',ops);
+  // 지난 운영 세션의 중복방지·리마인드 키 청소 (localStorage 무한 누적 방지)
+  try{
+    for(let i=localStorage.length-1;i>=0;i--){
+      const k=localStorage.key(i);if(!k)continue;
+      if((k.indexOf('_aoAuto_')===0&&k.indexOf('_aoAuto_'+active.id)!==0)||(k.indexOf('_aoRemind_')===0&&k.indexOf('_aoRemind_'+active.id)!==0))localStorage.removeItem(k);
+    }
+  }catch(e){}
   if(active.alerts.length)_startAlertReminder();
   // 기기별 1회만 알림 (중복 푸시 방지)
   const sig=active.id+'|'+added.join(',')+'|'+changed.join(',')+'|'+removed.join(',');
