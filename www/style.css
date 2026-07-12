@@ -2,10 +2,13 @@
 html,body{height:100%;height:100dvh;max-height:100%;background:#060d1a;font-family:-apple-system,'Noto Sans KR',sans-serif;overflow:hidden;}
 button{-webkit-tap-highlight-color:transparent;touch-action:manipulation;}
 /* ── 터치 개선 ──
-   1) 길게 눌러도 글자가 선택(복사 핸들)되지 않게 — 선택이 떠 있는 동안 다음 탭이 선택 해제에
-      먹혀 '터치가 안 먹는' 증상의 주원인. 입력창·.sel-ok만 선택 허용 */
-body{user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;}
-input,textarea,[contenteditable]{user-select:text;-webkit-user-select:text;-webkit-touch-callout:default;}
+   1) 지도 화면(지도 위 팝업·컨트롤·상황판·위치선택 포함)만 길게 눌러도 글자 선택(복사 핸들)이
+      안 뜨게 — 선택이 떠 있는 동안 다음 탭이 먹혀 터치가 씹히던 주원인.
+      목록·상세정보는 복사 가능하게 유지 */
+.mapwrap,.mapwrap *,#v-board,#v-board *,#modalMapPicker,#modalMapPicker *{user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;}
+/* 버튼·탭 등 조작 요소는 어디서든 누르다 글자가 긁히지 않게 */
+button,.navi,.bnav,.pill,.chk-item,.btn,.btn-submit,.sm-btn,.mbtn,.mbtn-sm,.noti-act-btn,.mclose,.fab,.fab-gps,.map-ctrl,.adm-tab{user-select:none;-webkit-user-select:none;}
+input,textarea,[contenteditable]{user-select:text;-webkit-user-select:text;}
 .sel-ok,.sel-ok *{user-select:text!important;-webkit-user-select:text!important;}
 img{-webkit-user-drag:none;}
 /* 2) div로 만든 버튼(onclick)들도 더블탭 확대·300ms 지연 없이 즉시 반응 */
