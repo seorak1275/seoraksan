@@ -1,1 +1,1 @@
-{"version":"2026.07.12.100","url":"https://seorak1275.github.io/seoraksan/bundle.zip","notes":"기상특보 발효시각(TM_EF) 기록 — 접속 시각이 아닌 실제 발효 시각으로 표시·알림 + SOS 리스너 오류 시 자동 재구독 + 지도 미로딩 단계 로그"}
+{"version":"2026.07.12.101","url":"https://seorak1275.github.io/seoraksan/bundle.zip","notes":"특보 응소는 호우·대설만 — 그 외 특보(강풍·건조 등)는 응소현황·응소등록·상황판 응소 표시 숨김"}

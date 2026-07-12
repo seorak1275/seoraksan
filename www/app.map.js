@@ -596,6 +596,9 @@ function renderBoard(){
   const aops=DB.g('alertOps')||[];
   const activeOp=aops.find(o=>!o.closedAt);
   const opRespCnt=activeOp?(activeOp.responders||[]).length:0;
+  // 응소는 호우·대설 특보에서만 집계·표시 (그 외 특보는 발효 특보 수 표시)
+  const opMt=activeOp&&typeof _alertMeasureType==='function'?_alertMeasureType(activeOp):'';
+  const opAlertCnt=activeOp?_opAlerts(activeOp).length:0;
   const ts=DB.g('trailStatus')||{};
   const trailCtrlCnt=Object.values(ts).filter(v=>v.status==='통제').length;
   const trailWarnCnt=Object.values(ts).filter(v=>v.status==='주의').length;
@@ -614,8 +617,8 @@ function renderBoard(){
       <div style="font-size:12px;color:${hazActive?'#e0edf8':'rgba(255,255,255,.5)'};font-weight:${hazActive?'700':'400'};">⚠️ 미조치 위험상황${hazActive?' ▾':''}</div>
     </div>
     <div onclick="setBoardView('alert')" style="flex:1;background:${activeOp?'rgba(79,168,208,.12)':'rgba(39,174,96,.08)'};border:1px solid ${alertActive?(activeOp?'rgba(79,168,208,.9)':'rgba(39,174,96,.75)'):(activeOp?'rgba(79,168,208,.45)':'rgba(39,174,96,.25)')};border-radius:12px;padding:12px 16px;text-align:center;cursor:pointer;transition:all .15s;${alertActive?'box-shadow:inset 0 0 0 2px rgba(79,168,208,.3);':''}">
-      <div style="font-size:30px;font-weight:900;color:${activeOp?'#4fa8d0':'#27ae60'};">${activeOp?opRespCnt:0}</div>
-      <div style="font-size:12px;color:${alertActive?'#e0edf8':'rgba(255,255,255,.5)'};font-weight:${alertActive?'700':'400'};">🌀 ${activeOp?'특보 응소':'특보운영'}${alertActive?' ▾':''}</div>
+      <div style="font-size:30px;font-weight:900;color:${activeOp?'#4fa8d0':'#27ae60'};">${activeOp?(opMt?opRespCnt:opAlertCnt):0}</div>
+      <div style="font-size:12px;color:${alertActive?'#e0edf8':'rgba(255,255,255,.5)'};font-weight:${alertActive?'700':'400'};">🌀 ${activeOp?(opMt?'특보 응소':'발효 특보'):'특보운영'}${alertActive?' ▾':''}</div>
     </div>
   </div>
   ${trailCtrlCnt||trailWarnCnt?`<div onclick="setBoardView('trail')" style="display:flex;align-items:center;gap:12px;background:rgba(231,76,60,.1);border:1px solid ${trailActive?'rgba(231,76,60,.85)':'rgba(231,76,60,.35)'};border-radius:12px;padding:10px 16px;margin-bottom:10px;cursor:pointer;">
@@ -663,12 +666,12 @@ function renderBoard(){
           ${elp?`<span class="js-elapsed" data-d="${_esc(activeOp.startedAt)}" style="font-size:15px;font-weight:800;color:#f0a500;font-family:monospace;">⏱ ${elp}</span>`:''}
         </div>
         <div style="margin-bottom:13px;">${chips||'<span style="font-size:12px;color:#456a85;">발령된 특보 없음</span>'}</div>
-        <div style="font-size:13px;color:#9bbdd4;font-weight:700;margin-bottom:4px;">👤 분소별 응소 (총 ${resps.length}명)</div>
+        ${opMt?`<div style="font-size:13px;color:#9bbdd4;font-weight:700;margin-bottom:4px;">👤 분소별 응소 (총 ${resps.length}명)</div>
         ${groupRows.map(gr=>`<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-top:1px solid rgba(255,255,255,.05);">
           <span style="font-size:13px;font-weight:700;color:#cfe2f2;min-width:118px;flex-shrink:0;">${gr.ico} ${_esc(gr.name)}</span>
           <span style="font-size:14px;font-weight:800;color:${gr.cnt?'#5dbf8a':'rgba(255,255,255,.22)'};min-width:42px;flex-shrink:0;">${gr.cnt}명</span>
           <span style="font-size:12px;color:#7a9cb8;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${gr.names||'-'}</span>
-        </div>`).join('')}
+        </div>`).join('')}`:''}
         ${(()=>{
           // 체류인원 요약 — 대피소(shelter) 위치만 집계
           const shelterLocs=new Set(ALERT_STATIONS.filter(s=>s.shelter).map(s=>s.loc));

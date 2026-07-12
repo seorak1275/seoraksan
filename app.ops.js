@@ -1459,11 +1459,11 @@ function renderAlertView(){
         </div>
       </div>
 
-      <div class="ao-stats">
+      ${mt?`<div class="ao-stats">
         <div class="ao-stat"><div class="ao-stat-num" style="color:${lvColor};">${active.alerts.length}</div><div class="ao-stat-lbl">발효 특보</div></div>
         <div class="ao-stat"><div class="ao-stat-num" style="color:#7ee0a8;">${active.responders.length}</div><div class="ao-stat-lbl">응소 인원</div></div>
         <div class="ao-stat"><div class="ao-stat-num" style="color:#a8cdf5;">${active.reports.length}</div><div class="ao-stat-lbl">관측 보고</div></div>
-      </div>
+      </div>`:''}
 
       <div class="ao-card">
         <div class="ao-sec-hd" style="margin-top:0;"><span class="bar" style="background:#ff8a80;"></span>🚨 발령 특보</div>
@@ -1471,10 +1471,10 @@ function renderAlertView(){
         ${active.note?`<div style="font-size:12px;color:#9fc0da;margin-top:8px;background:rgba(255,255,255,.03);border-radius:8px;padding:7px 10px;">📝 ${_esc(active.note)}</div>`:''}
       </div>
 
-      <div class="ao-sec-hd"><span class="bar"></span>👤 응소 현황 <span style="font-size:9px;color:#46708f;font-weight:600;margin-left:auto;">일회성 · 입력은 🚨 입력 탭</span></div>
+      ${mt?`<div class="ao-sec-hd"><span class="bar"></span>👤 응소 현황 <span style="font-size:9px;color:#46708f;font-weight:600;margin-left:auto;">일회성 · 입력은 🚨 입력 탭</span></div>
       ${_renderRespSummary(active,opLevel)}
 
-      ${mt?`<div class="ao-sec-hd"><span class="bar" style="background:#4fc0a0;"></span>📡 관측 현황 <span style="font-size:9px;color:#46708f;font-weight:600;margin-left:auto;">주기마다 지속 보고</span></div>
+      <div class="ao-sec-hd"><span class="bar" style="background:#4fc0a0;"></span>📡 관측 현황 <span style="font-size:9px;color:#46708f;font-weight:600;margin-left:auto;">주기마다 지속 보고</span></div>
       ${_renderObsSummary(active)}
 
       <div class="ao-sec-hd"><span class="bar" style="background:#4fc0a0;"></span>📊 누적 관측 요약</div>
@@ -1604,21 +1604,26 @@ function _renderAlertInput(active){
       </div>
     </div>`;
   }
-  html+=`<div class="ao-sec-hd"><span class="bar"></span>📍 분소별 빠른 입력</div>`;
+  // 응소는 호우·대설 특보에서만 — 그 외 특보(강풍·건조 등)는 대피소 체류인원 입력만 노출
+  html+=`<div class="ao-sec-hd"><span class="bar"></span>📍 ${_mtIn?'분소별 빠른 입력':'대피소 체류인원'}</div>`;
   ALERT_GROUPS.forEach(g=>{
     g.stations.forEach(st=>{
       const isShelter=!!st.shelter;
+      if(!_mtIn&&!isShelter)return; // 응소·관측 없는 특보 → 분소 카드 생략
       const cnt=(active.responders||[]).filter(r=>(r.loc||'사무소')===st.loc).length;
       const occ=isShelter?_latestOccupancy(active,st.loc):null;
       // 대피소: 직원+탐방객 체류인원 표시 / 분소: 당직자(응소인원)만 표시
       const occLine=occ?`<div style="font-size:11px;color:#7ec8a0;margin:2px 0 4px;">⛺ 직원 ${occ.staff??'-'}명 · 탐방객 ${occ.visitors??'-'}명 <span style="color:#4a7090;">${(occ.time||'').slice(11,16)}</span>${occ.note?' · '+_esc(occ.note):''}</div>`:'';
       const base=_dutyOf(st.loc);
+      const cntChip=_mtIn
+        ?`<span class="ao-loc-cnt ${(cnt+base)?'ok':''}">👤 ${base?`상시 ${base}`:''}${base&&cnt?' + ':''}${cnt?`응소 ${cnt}`:(base?'':'응소 0')}명</span>`
+        :(base?`<span class="ao-loc-cnt ok">👤 상시 ${base}명</span>`:'');
       html+=`<div class="ao-loc-card" style="margin-bottom:8px;">
-        <div class="ao-loc-hd"><b style="color:#e8f2fb;font-size:13px;">${isShelter?'⛺ ':g.ico+' '}${_esc(st.label)}</b><span class="ao-loc-cnt ${(cnt+base)?'ok':''}">👤 ${base?`상시 ${base}`:''}${base&&cnt?' + ':''}${cnt?`응소 ${cnt}`:(base?'':'응소 0')}명</span></div>
+        <div class="ao-loc-hd"><b style="color:#e8f2fb;font-size:13px;">${isShelter?'⛺ ':g.ico+' '}${_esc(st.label)}</b>${cntChip}</div>
         ${occLine}
         <div style="display:flex;gap:6px;margin-top:6px;flex-wrap:wrap;">
-          <button onclick="openAddResponder(${active.id},'${st.loc}')" class="ao-loc-btn">👤 응소 등록</button>
-          ${_mtIn?`<button onclick="openAlertReport(${active.id},'${st.loc}')" class="ao-loc-btn rep">${repBtnLbl}</button>`:''}
+          ${_mtIn?`<button onclick="openAddResponder(${active.id},'${st.loc}')" class="ao-loc-btn">👤 응소 등록</button>
+          <button onclick="openAlertReport(${active.id},'${st.loc}')" class="ao-loc-btn rep">${repBtnLbl}</button>`:''}
           ${isShelter?`<button onclick="openAlertOcc(${active.id},'${st.loc}')" class="ao-loc-btn" style="background:rgba(46,204,113,.08);border-color:rgba(46,204,113,.3);color:#7ec8a0;">⛺ 체류인원</button>`:''}
         </div>
       </div>`;
