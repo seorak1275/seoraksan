@@ -1,1 +1,7 @@
-{"version":"2026.07.11.97","url":"https://seorak1275.github.io/seoraksan/bundle.zip","notes":"글자선택 금지를 지도 화면으로 한정 — 목록·상세정보는 복사 가능"}
+{"version":"2026.07.12.98","url":"https://seorak1275.github.io/seoraksan/bundle.zip","notes":"배포 자동화 deploy.sh + CLAUDE.md 기능 색인 (토큰 절감)
+
+- deploy.sh: 캐시 버전 +1 → OTA_VER 자동 갱신 → 미러 → build-ota → 커밋 → 기능 브랜치 push → main 머지·push → 복귀까지 한 명령
+- CLAUDE.md: 작업 순서를 deploy.sh 기준으로 교체, 기능→파일:위치 색인 추가(세션 탐색 비용 절감), 요청 모아서 배포 규칙 명시
+
+Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01UryCE6yc2KeeE3mJmovMWw"}
