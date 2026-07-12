@@ -137,7 +137,7 @@ function submitHazard(){
 // 시설물
 // ══════════════════════════════════════════
 let selFacId=null;
-let facMapStatusF=new Set(),facMapTypeF=new Set(),facMapLocF=new Set();
+let facMapStatusF=new Set(),facMapTypeF=new Set(),facMapLocF=new Set(),facMapGradeF=new Set();
 let facListSort='default'; // 'default' | 'overdue'(점검 오래된순)
 function setFacListSort(v){
   facListSort=facListSort===v?'default':v;
@@ -172,7 +172,9 @@ function renderInspectMap(){
     const wOk=facMapStatusF.size===0||(facMapStatusF.has('warn')&&!!_facWarn(f));
     const tOk=facMapTypeF.size===0||[...facMapTypeF].some(t=>f.type.includes(t));
     const lOk=facMapLocF.size===0||[...facMapLocF].some(v=>_facInZone(f,v));
-    return wOk&&tOk&&lOk;
+    const _cg=facMapGradeF.size?_facCurGrade(f):null;
+    const gOk=facMapGradeF.size===0||(_cg&&facMapGradeF.has(_cg.g));
+    return wOk&&tOk&&lOk&&gOk;
   });
   filtered.forEach(f=>{
     if(!f.lat||!f.lng)return;
@@ -199,6 +201,21 @@ function renderInspectMap(){
   // 시설물 클러스터링 (밀집 시 개수 버블로 묶음)
   _iItems=iOvs.map(ov=>({ov,lat:ov._lat,lng:ov._lng}));
   try{_reclusterInspect();}catch(e){}
+  // 지도 팝업 이전/다음 순서: 서쪽 끝에서 시작해 가장 가까운 시설로 이어지는 체인(탐방로 연속 이동용)
+  try{
+    const pts=filtered.filter(f=>f.lat&&f.lng);
+    if(pts.length>1){
+      let cur=pts.reduce((m,f)=>f.lng<m.lng?f:m,pts[0]);
+      const left=new Set(pts.map(f=>f.id)),chain=[];
+      while(cur){
+        chain.push(String(cur.id));left.delete(cur.id);
+        let best=null,bd=Infinity;
+        pts.forEach(f=>{if(!left.has(f.id))return;const d=(f.lat-cur.lat)*(f.lat-cur.lat)+(f.lng-cur.lng)*(f.lng-cur.lng);if(d<bd){bd=d;best=f;}});
+        cur=best;
+      }
+      window._facMapOrder=chain;
+    }else window._facMapOrder=pts.map(f=>String(f.id));
+  }catch(e){window._facMapOrder=[];}
 }
 // ── 내 주변 시설물: GPS 기준 가까운 순 목록 + 바로 점검 (점검 나갈 때 한 번에) ──
 function openNearFacs(){
@@ -213,7 +230,12 @@ function openNearFacs(){
 function _showNearFacs(la,ln){
   const _meta=DB.g('catFacMeta')||{};const admin=isAdminUser();
   const facs=(DB.g('facilities')||[]).filter(f=>f.lat&&f.lng&&_facVisibleTo(f)&&(admin||!(_meta[f.type]||{}).adminOnly));
-  const near=facs.map(f=>({f,d:_haversine(la,ln,f.lat,f.lng)})).sort((a,b)=>a.d-b.d).slice(0,15);
+  // 이번 분기(1~3·4~6·7~9·10~12월) 점검 여부 — 미점검 시설을 위로 (점검 누락 방지)
+  const _qd=new Date();const _qs=new Date(_qd.getFullYear(),Math.floor(_qd.getMonth()/3)*3,1).getTime();
+  const _lastChk={};(DB.g('facIssues')||[]).forEach(i=>{if(i.facId&&(i.id||0)>(_lastChk[i.facId]||0))_lastChk[i.facId]=i.id||0;});
+  let near=facs.map(f=>({f,d:_haversine(la,ln,f.lat,f.lng),chk:(_lastChk[f.id]||0)>=_qs?_lastChk[f.id]:0})).sort((a,b)=>a.d-b.d).slice(0,25);
+  near.sort((a,b)=>(a.chk?1:0)-(b.chk?1:0)||a.d-b.d); // 미점검 우선, 같은 조건이면 가까운 순
+  near=near.slice(0,15);
   if(!near.length){toast('주변에 등록된 시설물이 없습니다');return;}
   const old=document.getElementById('nearFacOv');if(old)old.remove();
   const ov=document.createElement('div');ov.id='nearFacOv';
@@ -226,7 +248,7 @@ function _showNearFacs(la,ln){
       <span onclick="_nearFacGo(${n.f.id})" style="width:26px;height:26px;border-radius:50%;background:${col}30;border:1.5px solid ${col};display:inline-flex;align-items:center;justify-content:center;font-size:12px;flex-shrink:0;cursor:pointer;">${_esc(n.f.type.split(' ')[0])}</span>
       <span onclick="_nearFacGo(${n.f.id})" style="flex:1;min-width:0;cursor:pointer;">
         <span style="display:block;font-size:12px;font-weight:700;color:#dceaf6;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${_esc(n.f.name)} ${cg?`<span style="color:${_gColor(cg.g)};font-size:10.5px;font-weight:900;">${_esc(cg.g)}</span>`:''}</span>
-        <span style="display:block;font-size:9.5px;color:#5d86a3;">${_esc(n.f.type.split(' ').slice(1).join(' ')||'')} · <b style="color:#7fc4e0;">${dist}</b></span>
+        <span style="display:block;font-size:9.5px;color:#5d86a3;">${_esc(n.f.type.split(' ').slice(1).join(' ')||'')} · <b style="color:#7fc4e0;">${dist}</b> · ${n.chk?`<span style="color:#5fcf8f;">✓ ${new Date(n.chk).toLocaleDateString('ko-KR',{month:'2-digit',day:'2-digit'})} 점검</span>`:'<span style="color:#f0a500;font-weight:700;">이번 분기 미점검</span>'}</span>
       </span>
       <button onclick="document.getElementById('nearFacOv').remove();openFacIssueReport(${n.f.id})" style="flex-shrink:0;padding:6px 11px;border-radius:8px;border:1px solid rgba(79,168,208,.35);background:rgba(79,168,208,.12);color:#4fa8d0;font-size:11px;font-weight:800;cursor:pointer;-webkit-appearance:none;appearance:none;">🔧 점검</button>
     </div>`;
@@ -265,7 +287,7 @@ function _refreshFacSurface(id){
   if(md&&md.classList.contains('on'))openFacDetail(id);
 }
 function setMapFacF(t,v){
-  const set=t==='s'?facMapStatusF:t==='t'?facMapTypeF:facMapLocF;
+  const set=t==='s'?facMapStatusF:t==='t'?facMapTypeF:t==='g'?facMapGradeF:facMapLocF;
   if(set.has(v))set.delete(v);else set.add(v);
   _persistFilters();renderInspectMap();renderFacList();
 }
@@ -290,6 +312,8 @@ function _filterSec(id,title,html,set,extraCnt){
 function _updateInspFilterPanel(types,locs){
   _filterSec('inspFP_status','경고표시',
     _filterChip('⚠️ 경고표시만',facMapStatusF,'warn',`_smfs('s','warn')`,'#e05050'),facMapStatusF);
+  _filterSec('inspFP_grade','안전등급',
+    ['A','B','C','D','E'].map(g=>_filterChip(g+' '+_gLabel(g),facMapGradeF,g,`_smfs('g','${g}')`,_gColor(g))).join(''),facMapGradeF);
   _filterSec('inspFP_type','종류',
     types.filter(t=>t!=='전체').map(v=>_filterChip(v,facMapTypeF,v,`_smfs('t','${v.replace(/'/g,"\\'")}')`,'#4fa8d0')).join(''),facMapTypeF);
   _filterSec('inspFP_loc','위치 (구간)',
@@ -337,7 +361,7 @@ function closeInspFilter(){
   setTimeout(()=>{p.style.display='none';p.style.transform='translateY(0)';},220);
 }
 function resetInspFilter(){
-  facMapStatusF=new Set();facMapTypeF=new Set();facMapLocF=new Set();
+  facMapStatusF=new Set();facMapTypeF=new Set();facMapLocF=new Set();facMapGradeF=new Set();
   renderInspectMap();renderFacList();
 }
 // ─── 시설물 목록 필터 ───
@@ -353,7 +377,7 @@ function _closeFacListFilter(){
   setTimeout(()=>{p.style.display='none';p.style.transform='translateY(0)';},220);
 }
 function resetFacListFilter(){
-  facMapStatusF=new Set();facMapTypeF=new Set();facMapLocF=new Set();facListSort='default';
+  facMapStatusF=new Set();facMapTypeF=new Set();facMapLocF=new Set();facMapGradeF=new Set();facListSort='default';
   _persistFilters();renderInspectMap();renderFacList();
 }
 function _updateFacListFilterPanel(types,locs){
@@ -366,6 +390,7 @@ function _updateFacListFilterPanel(types,locs){
   }
   {const _se=document.getElementById('facLFP_sort');if(_se)_se.innerHTML='';} // 점검 정렬 제거
   _filterSec('facLFP_status','경고표시',_filterChip('⚠️ 경고표시만',facMapStatusF,'warn',`_smfs('s','warn');renderFacList();`,'#e05050'),facMapStatusF);
+  _filterSec('facLFP_grade','안전등급',['A','B','C','D','E'].map(g=>_filterChip(g+' '+_gLabel(g),facMapGradeF,g,`_smfs('g','${g}');renderFacList();`,_gColor(g))).join(''),facMapGradeF);
   _filterSec('facLFP_type','종류',(types||[]).map(v=>_filterChip(v,facMapTypeF,v,`_smfs('t','${v.replace(/'/g,"\\'")}');renderFacList();`,'#4fa8d0')).join(''),facMapTypeF);
   _filterSec('facLFP_loc','위치 (구간)',(locs||[]).map(v=>_filterChip(_zoneLbl(v),facMapLocF,v,`_smfs('l','${v.replace(/'/g,"\\'")}');renderFacList();`,'#9b59b6')).join(''),facMapLocF);
   const total=facMapStatusF.size+facMapTypeF.size+facMapLocF.size;
@@ -509,7 +534,7 @@ function _facCurGrade(f){
 function _facGradeBadge(f){
   const cg=_facCurGrade(f);if(!cg)return'';
   const c=_gColor(cg.g);
-  return `<span style="display:inline-flex;align-items:center;gap:4px;background:${c}22;border:1.5px solid ${c};color:${c};border-radius:7px;padding:1px 7px;font-size:11px;font-weight:900;vertical-align:middle;">${_esc(cg.g)}<span style="font-size:8.5px;font-weight:600;opacity:.75;">${_esc(cg.src)}</span></span>`;
+  return `<span style="display:inline-flex;align-items:center;background:${c}22;border:1.5px solid ${c};color:${c};border-radius:7px;padding:1px 8px;font-size:11px;font-weight:900;vertical-align:middle;">${_esc(cg.g)}</span>`;
 }
 // 사진 전체 보기 (탭하면 크게)
 function _facPhotoView(url){
@@ -544,7 +569,7 @@ function _facInfoHtml(f){
     </div>`).join('');
   return `
     ${w?`<div style="background:rgba(224,80,80,.1);border:1px solid rgba(224,80,80,.4);border-radius:9px;padding:7px 10px;margin-bottom:8px;font-size:11px;color:#ffb0a5;line-height:1.6;"><b style="color:#ff5a45;">⚠️ 경고표시</b>${w.reason?' — '+_esc(w.reason):''} <span style="color:#c98;font-size:10px;">${_esc(_warnPeriodStr(w))}</span></div>`:''}
-    ${f.photo?`<img src="${_esc(f.photo)}" loading="lazy" onclick="_facPhotoView('${_escq(f.photo)}')" style="width:100%;max-height:150px;object-fit:cover;border-radius:10px;cursor:pointer;margin-bottom:8px;display:block;" alt="">`:''}
+    ${f.photo?`<img src="${_esc(f.photo)}" loading="lazy" onclick="_facPhotoView('${_escq(f.photo)}')" style="width:100%;max-height:118px;object-fit:contain;background:#04101e;border-radius:10px;cursor:pointer;margin-bottom:8px;display:block;" alt="">`:''}
     <div style="background:#060d1a;border-radius:10px;padding:8px 11px;">${rows.join('')}</div>
     ${issHtml?`<div style="font-size:10px;color:#5d86a3;font-weight:800;margin-top:8px;">🔧 최근 점검</div>${issHtml}`:''}`;
 }
@@ -557,8 +582,16 @@ function openFacFromMap(id){
   document.getElementById('facPopMeta').innerHTML=_facInfoHtml(f);
   const _bw=document.getElementById('facPopBtns');
   const mng=_canManageFac();
-  if(_bw)_bw.innerHTML=
-    `<button class="btn" style="width:100%;padding:11px;background:rgba(79,168,208,.16);color:#4fa8d0;border:1px solid rgba(79,168,208,.4);font-weight:800;" onclick="openFacIssueReport(${f.id})">🔧 점검 등록</button>`
+  // 이전/다음: 탐방로 연속 체인(가까운 시설 순) — 누르면 지도가 그 시설로 이동
+  const _ord=window._facMapOrder||[];const _oi=_ord.indexOf(String(id));
+  const _pv=_oi>0?_ord[_oi-1]:'',_nx=(_oi>=0&&_oi<_ord.length-1)?_ord[_oi+1]:'';
+  const _navRow=(_ord.length>1&&_oi>=0)?`<div style="display:flex;align-items:center;gap:8px;">
+      <button class="navbtn" ${_pv?`onclick="_facMapNav(${_pv})"`:'disabled'} style="padding:7px 4px;font-size:11.5px;">◀ 이전</button>
+      <span style="font-size:10px;color:#5d86a3;font-weight:800;white-space:nowrap;">${_oi+1} / ${_ord.length}</span>
+      <button class="navbtn" ${_nx?`onclick="_facMapNav(${_nx})"`:'disabled'} style="padding:7px 4px;font-size:11.5px;">다음 ▶</button>
+    </div>`:'';
+  if(_bw)_bw.innerHTML=_navRow
+    +`<button class="btn" style="width:100%;padding:11px;background:rgba(79,168,208,.16);color:#4fa8d0;border:1px solid rgba(79,168,208,.4);font-weight:800;" onclick="openFacIssueReport(${f.id})">🔧 점검 등록</button>`
     +(mng?`<div style="display:flex;gap:5px;">
       <button onclick="openFacWarn(${f.id})" style="${_mBtnS('#f0a500')}">⚠️ 경고</button>
       <button onclick="toggleFacHide(${f.id})" style="${_mBtnS(f.hidden?'#f0a500':'#8aa6bc')}">${f.hidden?'👁️ 표시':'🙈 숨김'}</button>
@@ -567,6 +600,28 @@ function openFacFromMap(id){
     </div>`:'');
   document.getElementById('resPopup').classList.remove('on');
   document.getElementById('facPopup').classList.add('on');
+  _panPinAbovePopup(f.lat,f.lng); // 핀이 팝업에 가리지 않게 화면 위쪽으로
+}
+// 이전/다음으로 인접 시설 이동 — 지도도 함께 이동
+function _facMapNav(id){
+  const f=(DB.g('facilities')||[]).find(x=>x.id===id);if(!f)return;
+  openFacFromMap(id);
+}
+// 열린 팝업(하단 시트)이 핀을 가리지 않도록, 핀을 화면 위 30% 지점으로 팬
+function _panPinAbovePopup(lat,lng){
+  try{
+    if(!mapI||!lat||!lng)return;
+    const host=document.getElementById('v-inspect-map');
+    if(!host||!host.classList.contains('on'))return;
+    const proj=mapI.getProjection();
+    const pt=proj.containerPointFromCoords(new kakao.maps.LatLng(lat,lng));
+    const w=host.clientWidth||window.innerWidth,h=host.clientHeight||window.innerHeight;
+    const dx=pt.x-w/2,dy=pt.y-h*0.30;
+    if(Math.abs(dx)>40||Math.abs(dy)>40){
+      const c=proj.containerPointFromCoords(mapI.getCenter());
+      mapI.panTo(proj.coordsFromContainerPoint(new kakao.maps.Point(c.x+dx,c.y+dy)));
+    }
+  }catch(e){}
 }
 let _facListLimit=50,_facListSig='';
 function _moreFacList(){_facListLimit+=50;renderFacList();}
@@ -583,7 +638,9 @@ function renderFacList(){
     const sOk=facMapStatusF.size===0||(facMapStatusF.has('warn')&&!!_facWarn(f));
     const tOk=facMapTypeF.size===0||[...facMapTypeF].some(t=>f.type.includes(t));
     const lOk=facMapLocF.size===0||[...facMapLocF].some(v=>_facInZone(f,v));
-    return sOk&&tOk&&lOk;
+    const _cg=facMapGradeF.size?_facCurGrade(f):null;
+    const gOk=facMapGradeF.size===0||(_cg&&facMapGradeF.has(_cg.g));
+    return sOk&&tOk&&lOk&&gOk;
   });
   // 경고표시 활성 우선 정렬
   filtered.sort((a,b)=>(_facWarn(b)?1:0)-(_facWarn(a)?1:0));
@@ -619,6 +676,23 @@ function renderInspectStats(){
   const noGps=facs.filter(f=>!f.lat||!f.lng).length;
   const se=(id,v)=>{const e=document.getElementById(id);if(e)e.textContent=v;};
   se('fs-tot',facs.length);se('fs-warn',warned.length);se('fs-nogps',noGps);
+  // 안전등급 분포 (현재 등급 = 최신 점검>관리대장)
+  {
+    const gw=document.getElementById('facGradeStatWrap');
+    if(gw){
+      const gc={A:0,B:0,C:0,D:0,E:0};let none=0;
+      facs.forEach(f=>{const cg=_facCurGrade(f);if(cg&&gc[cg.g]!==undefined)gc[cg.g]++;else none++;});
+      const gmax=Math.max(...Object.values(gc),1);
+      gw.innerHTML=['A','B','C','D','E'].map(g=>{
+        const v=gc[g],c=_gColor(g);
+        return `<div onclick="facMapGradeF=new Set(['${g}']);_persistFilters();switchTab(2,document.getElementById('nv2'));" style="display:flex;align-items:center;gap:8px;padding:4px 0;cursor:pointer;">
+          <span style="min-width:70px;font-size:11px;color:${c};font-weight:800;">${g} ${_gLabel(g)}</span>
+          <div style="flex:1;height:8px;background:rgba(255,255,255,.05);border-radius:4px;overflow:hidden;"><div style="height:100%;width:${v?Math.max(3,Math.round(v/gmax*100)):0}%;background:${c};border-radius:4px;"></div></div>
+          <span style="font-size:11px;color:#e0edf8;font-weight:800;min-width:34px;text-align:right;">${v}개</span>
+        </div>`;
+      }).join('')+(none?`<div style="font-size:9.5px;color:#46708f;margin-top:4px;">등급 미지정 ${none}개 (다목적위치표지판 등)</div>`:'');
+    }
+  }
   const tm={};facs.forEach(f=>{tm[f.type]=(tm[f.type]||0)+1;});
   document.getElementById('facTypeStatWrap').innerHTML=Object.entries(tm).map(([k,v])=>
     `<div class="type-row" style="pointer-events:none;"><span class="t-ico">${_esc(k.split(' ')[0])}</span><span class="t-lbl">${_esc(k.split(' ').slice(1).join(' '))}</span><span class="t-cnt">${v}개</span></div>`).join('');
@@ -858,6 +932,17 @@ function submitFacIssue(){
   };
   _issueLog(it,`점검 등록 (등급 ${it.grade}${tags.length?' · '+tags.join(','):''})`);
   _saveFacIssue(it);
+  // D·E 등급 점검 → 경고표시 자동 켜기 (조치 완료로 A~C 회복 시 자동 해제)
+  try{
+    if(it.grade==='D'||it.grade==='E'){
+      const _fs2=DB.g('facilities')||[];const _fi=_fs2.findIndex(x=>x.id===f.id);
+      if(_fi>=0&&!_facWarn(_fs2[_fi])){
+        _fs2[_fi].warn={on:true,reason:'점검 '+it.grade+'등급'+(desc?' — '+desc:''),from:Date.now(),until:null,by:getAuthor(),at:Date.now(),auto:true};
+        DB.s('facilities',_fs2);
+        toast('⚠️ '+it.grade+'등급 — 경고표시 자동 설정');
+      }
+    }
+  }catch(e){}
   try{_registerPendingPhoto('prevFacIssue',{key:'facIssues',id,field:'photo'});}catch(e){}
   _notiFacManagers(`🔧 시설물 점검 [${it.grade}등급] ${facName}${tags.length?' · '+tags.join(','):''} — ${it.reporter}`,_facIssueLink(id));
   closeM('modalFacIssue');
@@ -1063,6 +1148,17 @@ function _facIssueDeptCore(id,note,grade,fromWork){
   _issueLog(it,`시설과 조치 완료 — ${_gLabel(grade)} · 종료`);
   _saveFacIssue(it);
   _notiFacFollow(`✅ 점검 조치 완료(${_gLabel(grade)}) · ${it.facName} — ${getAuthor()}`,_facIssueLink(id),it);
+  // 조치 후 A~C 회복 → 점검이 자동으로 켰던 경고표시 해제
+  try{
+    if(['A','B','C'].indexOf(grade)>=0){
+      const _fs2=DB.g('facilities')||[];const _fi=_fs2.findIndex(x=>x.id===it.facId);
+      if(_fi>=0&&_fs2[_fi].warn&&_fs2[_fi].warn.on&&_fs2[_fi].warn.auto){
+        _fs2[_fi].warn={on:false,clearedBy:getAuthor(),clearedAt:Date.now()};
+        DB.s('facilities',_fs2);
+        toast('✅ 등급 회복 — 경고표시 자동 해제');
+      }
+    }
+  }catch(e){}
   toast('✅ 조치 완료('+grade+'등급) — 종료');
   _facIssueAfterAction(id,fromWork);
 }
@@ -1295,7 +1391,8 @@ function openAddFac(){
   const _catMeta=DB.g('catFacMeta')||{};const _cats=(DB.g('catFac')||[]).filter(c=>isAdminUser()||!(_catMeta[c]||{}).adminOnly);
   fillSel('facTypeSel',_cats);
   document.getElementById('facInstall').value=today();
-  ['facNameIn','facGpsIn','facNote'].forEach(id=>document.getElementById(id).value='');
+  ['facNameIn','facGpsIn','facNote','facMgmtIn','facSpecIn','facStructIn'].forEach(id=>{const e=document.getElementById(id);if(e)e.value='';});
+  {const g=document.getElementById('facGradeSel');if(g)g.value='';}
   const _fa=document.getElementById('facAuthor');_fa.value=getAuthor();_fa.disabled=true;
   document.getElementById('prevFac').innerHTML='📸 촬영 또는 앨범';
   try{gpsFromMap('facGpsIn','inspect');}catch(e){}
@@ -1315,6 +1412,10 @@ function openEditFac(id){
   document.getElementById('facLocIn').value=f.loc||'';
   document.getElementById('facGpsIn').value=f.lat&&f.lng?f.lat.toFixed(5)+', '+f.lng.toFixed(5):'';
   document.getElementById('facInstall').value=f.install||'';
+  {const g=document.getElementById('facGradeSel');if(g)g.value=f.grade||'';}
+  {const e=document.getElementById('facMgmtIn');if(e)e.value=f.mgmt||'';}
+  {const e=document.getElementById('facSpecIn');if(e)e.value=f.spec||'';}
+  {const e=document.getElementById('facStructIn');if(e)e.value=f.struct||'';}
   document.getElementById('facNote').value=f.note||'';
   const _fa=document.getElementById('facAuthor');_fa.value=f.author||getAuthor();_fa.disabled=true;
   document.getElementById('prevFac').innerHTML='📸 촬영 또는 앨범';
@@ -1335,7 +1436,10 @@ function submitAddFac(){
   let lat=null,lng=null;
   if(gs){const p=gs.split(',');lat=parseFloat(p[0]);lng=parseFloat(p[1]);if(isNaN(lat)||isNaN(lng)){lat=null;lng=null;}}
   const facs=DB.g('facilities')||[];
-  const data={type:document.getElementById('facTypeSel').value,name,loc:document.getElementById('facLocIn').value,lat,lng,install:document.getElementById('facInstall').value,note:document.getElementById('facNote').value,author:document.getElementById('facAuthor').value,photo:_photoUrl('prevFac')};
+  const data={type:document.getElementById('facTypeSel').value,name,loc:document.getElementById('facLocIn').value,lat,lng,install:document.getElementById('facInstall').value,note:document.getElementById('facNote').value,author:document.getElementById('facAuthor').value,photo:_photoUrl('prevFac'),
+    grade:(document.getElementById('facGradeSel')?.value||''),mgmt:(document.getElementById('facMgmtIn')?.value||'').trim(),spec:(document.getElementById('facSpecIn')?.value||'').trim(),struct:(document.getElementById('facStructIn')?.value||'').trim()};
+  // 등급을 새로 지정/변경했으면 출처를 등록자로 기록 (기존 등급 유지 시 출처 유지)
+  {const _pf=_editFacId?(facs.find(x=>x.id===_editFacId)||{}):{};if(data.grade&&data.grade!==_pf.grade)data.gradeBy=getAuthor();}
   if(_editFacId){
     const idx=facs.findIndex(f=>f.id===_editFacId);
     if(idx!==-1)facs[idx]=Object.assign(facs[idx],data);

@@ -447,6 +447,7 @@ function _persistFilters(){
       facStatus:(typeof facMapStatusF!=='undefined'?[...facMapStatusF]:[]),
       facType:(typeof facMapTypeF!=='undefined'?[...facMapTypeF]:[]),
       facLoc:(typeof facMapLocF!=='undefined'?[...facMapLocF]:[]),
+      facGrade:(typeof facMapGradeF!=='undefined'?[...facMapGradeF]:[]),
       facSort:(typeof facListSort!=='undefined'?facListSort:'default')
     }));
   }catch(e){}
@@ -460,6 +461,7 @@ function _restoreFilters(){
     if(typeof facMapStatusF!=='undefined'&&j.facStatus)facMapStatusF=new Set(j.facStatus);
     if(typeof facMapTypeF!=='undefined'&&j.facType)facMapTypeF=new Set(j.facType);
     if(typeof facMapLocF!=='undefined'&&j.facLoc)facMapLocF=new Set(j.facLoc);
+    if(typeof facMapGradeF!=='undefined'&&j.facGrade)facMapGradeF=new Set(j.facGrade);
     if(typeof facListSort!=='undefined'&&j.facSort)facListSort=j.facSort;
   }catch(e){}
 }

@@ -442,6 +442,7 @@ if(window.Kakao&&!Kakao.isInitialized()) Kakao.init(KAKAO_KEY);
       <!-- 섹션들 -->
       <div style="overflow-y:auto;padding:0 12px 70px;" id="inspFPSections">
         <div id="inspFP_status"></div>
+        <div id="inspFP_grade"></div>
         <div id="inspFP_type"></div>
         <div id="inspFP_loc"></div>
       </div>
@@ -470,6 +471,7 @@ if(window.Kakao&&!Kakao.isInitialized()) Kakao.init(KAKAO_KEY);
     <div style="overflow-y:auto;padding:0 12px 70px;" id="facLFPSections">
       <div id="facLFP_sort"></div>
       <div id="facLFP_status"></div>
+      <div id="facLFP_grade"></div>
       <div id="facLFP_type"></div>
       <div id="facLFP_loc"></div>
     </div>
@@ -486,6 +488,7 @@ if(window.Kakao&&!Kakao.isInitialized()) Kakao.init(KAKAO_KEY);
     </div>
     <div class="scard"><div class="stitle">🔧 시설물 점검 처리 <span class="muted" style="font-size:10px;font-weight:400;">· 지도·목록에서 시설 선택 후 점검</span></div><div id="facIssueWrap"></div></div>
     <div class="scard"><div class="stitle">⚠️ 경고표시 중</div><div id="facWarnWrap"></div></div>
+    <div class="scard"><div class="stitle">🛡️ 안전등급 분포 <span class="muted" style="font-size:10px;font-weight:400;">· 누르면 해당 등급 목록</span></div><div id="facGradeStatWrap"></div></div>
     <div class="scard"><div class="stitle">종류별 분포</div><div id="facTypeStatWrap"></div></div>
   </div>
 </div>
@@ -808,6 +811,10 @@ if(window.Kakao&&!Kakao.isInitialized()) Kakao.init(KAKAO_KEY);
       </div>
     </div>
     <div class="fg"><span class="fl">설치일</span><input type="date" id="facInstall" class="fi"></div>
+    <div class="fg"><span class="fl">안전등급 <span class="muted" style="font-weight:400;">(선택)</span></span><select id="facGradeSel" class="fsel"><option value="">미지정</option><option value="A">A — 우수</option><option value="B">B — 양호</option><option value="C">C — 보통</option><option value="D">D — 미흡</option><option value="E">E — 불량</option></select></div>
+    <div class="fg"><span class="fl">관리번호 <span class="muted" style="font-weight:400;">(선택)</span></span><input type="text" id="facMgmtIn" class="fi" placeholder="예: 120401-0303-8804"></div>
+    <div class="fg"><span class="fl">규격 <span class="muted" style="font-weight:400;">(선택)</span></span><input type="text" id="facSpecIn" class="fi" placeholder="예: 길이 20m · 폭 1.5m · 난간높이 1.2m"></div>
+    <div class="fg"><span class="fl">구조 <span class="muted" style="font-weight:400;">(선택)</span></span><input type="text" id="facStructIn" class="fi" placeholder="예: 철재 빔 · 난간 철재 · 발판 목재"></div>
     <div class="fg"><span class="fl">특이사항</span><textarea id="facNote" class="fta" rows="2" placeholder="재질, 설치기관 등"></textarea></div>
     <div class="fg"><span class="fl">등록자</span><input type="text" id="facAuthor" class="fi" style="opacity:.6;cursor:default;"></div>
     <div class="fg"><span class="fl">초기 사진</span>
