@@ -1430,8 +1430,13 @@ function renderAlertView(){
     if(active.startedAtMs){const ms=Date.now()-active.startedAtMs,h=Math.floor(ms/3600000),m=Math.floor((ms%3600000)/60000);elapsed=(h>0?h+'시간 ':'')+m+'분 경과';}
     const alertRows=active.alerts.map((a,ai)=>{
       const ms=a.issuedAtMs||_alertTimeMs(a.issuedAt)||active.startedAtMs||0;
-      let dur='';
-      if(ms){const h=Math.floor((Date.now()-ms)/3600000),mi=Math.floor(((Date.now()-ms)%3600000)/60000);dur=h>0?h+'시간'+(mi>0?' '+mi+'분':'')+'째 발효 중':mi+'분째 발효 중';}
+      // 기상청 특보는 발표 후 미래 시각부터 발효되기도 함(예: 17시 발표 → 18시 발효) — 음수 경과 방지
+      let dur='',future=false;
+      if(ms){
+        const diff=Date.now()-ms;
+        if(diff<0){future=true;const tm=Math.ceil(-diff/60000),th=Math.floor(tm/60);dur=(th>0?th+'시간'+(tm%60?' '+(tm%60)+'분':''):tm+'분')+' 후 발효';}
+        else{const h=Math.floor(diff/3600000),mi=Math.floor((diff%3600000)/60000);dur=h>0?h+'시간'+(mi>0?' '+mi+'분':'')+'째 발효 중':mi+'분째 발효 중';}
+      }
       const when=a.issuedAt?String(a.issuedAt).slice(5,16):'';
       const rg=(a.regions&&a.regions.length)?a.regions.join(' · '):'';
       const acol=ALERT_LEVEL_COLORS[a.stage]||'#4fa8d0';
@@ -1439,10 +1444,10 @@ function renderAlertView(){
         <div style="display:flex;align-items:center;gap:7px;flex-wrap:wrap;">
           <span style="font-size:9px;color:#6a94b0;flex-shrink:0;">${a.source==='auto'?'📡자동':'✋수동'}</span>
           <b style="font-size:13.5px;color:${acol};">${_esc(a.type)}${_stageShort(a.stage)}</b>
-          ${dur?`<span style="font-size:10.5px;color:#f0c060;font-weight:800;">⏱ ${dur}</span>`:''}
+          ${dur?`<span style="font-size:10.5px;color:${future?'#9ce0f0':'#f0c060'};font-weight:800;">⏱ ${dur}</span>`:''}
           ${isAdminUser()?`<span onclick="removeAlertItem(${active.id},${ai})" style="cursor:pointer;color:#ff6b5b;margin-left:auto;font-weight:800;padding:0 4px;">×</span>`:''}
         </div>
-        <div style="font-size:10.5px;color:#8fb4cc;margin-top:4px;line-height:1.5;">${when?`🕐 발효 ${_esc(when)}`:''}${rg?`<br>📍 ${_esc(rg)}`:''}</div>
+        <div style="font-size:10.5px;color:#8fb4cc;margin-top:4px;line-height:1.5;">${when?`🕐 ${future?_esc(when)+' 발효 예정':'발효 '+_esc(when)}`:''}${rg?`<br>📍 ${_esc(rg)}`:''}</div>
       </div>`;
     }).join('');
     // 히어로 배너 + 요약 stat + 상세
@@ -1755,8 +1760,9 @@ function _syncAutoAlerts(liveList){
   liveList.forEach(a=>{
     const ex=active.alerts.find(x=>x.type===a.type);
     const efMs=a.issuedAtMs||0,ms=efMs||Date.now();
-    if(!ex){active.alerts.push({type:a.type,stage:a.stage,source:'auto',issuedAt:_alertMsStr(ms),issuedAtMs:ms,regions:a.regions||[]});added.push(a.type+_stageShort(a.stage)+(efMs?'('+_alertMsShort(efMs)+' 발효)':''));}
-    else if(ex.source==='auto'&&ex.stage!==a.stage){const prev=ex.stage;ex.stage=a.stage;ex.issuedAt=_alertMsStr(ms);ex.issuedAtMs=ms;ex.regions=a.regions||ex.regions||[];changed.push(a.type+' '+_stageShort(prev)+'→'+_stageShort(a.stage)+(efMs?'('+_alertMsShort(efMs)+' 발효)':''));}
+    const efTag=efMs?'('+_alertMsShort(efMs)+(efMs>Date.now()?' 발효 예정':' 발효')+')':''; // 미래 발효(예: 17시 발표→18시 발효) 구분
+    if(!ex){active.alerts.push({type:a.type,stage:a.stage,source:'auto',issuedAt:_alertMsStr(ms),issuedAtMs:ms,regions:a.regions||[]});added.push(a.type+_stageShort(a.stage)+efTag);}
+    else if(ex.source==='auto'&&ex.stage!==a.stage){const prev=ex.stage;ex.stage=a.stage;ex.issuedAt=_alertMsStr(ms);ex.issuedAtMs=ms;ex.regions=a.regions||ex.regions||[];changed.push(a.type+' '+_stageShort(prev)+'→'+_stageShort(a.stage)+efTag);}
     else if(ex.source==='auto'&&efMs&&Math.abs((ex.issuedAtMs||0)-efMs)>60000){ex.issuedAt=_alertMsStr(efMs);ex.issuedAtMs=efMs;timeFixed=true;} // 감지 시각으로 기록됐던 기존 건을 실제 발효시각으로 조용히 보정
   });
   // 2) 자동분 중 기상청에서 해제된 종류 → 자동 해제 (수동분 보존)
