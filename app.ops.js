@@ -607,20 +607,28 @@ function _facMapNav(id){
   const f=(DB.g('facilities')||[]).find(x=>x.id===id);if(!f)return;
   openFacFromMap(id);
 }
-// 열린 팝업(하단 시트)이 핀을 가리지 않도록, 핀을 화면 위 30% 지점으로 팬
+// 열린 팝업(하단 시트)이 핀을 가리지 않도록 — 팝업 실제 높이를 재서 '팝업 위 남는 지도 영역'의 가운데로 팬
 function _panPinAbovePopup(lat,lng){
   try{
     if(!mapI||!lat||!lng)return;
     const host=document.getElementById('v-inspect-map');
     if(!host||!host.classList.contains('on'))return;
-    const proj=mapI.getProjection();
-    const pt=proj.containerPointFromCoords(new kakao.maps.LatLng(lat,lng));
-    const w=host.clientWidth||window.innerWidth,h=host.clientHeight||window.innerHeight;
-    const dx=pt.x-w/2,dy=pt.y-h*0.30;
-    if(Math.abs(dx)>40||Math.abs(dy)>40){
-      const c=proj.containerPointFromCoords(mapI.getCenter());
-      mapI.panTo(proj.coordsFromContainerPoint(new kakao.maps.Point(c.x+dx,c.y+dy)));
-    }
+    setTimeout(function(){
+      try{
+        const proj=mapI.getProjection();
+        const pt=proj.containerPointFromCoords(new kakao.maps.LatLng(lat,lng));
+        const w=host.clientWidth||window.innerWidth,h=host.clientHeight||window.innerHeight;
+        const pop=document.getElementById('facPopup');
+        const ph=(pop&&pop.classList.contains('on'))?pop.offsetHeight:0;
+        const vis=Math.max(120,h-ph);
+        const targetY=Math.max(50,vis*0.45);
+        const dx=pt.x-w/2,dy=pt.y-targetY;
+        if(Math.abs(dx)>40||Math.abs(dy)>40){
+          const c=proj.containerPointFromCoords(mapI.getCenter());
+          mapI.panTo(proj.coordsFromContainerPoint(new kakao.maps.Point(c.x+dx,c.y+dy)));
+        }
+      }catch(e){}
+    },60);
   }catch(e){}
 }
 let _facListLimit=50,_facListSig='';
