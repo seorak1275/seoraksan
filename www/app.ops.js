@@ -294,6 +294,20 @@ function setMapFacF(t,v){
   _persistFilters();renderInspectMap();renderFacList();
 }
 function _smfs(t,v){setMapFacF(t,v);}
+// 섹션별 '전체' 칩 — 아무것도 선택 안 됐을 때 켜져 보이고, 누르면 그 섹션 선택 해제(=전체 표시)
+function _smfsAll(t){
+  const set=t==='s'?facMapStatusF:t==='t'?facMapTypeF:t==='g'?facMapGradeF:facMapLocF;
+  set.clear();_persistFilters();renderInspectMap();renderFacList();
+}
+function _srfAll(k){
+  if(k==='t')resTypeF=new Set();else resStatusF=new Set();
+  _persistFilters();_updateResFilterPanels();renderRescueMap();renderResList();
+}
+function _filterAllChip(set,onclick){
+  const on=set.size===0;
+  const c=on?'#7ec8a0':'rgba(255,255,255,.5)';
+  return `<span onclick="${onclick}" style="display:inline-block;margin:2px 2px;padding:3px 8px;border-radius:20px;font-size:10px;font-weight:700;cursor:pointer;border:1.5px solid ${on?c:'rgba(255,255,255,.12)'};color:${on?c:'rgba(255,255,255,.35)'};background:${on?c+'22':'transparent'};">${on?'✓ ':''}전체</span>`;
+}
 // 필터 패널 공용 헬퍼 (시설물지도/시설물목록/구조필터 3곳에서 동일 템플릿 사용)
 function _filterChip(label,set,val,onclick,col){
   const on=set.has(val);
@@ -315,11 +329,11 @@ function _updateInspFilterPanel(types,locs){
   _filterSec('inspFP_status','경고표시',
     _filterChip('⚠️ 경고표시만',facMapStatusF,'warn',`_smfs('s','warn')`,'#e05050'),facMapStatusF);
   _filterSec('inspFP_grade','안전등급',
-    ['A','B','C','D','E'].map(g=>_filterChip(g+' '+_gLabel(g),facMapGradeF,g,`_smfs('g','${g}')`,_gColor(g))).join(''),facMapGradeF);
+    _filterAllChip(facMapGradeF,`_smfsAll('g')`)+['A','B','C','D','E'].map(g=>_filterChip(g+' '+_gLabel(g),facMapGradeF,g,`_smfs('g','${g}')`,_gColor(g))).join(''),facMapGradeF);
   _filterSec('inspFP_type','종류',
-    types.filter(t=>t!=='전체').map(v=>_filterChip(v,facMapTypeF,v,`_smfs('t','${v.replace(/'/g,"\\'")}')`,'#4fa8d0')).join(''),facMapTypeF);
+    _filterAllChip(facMapTypeF,`_smfsAll('t')`)+types.filter(t=>t!=='전체').map(v=>_filterChip(v,facMapTypeF,v,`_smfs('t','${v.replace(/'/g,"\\'")}')`,'#4fa8d0')).join(''),facMapTypeF);
   _filterSec('inspFP_loc','위치 (구간)',
-    locs.filter(v=>v!=='전체').map(v=>_filterChip(_zoneLbl(v),facMapLocF,v,`_smfs('l','${v.replace(/'/g,"\\'")}')`,'#9b59b6')).join(''),facMapLocF);
+    _filterAllChip(facMapLocF,`_smfsAll('l')`)+locs.filter(v=>v!=='전체').map(v=>_filterChip(_zoneLbl(v),facMapLocF,v,`_smfs('l','${v.replace(/'/g,"\\'")}')`,'#9b59b6')).join(''),facMapLocF);
   // 배지/카운트 업데이트
   const total=facMapStatusF.size+facMapTypeF.size+facMapLocF.size;
   ['inspFilterBadge','facListFilterBadge'].forEach(id=>{const el=document.getElementById(id);if(!el)return;el.style.display=total?'inline-flex':'none';if(total)el.textContent=total;});
@@ -392,9 +406,9 @@ function _updateFacListFilterPanel(types,locs){
   }
   {const _se=document.getElementById('facLFP_sort');if(_se)_se.innerHTML='';} // 점검 정렬 제거
   _filterSec('facLFP_status','경고표시',_filterChip('⚠️ 경고표시만',facMapStatusF,'warn',`_smfs('s','warn');renderFacList();`,'#e05050'),facMapStatusF);
-  _filterSec('facLFP_grade','안전등급',['A','B','C','D','E'].map(g=>_filterChip(g+' '+_gLabel(g),facMapGradeF,g,`_smfs('g','${g}');renderFacList();`,_gColor(g))).join(''),facMapGradeF);
-  _filterSec('facLFP_type','종류',(types||[]).map(v=>_filterChip(v,facMapTypeF,v,`_smfs('t','${v.replace(/'/g,"\\'")}');renderFacList();`,'#4fa8d0')).join(''),facMapTypeF);
-  _filterSec('facLFP_loc','위치 (구간)',(locs||[]).map(v=>_filterChip(_zoneLbl(v),facMapLocF,v,`_smfs('l','${v.replace(/'/g,"\\'")}');renderFacList();`,'#9b59b6')).join(''),facMapLocF);
+  _filterSec('facLFP_grade','안전등급',_filterAllChip(facMapGradeF,`_smfsAll('g')`)+['A','B','C','D','E'].map(g=>_filterChip(g+' '+_gLabel(g),facMapGradeF,g,`_smfs('g','${g}');renderFacList();`,_gColor(g))).join(''),facMapGradeF);
+  _filterSec('facLFP_type','종류',_filterAllChip(facMapTypeF,`_smfsAll('t')`)+(types||[]).map(v=>_filterChip(v,facMapTypeF,v,`_smfs('t','${v.replace(/'/g,"\\'")}');renderFacList();`,'#4fa8d0')).join(''),facMapTypeF);
+  _filterSec('facLFP_loc','위치 (구간)',_filterAllChip(facMapLocF,`_smfsAll('l')`)+(locs||[]).map(v=>_filterChip(_zoneLbl(v),facMapLocF,v,`_smfs('l','${v.replace(/'/g,"\\'")}');renderFacList();`,'#9b59b6')).join(''),facMapLocF);
   const total=facMapStatusF.size+facMapTypeF.size+facMapLocF.size;
   ['facListFilterBadge'].forEach(id=>{const el=document.getElementById(id);if(!el)return;el.style.display=total?'inline-flex':'none';if(total)el.textContent=total;});
   const fc=document.getElementById('facListFilterCount');if(fc)fc.textContent=total?`(${total})`:'';
@@ -411,8 +425,8 @@ function _updateResFilterPanels(){
     <span style="color:rgba(255,255,255,.3);font-size:11px;flex-shrink:0;">~</span>
     <input type="date" value="${resDateTo}" style="${inpSt}" onchange="setResDate('to',this.value)">
   </div>`;
-  const typeHtml=[{v:'🚨구조',l:'🚨 구조보고'},{v:'⚠️위험상황',l:'⚠️ 위험상황'}].map(({v,l})=>_filterChip(l,resTypeF,v,`setResTypeF('${v}')`)).join('');
-  const stHtml=[{v:'진행중',l:'🔴 진행중/미조치'},{v:'종료',l:'✅ 종료/완료'}].map(({v,l})=>_filterChip(l,resStatusF,v,`setResStatusF('${v}')`)).join('');
+  const typeHtml=_filterAllChip(resTypeF,`_srfAll('t')`)+[{v:'🚨구조',l:'🚨 구조보고'},{v:'⚠️위험상황',l:'⚠️ 위험상황'}].map(({v,l})=>_filterChip(l,resTypeF,v,`setResTypeF('${v}')`)).join('');
+  const stHtml=_filterAllChip(resStatusF,`_srfAll('s')`)+[{v:'진행중',l:'🔴 진행중/미조치'},{v:'종료',l:'✅ 종료/완료'}].map(({v,l})=>_filterChip(l,resStatusF,v,`setResStatusF('${v}')`)).join('');
   ['resMFP_date','resLFP_date'].forEach(id=>_filterSec(id,'📅 날짜',dateHtml,null,dateActive));
   ['resMFP_type','resLFP_type'].forEach(id=>_filterSec(id,'종류',typeHtml,resTypeF));
   ['resMFP_status','resLFP_status'].forEach(id=>_filterSec(id,'상태',stHtml,resStatusF));
