@@ -1754,11 +1754,16 @@ function selTTActor(el,actor){
 // 미리받기는 화면 밖 숨은 지도를 공원 전역으로 자동 이동시켜 그 저장을 미리 채우는 방식 —
 // 타일 URL 규칙을 몰라도 SDK가 정상 요청을 만들므로 카카오 지도 개편에도 안전하다.
 // ══════════════════════════════════════════
-const _TILE_CACHE='seoraksan-tiles-1'; // sw.js의 _TILES와 동일해야 함
+// 2단 캐시 — sw.js의 _TILES_PARK/_TILES_RECENT와 동일해야 함
+// park=설악산 미리받기 보관함(다른 지역 열람에 안 밀림) · recent=일반 열람 임시(1,500장 상한 자동 정리)
+const _TILE_CACHES=['seoraksan-tiles-park-1','seoraksan-tiles-recent-1'];
 function _tileCacheCount(){
   if(!('caches' in window))return Promise.resolve(-1);
-  return caches.open(_TILE_CACHE).then(c=>c.keys()).then(ks=>ks.length).catch(()=>-1);
+  return Promise.all(_TILE_CACHES.map(n=>caches.open(n).then(c=>c.keys()).then(ks=>ks.length).catch(()=>0)))
+    .then(a=>a.reduce((s,x)=>s+x,0)).catch(()=>-1);
 }
+// 미리받기 진행 신호 — SW가 이후 20초간 타일을 '설악산 보관함'에 저장 (스텝마다 재호출로 연장)
+function _tileParkMode(){try{navigator.serviceWorker.controller.postMessage({type:'TILE_MODE_PARK'});}catch(e){}}
 function _updateTileCacheInfo(){
   const el=document.getElementById('tileCacheInfo');if(!el)return;
   _tileCacheCount().then(n=>{
@@ -1768,7 +1773,7 @@ function _updateTileCacheInfo(){
 }
 function clearTileCache(){
   if(!confirm('저장된 오프라인 지도 타일을 모두 삭제하겠습니까?\n(지도가 다시 느려질 수 있습니다)'))return;
-  caches.delete(_TILE_CACHE).then(()=>{toast('🗑️ 지도 캐시 삭제됨');_updateTileCacheInfo();});
+  Promise.all(_TILE_CACHES.map(n=>caches.delete(n))).then(()=>{toast('🗑️ 지도 캐시 삭제됨');_updateTileCacheInfo();});
 }
 let _tpAbort=false;
 function preloadParkTiles(){
@@ -1786,6 +1791,7 @@ function preloadParkTiles(){
     }
   }catch(e){}
   const PAD=0.015;bb.minLat-=PAD;bb.maxLat+=PAD;bb.minLng-=PAD;bb.maxLng+=PAD;
+  _tileParkMode(); // 지금부터 받는 타일은 설악산 보관함으로
   // 화면 밖 숨은 지도 — 여기서 발생하는 타일 요청을 SW가 저장
   const host=document.createElement('div');
   host.style.cssText='position:fixed;left:-2200px;top:0;width:1024px;height:1024px;pointer-events:none;';
@@ -1845,6 +1851,7 @@ function preloadParkTiles(){
     };
     pending=advance;
     const to=setTimeout(advance,4000); // tilesloaded 유실·전체 캐시 히트 대비
+    _tileParkMode(); // 보관함 지정 연장 (20초 시한 — 스텝마다 갱신)
     if(map.getLevel()!==s.level)map.setLevel(s.level);
     map.setCenter(new kakao.maps.LatLng(s.lat,s.lng));
   };
