@@ -234,10 +234,10 @@ function _showNearFacs(la,ln){
   // 이번 분기(1~3·4~6·7~9·10~12월) 점검 여부 — 미점검 시설을 위로 (점검 누락 방지)
   const _qd=new Date();const _qs=new Date(_qd.getFullYear(),Math.floor(_qd.getMonth()/3)*3,1).getTime();
   const _lastChk={};(DB.g('facIssues')||[]).forEach(i=>{if(i.facId&&(i.id||0)>(_lastChk[i.facId]||0))_lastChk[i.facId]=i.id||0;});
-  let near=facs.map(f=>({f,d:_haversine(la,ln,f.lat,f.lng),chk:(_lastChk[f.id]||0)>=_qs?_lastChk[f.id]:0})).sort((a,b)=>a.d-b.d).slice(0,25);
+  let near=facs.map(f=>({f,d:_haversine(la,ln,f.lat,f.lng),chk:(_lastChk[f.id]||0)>=_qs?_lastChk[f.id]:0})).filter(n=>n.d<=1000); // 반경 1km 이내만
   near.sort((a,b)=>(a.chk?1:0)-(b.chk?1:0)||a.d-b.d); // 미점검 우선, 같은 조건이면 가까운 순
   near=near.slice(0,15);
-  if(!near.length){toast('주변에 등록된 시설물이 없습니다');return;}
+  if(!near.length){toast('1km 이내에 등록된 시설물이 없습니다');return;}
   const old=document.getElementById('nearFacOv');if(old)old.remove();
   const ov=document.createElement('div');ov.id='nearFacOv';
   ov.style.cssText='position:absolute;bottom:9px;left:9px;right:9px;z-index:16;background:#0b1c30;border:1px solid rgba(79,168,208,.2);border-radius:14px;box-shadow:0 -4px 20px rgba(0,0,0,.7);max-height:52vh;display:flex;flex-direction:column;';
@@ -256,7 +256,7 @@ function _showNearFacs(la,ln){
   }).join('');
   ov.innerHTML=`
     <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 13px 7px;flex-shrink:0;">
-      <span style="font-size:12px;font-weight:800;color:#7fc4e0;">📍 내 주변 시설물 <span style="font-size:9px;color:#46708f;font-weight:600;">가까운 순 ${near.length}개</span></span>
+      <span style="font-size:12px;font-weight:800;color:#7fc4e0;">📍 내 주변 시설물 <span style="font-size:9px;color:#46708f;font-weight:600;">1km 이내 ${near.length}개 · 미점검 우선</span></span>
       <button onclick="document.getElementById('nearFacOv').remove()" style="background:none;border:none;color:rgba(255,255,255,.45);font-size:18px;cursor:pointer;padding:0 2px;line-height:1;">×</button>
     </div>
     <div style="overflow-y:auto;padding:0 13px 10px;">${rows}</div>`;

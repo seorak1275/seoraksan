@@ -1,1 +1,1 @@
-{"version":"2026.07.13.112","url":"https://seorak1275.github.io/seoraksan/bundle.zip","notes":"시설물 팝업이 하단바(지도·목록·통계 탭) 아래에 깔려 점검등록부터 안 보이던 문제 수정"}
+{"version":"2026.07.13.113","url":"https://seorak1275.github.io/seoraksan/bundle.zip","notes":"주변 시설물 반경 1km 이내로 한정 (미점검 우선 정렬 유지, 없으면 안내)"}
