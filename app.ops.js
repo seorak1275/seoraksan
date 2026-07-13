@@ -240,7 +240,8 @@ function _showNearFacs(la,ln){
   if(!near.length){toast('1km 이내에 등록된 시설물이 없습니다');return;}
   const old=document.getElementById('nearFacOv');if(old)old.remove();
   const ov=document.createElement('div');ov.id='nearFacOv';
-  ov.style.cssText='position:absolute;bottom:9px;left:9px;right:9px;z-index:16;background:#0b1c30;border:1px solid rgba(79,168,208,.2);border-radius:14px;box-shadow:0 -4px 20px rgba(0,0,0,.7);max-height:52vh;display:flex;flex-direction:column;';
+  // 하단바(z20) 위로 — facPopup과 동일하게 화면 맨 아래까지 사용
+  ov.style.cssText='position:absolute;bottom:0;left:0;right:0;z-index:30;background:#0b1c30;border:1px solid rgba(79,168,208,.2);border-radius:16px 16px 0 0;box-shadow:0 -4px 20px rgba(0,0,0,.7);max-height:56vh;display:flex;flex-direction:column;padding-bottom:calc(8px + env(safe-area-inset-bottom));';
   const rows=near.map(n=>{
     const col=_facTypeColor(n.f.type);
     const cg=_facCurGrade(n.f);
