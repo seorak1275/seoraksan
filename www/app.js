@@ -32,11 +32,19 @@ function renderSettings(){
         <div style="font-size:11px;color:#7a9cb8;margin-bottom:8px;">현재 버전 <b style="color:#cfe2f2;">${OTA_VER}</b> · 앱은 재설치 없이 최신으로 자체 업데이트됩니다. (웹은 새로고침 시 자동)</div>
         <button onclick="_otaCheck(true)" style="width:100%;padding:11px;border-radius:8px;border:1px solid rgba(79,168,208,.4);background:rgba(79,168,208,.12);color:#4fa8d0;font-size:13px;font-weight:700;cursor:pointer;">🔄 업데이트 확인 / 적용</button>
       </div>
+      <div class="scard" style="margin-bottom:8px;">
+        <div class="stitle">🗺️ 오프라인 지도</div>
+        <div style="font-size:11px;color:#7a9cb8;line-height:1.6;margin-bottom:8px;">한 번 본 지도는 자동 저장되어 다음부터 통신 없이 즉시 표시됩니다. 아래 버튼으로 <b style="color:#cfe2f2;">설악산 인근 전체를 미리 저장</b>해두면 통신이 느리거나 끊기는 산악지역에서도 지도가 바로 뜹니다. (Wi-Fi에서 실행 권장 · 1~2분)</div>
+        <div id="tileCacheInfo" style="font-size:10px;color:#3a6a8a;margin-bottom:8px;">저장 현황 확인 중...</div>
+        <button onclick="preloadParkTiles()" style="width:100%;padding:11px;border-radius:8px;border:1px solid rgba(94,207,143,.35);background:rgba(94,207,143,.1);color:#5fcf8f;font-size:13px;font-weight:700;cursor:pointer;margin-bottom:6px;">⬇️ 설악산 인근 지도 미리받기</button>
+        <button onclick="clearTileCache()" style="width:100%;padding:8px;border-radius:8px;border:1px solid rgba(255,255,255,.1);background:none;color:#5a7e98;font-size:11px;font-weight:600;cursor:pointer;">🗑️ 지도 캐시 비우기</button>
+      </div>
       <a href="https://github.com/seorak1275/seoraksan/releases/latest" target="_blank" style="display:flex;align-items:center;gap:10px;background:#0b1c30;border:1px solid rgba(79,168,208,.18);border-radius:10px;padding:11px 13px;text-decoration:none;flex-shrink:0;">
         <span style="font-size:18px;">📱</span>
         <div style="flex:1;"><div style="font-size:12px;font-weight:700;color:#e0edf8;">안드로이드 APK 다운로드</div><div style="font-size:10px;color:#3a6a8a;margin-top:1px;">최신 빌드 받기 (GitHub Releases)</div></div>
         <span style="font-size:11px;color:#4fa8d0;">↗</span>
       </a>`;
+    setTimeout(function(){try{_updateTileCacheInfo();}catch(e){}},0);
   } else {
     const s=_ensureNotiDefaults();
     const allOn=NOTI_GROUPS.every(g=>g.items.every(it=>_notiOn(it.k)));
@@ -2816,7 +2824,7 @@ function sosToRescue(id){
 // 앱 자체 업데이트 (OTA · Capgo 자체호스팅) — APK 전용. 웹/PWA는 서비스워커가 자동 갱신.
 // 번들(www)의 새 버전을 ota.json으로 알리면, 설치된 앱이 받아서 그 자리에서 교체(재빌드 불필요).
 // ══════════════════════════════════════════
-const OTA_VER='2026.07.13.116';                         // ← 현재 번들 버전 (릴리스마다 올림 · build-ota.sh가 ota.json에 반영)
+const OTA_VER='2026.07.13.117';                         // ← 현재 번들 버전 (릴리스마다 올림 · build-ota.sh가 ota.json에 반영)
 const OTA_MANIFEST='https://seorak1275.github.io/seoraksan/ota.json';
 let _otaInfo=null;
 function _otaPlugin(){try{return (window.Capacitor&&window.Capacitor.Plugins&&window.Capacitor.Plugins.CapacitorUpdater)||null;}catch(e){return null;}}

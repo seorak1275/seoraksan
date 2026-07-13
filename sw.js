@@ -4,7 +4,10 @@
 // - PWA 오프라인 캐싱 (app shell)
 // - FCM 백그라운드 메시지 수신 → 시스템 알림 표시
 // ──────────────────────────────────────────────
-const _CACHE = 'seoraksan-v141';
+const _CACHE = 'seoraksan-v142';
+// 지도 타일 전용 캐시 — 셸 버전과 무관하게 유지(배포해도 안 지움). 한 번 본 타일은 오프라인·저속에서도 즉시 표시
+const _TILES = 'seoraksan-tiles-1';
+const _TILE_MAX = 4000; // 타일 상한 (초과 시 오래된 것부터 정리)
 // 프로젝트 경로(/seoraksan/) 배포이므로 반드시 상대 경로 사용
 // v10: 단일 index.html → index.html + style.css + app.js 분리에 따라 셸 캐시에 추가
 const _SHELL = ['./', './index.html', './style.css', './app.core.js', './app.map.js', './app.rescue.js', './app.report.js', './app.ops.js', './app.js', './park-boundary.json', './tpl-status.hwpx', './tpl-trend.hwpx', './manifest.json', './icons/icon-192.png', './icons/icon-512.png'];
@@ -36,16 +39,56 @@ self.addEventListener('install', e => {
 self.addEventListener('activate', e => {
   e.waitUntil(
     caches.keys()
-      .then(ks => Promise.all(ks.filter(k => k !== _CACHE).map(k => caches.delete(k))))
+      .then(ks => Promise.all(ks.filter(k => k !== _CACHE && k !== _TILES).map(k => caches.delete(k))))
       .then(() => self.clients.claim())
   );
 });
+
+// 타일 캐시 정리 — Cache keys()는 삽입 순 → 앞(오래된 것)부터 삭제
+function _pruneTiles(c, hard) {
+  return c.keys().then(ks => {
+    const max = hard ? Math.floor(_TILE_MAX / 2) : _TILE_MAX;
+    if (ks.length <= max) return;
+    return Promise.all(ks.slice(0, ks.length - max).map(k => c.delete(k)));
+  }).catch(() => {});
+}
 
 // ── Fetch: network-first + 오프라인 폴백 ────────
 self.addEventListener('fetch', e => {
   if (e.request.method !== 'GET') return;
   const url = new URL(e.request.url);
-  // 동일 출처만 캐싱 (Firebase, Kakao CDN 제외)
+  // ── 카카오맵 리소스: 오프라인 지도 캐시 ──────
+  // 타일(이미지)=cache-first: 한 번 본 지도는 저속·오프라인에서도 즉시 표시.
+  // SDK 스크립트·CSS=network-first: 평소엔 최신 유지, 오프라인엔 캐시 폴백.
+  if (/(^|\.)daumcdn\.net$/.test(url.hostname) || url.hostname === 'dapi.kakao.com') {
+    const isImg = e.request.destination === 'image' || /\.(png|jpe?g|webp|gif)$/i.test(url.pathname);
+    if (isImg) {
+      e.respondWith(
+        caches.open(_TILES).then(c =>
+          c.match(e.request).then(hit => hit || fetch(e.request).then(res => {
+            if (res && (res.ok || res.type === 'opaque')) {
+              // 저장 실패(용량 초과 등) 시 절반으로 정리 — 지도 표시 자체는 계속
+              c.put(e.request, res.clone()).catch(() => _pruneTiles(c, true));
+              if (Math.random() < 0.02) _pruneTiles(c);
+            }
+            return res;
+          }))
+        )
+      );
+    } else {
+      e.respondWith(
+        fetch(e.request).then(res => {
+          if (res && (res.ok || res.type === 'opaque')) {
+            const clone = res.clone();
+            caches.open(_TILES).then(c => c.put(e.request, clone).catch(() => {}));
+          }
+          return res;
+        }).catch(() => caches.match(e.request, { cacheName: _TILES }))
+      );
+    }
+    return;
+  }
+  // 그 외 교차 출처는 관여하지 않음 (Firebase 등)
   if (url.origin !== self.location.origin) return;
   e.respondWith(
     fetch(e.request)

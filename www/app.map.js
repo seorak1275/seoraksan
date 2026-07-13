@@ -1747,3 +1747,106 @@ function selTTActor(el,actor){
   el.classList.toggle('on');
 }
 
+
+// ══════════════════════════════════════════
+// 오프라인 지도 — 타일 캐시 관리 + 설악산 인근 미리받기
+// sw.js가 daumcdn 타일을 cache-first로 저장한다(한 번 본 지도는 재방문 시 즉시 표시).
+// 미리받기는 화면 밖 숨은 지도를 공원 전역으로 자동 이동시켜 그 저장을 미리 채우는 방식 —
+// 타일 URL 규칙을 몰라도 SDK가 정상 요청을 만들므로 카카오 지도 개편에도 안전하다.
+// ══════════════════════════════════════════
+const _TILE_CACHE='seoraksan-tiles-1'; // sw.js의 _TILES와 동일해야 함
+function _tileCacheCount(){
+  if(!('caches' in window))return Promise.resolve(-1);
+  return caches.open(_TILE_CACHE).then(c=>c.keys()).then(ks=>ks.length).catch(()=>-1);
+}
+function _updateTileCacheInfo(){
+  const el=document.getElementById('tileCacheInfo');if(!el)return;
+  _tileCacheCount().then(n=>{
+    if(n<0){el.textContent='이 브라우저는 오프라인 지도 저장을 지원하지 않습니다';return;}
+    el.innerHTML=n?`저장된 지도 타일: <b style="color:#7ec8a0;">${n}장</b> (약 ${(n*15/1024).toFixed(1)}MB) — 저장된 구역은 통신 없이도 즉시 표시`:'저장된 지도 타일 없음 — 지도를 보면 자동 저장되고, 아래 버튼으로 한 번에 채울 수 있습니다';
+  });
+}
+function clearTileCache(){
+  if(!confirm('저장된 오프라인 지도 타일을 모두 삭제하겠습니까?\n(지도가 다시 느려질 수 있습니다)'))return;
+  caches.delete(_TILE_CACHE).then(()=>{toast('🗑️ 지도 캐시 삭제됨');_updateTileCacheInfo();});
+}
+let _tpAbort=false;
+function preloadParkTiles(){
+  if(!('caches' in window)||!('serviceWorker' in navigator)){toast('⚠️ 이 브라우저는 오프라인 저장을 지원하지 않습니다');return;}
+  if(!navigator.serviceWorker.controller){toast('⚠️ 저장 준비가 아직 안 됐습니다 — 앱을 완전히 닫았다 다시 열어 재시도하세요');return;}
+  if(!(window.kakao&&kakao.maps&&window._KR)){toast('⚠️ 지도가 아직 로드되지 않았습니다 — 잠시 후 재시도');return;}
+  if(document.getElementById('tpOv'))return; // 이미 실행 중
+  // 공원 경계 bbox + 여유(진입로·인접 마을) — 경계 미로딩 시 설악산 일대 고정값
+  let bb={minLat:38.004,maxLat:38.264,minLng:128.255,maxLng:128.584};
+  try{
+    if(_parkBoundary&&_parkBoundary.rings){
+      let a=999,b=-999,c=999,d=-999;
+      _parkBoundary.rings.forEach(ring=>ring.forEach(p=>{if(p[1]<a)a=p[1];if(p[1]>b)b=p[1];if(p[0]<c)c=p[0];if(p[0]>d)d=p[0];}));
+      bb={minLat:a,maxLat:b,minLng:c,maxLng:d};
+    }
+  }catch(e){}
+  const PAD=0.015;bb.minLat-=PAD;bb.maxLat+=PAD;bb.minLng-=PAD;bb.maxLng+=PAD;
+  // 화면 밖 숨은 지도 — 여기서 발생하는 타일 요청을 SW가 저장
+  const host=document.createElement('div');
+  host.style.cssText='position:fixed;left:-2200px;top:0;width:1024px;height:1024px;pointer-events:none;';
+  document.body.appendChild(host);
+  const ctr=new kakao.maps.LatLng((bb.minLat+bb.maxLat)/2,(bb.minLng+bb.maxLng)/2);
+  const map=new kakao.maps.Map(host,{center:ctr,level:10});
+  // 배율(레벨)별 화면이 덮는 범위를 실측해 이동 계획 수립 — 넓은 배율부터 상세 배율로, 총 이동 상한
+  const STEP_CAP=150;
+  const plan=[];let total=0;
+  for(let lv=10;lv>=2;lv--){
+    map.setLevel(lv);map.setCenter(ctr);
+    const b=map.getBounds(),sw=b.getSouthWest(),ne=b.getNorthEast();
+    const spanLat=(ne.getLat()-sw.getLat())*0.9,spanLng=(ne.getLng()-sw.getLng())*0.9; // 10% 겹침
+    if(spanLat<=0||spanLng<=0)break;
+    const rows=Math.max(1,Math.ceil((bb.maxLat-bb.minLat)/spanLat));
+    const cols=Math.max(1,Math.ceil((bb.maxLng-bb.minLng)/spanLng));
+    if(total+rows*cols>STEP_CAP)break; // 이보다 상세한 배율은 평소 사용 중 자동 저장에 맡김
+    plan.push({level:lv,rows,cols,spanLat,spanLng});
+    total+=rows*cols;
+  }
+  const steps=[];
+  plan.forEach(p=>{
+    for(let r=0;r<p.rows;r++)for(let c=0;c<p.cols;c++)
+      steps.push({level:p.level,lat:Math.min(bb.minLat+p.spanLat*(r+.5),bb.maxLat),lng:Math.min(bb.minLng+p.spanLng*(c+.5),bb.maxLng)});
+  });
+  if(!steps.length){host.remove();toast('⚠️ 이동 계획 생성 실패 — 다시 시도하세요');return;}
+  // 진행 표시
+  _tpAbort=false;
+  const ov=document.createElement('div');ov.id='tpOv';
+  ov.style.cssText='position:fixed;left:12px;right:12px;bottom:76px;z-index:9700;background:#0a1828;border:1px solid rgba(79,168,208,.35);border-radius:12px;padding:12px 14px;box-shadow:0 6px 24px rgba(0,0,0,.5);';
+  ov.innerHTML='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;"><b style="font-size:12.5px;color:#e0edf8;">🗺️ 설악산 인근 지도 미리받기</b><button id="tpCancel" style="background:rgba(231,76,60,.12);border:1px solid rgba(231,76,60,.3);color:#ff8a73;border-radius:7px;padding:4px 10px;font-size:11px;font-weight:700;cursor:pointer;">중지</button></div>'
+    +'<div style="height:6px;background:rgba(255,255,255,.07);border-radius:3px;overflow:hidden;"><div id="tpBar" style="height:100%;width:0%;background:#4fa8d0;transition:width .3s;"></div></div>'
+    +'<div id="tpTxt" style="font-size:10.5px;color:#6a94b0;margin-top:6px;">총 '+steps.length+'개 구역 준비 중... (다른 작업 하셔도 됩니다)</div>';
+  document.body.appendChild(ov);
+  document.getElementById('tpCancel').onclick=()=>{_tpAbort=true;};
+  let i=0,pending=null;
+  const onTiles=()=>{if(pending)pending();};
+  kakao.maps.event.addListener(map,'tilesloaded',onTiles);
+  const cleanup=msg=>{
+    try{kakao.maps.event.removeListener(map,'tilesloaded',onTiles);}catch(e){}
+    try{host.remove();}catch(e){}
+    try{ov.remove();}catch(e){}
+    _updateTileCacheInfo();
+    _tileCacheCount().then(n=>toast(msg+(n>0?' — 저장된 타일 '+n+'장':''),4500));
+  };
+  const runStep=()=>{
+    if(_tpAbort)return cleanup('⏹️ 미리받기 중지됨 (받은 만큼은 저장됨)');
+    if(i>=steps.length)return cleanup('✅ 지도 미리받기 완료');
+    const s=steps[i];let done=false;
+    const advance=()=>{
+      if(done)return;done=true;pending=null;clearTimeout(to);
+      i++;
+      const bar=document.getElementById('tpBar'),txt=document.getElementById('tpTxt');
+      if(bar)bar.style.width=Math.round(i/steps.length*100)+'%';
+      if(txt)txt.textContent='배율 '+s.level+' · '+i+' / '+steps.length+' 구역';
+      setTimeout(runStep,120); // 타일 서버 부담 완화
+    };
+    pending=advance;
+    const to=setTimeout(advance,4000); // tilesloaded 유실·전체 캐시 히트 대비
+    if(map.getLevel()!==s.level)map.setLevel(s.level);
+    map.setCenter(new kakao.maps.LatLng(s.lat,s.lng));
+  };
+  setTimeout(runStep,600); // 최초 지도 로드 후 시작
+}
