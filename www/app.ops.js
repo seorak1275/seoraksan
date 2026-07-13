@@ -551,7 +551,7 @@ function _facInfoHtml(f){
   const w=_facWarn(f);
   const col=_facTypeColor(f.type);
   // 짧은 정보(우측 열): 사진 옆에 나란히 — 세로 공간 절약
-  const sRow=(k,v)=>v?`<div style="display:flex;gap:6px;padding:2px 0;"><span style="min-width:32px;flex-shrink:0;font-size:10px;color:#5d86a3;font-weight:700;">${k}</span><span style="flex:1;min-width:0;font-size:11px;color:#c9dcec;line-height:1.45;word-break:break-all;">${v}</span></div>`:'';
+  const sRow=(k,v)=>v?`<div style="display:flex;gap:6px;padding:2px 0;"><span style="width:46px;flex-shrink:0;font-size:10px;color:#5d86a3;font-weight:700;">${k}</span><span style="flex:1;min-width:0;font-size:11px;color:#c9dcec;line-height:1.45;word-break:break-all;">${v}</span></div>`:'';
   const shortRows=[
     sRow('종류',`<span style="color:${col};font-weight:700;">${_esc(f.type)}</span>`),
     sRow('위치',_esc(f.loc||'')),
