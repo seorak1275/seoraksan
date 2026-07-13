@@ -393,6 +393,9 @@ img{-webkit-user-drag:none;}
 .sm-btn:active{transform:scale(.92);}
 /* ── 뷰 전환 ── */
 .view.on{animation:viewFadeIn .2s var(--qt) both;}
+/* 시설물 지도 뷰는 페이드 제외 — opacity 애니메이션(fill:both)이 뷰를 영구 스택 컨텍스트로 만들어
+   내부 팝업(#facPopup z30)이 하단바(z20) 위로 올라올 수 없게 막던 문제 */
+#v-inspect-map.on{animation:none;}
 @keyframes viewFadeIn{from{opacity:0;transform:translateY(5px);}to{opacity:1;transform:translateY(0);}}
 @keyframes spin{to{transform:rotate(360deg);}}
 
