@@ -159,6 +159,7 @@ function _facMigrateV2(){
 function renderInspectMap(){
   if(!mapI){return;}
   _facMigrateV2();
+  try{_unspiderfyFac();}catch(e){} // 펼쳐진 부채꼴이 있으면 먼저 접기(재구성 시 유령 다리 방지)
   iOvs.forEach(o=>{try{o.setMap(null);}catch(e){}});iOvs=[];iEls=[];
   _iClusterOvs.forEach(o=>{try{o.setMap(null);}catch(e){}});_iClusterOvs=[];
   const _admin=isAdminUser();const _meta=DB.g('catFacMeta')||{};
@@ -189,11 +190,11 @@ function renderInspectMap(){
       if(!_ts)return;
       const dx=e.changedTouches[0].clientX-_ts.x,dy=e.changedTouches[0].clientY-_ts.y;
       _ts=null;
-      if(Math.abs(dx)<8&&Math.abs(dy)<8){e.stopPropagation();e.preventDefault();openFacFromMap(f.id);}
+      if(Math.abs(dx)<8&&Math.abs(dy)<8){e.stopPropagation();e.preventDefault();_facPinTap(f.id);}
     });
-    el.addEventListener('click',e=>{e.stopPropagation();openFacFromMap(f.id);});
+    el.addEventListener('click',e=>{e.stopPropagation();_facPinTap(f.id);});
     const ov=new kakao.maps.CustomOverlay({position:new kakao.maps.LatLng(f.lat,f.lng),content:el,clickable:true});
-    ov._lat=f.lat;ov._lng=f.lng;
+    ov._lat=f.lat;ov._lng=f.lng;ov._facId=f.id; // 부채꼴 펼침이 겹친 핀을 찾을 때 사용
     ov._sign=!!(f.type&&f.type.includes('다목적위치표지판')); // 줌아웃 시 표지판만 표시하기 위한 플래그
     // 지도 부착은 _reclusterInspect가 결정(밀집 핀은 버블로 묶음) — 초기 수백개 일괄 부착/제거 비용 제거
     iOvs.push(ov);iEls.push(el);

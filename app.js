@@ -834,27 +834,34 @@ function _renderWeatherAlerts(alertMap,estimated,noSync){
   var wrap=document.getElementById('weatherAlertWrap');if(!wrap)return;
   var entries=Object.entries(alertMap);
   if(!entries.length){wrap.innerHTML='';wrap.style.display='none';return;}
-  // 경보 먼저, 주의보 나중
-  entries.sort(function(a,b){return a[1].level==='경보'&&b[1].level!=='경보'?-1:1;});
-  // 같은 특보를 가진 지역끼리 묶기
-  var grouped={};
+  // ── 홈 배너는 '한 줄 요약 칩' — 특보가 아무리 많아도 한 줄(아래 메뉴를 안 밀어냄) ──
+  // 개별 특보(종류+등급)를 모아, 최고 등급을 헤드라인으로 나머지는 '외 N건'. 전체는 탭 → 날씨 상세 모달.
+  var _lvRank={'예비':0,'주의보':1,'경보':2};
+  var _icoOf=function(r){return r.indexOf('호우')>=0?'🌧️':r.indexOf('강풍')>=0?'💨':r.indexOf('대설')>=0?'❄️':r.indexOf('태풍')>=0?'🌀':r.indexOf('한파')>=0?'🥶':r.indexOf('폭염')>=0?'🌡️':'⚠️';};
+  // 지역별 reasons를 (종류+등급)별로 평탄화 — 같은 특보는 지역만 합침
+  var flat=[];
   entries.forEach(function(e){
-    var key=e[1].reasons.join('/');
-    if(!grouped[key])grouped[key]={level:e[1].level,regions:[],reasons:e[1].reasons};
-    grouped[key].regions.push(e[0]);
+    var region=e[0],info=e[1];
+    (info.reasons||[]).forEach(function(r){
+      var lv=r.indexOf('예비특보')>=0?'예비':(r.indexOf('경보')>=0?'경보':'주의보');
+      var f=null;flat.forEach(function(x){if(x.reason===r)f=x;});
+      if(!f){f={level:lv,reason:r,regions:[]};flat.push(f);}
+      if(f.regions.indexOf(region)<0)f.regions.push(region);
+    });
   });
-  wrap.innerHTML=Object.values(grouped).map(function(g){
-    var ico=g.reasons.some(function(r){return r.includes('호우');})?'🌧️':g.reasons.some(function(r){return r.includes('강풍');})?'💨':g.reasons.some(function(r){return r.includes('대설');})?'❄️':'⚠️';
-    var regionStr=g.regions.join('·');
-    var reasonStr=g.reasons.map(function(r){return r.replace('예비특보','').replace('경보','').replace('주의보','');}).join(', ');
-    var lvTxt=g.level==='예비'?'예비특보':g.level;   // '예비' → '예비특보' 표기
-    var lvCls=g.level==='예비'?'예비특보':g.level;
-    // estimated=true: 기상청 미연결로 open-meteo 관측값에서 추정한 특보 → 공식 특보와 명확히 구분
-    if(estimated){
-      return'<div class="w-alert w-alert-추정">'+ico+' <b>추정 '+lvTxt+'</b> '+regionStr+' — '+reasonStr+' <span style="font-weight:400;opacity:.85;">· 기상청 미연결</span></div>';
-    }
-    return'<div class="w-alert w-alert-'+lvCls+'">'+ico+' <b>'+lvTxt+'</b> '+regionStr+' — '+reasonStr+'</div>';
-  }).join('');
+  if(!flat.length){wrap.innerHTML='';wrap.style.display='none';return;}
+  // 최고 등급 우선 정렬 → 첫 항목이 헤드라인
+  flat.sort(function(a,b){return (_lvRank[b.level]||0)-(_lvRank[a.level]||0);});
+  var head=flat[0],extra=flat.length-1;
+  var headLvTxt=head.level==='예비'?'예비특보':head.level; // '예비' → '예비특보'
+  var headReason=head.reason.replace('예비특보','').replace('경보','').replace('주의보','')+headLvTxt; // 예: 호우 + 경보
+  var regionStr=head.regions.slice(0,3).join('·')+(head.regions.length>3?' 등':'');
+  var lvCls=estimated?'추정':(head.level==='예비'?'예비특보':head.level);
+  var prefix=estimated?'추정 ':'';
+  wrap.innerHTML='<div class="w-alert w-alert-'+lvCls+'" style="width:100%;white-space:nowrap;">'
+    +'<span style="flex-shrink:0;">'+_icoOf(head.reason)+' <b>'+prefix+headReason+'</b></span>'
+    +'<span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;font-weight:600;">'+regionStr+(extra>0?' <span style="font-weight:800;">외 '+extra+'건</span>':'')+(estimated?' <span style="font-weight:400;opacity:.8;">· 기상청 미연결</span>':'')+'</span>'
+    +'<span style="flex-shrink:0;font-size:10px;opacity:.7;">▸</span></div>';
   wrap.style.display='flex';
 }
 var _wDetailCache=null;
@@ -2824,7 +2831,7 @@ function sosToRescue(id){
 // 앱 자체 업데이트 (OTA · Capgo 자체호스팅) — APK 전용. 웹/PWA는 서비스워커가 자동 갱신.
 // 번들(www)의 새 버전을 ota.json으로 알리면, 설치된 앱이 받아서 그 자리에서 교체(재빌드 불필요).
 // ══════════════════════════════════════════
-const OTA_VER='2026.07.13.118';                         // ← 현재 번들 버전 (릴리스마다 올림 · build-ota.sh가 ota.json에 반영)
+const OTA_VER='2026.07.13.119';                         // ← 현재 번들 버전 (릴리스마다 올림 · build-ota.sh가 ota.json에 반영)
 const OTA_MANIFEST='https://seorak1275.github.io/seoraksan/ota.json';
 let _otaInfo=null;
 function _otaPlugin(){try{return (window.Capacitor&&window.Capacitor.Plugins&&window.Capacitor.Plugins.CapacitorUpdater)||null;}catch(e){return null;}}
