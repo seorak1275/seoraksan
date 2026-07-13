@@ -833,7 +833,7 @@ window.addEventListener('orientationchange',function(){setTimeout(_fixAppHeight,
 document.addEventListener('visibilitychange',function(){if(!document.hidden)setTimeout(_fixAppHeight,150);});
 setTimeout(_fixAppHeight,500);setTimeout(_fixAppHeight,2000);
 
-function closeDB(){document.querySelectorAll('.dbcard').forEach(c=>c.classList.remove('on'));try{if(typeof _clearPopupDim==='function')_clearPopupDim();}catch(e){}}
+function closeDB(){document.querySelectorAll('.dbcard').forEach(c=>c.classList.remove('on'));try{if(typeof _clearPopupDim==='function')_clearPopupDim();}catch(e){}try{if(typeof _facPinUnhighlight==='function')_facPinUnhighlight();}catch(e){}}
 // dbcard(하단 조회 카드): X버튼 대신 손잡이를 아래로 내려서 닫기
 function _bindDbcardDrag(p){
   if(!p||p._dbDrag)return;p._dbDrag=true;

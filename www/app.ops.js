@@ -179,6 +179,7 @@ function renderInspectMap(){
   filtered.forEach(f=>{
     if(!f.lat||!f.lng)return;
     const el=document.createElement('div');el.className='mpin '+(_facWarn(f)?'p-bad blink':'p-fac');el.innerHTML=f.type.split(' ')[0];
+    el._facId=f.id;
     // 종류별 색 — 테두리+바탕 틴트로 한눈에 구분 (경고표시는 빨간 깜빡임 유지)
     if(!_facWarn(f)){const _tc=_facTypeColor(f.type);el.style.borderColor=_tc;el.style.background=`linear-gradient(0deg,${_tc}44,${_tc}44),#0b1c30`;}
     if(f.hidden)el.style.opacity='.4'; // 권한자에게만 보이는 숨김 시설 — 흐리게
@@ -581,9 +582,13 @@ function _facInfoHtml(f){
     ${rows.length?`<div style="background:#060d1a;border-radius:10px;padding:7px 11px;">${rows.join('')}</div>`:''}
     ${issHtml?`<div style="font-size:10px;color:#5d86a3;font-weight:800;margin-top:8px;">🔧 최근 점검</div>${issHtml}`:''}`;
 }
+// 선택된 시설 핀 강조 — 팝업이 어떤 핀을 가리키는지 물결 링으로 표시
+function _facPinHighlight(id){try{iEls.forEach(el=>{if(el&&el.classList)el.classList.toggle('mpin-sel',el._facId===id);});}catch(e){}}
+function _facPinUnhighlight(){try{iEls.forEach(el=>{if(el&&el.classList)el.classList.remove('mpin-sel');});}catch(e){}}
 function openFacFromMap(id){
   const f=(DB.g('facilities')||[]).find(x=>x.id===id);if(!f)return;
   selFacId=id;window._selFacDetailId=id;
+  _facPinHighlight(id);
   const col=_facTypeColor(f.type);
   document.getElementById('facPopTitle').innerHTML=
     `<span style="display:inline-flex;align-items:center;gap:7px;flex-wrap:wrap;"><span style="width:25px;height:25px;border-radius:50%;background:${col}33;border:2px solid ${col};display:inline-flex;align-items:center;justify-content:center;font-size:12px;flex-shrink:0;">${_esc(f.type.split(' ')[0])}</span><span>${_esc(f.name)}</span>${_facGradeBadge(f)}${f.hidden?'<span style="font-size:9px;color:#8a6d3b;">🙈 숨김중</span>':''}</span>`;
