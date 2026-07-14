@@ -2971,7 +2971,7 @@ function renderAdmMembers(){
             <button onclick="_toggleFacManager('${_escq(u.kakaoId)}')" title="시설물 점검 담당자 지정/해제" style="background:${isFacMgr?'rgba(240,165,0,.18)':'rgba(255,255,255,.04)'};color:${isFacMgr?'#f0a500':'#6a8296'};border:1px solid ${isFacMgr?'rgba(240,165,0,.4)':'rgba(255,255,255,.12)'};border-radius:6px;padding:4px 7px;font-size:10px;cursor:pointer;">🔧</button>
             <button onclick="_toggleAdmMemberEdit('${_escq(editId)}')" style="background:rgba(79,168,208,.12);color:#4fa8d0;border:1px solid rgba(79,168,208,.25);border-radius:6px;padding:4px 7px;font-size:10px;cursor:pointer;">수정</button>
             ${role==='none'&&!_isDeveloper(u.kakaoId)?`<button onclick="grantMember('${_escq(u.kakaoId)}')" style="background:rgba(39,174,96,.15);color:#7ec8a0;border:1px solid rgba(39,174,96,.3);border-radius:6px;padding:4px 7px;font-size:10px;cursor:pointer;">승인</button>`:''}
-            ${!_isDeveloper(u.kakaoId)?`<button onclick="removeStaff('${_escq(u.kakaoId)}')" style="background:rgba(192,57,43,.15);color:#ff8a80;border:1px solid rgba(192,57,43,.25);border-radius:6px;padding:4px 7px;font-size:10px;cursor:pointer;">삭제</button>`:''}
+            ${!_isDeveloper(u.kakaoId)?`<button onclick="removeStaff('${_escq(u.kakaoId)}')" style="background:rgba(192,57,43,.15);color:#ff8a80;border:1px solid rgba(192,57,43,.25);border-radius:6px;padding:4px 7px;font-size:10px;cursor:pointer;">탈퇴</button>`:''}
           </div>
         </div>
         <div id="admMemberEdit_${editId}" style="display:none;margin-top:8px;background:rgba(0,0,0,.25);border-radius:9px;padding:10px;">
@@ -3546,13 +3546,13 @@ function removeStaff(kakaoId){
   const pu=(DB.g('pendingUsers')||[]).find(p=>String(p.kakaoId||p.id)===kakaoId);
   const ll=(DB.g('loginLog')||[]).find(e=>String(e.kakaoId)===kakaoId);
   const nm=(pu&&(pu.realName||pu.name))||(ll&&ll.name)||'이 사용자';
-  if(!confirm(nm+'을(를) 삭제하시겠습니까?\n(작성한 데이터는 유지 · 재로그인 시 재승인 필요)'))return;
+  if(!confirm(nm+'을(를) 탈퇴 처리하시겠습니까?\n· 즉시 로그아웃되고 멤버에서 빠집니다\n· 작성한 데이터는 유지됩니다\n· 다시 로그인하면 신규 승인 대기로 재신청할 수 있습니다(영구 차단 아님)'))return;
   const del=DB.g('deletedKakaoIds')||[];if(!del.includes(kakaoId)){del.push(kakaoId);DB.s('deletedKakaoIds',del);}
   DB.s('pendingUsers',(DB.g('pendingUsers')||[]).filter(p=>String(p.kakaoId||p.id)!==kakaoId));
   DB.s('loginLog',(DB.g('loginLog')||[]).filter(e=>String(e.kakaoId)!==kakaoId));
   const acl=_getAcl();acl.members=acl.members.filter(x=>x!==kakaoId);acl.admins=acl.admins.filter(x=>x!==kakaoId);DB.s('_acl',acl);
   renderAdmMembers();try{renderAdmSys();}catch(e){}
-  toast('🗑️ 삭제 완료');
+  toast('✅ 탈퇴 처리 완료');
 }
 function deleteUser(id){
   if(!isAdminUser()){toast('⚠️ 관리자만 가능');return;}
@@ -3610,7 +3610,7 @@ function _checkDeletedUser(){
   DB.s('currentUser',{});
   if(window.showLoginScreen)window.showLoginScreen();
   updateUserUI();
-  toast('⚠️ 계정이 관리자에 의해 삭제되었습니다');
+  toast('⚠️ 관리자에 의해 탈퇴 처리되었습니다');
 }
 // 전체 초기화: 개발자만, 2단계 확인, 24시간 복구 백업 보관
 const _RESET_BACKUP_KEYS=['members','catFac','catFacMeta','facilities','rescues','hazards','history','alertOps','pendingUsers','approvedUsers','deletedKakaoIds','loginLog','_acl','extAgencies'];

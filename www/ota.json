@@ -1,1 +1,1 @@
-{"version":"2026.07.14.124","url":"https://seorak1275.github.io/seoraksan/bundle.zip","notes":"전역 터치 먹통(지도·목록·뒤로가기 다 안됨) 자가복구 — 팝업/시트 반투명 배경이 투명해진 채 안 지워지면 보이지 않는 전체화면 레이어가 모든 탭을 삼키던 문제. body직속 전체화면 투명 유령 레이어를 탭 시 pointer-events off로 통과(카카오 지도 내부는 미대상) + teamSheet 닫기 방어"}
+{"version":"2026.07.14.125","url":"https://seorak1275.github.io/seoraksan/bundle.zip","notes":"직원 '삭제'를 '탈퇴' 처리로 명확화 — 버튼·확인창·완료 문구를 탈퇴로, 삭제된 본인 안내를 '관리자에 의해 탈퇴 처리되었습니다'로 변경 (영구 차단 아님: 재로그인 시 신규 승인 대기로 재신청 가능, 데이터 유지)"}
