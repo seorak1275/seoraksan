@@ -829,9 +829,23 @@ function _fixAppHeight(){
     else if(app.style.height&&Math.abs(h-vh)<=vh*0.02)app.style.height='';
   }catch(e){}
 }
-window.addEventListener('resize',function(){setTimeout(_fixAppHeight,80);});
-window.addEventListener('orientationchange',function(){setTimeout(_fixAppHeight,250);});
-document.addEventListener('visibilitychange',function(){if(!document.hidden)setTimeout(_fixAppHeight,150);});
+// 뷰포트 크기 변화(모바일 주소창 접힘/펼침·화면 회전·백그라운드 복귀) 후 카카오 지도 내부 크기 재계산.
+// 이걸 빼먹으면 지도 DIV만 새 크기가 되고 카카오 내부 이벤트 레이어는 옛 크기라 터치 좌표가 어긋나
+// '지도 터치 먹통'이 된다(그래서 새로고침하면 지도 재생성으로 풀림). relayout은 중심·배율 보존, 멱등.
+function _relayoutMaps(){
+  try{if(typeof mapI!=='undefined'&&mapI)mapI.relayout();}catch(e){}
+  try{if(typeof mapR!=='undefined'&&mapR)mapR.relayout();}catch(e){}
+  try{if(typeof _boardMap!=='undefined'&&_boardMap)_boardMap.relayout();}catch(e){}
+  try{if(typeof _applyMapVOff==='function')_applyMapVOff();}catch(e){}
+}
+function _afterViewport(){try{_fixAppHeight();}catch(e){}_relayoutMaps();requestAnimationFrame(_relayoutMaps);}
+var _vpTimer=null;
+function _onViewportChange(delay){clearTimeout(_vpTimer);_vpTimer=setTimeout(_afterViewport,delay);} // 연속 resize 디바운스
+window.addEventListener('resize',function(){_onViewportChange(140);});
+window.addEventListener('orientationchange',function(){_onViewportChange(320);});
+document.addEventListener('visibilitychange',function(){if(!document.hidden)_onViewportChange(200);});
+// iOS 등: 주소창 접힘/펼침이 window.resize를 안 띄우고 visualViewport만 바꾸는 경우 대비
+try{if(window.visualViewport)window.visualViewport.addEventListener('resize',function(){_onViewportChange(180);});}catch(e){}
 setTimeout(_fixAppHeight,500);setTimeout(_fixAppHeight,2000);
 
 function closeDB(){document.querySelectorAll('.dbcard').forEach(c=>c.classList.remove('on'));try{if(typeof _clearPopupDim==='function')_clearPopupDim();}catch(e){}try{if(typeof _facPinUnhighlight==='function')_facPinUnhighlight();}catch(e){}}

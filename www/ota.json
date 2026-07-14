@@ -1,1 +1,1 @@
-{"version":"2026.07.14.122","url":"https://seorak1275.github.io/seoraksan/bundle.zip","notes":"사진 업로드 수정 — Firebase Storage 미프로비저닝으로 전체 사진 업로드 실패하던 문제. 사진을 압축해 Firestore 기록에 직접 저장(데이터URL)하도록 전환(점검·구조·위험 공통), 점검사진 확대는 라이트박스로(data URL 새탭차단 회피)"}
+{"version":"2026.07.14.123","url":"https://seorak1275.github.io/seoraksan/bundle.zip","notes":"지도 터치 간헐 먹통 수정 — 주소창 접힘/펼침·화면회전·백그라운드 복귀로 뷰포트가 바뀌면 카카오 지도 내부 크기가 옛값으로 남아 터치 좌표가 어긋나던 문제. resize/orientationchange/visibilitychange/visualViewport에서 지도 relayout 호출(디바운스)"}
