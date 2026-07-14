@@ -786,7 +786,7 @@ async function govReport(rid,kind,noPass){
   const mobStr=(r.mobilize||[]).join(', ');
   const signCode=(r.lat&&r.lng&&typeof _nearestSignFull==='function')?(()=>{try{const s=_nearestSignFull(r.lat,r.lng);return s?s.code+(s.dist?' ('+s.dist+'m)':''):'';}catch(e){return '';}})():'';
   const coordStr=(r.lat&&r.lng)?(+r.lat).toFixed(6)+', '+(+r.lng).toFixed(6):'';
-  const elevS=(typeof _elevStr==='function'&&r.lat&&r.lng)?_elevStr(r.lat,r.lng,r.alt).replace('⛰',''):'';
+  const elevS=(typeof _elevStr==='function'&&r.lat&&r.lng)?_elevStr(r.lat,r.lng,r.alt,true).replace('⛰',''):''; // plain=true: 문서용 순수 문자열
   const vAgeStr=nb(r.vBirth)?(r.vBirth+(nb(r.vGender)?'/'+r.vGender:'')):(nb(r.vGender)?r.vGender:'');
   const compStr=(r.companions||[]).map(c=>(c.name||'미상')+(c.tel?'('+c.tel+')':'')).join(', ');
   const v2Str=(r.victims2||[]).map(v=>[(v.name||'미상'),v.age?v.age+'세':'',(v.gender&&v.gender!=='알수없음')?v.gender:'',v.note||''].filter(Boolean).join(' ')).join(' / ');

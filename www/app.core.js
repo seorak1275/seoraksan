@@ -111,7 +111,7 @@ const _FB_CFG={
 // history: 점검이력은 무제한으로 계속 쌓이는 로그성 데이터라 단일문서 그대로 두면 매 점검마다 전체가 전원에게 재전송됨 → 건별 문서로 전환
 const _SHARED_COLL=['rescues','hazards','facilities','history','facIssues'];
 // _SHARED_DOC: 단일 문서에 JSON 배열 저장 (관리자 전용, 동시 쓰기 없음)
-const _SHARED_DOC=['alertOps','staff','catFac','catFacMeta','pendingUsers','approvedUsers','deletedKakaoIds','adminOwnerKakaoId','adminApprovalCode','extAgencies','extAgencyCode','extAgencyDisplayName','geminiApiKey','kmaProxyUrl','_acl','loginLog','trailStatus','crisisLevel','weatherBrief','weatherLog','trailLog','sosBlocked','autoApprove','pushLog','devKakaoId','notiPolicy','customResTypes','facManagers'];
+const _SHARED_DOC=['alertOps','alertLog','staff','catFac','catFacMeta','pendingUsers','approvedUsers','deletedKakaoIds','adminOwnerKakaoId','adminApprovalCode','extAgencies','extAgencyCode','extAgencyDisplayName','geminiApiKey','kmaProxyUrl','_acl','loginLog','trailStatus','crisisLevel','weatherBrief','weatherLog','trailLog','sosBlocked','autoApprove','pushLog','devKakaoId','notiPolicy','customResTypes','facManagers'];
 // 시설물 레거시(단일문서) 폴백/시드 동기화 상태
 let _legacyFacBackup=null; // appData/facilities(구버전)의 백업 — 컬렉션 비었을 때 화면 폴백
 let _facSeedReady=false;   // 시설물 첫 스냅샷·레거시 백업 확인 완료(시드 레이스 방지)
@@ -733,6 +733,7 @@ function initDB(){
   if(!DB.g('hazards'))    DB.s('hazards',[]);
   if(!DB.g('history'))    DB.s('history',[]);
   if(!DB.g('alertOps'))   DB.s('alertOps',[]);
+  if(!DB.g('alertLog'))   DB.s('alertLog',[]);
   if(!DB.g('notis'))         DB.s('notis',[]);
   if(!DB.g('notiSetting'))   DB.s('notiSetting',{});
   _ensureNotiDefaults();

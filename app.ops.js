@@ -1657,6 +1657,7 @@ function _updateAlertNav(){
 }
 function renderAlertView(){
   try{_updateCrisisBanner();}catch(e){}
+  try{_migrateAlertLog();}catch(e){} // 과거 특보 이력 1회 백필 (통계·이력 목록용)
   const ops=DB.g('alertOps')||[];
   const active=ops.find(o=>!o.closedAt);
   // 관측 리마인더는 탭과 무관하게 운영 중이면 항상 동작
@@ -1796,19 +1797,32 @@ function _alertTypeColor(t){return ALERT_TYPE_COLORS[t]||'#8aa0b4';}
 function alertStatYear(y){window._alertStatYear=y;renderAlertView();}
 function _renderAlertStats(ops){
   ops=ops||DB.g('alertOps')||[];
-  if(!ops.length)return `<div class="ao-empty"><div class="ao-empty-ico">📊</div><div class="ao-empty-msg">특보운영 기록이 없습니다</div></div>`;
-  // 1) 발효 구간 수집: 특보별 발효시각 → 운영종료(진행 중이면 현재)
+  try{_migrateAlertLog();}catch(e){}
+  const log=DB.g('alertLog')||[];
+  if(!ops.length&&!log.length)return `<div class="ao-empty"><div class="ao-empty-ico">📊</div><div class="ao-empty-msg">특보운영 기록이 없습니다</div></div>`;
+  // 1) 발효 구간 수집: 이력 로그(alertLog) 우선 — 자동해제·삭제된 특보까지 완전 집계.
+  //    로그가 비었으면(구버전) alertOps에서 현재 남아있는 특보로 폴백.
   const spans=[];
-  ops.forEach(o=>{
-    const s0=o.startedAtMs||_alertTimeMs(o.startedAt)||0;
-    const e0=o.closedAtMs||_alertTimeMs(o.closedAt)||Date.now();
-    _opAlerts(o).forEach(a=>{
-      const f=a.issuedAtMs||_alertTimeMs(a.issuedAt)||s0;
+  if(log.length){
+    log.forEach(r=>{
+      const f=r.issuedAtMs||_alertTimeMs(r.issuedAt)||0;
       if(!f||f>Date.now())return;                            // 시각 없음·발효 예정(미래)은 집계 제외
-      const t=Math.max(f,Math.min(e0,f+366*86400000));       // 손상 데이터 방어(1년 상한)
-      spans.push({type:a.type||'기타',stage:a.stage||'',from:f,to:t});
+      const en=r.endedAtMs||_alertTimeMs(r.endedAt)||Date.now();
+      const t=Math.max(f,Math.min(en,f+366*86400000));       // 손상 데이터 방어(1년 상한)
+      spans.push({type:r.type||'기타',stage:r.stage||'',from:f,to:t});
     });
-  });
+  }else{
+    ops.forEach(o=>{
+      const s0=o.startedAtMs||_alertTimeMs(o.startedAt)||0;
+      const e0=o.closedAtMs||_alertTimeMs(o.closedAt)||Date.now();
+      _opAlerts(o).forEach(a=>{
+        const f=a.issuedAtMs||_alertTimeMs(a.issuedAt)||s0;
+        if(!f||f>Date.now())return;
+        const t=Math.max(f,Math.min(e0,f+366*86400000));
+        spans.push({type:a.type||'기타',stage:a.stage||'',from:f,to:t});
+      });
+    });
+  }
   if(!spans.length)return `<div class="ao-empty"><div class="ao-empty-ico">📊</div><div class="ao-empty-msg">집계할 특보 데이터가 없습니다</div></div>`;
   // 2) 일 단위 전개 — 연도별 {전체·월별·종류별·단계별} 발효일 집합 (Set이라 중복 자동 제거)
   const Y={};
@@ -1880,6 +1894,24 @@ function _renderAlertStats(ops){
   }).join('');
   const mini=(label,val,col,sub)=>`<div style="background:#060d1a;border-radius:10px;padding:11px 8px;text-align:center;"><div style="font-size:19px;font-weight:800;color:${col||'#e0edf8'};line-height:1.15;">${val}</div><div style="font-size:9.5px;color:#7a9cb8;margin-top:3px;">${label}</div>${sub?`<div style="font-size:8.5px;color:#4a7090;margin-top:1px;">${sub}</div>`:''}</div>`;
   const fmtH=h=>h>=48?(h/24).toFixed(h>=240?0:1)+'일':Math.round(h)+'시간';
+  // 특보 발효 이력 목록 (선택 연도) — 자동해제·삭제분까지 로그에서 전부, 최신순
+  const _logY=log.filter(r=>{const f=r.issuedAtMs||_alertTimeMs(r.issuedAt)||0;return f&&new Date(f).getFullYear()===sel;}).sort((a,b)=>(b.issuedAtMs||0)-(a.issuedAtMs||0));
+  const _durTxt=ms=>ms>=86400000?Math.floor(ms/86400000)+'일'+(Math.floor((ms%86400000)/3600000)?' '+Math.floor((ms%86400000)/3600000)+'시간':''):ms>=3600000?Math.floor(ms/3600000)+'시간'+(Math.floor((ms%3600000)/60000)?' '+Math.floor((ms%3600000)/60000)+'분':''):Math.max(1,Math.floor(ms/60000))+'분';
+  const _epRows=_logY.map(r=>{
+    const col=_alertTypeColor(r.type);
+    const st=r.issuedAtMs||_alertTimeMs(r.issuedAt)||0;
+    const en=r.endedAtMs||_alertTimeMs(r.endedAt)||0;
+    const act=!r.endedAtMs;
+    const dur=st?((en||Date.now())-st):0;
+    const period=(st?_alertMsStr(st).slice(5,16):'-')+' → '+(act?'<b style="color:#7ee0a8;">발효 중</b>':(en?_alertMsStr(en).slice(5,16):'-'));
+    return `<div style="display:flex;align-items:center;gap:8px;padding:7px 2px;border-bottom:1px solid rgba(255,255,255,.04);">
+      <span style="width:9px;height:9px;border-radius:50%;background:${col};flex-shrink:0;"></span>
+      <span style="flex:1;min-width:0;">
+        <span style="display:block;font-size:12px;font-weight:700;color:#dceaf6;">${_esc(r.type)}${_esc(_stageShort(r.stage||''))} <span style="font-size:9px;font-weight:600;color:#6a94b0;">${r.source==='auto'?'📡자동':'✋수동'}</span></span>
+        <span style="display:block;font-size:9.5px;color:#5d86a3;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${period} · ${_durTxt(dur)}${r.regions&&r.regions.length?' · '+_esc(r.regions.slice(0,2).join('·')):''}</span>
+      </span>
+    </div>`;
+  }).join('');
   return `<div style="padding:2px 2px 10px;">
     <div style="display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap;">${years.map(v=>`<div class="pill${v===sel?' on':''}" onclick="alertStatYear(${v})">${v}년</div>`).join('')}</div>
     <div class="scard" style="margin-bottom:10px;">
@@ -1907,6 +1939,7 @@ function _renderAlertStats(ops){
         ${mini('최장 운영',longest?fmtH(longest/3600000):'-','#f0c060')}
       </div>
     </div>
+    ${_epRows?`<div class="scard" style="margin-top:10px;"><div class="stitle">📋 ${sel}년 특보 발효 이력 <span style="font-size:9px;font-weight:400;color:#5a7e98;">· 총 ${_logY.length}건 (자동해제분 포함)</span></div><div style="max-height:300px;overflow-y:auto;margin-top:2px;">${_epRows}</div></div>`:''}
   </div>`;
 }
 
@@ -2054,6 +2087,7 @@ function startAlertOps(){
       const prevStage=dup.stage;
       dup.stage=_alertLevel;dup.source='manual';dup.issuedAt=now();dup.issuedAtMs=Date.now();dup.by=getAuthor();
       if(note)active.note=note;
+      try{_alertLogSyncStage(dup,active.id);}catch(e){}
       DB.s('alertOps',ops);
       closeM('modalAlertStart');
       pushNoti((wasUp?'🔺 특보 상향: ':'🔻 특보 하향: ')+_alertType+' '+_stageShort(prevStage)+'→'+_stageShort(_alertLevel),'🚨','op_change',{app:'alert'});
@@ -2061,7 +2095,7 @@ function startAlertOps(){
       renderAlertView();updateSummary();
       return;
     }
-    active.alerts.push({type:_alertType,stage:_alertLevel,source:'manual',issuedAt:now(),issuedAtMs:Date.now(),by:getAuthor(),regions:_liveRegionsOf(_alertType)});
+    {const _na={type:_alertType,stage:_alertLevel,source:'manual',issuedAt:now(),issuedAtMs:Date.now(),by:getAuthor(),regions:_liveRegionsOf(_alertType)};active.alerts.push(_na);try{_alertLogSyncStage(_na,active.id);}catch(e){}}
     if(note)active.note=note;
     DB.s('alertOps',ops);
     closeM('modalAlertStart');
@@ -2071,7 +2105,7 @@ function startAlertOps(){
     return;
   }
   // 신규 특보운영 세션 생성
-  ops.push({id:Date.now(),alerts:[{type:_alertType,stage:_alertLevel,source:'manual',issuedAt:now(),issuedAtMs:Date.now(),by:getAuthor(),regions:_liveRegionsOf(_alertType)}],note,startedAt:now(),startedAtMs:Date.now(),reportInterval:_reportInterval||60,closedAt:null,responders:[],reports:[],createdBy:getAuthor()});
+  {const _op={id:Date.now(),alerts:[{type:_alertType,stage:_alertLevel,source:'manual',issuedAt:now(),issuedAtMs:Date.now(),by:getAuthor(),regions:_liveRegionsOf(_alertType)}],note,startedAt:now(),startedAtMs:Date.now(),reportInterval:_reportInterval||60,closedAt:null,responders:[],reports:[],createdBy:getAuthor()};ops.push(_op);try{_alertLogSyncStage(_op.alerts[0],_op.id);}catch(e){}}
   DB.s('alertOps',ops);
   closeM('modalAlertStart');
   pushNoti('🌀 특보운영 시작: '+_alertType+_stageShort(_alertLevel),'🌀','op_start',{app:'alert'});
@@ -2089,15 +2123,87 @@ function removeAlertItem(opId,idx){
   const rm=op.alerts[idx];
   if(!rm)return;
   if(!confirm((rm.type+_stageShort(rm.stage))+' 특보를 해제하겠습니까?'))return;
+  try{_alertLogEnd(rm,op.id,'수동 해제');}catch(e){}
   op.alerts.splice(idx,1);
   DB.s('alertOps',ops);
   toast('해제: '+rm.type+_stageShort(rm.stage));
   renderAlertView();updateSummary();
 }
+// ══════════════════════════════════════════
+// 특보 발효 이력 로그 (append-only) — 통계용 영구 기록
+// ══════════════════════════════════════════
+// 문제: 자동해제·수동해제 시 특보가 alertOps에서 삭제돼 기록이 사라짐 → 통계가 실제보다 적게 나옴.
+// 해결: 발효된 특보 '한 건(episode)'마다 발효~해제 구간을 alertLog에 영구 저장. 삭제해도 로그는 남음.
+// 레코드: {id,opId,type,stage(최종),maxRank,source,issuedAtMs/issuedAt,endedAtMs/endedAt(null=발효중),endedReason,regions}
+function _alertLog(){return DB.g('alertLog')||[];}
+// 새 특보 episode 시작 → open 레코드 추가, id 반환(alert._logId로 연결)
+function _alertLogOpen(opId,a){
+  const log=_alertLog();
+  const id='L'+Date.now().toString(36)+Math.floor(Math.random()*1e4).toString(36);
+  log.push({id,opId:opId,type:a.type,stage:a.stage,maxRank:_stageRank(a.stage),source:a.source||'manual',
+    issuedAtMs:a.issuedAtMs||Date.now(),issuedAt:a.issuedAt||now(),endedAtMs:null,endedAt:null,endedReason:'',regions:(a.regions||[]).slice()});
+  DB.s('alertLog',log);
+  return id;
+}
+// 발효 중 episode의 단계·지역 반영 (연결 안 돼 있으면 새로 오픈) — 발령·단계변경 공용, 멱등
+function _alertLogSyncStage(a,opId){
+  if(!a||!a.type)return;
+  const log=_alertLog();
+  let r=a._logId?log.find(x=>x.id===a._logId&&!x.endedAtMs):null;
+  if(!r)r=log.find(x=>x.opId===opId&&x.type===a.type&&!x.endedAtMs);
+  if(!r){a._logId=_alertLogOpen(opId,a);return;}
+  r.stage=a.stage;r.maxRank=Math.max(r.maxRank||0,_stageRank(a.stage));
+  if(a.regions&&a.regions.length)r.regions=a.regions.slice();
+  a._logId=r.id;DB.s('alertLog',log);
+}
+// episode 종료 기록 (자동해제·수동해제)
+function _alertLogEnd(a,opId,reason){
+  if(!a)return;
+  const log=_alertLog();
+  let r=a._logId?log.find(x=>x.id===a._logId&&!x.endedAtMs):null;
+  if(!r)r=log.find(x=>x.opId===opId&&x.type===a.type&&!x.endedAtMs);
+  if(!r)return;
+  r.endedAtMs=Date.now();r.endedAt=now();r.endedReason=reason||'';DB.s('alertLog',log);
+}
+// 운영 종료 → 그 op의 열린 episode 전부 종료
+function _alertLogEndOp(opId,reason){
+  const log=_alertLog();let ch=false;
+  log.forEach(r=>{if(r.opId===opId&&!r.endedAtMs){r.endedAtMs=Date.now();r.endedAt=now();r.endedReason=reason||'';ch=true;}});
+  if(ch)DB.s('alertLog',log);
+}
+// 기존 alertOps → alertLog 1회 백필 (지금 남아있는 특보만 복구 가능; 이후로는 삭제돼도 로그 유지)
+// 결정적 id(op.id+인덱스) + 존재검사로 멱등 — 다른 기기가 먼저 백필해 동기화돼 있어도 중복 안 쌓임
+function _migrateAlertLog(){
+  if(DB.g('_alertLogMigrated'))return;
+  const ops=DB.g('alertOps')||[];
+  const log=DB.g('alertLog')||[];
+  const have={};log.forEach(r=>{if(r&&r.id)have[r.id]=1;});
+  let added=false,opsChanged=false;
+  ops.forEach((o,oi)=>{
+    const active=!o.closedAt;
+    _opAlerts(o).forEach((a,i)=>{
+      const id='L'+(o.id||('op'+oi))+'_'+i;
+      if(have[id])return; // 이미(다른 기기에서 동기화돼) 있음 → 건너뜀
+      const rec={id,opId:o.id,type:a.type,stage:a.stage,maxRank:_stageRank(a.stage),
+        source:a.source||'manual',
+        issuedAtMs:a.issuedAtMs||_alertTimeMs(a.issuedAt)||o.startedAtMs||_alertTimeMs(o.startedAt)||0,
+        issuedAt:a.issuedAt||o.startedAt||'',
+        endedAtMs:active?null:(o.closedAtMs||_alertTimeMs(o.closedAt)||null),
+        endedAt:active?null:(o.closedAt||null),
+        endedReason:active?'':'운영 종료',regions:(a.regions||[]).slice()};
+      log.push(rec);have[id]=1;added=true;
+      if(active&&o.alerts){const orig=o.alerts[i];if(orig&&!orig._logId){orig._logId=id;opsChanged=true;}}
+    });
+  });
+  if(added)DB.s('alertLog',log);
+  if(opsChanged)DB.s('alertOps',ops);
+  DB.s('_alertLogMigrated',1);
+}
 // 기상청 발효 특보 자동 동기화 (공식 발효 특보 수신 시에만 호출됨 — 빈 목록=공식 '특보 없음')
 //  · 신규 종류 → 자동 발령   · 자동발령분 단계 변경(경보↔주의보 자동 하향·상향)   · 기상청에서 사라진 자동분 → 자동 해제
 //  · 수동(✋) 발령분은 절대 건드리지 않음. 전체 운영 종료는 관리자 수동(자동 종료 안 함).
 function _syncAutoAlerts(liveList){
+  try{_migrateAlertLog();}catch(e){}
   liveList=liveList||[];
   const ops=DB.g('alertOps')||[];
   let active=ops.find(o=>!o.closedAt);
@@ -2117,17 +2223,17 @@ function _syncAutoAlerts(liveList){
     const ex=active.alerts.find(x=>x.type===a.type);
     const efMs=a.issuedAtMs||0,ms=efMs||Date.now(),fcMs=a.announcedAtMs||0;
     const efTag=efMs?'('+_alertMsShort(efMs)+(efMs>Date.now()?' 발효 예정':' 발효')+')':''; // 미래 발효(예: 17시 발표→18시 발효) 구분
-    if(!ex){active.alerts.push({type:a.type,stage:a.stage,source:'auto',issuedAt:_alertMsStr(ms),issuedAtMs:ms,announcedAt:fcMs?_alertMsStr(fcMs):'',announcedAtMs:fcMs,regions:a.regions||[]});added.push(a.type+_stageShort(a.stage)+efTag);}
-    else if(ex.source==='auto'&&ex.stage!==a.stage){const prev=ex.stage;ex.stage=a.stage;ex.issuedAt=_alertMsStr(ms);ex.issuedAtMs=ms;if(fcMs){ex.announcedAt=_alertMsStr(fcMs);ex.announcedAtMs=fcMs;}ex.regions=a.regions||ex.regions||[];changed.push(a.type+' '+_stageShort(prev)+'→'+_stageShort(a.stage)+efTag);}
+    if(!ex){const _na={type:a.type,stage:a.stage,source:'auto',issuedAt:_alertMsStr(ms),issuedAtMs:ms,announcedAt:fcMs?_alertMsStr(fcMs):'',announcedAtMs:fcMs,regions:a.regions||[]};active.alerts.push(_na);added.push(a.type+_stageShort(a.stage)+efTag);try{_alertLogSyncStage(_na,active.id);}catch(e){}}
+    else if(ex.source==='auto'&&ex.stage!==a.stage){const prev=ex.stage;ex.stage=a.stage;ex.issuedAt=_alertMsStr(ms);ex.issuedAtMs=ms;if(fcMs){ex.announcedAt=_alertMsStr(fcMs);ex.announcedAtMs=fcMs;}ex.regions=a.regions||ex.regions||[];changed.push(a.type+' '+_stageShort(prev)+'→'+_stageShort(a.stage)+efTag);try{_alertLogSyncStage(ex,active.id);}catch(e){}}
     else if(ex.source==='auto'&&((efMs&&Math.abs((ex.issuedAtMs||0)-efMs)>60000)||(fcMs&&Math.abs((ex.announcedAtMs||0)-fcMs)>60000))){ // 감지 시각으로 기록됐던 기존 건을 실제 발효·발표시각으로 조용히 보정
       if(efMs){ex.issuedAt=_alertMsStr(efMs);ex.issuedAtMs=efMs;}
       if(fcMs){ex.announcedAt=_alertMsStr(fcMs);ex.announcedAtMs=fcMs;}
       timeFixed=true;
     }
   });
-  // 2) 자동분 중 기상청에서 해제된 종류 → 자동 해제 (수동분 보존)
+  // 2) 자동분 중 기상청에서 해제된 종류 → 자동 해제 (수동분 보존). 삭제 전 이력 로그에 해제 기록.
   active.alerts=active.alerts.filter(x=>{
-    if(x.source==='auto'&&!liveByType[x.type]){removed.push(x.type+_stageShort(x.stage));return false;}
+    if(x.source==='auto'&&!liveByType[x.type]){removed.push(x.type+_stageShort(x.stage));try{_alertLogEnd(x,active.id,'기상청 해제');}catch(e){}return false;}
     return true;
   });
   if(!created&&!added.length&&!changed.length&&!removed.length&&!timeFixed)return; // 변경 없음
@@ -2412,6 +2518,7 @@ function endAlertOps(id){
   if(idx===-1)return;
   ops[idx].closedAt=now();
   ops[idx].closedAtMs=Date.now();
+  try{_alertLogEndOp(id,'운영 종료');}catch(e){} // 남아있던 발효 특보 전부 이력에 종료 기록
   DB.s('alertOps',ops);
   _stopAlertReminder();
   pushNoti('✅ 특보운영 종료','✅','op_end',{app:'alert'});

@@ -151,10 +151,19 @@ function _facOverlapGroup(id){
   });
   return grp;
 }
-// 핀 탭 진입점 — 겹친 핀이면 목록 시트, 단독이면 바로 상세
+// 핀 탭 진입점 — 겹친 핀이면: 축소 상태면 먼저 확대해 분리 시도, 최대확대·초근접(25m내)이면 목록 시트. 단독은 바로 상세.
+// (구조지도 _reclusterRescue와 동일 정책 — 확대로 풀리는 겹침은 굳이 목록 안 띄움)
 function _facPinTap(id){
   var grp=[];try{grp=_facOverlapGroup(id);}catch(e){grp=[];}
-  if(grp.length>=2){_showFacOverlapList(grp,id);return;}
+  if(grp.length>=2){
+    var curLv=9;try{curLv=mapI.getLevel();}catch(e){}
+    var pts=grp.map(function(o){return{lat:o._lat,lng:o._lng};});
+    if(curLv<=2||_clusterTooTight(pts)){_showFacOverlapList(grp,id);return;} // 더 확대해도 안 풀림 → 목록
+    var me=null;grp.forEach(function(o){if(o._facId===id)me=o;});me=me||grp[0];
+    try{_closeFacOverlapSheet();}catch(e){}
+    _clusterZoom(mapI,me._lat,me._lng); // 확대해서 겹친 핀 분리
+    return;
+  }
   try{_closeFacOverlapSheet();}catch(e){}
   openFacFromMap(id);
 }
@@ -292,7 +301,7 @@ function initMaps(){
         clearTimeout(_saveMapCenterTimer);
         _saveMapCenterTimer=setTimeout(function(){
           const _s=_nearestSign(lat,lng);
-          // 고도: 내 위치(GPS 실측)가 중심과 가까우면 실측값, 아니면 표지판 기반 추정
+          // 고도: 내 위치(GPS 실측)가 중심과 가까우면 실측값, 아니면 그 지점 지형고도(DEM)
           let _e='';
           try{
             const g=window._myGpsAlt;
@@ -1103,15 +1112,39 @@ function _nearestSignFull(lat,lng){
   var zm=code.match(/^(\d{2})-/);
   return{code:code,name:best.name,dist:Math.round(bestD),zoneName:zm?ZONE_NAMES[zm[1]]||'':'',elev:best.elev||0};
 }
-// 좌표의 고도 문자열: GPS 고도가 있으면 '⛰1234m'(실측), 없으면 1km 내 표지판 고도로 '⛰약858m' 추정. 불가하면 ''
-function _elevStr(lat,lng,gpsAlt){
+// ── 좌표의 해발고도(그 지점 실제 높이) ────────────────────────────────
+// ① GPS 실측 고도(gpsAlt)가 있으면 그걸 사용(가장 정확) ② 없으면 오픈메테오 지형고도(DEM)로 '그 지점' 실제 높이.
+// (과거엔 인근 표지판 등록 고도를 '약 ~m'로 보여줬는데, 그건 지점 높이가 아니라 표지판 높이라 폐기)
+// DEM은 네트워크 필요 → 한 번 받으면 localStorage에 저장(이후 오프라인도 표시). 받기 전엔 placeholder로 비워뒀다가 도착 시 그 자리를 채움.
+var _elevCacheObj=null,_elevInflight={};
+function _elevLoad(){if(_elevCacheObj)return _elevCacheObj;try{_elevCacheObj=JSON.parse(localStorage.getItem('_elevCacheV1')||'{}');}catch(e){_elevCacheObj={};}return _elevCacheObj;}
+function _elevKey(lat,lng){return (+lat).toFixed(4)+'_'+(+lng).toFixed(4);} // ≈11m 격자로 캐시(과다요청 방지)
+function _elevGet(k){var c=_elevLoad();return typeof c[k]==='number'?c[k]:undefined;}
+function _elevSet(k,v){var c=_elevLoad();c[k]=v;try{localStorage.setItem('_elevCacheV1',JSON.stringify(c));}catch(e){}}
+function _fetchElev(lat,lng){
+  var k=_elevKey(lat,lng);
+  if(_elevGet(k)!=null||_elevInflight[k])return; // 이미 있음/받는 중
+  _elevInflight[k]=1;
+  var url='https://api.open-meteo.com/v1/elevation?latitude='+(+lat).toFixed(5)+'&longitude='+(+lng).toFixed(5);
+  fetch(url).then(function(r){return r.json();}).then(function(j){
+    delete _elevInflight[k];
+    var v=(j&&j.elevation&&j.elevation.length!=null)?+j.elevation[0]:null;
+    if(v==null||!isFinite(v))return;
+    _elevSet(k,v);
+    // 이미 그려진 자리(placeholder) 즉시 채우기 — 화면 종류와 무관
+    try{document.querySelectorAll('.elev-ph[data-ek="'+k+'"]').forEach(function(el){el.textContent='⛰'+Math.round(v)+'m';});}catch(e){}
+  }).catch(function(){delete _elevInflight[k];});
+}
+// plain=true: 보고서(hwpx·출력) 등 순수 문자열이 필요한 곳 — placeholder(span) 없이 캐시값 또는 '' 반환
+function _elevStr(lat,lng,gpsAlt,plain){
   if(gpsAlt!=null&&gpsAlt!==''&&isFinite(+gpsAlt))return '⛰'+Math.round(+gpsAlt)+'m';
   if(!(lat&&lng))return '';
-  try{
-    const s=_nearestSignFull(lat,lng);
-    if(s&&s.elev>0&&s.dist<=1000)return '⛰약'+s.elev+'m';
-  }catch(e){}
-  return '';
+  var k=_elevKey(lat,lng);
+  var v=_elevGet(k);
+  if(typeof v==='number')return '⛰'+Math.round(v)+'m';
+  if(plain)return ''; // 문서 생성 시엔 아직 없으면 표시 안 함(잘못된 값 넣지 않음)
+  _fetchElev(lat,lng); // 비동기로 받아와 아래 placeholder를 채움
+  return '<span class="elev-ph" data-ek="'+k+'"></span>';
 }
 
 

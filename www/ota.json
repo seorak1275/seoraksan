@@ -1,1 +1,1 @@
-{"version":"2026.07.14.120","url":"https://seorak1275.github.io/seoraksan/bundle.zip","notes":"시설물 겹친 핀 선택을 부채꼴→하단 목록 시트로 교체 (겹침 없이 시인성 확보, '내 주변 시설물'·구조지도 목록과 통일)"}
+{"version":"2026.07.14.121","url":"https://seorak1275.github.io/seoraksan/bundle.zip","notes":"특보 이력 로그(alertLog)로 자동·수동 해제된 특보까지 영구기록→통계 정확+발효이력 목록 / 홈 특보배너 탭→특보운영 목록 이동 / 시설물 겹친핀 축소상태면 확대분리·근접시만 목록 / 해발고도를 그 지점 지형고도(DEM)로 교체(표지판 추정 폐기) / 지도타일 재방문 재사용(ignoreSearch)"}

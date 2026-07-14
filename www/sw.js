@@ -4,7 +4,7 @@
 // - PWA 오프라인 캐싱 (app shell)
 // - FCM 백그라운드 메시지 수신 → 시스템 알림 표시
 // ──────────────────────────────────────────────
-const _CACHE = 'seoraksan-v145';
+const _CACHE = 'seoraksan-v146';
 // 지도 타일 캐시(2단) — 셸 버전과 무관하게 유지(배포해도 안 지움). 한 번 본 타일은 오프라인·저속에서도 즉시 표시
 // park: '설악산 인근 미리받기'분 보관 — 다른 지역 열람에 밀려나지 않음
 // recent: 일반 열람 임시 저장 — 소량만 유지(전국을 둘러봐도 이 상한까지만, 오래된 것부터 자동 정리)
@@ -67,11 +67,12 @@ self.addEventListener('fetch', e => {
     const isImg = e.request.destination === 'image' || /\.(png|jpe?g|webp|gif)$/i.test(url.pathname);
     if (isImg) {
       e.respondWith((async () => {
+        // ignoreSearch: 타일 URL에 버전·타임스탬프 쿼리가 붙어도 '봤던 위치'로 인식해 재사용 (재방문 시 재다운로드 방지)
         const park = await caches.open(_TILES_PARK);
-        let hit = await park.match(e.request);
+        let hit = await park.match(e.request, { ignoreSearch: true });
         if (hit) return hit;
         const recent = await caches.open(_TILES_RECENT);
-        hit = await recent.match(e.request);
+        hit = await recent.match(e.request, { ignoreSearch: true });
         if (hit) return hit;
         const res = await fetch(e.request);
         if (res && (res.ok || res.type === 'opaque')) {
