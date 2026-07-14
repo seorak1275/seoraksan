@@ -3547,6 +3547,8 @@ function removeStaff(kakaoId){
   const ll=(DB.g('loginLog')||[]).find(e=>String(e.kakaoId)===kakaoId);
   const nm=(pu&&(pu.realName||pu.name))||(ll&&ll.name)||'이 사용자';
   if(!confirm(nm+'을(를) 탈퇴 처리하시겠습니까?\n· 즉시 로그아웃되고 멤버에서 빠집니다\n· 작성한 데이터는 유지됩니다\n· 다시 로그인하면 신규 승인 대기로 재신청할 수 있습니다(영구 차단 아님)'))return;
+  // 탈퇴 대상에게 OS 푸시 통보 — 앱이 꺼져 있어도 수신(안드로이드 APK). 데이터 변경 전에 토큰 조회.
+  try{if(typeof _sendFcmPushToKakao==='function')_sendFcmPushToKakao(kakaoId,'설악산 현장관리','⚠️ 관리자에 의해 탈퇴 처리되었습니다.');}catch(e){}
   const del=DB.g('deletedKakaoIds')||[];if(!del.includes(kakaoId)){del.push(kakaoId);DB.s('deletedKakaoIds',del);}
   DB.s('pendingUsers',(DB.g('pendingUsers')||[]).filter(p=>String(p.kakaoId||p.id)!==kakaoId));
   DB.s('loginLog',(DB.g('loginLog')||[]).filter(e=>String(e.kakaoId)!==kakaoId));

@@ -1401,6 +1401,29 @@ async function _sendFcmPush(title,body,cat,link){
     }
   }catch(e){}
 }
+// 특정 카카오ID의 기기에만 OS 푸시 — 계정 탈퇴 통보 등 '필수' 알림용(개인 알림설정 무시, 앱 꺼져 있어도 수신).
+// 웹은 VAPID 미설정으로 토큰 없음 → 실질적으로 안드로이드 APK 기기에 도달.
+async function _sendFcmPushToKakao(kakaoId,title,body,link){
+  if(!_fdb)return;
+  const url=_FCM_PUSH_URL||(DB.g('fcmPushUrl')||'').trim();
+  kakaoId=String(kakaoId||'');
+  if(!url||!kakaoId)return;
+  try{
+    const snap=await _fdb.collection('fcmTokens').where('kakaoId','==',kakaoId).get();
+    const tokens=[];
+    snap.forEach(d=>{const v=d.data()||{};if(v.token)tokens.push(v.token);});
+    if(!tokens.length)return;
+    await fetch(url,{
+      method:'POST',
+      headers:{'content-type':'text/plain;charset=utf-8'}, // Apps Script preflight 회피
+      body:JSON.stringify({
+        secret:_FCM_PUSH_SECRET||(DB.g('fcmPushSecret')||''),title,body,
+        data:link?{app:link.app||'',tab:String(link.tab||''),id:String(link.id||'')}:{},
+        tokens
+      })
+    });
+  }catch(e){}
+}
 function updateBell(){
   const cnt=(DB.g('notis')||[]).filter(n=>!n.read).length;
   ['bellCnt','bellCntHome'].forEach(id=>{const e=document.getElementById(id);if(!e)return;e.textContent=cnt>9?'9+':cnt;e.classList.toggle('on',cnt>0);});

@@ -1,1 +1,1 @@
-{"version":"2026.07.14.125","url":"https://seorak1275.github.io/seoraksan/bundle.zip","notes":"직원 '삭제'를 '탈퇴' 처리로 명확화 — 버튼·확인창·완료 문구를 탈퇴로, 삭제된 본인 안내를 '관리자에 의해 탈퇴 처리되었습니다'로 변경 (영구 차단 아님: 재로그인 시 신규 승인 대기로 재신청 가능, 데이터 유지)"}
+{"version":"2026.07.14.126","url":"https://seorak1275.github.io/seoraksan/bundle.zip","notes":"탈퇴 시 대상자에게 OS 푸시 통보 추가 — 앱을 꺼놔도 '관리자에 의해 탈퇴 처리되었습니다' 푸시 수신(안드로이드 APK). 특정 카카오ID에게만 보내는 _sendFcmPushToKakao 신설"}
