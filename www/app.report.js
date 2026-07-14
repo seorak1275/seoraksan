@@ -1251,31 +1251,24 @@ function addScenePhotos(resId){
   inp.onchange=async()=>{
     const files=[...(inp.files||[])];
     if(!files.length)return;
-    const u0=DB.g('currentUser')||{};
-    if(!navigator.onLine){
-      for(const f of files){
-        const c=await _compressImage(f);
-        const qItem={id:Date.now()+'_sc'+Math.random().toString(36).slice(2,6),file:c,pid:'',dest:{key:'rescues',id:resId,field:'photos',append:true,by:u0.name||''}};
-        _offlinePhotoQueue.push(qItem);_photoQPut(qItem);
-      }
-      toast('📵 오프라인 — 사진 '+files.length+'장 대기, 연결되면 자동 업로드');
-      return;
-    }
-    toast('⬆️ 사진 '+files.length+'장 업로드 중...');
+    toast('🖼️ 사진 '+files.length+'장 처리 중...');
     const u=DB.g('currentUser')||{};
-    let ok=0;
+    // Storage 미사용 — 데이터URL로 압축해 기록에 직접 저장(오프라인·동기화 자동). 다중 첨부라 개당 더 작게(문서 1MB 안전).
+    let ok=0,full=false;
     for(const f of files){
       try{
-        const c=await _compressImage(f);
-        const url=await uploadImageToStorage(c,'photos/scene_'+resId);
+        const dataUrl=await _compressToDataUrl(f,900,300000);
+        if(!dataUrl)continue;
         const res=DB.g('rescues')||[];const ri=res.findIndex(x=>x.id===resId);
         if(ri<0)break;
         if(!res[ri].photos)res[ri].photos=[];
-        res[ri].photos.push({url,time:now(),by:u.name||''});
+        // Firestore 문서 1MB 한계 — 기록 크기가 넘칠 것 같으면 중단(잘못된 쓰기로 동기화 깨짐 방지)
+        if(JSON.stringify(res[ri]).length+dataUrl.length>950000){full=true;break;}
+        res[ri].photos.push({url:dataUrl,time:now(),by:u.name||''});
         DB.s('rescues',res);ok++;
       }catch(e){}
     }
-    toast(ok?('✅ 사진 '+ok+'장 추가'):'⚠️ 업로드 실패');
+    toast(full?('⚠️ 사진 용량 한계 — '+ok+'장만 추가됨(기록당 최대 몇 장)'):(ok?('✅ 사진 '+ok+'장 추가'):'⚠️ 사진 추가 실패'));
     try{const r=getRes(resId);if(r&&r.id)renderTimeline(r,_tlViewMode==='write'?'write':'advanced');}catch(e){}
   };
   inp.click();

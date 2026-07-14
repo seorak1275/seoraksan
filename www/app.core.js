@@ -896,6 +896,7 @@ function _registerPendingPhoto(pid,dest){
   const it=_offlinePhotoQueue.find(x=>x.pid===pid&&!x.dest);
   if(!it)return;
   it.dest=dest;
+  if(it.dataUrlMode)return; // dataURL은 메모리에서 압축 완료 시 dest로 반영 — IDB 지속 불필요
   _photoQPut({id:it.id,pid:it.pid,file:it.file,dest});
 }
 // 업로드 완료된 URL을 레코드 필드에 반영
@@ -921,6 +922,7 @@ async function _processPhotoQueue(){
   const items=_offlinePhotoQueue.splice(0);
   let ok=0;
   for(const item of items){
+    if(item.dataUrlMode){_offlinePhotoQueue.push(item);continue;} // dataURL 항목은 메모리에서 처리 — Storage 업로드 대상 아님
     try{
       const url=await uploadImageToStorage(item.file,'photos/'+(item.pid||'queued'));
       if(item.dest)_applyPhotoDest(item.dest,url);
@@ -957,6 +959,29 @@ async function uploadImageToStorage(file,path){
   const snap=await ref.put(file);
   return await snap.ref.getDownloadURL();
 }
+// ── 사진을 데이터URL(JPEG)로 압축 ─────────────────────────────
+// Firebase Storage 미프로비저닝 → 사진을 Storage 대신 기록(Firestore 문서)에 직접 저장.
+// Firestore 문서 1MB 한계가 있으므로 데이터URL 문자열 길이를 maxLen 이하로 (초과 시 품질↓→해상도↓ 재인코딩).
+// facIssues·rescues는 항목별 개별 문서라 사진 1~수장이면 안전.
+async function _compressToDataUrl(file,maxPx,maxLen){
+  maxPx=maxPx||1000;maxLen=maxLen||500000; // maxLen≈문자수(base64) → 500k자 ≈ 원본 약 365KB
+  return new Promise(resolve=>{
+    const img=new Image();
+    img.onload=()=>{
+      let w=img.width,h=img.height;
+      if(w>h){if(w>maxPx){h=Math.round(h*maxPx/w);w=maxPx;}}
+      else{if(h>maxPx){w=Math.round(w*maxPx/h);h=maxPx;}}
+      const draw=(ww,hh,q)=>{const c=document.createElement('canvas');c.width=ww;c.height=hh;c.getContext('2d').drawImage(img,0,0,ww,hh);return c.toDataURL('image/jpeg',q);};
+      let q=0.72,url=draw(w,h,q),guard=0;
+      while(url.length>maxLen&&q>0.35&&guard<5){q-=0.1;url=draw(w,h,q);guard++;} // 품질 낮춰 재인코딩
+      if(url.length>maxLen)url=draw(Math.round(w*0.72),Math.round(h*0.72),0.6); // 그래도 크면 해상도까지 축소
+      try{URL.revokeObjectURL(img.src);}catch(e){}
+      resolve(url);
+    };
+    img.onerror=()=>{try{URL.revokeObjectURL(img.src);}catch(e){}resolve('');};
+    img.src=URL.createObjectURL(file);
+  });
+}
 // dataset.url이 'pending'이면 빈 문자열 반환
 const _photoUrl=id=>{const u=document.getElementById(id)?.dataset?.url||'';return u==='pending'?'':u;};
 async function prevImg(inp,pid){
@@ -964,37 +989,29 @@ async function prevImg(inp,pid){
   const file=inp.files[0];
   const prev=document.getElementById(pid);
   const objUrl=URL.createObjectURL(file);
-  prev.innerHTML=`<img src="${objUrl}" style="opacity:.75">`;
-  prev.dataset.url='';
-  const compressed=await _compressImage(file);
-  if(!navigator.onLine){
-    prev.innerHTML=`<img src="${objUrl}"><div class="up-badge" style="font-size:10px;color:#e67e22;background:rgba(0,0,0,.75);padding:2px 6px;border-radius:4px;margin-top:3px;text-align:center;">📵 연결 시 자동 업로드</div>`;
-    prev.dataset.url='pending';
-    const qItem={id:Date.now()+'_'+pid,file:compressed,pid};
-    _offlinePhotoQueue.push(qItem);
-    _photoQPut(qItem); // 제출 전이라도 보존 (제출 시 dest 연결됨)
-    return;
-  }
-  // 업로드 완료 전 제출되어도 사진이 유실되지 않도록 큐에 등록(제출 시 _registerPendingPhoto로 dest 연결).
+  prev.innerHTML=`<img src="${objUrl}" style="opacity:.6"><div class="up-badge" style="font-size:10px;color:#4fa8d0;background:rgba(0,0,0,.75);padding:2px 6px;border-radius:4px;margin-top:3px;text-align:center;">사진 처리 중...</div>`;
+  // Storage 미사용 — 사진을 데이터URL로 압축해 기록에 직접 저장(오프라인·동기화 모두 이걸로 해결).
+  // 압축 완료 전 제출돼도 붙도록 dest 연결용 큐 항목 등록(메모리 전용, dataUrlMode).
   prev.dataset.url='pending';
-  const qItem={id:Date.now()+'_'+pid,file:compressed,pid};
+  const qItem={id:Date.now()+'_'+pid,pid,dataUrlMode:true};
   _offlinePhotoQueue.push(qItem);
-  prev.innerHTML=`<img src="${objUrl}" style="opacity:.6"><div class="up-badge" style="font-size:10px;color:#4fa8d0;background:rgba(0,0,0,.75);padding:2px 6px;border-radius:4px;margin-top:3px;text-align:center;">업로드 중...</div>`;
   try{
-    const url=await uploadImageToStorage(compressed,'photos/'+pid);
-    prev.dataset.url=url;
-    prev.innerHTML=`<img src="${url}">`;
-    // 업로드 도중 사용자가 이미 제출했으면(dest 연결됨) 저장된 레코드에 URL 반영
+    const dataUrl=await _compressToDataUrl(file,1000,380000); // 한 기록에 사진 여러 필드(부상·이송)일 수 있어 여유 있게
+    if(!dataUrl)throw new Error('encode fail');
+    prev.dataset.url=dataUrl;
+    prev.innerHTML=`<img src="${dataUrl}">`;
+    try{URL.revokeObjectURL(objUrl);}catch(e){}
+    // 압축 중 이미 제출됐으면(dest 연결됨) 저장된 레코드에 반영
     const qi=_offlinePhotoQueue.find(x=>x.id===qItem.id);
-    if(qi&&qi.dest)_applyPhotoDest(qi.dest,url);
+    if(qi&&qi.dest)_applyPhotoDest(qi.dest,dataUrl);
     const qidx=_offlinePhotoQueue.findIndex(x=>x.id===qItem.id);
     if(qidx>=0)_offlinePhotoQueue.splice(qidx,1);
-    try{_photoQDel(qItem.id);}catch(e){}
   }catch(e){
-    // 실패해도 큐에 보존 → 연결 복구 시 자동 재시도(제출돼 있으면 레코드에 자동 반영)
-    prev.innerHTML=`<img src="${objUrl}"><div class="up-badge" style="font-size:10px;color:#e67e22;background:rgba(0,0,0,.75);padding:2px 6px;border-radius:4px;margin-top:3px;text-align:center;">⚠️ 업로드 대기 — 자동 재시도</div>`;
-    try{_photoQPut(qItem);}catch(_){}
-    toast('⚠️ 사진 업로드 실패 — 연결 시 자동 재시도');
+    prev.dataset.url='';
+    const qidx=_offlinePhotoQueue.findIndex(x=>x.id===qItem.id);
+    if(qidx>=0)_offlinePhotoQueue.splice(qidx,1);
+    prev.innerHTML=`<img src="${objUrl}"><div class="up-badge" style="font-size:10px;color:#e67e22;background:rgba(0,0,0,.75);padding:2px 6px;border-radius:4px;margin-top:3px;text-align:center;">⚠️ 사진 처리 실패 — 다시 시도</div>`;
+    toast('⚠️ 사진 처리 실패 — 다시 촬영해 주세요');
   }
 }
 function fillSel(id,arr){document.getElementById(id).innerHTML=arr.map(v=>`<option value="${v}">${v}</option>`).join('');}

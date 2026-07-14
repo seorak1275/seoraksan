@@ -1017,7 +1017,7 @@ function openFacIssueDetail(id){
   const _tagChips=(it.tags&&it.tags.length)?`<div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:6px;">${it.tags.map(t=>`<span style="background:rgba(79,168,208,.15);color:#4fa8d0;font-size:11px;font-weight:700;border-radius:14px;padding:3px 10px;">${_esc(t)}</span>`).join('')}</div>`:'';
   h+=`<div style="background:#060d1a;border-radius:10px;padding:11px;margin-bottom:9px;">
     <div style="font-size:11px;font-weight:800;color:#4fa8d0;margin-bottom:6px;">📥 1. 점검 등록 <span style="color:#5a7e98;font-weight:400;">· ${_esc(it.reporter||'-')} · ${_fmtWhen(it.createdAt)}</span></div>
-    ${it.photo?`<img src="${_esc(it.photo)}" style="width:100%;border-radius:8px;margin-bottom:7px;max-height:240px;object-fit:cover;" onclick="window.open('${_esc(it.photo)}','_blank')">`:''}
+    ${it.photo?`<img src="${_esc(it.photo)}" style="width:100%;border-radius:8px;margin-bottom:7px;max-height:240px;object-fit:cover;cursor:pointer;" onclick="_facPhotoView('${_escq(it.photo)}')">`:''}
     ${_tagChips}
     <div style="font-size:12px;color:#cfe2f2;line-height:1.6;">${it.desc?_esc(it.desc):(it.tags&&it.tags.length?'':'<span style="color:#5a7e98;">상세 설명 없음</span>')}</div>
     <div style="font-size:11px;color:#7a9cb8;margin-top:5px;">📍 ${_esc(it.loc||'-')}${it.lat?` <span style="font-family:monospace;color:#4a7090;">(${it.lat.toFixed(4)}, ${it.lng.toFixed(4)})</span>`:''}</div>
