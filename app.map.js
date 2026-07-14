@@ -130,10 +130,10 @@ function _reclusterInspect(){
   // 배율과 무관하게 전체 시설물 표시 (기본값 = 다 보임)
   iOvs.forEach(o=>{try{o.setMap(mapI);}catch(e){}});
 }
-// ── 시설물 겹친 핀 부채꼴 펼침(spiderfy) ──────────────────────────────
-// 핀은 모두 그대로 표시(숫자 뭉치기 없음). 겹쳐서 안 눌리는 핀을 누르면 주변 핀을
-// 부채꼴로 흩어 각각 누를 수 있게 한다. 빈 지도·줌·재구성 시 자동으로 접힌다.
-var _spiderOvs=[],_spiderLines=[],_spiderHidden=[],_spiderActive=false;
+// ── 시설물 겹친 핀: 하단 목록 시트로 선택 ──────────────────────────────
+// 핀은 모두 그대로 표시(숫자 뭉치기 없음). 확대해도 겹쳐 못 누르는 지점을 누르면
+// 아래에서 '같은 자리 N개' 목록 시트가 올라와 하나를 고른다(겹침 없이 가장 잘 보임).
+// 구조지도 _showClusterList·'내 주변 시설물' 시트와 동일 패턴.
 // 화면 픽셀상 22px 이내에 겹친 시설물 오버레이 묶음(눌린 핀 포함)
 function _facOverlapGroup(id){
   if(!mapI)return[];
@@ -151,60 +151,45 @@ function _facOverlapGroup(id){
   });
   return grp;
 }
-// 핀 탭 진입점 — 겹친 핀이면 펼치고, 단독이면 바로 상세
+// 핀 탭 진입점 — 겹친 핀이면 목록 시트, 단독이면 바로 상세
 function _facPinTap(id){
   var grp=[];try{grp=_facOverlapGroup(id);}catch(e){grp=[];}
-  if(grp.length>=2){_spiderfyFac(id,grp);return;}
-  try{_unspiderfyFac();}catch(e){}
+  if(grp.length>=2){_showFacOverlapList(grp,id);return;}
+  try{_closeFacOverlapSheet();}catch(e){}
   openFacFromMap(id);
 }
-function _unspiderfyFac(){
-  if(!_spiderActive&&!_spiderOvs.length&&!_spiderLines.length)return;
-  _spiderOvs.forEach(function(o){try{o.setMap(null);}catch(e){}});_spiderOvs=[];
-  _spiderLines.forEach(function(l){try{l.setMap(null);}catch(e){}});_spiderLines=[];
-  _spiderHidden.forEach(function(o){try{o.setMap(mapI);}catch(e){}});_spiderHidden=[]; // 숨겼던 원래 핀 복원
-  _spiderActive=false;
-}
-function _spiderfyFac(centerId,group){
-  try{_unspiderfyFac();}catch(e){}
-  if(!mapI||!group||group.length<2)return;
-  var proj;try{proj=mapI.getProjection();}catch(e){return;}
-  var center=null;group.forEach(function(o){if(o._facId===centerId)center=o;});if(!center)center=group[0];
-  var cll=new kakao.maps.LatLng(center._lat,center._lng);
-  var cp;try{cp=proj.containerPointFromCoords(cll);}catch(e){return;}
-  var n=group.length,R=Math.min(130,40+n*9); // 개수 많을수록 넓게 펼침
+function _closeFacOverlapSheet(){var e=document.getElementById('facOverlapSheet');if(e)e.remove();}
+function _pickFacOverlap(id){_closeFacOverlapSheet();openFacFromMap(id);}
+function _showFacOverlapList(group,tappedId){
+  _closeFacOverlapSheet();
   var facs=DB.g('facilities')||[];
-  var s=_pinSz(mapI.getLevel(),1);
-  group.forEach(function(o,i){
-    var f=null;facs.forEach(function(x){if(x.id===o._facId)f=x;});if(!f)return;
-    var ang=-Math.PI/2+i*(2*Math.PI/n); // 12시 방향부터 시계방향
-    var tx=cp.x+R*Math.cos(ang),ty=cp.y+R*Math.sin(ang);
-    var tll;try{tll=proj.coordsFromContainerPoint(new kakao.maps.Point(tx,ty));}catch(e){return;}
-    // 원 핀 → 펼친 위치로 잇는 가는 선
-    var line=new kakao.maps.Polyline({path:[cll,tll],strokeWeight:1.5,strokeColor:'#7dd3fa',strokeOpacity:.75,strokeStyle:'solid',map:mapI,zIndex:9});
-    _spiderLines.push(line);
-    // 펼친 다리: 핀 + 이름표(어느 시설인지 바로 구분)
+  var items=group.map(function(o){var f=null;facs.forEach(function(x){if(x.id===o._facId)f=x;});return f;}).filter(Boolean);
+  if(items.length<2){if(items[0])openFacFromMap(items[0].id);return;}
+  // 눌린 핀을 맨 위로
+  items.sort(function(a,b){return (a.id===tappedId?-1:0)-(b.id===tappedId?-1:0);});
+  var rows=items.map(function(f){
     var col=(typeof _facTypeColor==='function')?_facTypeColor(f.type):'#4fa8d0';
+    var cg=(typeof _facCurGrade==='function')?_facCurGrade(f):null;
     var warn=(typeof _facWarn==='function')&&_facWarn(f);
-    var wrap=document.createElement('div');
-    wrap.style.cssText='display:flex;flex-direction:column;align-items:center;gap:2px;';
-    var pin=document.createElement('div');
-    pin.className='mpin spider-leg '+(warn?'p-bad blink':'p-fac');pin.innerHTML=(f.type.split(' ')[0]||'📍');
-    pin.style.width=s.sz+'px';pin.style.height=s.sz+'px';pin.style.fontSize=s.fs+'px';pin.style.borderWidth=s.bw+'px';
-    if(!warn){pin.style.borderColor=col;pin.style.background='linear-gradient(0deg,'+col+'44,'+col+'44),#0b1c30';}
-    var lbl=document.createElement('div');
-    lbl.textContent=f.name||'';
-    lbl.style.cssText='max-width:96px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:9.5px;font-weight:700;color:#e0edf8;background:rgba(10,24,40,.92);border:1px solid rgba(125,211,250,.45);border-radius:6px;padding:1px 5px;box-shadow:0 1px 4px rgba(0,0,0,.6);';
-    wrap.appendChild(pin);wrap.appendChild(lbl);
-    var tap=function(e){e.stopPropagation();e.preventDefault();_unspiderfyFac();openFacFromMap(f.id);};
-    wrap.addEventListener('click',tap);wrap.addEventListener('touchend',tap);
-    var lov=new kakao.maps.CustomOverlay({position:tll,content:wrap,clickable:true,zIndex:12});
-    lov.setMap(mapI);_spiderOvs.push(lov);
-  });
-  if(!_spiderOvs.length)return; // 전부 시설 매칭 실패 시 아무 것도 안 함
-  group.forEach(function(o){try{o.setMap(null);}catch(e){}});_spiderHidden=group.slice(); // 원 핀 숨김
-  _spiderActive=true;
-  try{toast('📍 겹친 시설 '+_spiderOvs.length+'개 — 펼쳤습니다. 하나를 선택하세요',2500);}catch(e){}
+    var sub=f.type.split(' ').slice(1).join(' ')||f.type;
+    return '<div onclick="_pickFacOverlap('+f.id+')" style="display:flex;align-items:center;gap:9px;padding:9px 4px;border-bottom:1px solid rgba(255,255,255,.05);cursor:pointer;">'
+      +'<span style="width:28px;height:28px;border-radius:50%;background:'+col+'30;border:1.5px solid '+col+';display:inline-flex;align-items:center;justify-content:center;font-size:13px;flex-shrink:0;">'+_esc(f.type.split(' ')[0]||'📍')+'</span>'
+      +'<span style="flex:1;min-width:0;">'
+        +'<span style="display:block;font-size:12.5px;font-weight:700;color:#dceaf6;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+_esc(f.name||'')+(cg?' <span style="color:'+_gColor(cg.g)+';font-size:10.5px;font-weight:900;">'+_esc(cg.g)+'</span>':'')+(warn?' <span style="color:#ff5a45;font-size:10px;">⚠️경고</span>':'')+'</span>'
+        +'<span style="display:block;font-size:9.5px;color:#5d86a3;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+_esc(sub)+'</span>'
+      +'</span>'
+      +'<span style="flex-shrink:0;color:#4fa8d0;font-size:16px;">›</span>'
+    +'</div>';
+  }).join('');
+  var ov=document.createElement('div');ov.id='facOverlapSheet';
+  // 하단바(z20) 위로 — '내 주변 시설물' 시트와 동일 규격
+  ov.style.cssText='position:absolute;bottom:0;left:0;right:0;z-index:30;background:#0b1c30;border:1px solid rgba(79,168,208,.2);border-radius:16px 16px 0 0;box-shadow:0 -4px 20px rgba(0,0,0,.7);max-height:56vh;display:flex;flex-direction:column;padding-bottom:calc(8px + env(safe-area-inset-bottom));';
+  ov.innerHTML='<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 13px 7px;flex-shrink:0;">'
+    +'<span style="font-size:12px;font-weight:800;color:#7fc4e0;">📍 같은 자리 시설 <span style="font-size:9px;color:#46708f;font-weight:600;">'+items.length+'개 겹침 · 눌러서 선택</span></span>'
+    +'<button onclick="_closeFacOverlapSheet()" style="background:none;border:none;color:rgba(255,255,255,.45);font-size:18px;cursor:pointer;padding:0 2px;line-height:1;">×</button></div>'
+    +'<div style="overflow-y:auto;padding:0 13px 10px;">'+rows+'</div>';
+  var host=document.querySelector('#v-inspect-map .mapwrap')||document.getElementById('v-inspect-map');
+  (host||document.body).appendChild(ov);
 }
 const DC={lat:38.1328,lng:128.4107};
 // HTML/attribute escaping for user-generated content
@@ -289,7 +274,7 @@ function initMaps(){
     mapI.setMapTypeId(kakao.maps.MapTypeId.HYBRID);
     mapR.setMapTypeId(kakao.maps.MapTypeId.HYBRID);
     try{_drawParkBoundary(mapR);_drawParkBoundary(mapI);}catch(e){}
-    kakao.maps.event.addListener(mapI,'click',()=>{try{_unspiderfyFac();}catch(e){}closeDB();}); // 빈 지도 탭 → 펼침 접기
+    kakao.maps.event.addListener(mapI,'click',()=>{try{_closeFacOverlapSheet();}catch(e){}closeDB();}); // 빈 지도 탭 → 목록 시트 닫기
     kakao.maps.event.addListener(mapR,'click',closeDB);
     var _saveMapCenterTimer=null;
     function saveMapCenter(){
@@ -343,7 +328,7 @@ function initMaps(){
     saveInspectCenter();
     // 줌 레벨에 따른 핀 크기 자동 조절
     kakao.maps.event.addListener(mapR,'zoom_changed',()=>{_scaleOvs(rEls,mapR.getLevel(),5);try{_reclusterRescue();}catch(e){}});
-    kakao.maps.event.addListener(mapI,'zoom_changed',()=>{try{_unspiderfyFac();}catch(e){}_scaleOvs(iEls,mapI.getLevel(),1);try{_reclusterInspect();}catch(e){}});
+    kakao.maps.event.addListener(mapI,'zoom_changed',()=>{try{_closeFacOverlapSheet();}catch(e){}_scaleOvs(iEls,mapI.getLevel(),1);try{_reclusterInspect();}catch(e){}});
     if(window._hideLoading)setTimeout(window._hideLoading,600);
   }
   if(window._KR){doInit();return;}

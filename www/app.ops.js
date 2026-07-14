@@ -159,7 +159,7 @@ function _facMigrateV2(){
 function renderInspectMap(){
   if(!mapI){return;}
   _facMigrateV2();
-  try{_unspiderfyFac();}catch(e){} // 펼쳐진 부채꼴이 있으면 먼저 접기(재구성 시 유령 다리 방지)
+  try{_closeFacOverlapSheet();}catch(e){} // 열린 겹침 목록 시트가 있으면 닫기(재구성 시)
   iOvs.forEach(o=>{try{o.setMap(null);}catch(e){}});iOvs=[];iEls=[];
   _iClusterOvs.forEach(o=>{try{o.setMap(null);}catch(e){}});_iClusterOvs=[];
   const _admin=isAdminUser();const _meta=DB.g('catFacMeta')||{};
