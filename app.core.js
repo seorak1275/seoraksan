@@ -848,6 +848,33 @@ document.addEventListener('visibilitychange',function(){if(!document.hidden)_onV
 try{if(window.visualViewport)window.visualViewport.addEventListener('resize',function(){_onViewportChange(180);});}catch(e){}
 setTimeout(_fixAppHeight,500);setTimeout(_fixAppHeight,2000);
 
+// ── 유령 오버레이 방어(전역 터치 먹통 자가복구) ─────────────────────────
+// 팝업/바텀시트의 반투명 배경(백드롭)이 닫히며 '투명'해진 뒤 요소가 미처 제거되지 않으면,
+// 보이지 않는 전체화면 레이어가 모든 탭을 삼켜 앱 전체(지도·목록·뒤로가기)가 먹통이 된다(→새로고침 필요).
+// 자가복구: 탭 지점의 최상위 요소가 'body 직속 + 전체화면급 + 사실상 투명'이면 pointer-events를 꺼서 통과시킨다.
+// body 직속만 대상이라 카카오 지도 내부 이벤트 레이어(맵 컨테이너 하위)는 절대 건드리지 않는다.
+function _ghostOverlayGuard(e){
+  try{
+    var pt=(e&&e.touches&&e.touches[0])||e;if(!pt||pt.clientX==null)return;
+    var t=document.elementFromPoint(pt.clientX,pt.clientY);if(!t)return;
+    var node=t;while(node&&node.parentElement&&node.parentElement!==document.body)node=node.parentElement; // body 직속 조상
+    if(!node||node.parentElement!==document.body)return;
+    if(node.id==='app'||node.tagName==='SCRIPT'||node.tagName==='STYLE')return;
+    var cs=getComputedStyle(node);
+    if((cs.position!=='fixed'&&cs.position!=='absolute')||cs.display==='none'||cs.visibility==='hidden')return;
+    if(cs.pointerEvents==='none')return; // 이미 통과 상태
+    var r=node.getBoundingClientRect();
+    if(r.width<window.innerWidth*0.95||r.height<window.innerHeight*0.85)return; // 전체화면급만
+    var bg=cs.backgroundColor||'',a=1,mm=bg.match(/rgba?\(([^)]+)\)/);
+    if(mm){var p=mm[1].split(',');a=p.length>=4?parseFloat(p[3]):1;}else if(bg==='transparent')a=0;
+    if(cs.opacity!=='0'&&a>=0.03)return; // 보이는 레이어면 정상 모달 → 손대지 않음
+    node.style.pointerEvents='none'; // 투명 유령 → 터치 통과(요소는 남겨둬도 무해)
+    try{console.warn('[ghostGuard] 투명 전체화면 레이어 무력화:',node.id||node.className||node.tagName);}catch(_){}
+  }catch(_){}
+}
+document.addEventListener('pointerdown',_ghostOverlayGuard,true);
+document.addEventListener('touchstart',_ghostOverlayGuard,true);
+
 function closeDB(){document.querySelectorAll('.dbcard').forEach(c=>c.classList.remove('on'));try{if(typeof _clearPopupDim==='function')_clearPopupDim();}catch(e){}try{if(typeof _facPinUnhighlight==='function')_facPinUnhighlight();}catch(e){}}
 // dbcard(하단 조회 카드): X버튼 대신 손잡이를 아래로 내려서 닫기
 function _bindDbcardDrag(p){

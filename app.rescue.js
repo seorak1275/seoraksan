@@ -643,6 +643,7 @@ function _closeTeamSheet(){
   const s=document.getElementById('teamSheet');
   if(s){s.style.transition='transform .2s cubic-bezier(.4,0,.2,1)';s.style.transform='translateY(105%)';}
   m.style.background='rgba(0,0,0,0)';
+  m.style.pointerEvents='none'; // 배경 투명 페이드 중에도 터치 통과(제거 지연/실패해도 먹통 방지)
   setTimeout(()=>{try{m.remove();}catch(e){}},210);
 }
 function _showTeamChipPopup(rescue){

@@ -1,1 +1,1 @@
-{"version":"2026.07.14.123","url":"https://seorak1275.github.io/seoraksan/bundle.zip","notes":"지도 터치 간헐 먹통 수정 — 주소창 접힘/펼침·화면회전·백그라운드 복귀로 뷰포트가 바뀌면 카카오 지도 내부 크기가 옛값으로 남아 터치 좌표가 어긋나던 문제. resize/orientationchange/visibilitychange/visualViewport에서 지도 relayout 호출(디바운스)"}
+{"version":"2026.07.14.124","url":"https://seorak1275.github.io/seoraksan/bundle.zip","notes":"전역 터치 먹통(지도·목록·뒤로가기 다 안됨) 자가복구 — 팝업/시트 반투명 배경이 투명해진 채 안 지워지면 보이지 않는 전체화면 레이어가 모든 탭을 삼키던 문제. body직속 전체화면 투명 유령 레이어를 탭 시 pointer-events off로 통과(카카오 지도 내부는 미대상) + teamSheet 닫기 방어"}
