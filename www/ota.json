@@ -1,1 +1,1 @@
-{"version":"2026.07.15.140","url":"https://seorak1275.github.io/seoraksan/bundle.zip","notes":"암벽 이용관리 — 뒤로가기로 패널 닫히게(다른 홈메뉴처럼) + 당일명단에 동반자 전화번호 표시(기존엔 신청자만 나옴), 신청자 나이도 표시(생년월일 파싱 추가)"}
+{"version":"2026.07.15.141","url":"https://seorak1275.github.io/seoraksan/bundle.zip","notes":"암벽 이용관리 헤더를 다른 홈화면과 동일 규격으로 — 왼쪽 '← 뒤로' 버튼, X(닫기) 제거"}

@@ -1576,10 +1576,10 @@ function openClimb(){
   ov=document.createElement('div');ov.id='climbPanel';
   ov.style.cssText='position:fixed;inset:0;z-index:9600;background:#060d1a;display:flex;flex-direction:column;';
   const canMng=_canClimbManage();
-  ov.innerHTML=`<div style="display:flex;align-items:center;gap:10px;padding:calc(12px + env(safe-area-inset-top)) 14px 12px;border-bottom:1px solid rgba(79,168,208,.15);flex-shrink:0;">
+  ov.innerHTML=`<div style="display:flex;align-items:center;gap:8px;padding:calc(6px + env(safe-area-inset-top)) 10px 8px;border-bottom:1px solid rgba(79,168,208,.15);flex-shrink:0;">
+      <button class="back-btn" onclick="history.back()">← 뒤로</button>
       <span style="font-size:16px;font-weight:800;color:#eaf2fa;">🧗 암벽 이용관리</span>
-      ${canMng?`<label title="파일 선택 또는 화면으로 끌어다 놓기" style="margin-left:auto;background:rgba(94,207,143,.14);color:#5fcf8f;border:1px solid rgba(94,207,143,.35);border-radius:9px;padding:7px 12px;font-size:12px;font-weight:800;cursor:pointer;white-space:nowrap;">⬆️ 업로드<input type="file" accept=".xlsx,.xlsm,.xls" onchange="climbUpload(this)" style="display:none;"></label>`:'<span style="margin-left:auto;"></span>'}
-      <button onclick="var e=document.getElementById('climbPanel');if(e)e.remove();" style="background:none;border:none;color:rgba(255,255,255,.5);font-size:24px;cursor:pointer;line-height:1;">×</button>
+      ${canMng?`<label title="파일 선택 또는 화면으로 끌어다 놓기" style="margin-left:auto;background:rgba(94,207,143,.14);color:#5fcf8f;border:1px solid rgba(94,207,143,.35);border-radius:9px;padding:7px 12px;font-size:12px;font-weight:800;cursor:pointer;white-space:nowrap;">⬆️ 업로드<input type="file" accept=".xlsx,.xlsm,.xls" onchange="climbUpload(this)" style="display:none;"></label>`:''}
     </div>
     ${canMng?`<div id="climbStageBar" style="display:none;align-items:center;gap:10px;margin:10px 14px 0;padding:10px 12px;background:rgba(94,207,143,.08);border:1px solid rgba(94,207,143,.28);border-radius:11px;flex-shrink:0;"></div>`:''}
     <div id="climbBody" style="flex:1;overflow-y:auto;padding:14px;"><div style="text-align:center;color:#5a7e98;font-size:13px;padding:40px 0;">불러오는 중…</div></div>
@@ -3353,7 +3353,7 @@ function sosToRescue(id){
 // 앱 자체 업데이트 (OTA · Capgo 자체호스팅) — APK 전용. 웹/PWA는 서비스워커가 자동 갱신.
 // 번들(www)의 새 버전을 ota.json으로 알리면, 설치된 앱이 받아서 그 자리에서 교체(재빌드 불필요).
 // ══════════════════════════════════════════
-const OTA_VER='2026.07.15.140';                         // ← 현재 번들 버전 (릴리스마다 올림 · build-ota.sh가 ota.json에 반영)
+const OTA_VER='2026.07.15.141';                         // ← 현재 번들 버전 (릴리스마다 올림 · build-ota.sh가 ota.json에 반영)
 const OTA_MANIFEST='https://seorak1275.github.io/seoraksan/ota.json';
 let _otaInfo=null;
 function _otaPlugin(){try{return (window.Capacitor&&window.Capacitor.Plugins&&window.Capacitor.Plugins.CapacitorUpdater)||null;}catch(e){return null;}}
