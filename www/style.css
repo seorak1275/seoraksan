@@ -109,6 +109,7 @@ img{-webkit-user-drag:none;}
 .mb-slate{background:#0b1c30;border:1px solid rgba(255,255,255,.09);}
 .mb-gray{background:#111a28;border:1px solid rgba(255,255,255,.07);}
 .mb-purple{background:linear-gradient(145deg,#2d1b4e,#1e1035);}
+.mb-climb{background:linear-gradient(145deg,#5a3a12,#3a2409);}
 /* 설정/관리자는 작게 */
 .mbtn-sm{border-radius:11px;padding:10px 12px;font-weight:600;color:#c0d8ec;border:1px solid rgba(255,255,255,.08);cursor:pointer;display:flex;align-items:center;gap:8px;text-align:left;transition:transform .1s;background:#0b1c30;box-shadow:0 1px 5px rgba(0,0,0,.2);}
 .mbtn-sm:active{transform:scale(.97);}

@@ -268,6 +268,7 @@ if(window.Kakao&&!Kakao.isInitialized()) Kakao.init(KAKAO_KEY);
     <button class="mbtn mb-teal ext-hide" onclick="openApp('inspect')"><div class="mbtn-ico">🛠️</div><div><div class="mbtn-title">시설물 점검</div><div class="mbtn-desc" id="hdI">시설 관리·이력</div></div></button>
     <button class="mbtn mb-alert ext-hide" onclick="openApp('alert')"><div class="mbtn-ico">🌀</div><div><div class="mbtn-title">특보운영</div><div class="mbtn-desc" id="hdA">기상특보 비상근무</div></div></button>
     <button class="mbtn mb-purple ext-hide" onclick="openApp('stats')"><div class="mbtn-ico">📊</div><div><div class="mbtn-title">전체 통계</div><div class="mbtn-desc">현황 분석</div></div></button>
+    <button id="mbClimb" class="mbtn mb-climb ext-hide" style="grid-column:1/-1;flex-direction:row;align-items:center;gap:11px;min-height:60px;" onclick="openClimb()"><div class="mbtn-ico" style="margin-bottom:0;">🧗</div><div style="flex:1;"><div class="mbtn-title">암벽 이용관리 <span id="climbMenuBadge" style="display:none;font-size:9px;font-weight:800;color:#241a0e;background:#f0c050;border-radius:7px;padding:1px 7px;margin-left:4px;vertical-align:middle;">업로드 필요</span></div><div class="mbtn-desc">당일 명단(지구·코스별) · 통계 · 특보취소</div></div><span style="font-size:16px;color:rgba(255,255,255,.4);">›</span></button>
   </div>
 
   <!-- 하단 2칸 소형 메뉴 -->
