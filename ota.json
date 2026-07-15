@@ -1,1 +1,1 @@
-{"version":"2026.07.15.136","url":"https://seorak1275.github.io/seoraksan/bundle.zip","notes":"성능 최적화 — (1)로그인/홈을 먼저 그리고 지도2개 생성·날씨·특보폴링은 첫 페인트 뒤로 지연(로그인 체감속도↑) (2)뷰포트 변화 시 보이는 지도만·크기변화 있을때만 relayout(스크롤 중 지도 흰깜빡임·버벅임 제거) (3)지도탭 진입 시 지도 없으면 자동 생성(지연생성 안전장치)"}
+{"version":"2026.07.15.137","url":"https://seorak1275.github.io/seoraksan/bundle.zip","notes":"SOS 수신 permission 오류기록 방지 — 인증(익명/토큰) 준비된 뒤 구독(최대 15초 대기), 인증 전 일시 permission 오류는 자동복구라 오류기록에 안 남김"}
