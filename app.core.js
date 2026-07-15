@@ -111,7 +111,8 @@ const _FB_CFG={
 // history: 점검이력은 무제한으로 계속 쌓이는 로그성 데이터라 단일문서 그대로 두면 매 점검마다 전체가 전원에게 재전송됨 → 건별 문서로 전환
 const _SHARED_COLL=['rescues','hazards','facilities','history','facIssues'];
 // _SHARED_DOC: 단일 문서에 JSON 배열 저장 (관리자 전용, 동시 쓰기 없음)
-const _SHARED_DOC=['alertOps','alertLog','staff','catFac','catFacMeta','pendingUsers','approvedUsers','deletedKakaoIds','adminOwnerKakaoId','adminApprovalCode','extAgencies','extAgencyCode','extAgencyDisplayName','geminiApiKey','kmaProxyUrl','_acl','loginLog','trailStatus','crisisLevel','weatherBrief','weatherLog','trailLog','sosBlocked','autoApprove','pushLog','devKakaoId','notiPolicy','customResTypes','facManagers','climbDates','climbCancels'];
+const _SHARED_DOC=['alertOps','alertLog','staff','catFac','catFacMeta','pendingUsers','approvedUsers','deletedKakaoIds','adminOwnerKakaoId','adminApprovalCode','extAgencies','extAgencyCode','extAgencyDisplayName','geminiApiKey','kmaProxyUrl','_acl','loginLog','trailStatus','crisisLevel','weatherBrief','weatherLog','trailLog','sosBlocked','autoApprove','pushLog','devKakaoId','notiPolicy','customResTypes','facManagers','climbDates','climbCancels','homeHidden'];
+// homeHidden: 관리자가 홈 화면에서 숨긴 메뉴 키 목록(미완성 기능 감추기용) — 전 직원 동기화 적용
 // climbDates: 암벽 이용현황 업로드된 '이용일자' 목록(날짜만·개인정보 아님) — 홈 업로드알림용. 실제 명단(PII)은 climbUsage 컬렉션에 별도 저장(전체 동기화 X).
 // climbCancels: 특보·우천 일괄취소한 이용일자 {날짜:{reason,by,at}} — 재업로드해도 유지, 통계에서 제외(날짜만·개인정보 아님).
 // 시설물 레거시(단일문서) 폴백/시드 동기화 상태
@@ -552,6 +553,7 @@ function initFirebase(onReady){
       try{_updateCrisisBanner();}catch(e){}
       clearTimeout(_remoteUpdateTimer);
       _remoteUpdateTimer=setTimeout(function(){
+        try{if(typeof _applyHomeMenuVisibility==='function')_applyHomeMenuVisibility();}catch(e){} // 관리자의 홈메뉴 숨김 설정 동기화 즉시 반영
         if(window.curApp==='rescue'){renderResList();try{renderRescueMap();}catch(e){}}
         else if(window.curApp==='inspect'){renderFacList();renderInspectMap();try{renderFacIssues();}catch(e){}
           // 담당 업무함: 보이는 중이면 입력(회신 작성) 보호 위해 배지만 갱신, 숨겨져 있으면 재렌더
@@ -634,7 +636,8 @@ function initFirebase(onReady){
           const d=ch.doc.data();
           if((d.at||0)<=_maxSharedNotiAt)return;
           if(d.deviceId===_MY_DEVICE_ID)return; // 내가 보낸 것
-          _maxSharedNotiAt=Math.max(_maxSharedNotiAt,d.at||0);
+          _maxSharedNotiAt=Math.max(_maxSharedNotiAt,d.at||0); // watermark는 항상 전진(로그인 후 과거알림 폭주 방지)
+          if(!_notiRecipientReady())return; // 미로그인 상태에는 알림 전달 안 함(로그인 화면만 봐야 함)
           if(d.adminOnly&&!(typeof isAdminUser==='function'&&isAdminUser()))return; // 관리자 전용 알림은 관리자만 수신
           if(d.targetKakaoIds&&d.targetKakaoIds.length){ // 대상 지정 알림: 지정된 카카오ID만 수신
             var _myK=String((DB.g('currentUser')||{}).kakaoId||'');
@@ -1272,6 +1275,20 @@ function _effectiveNotiSettings(){const m={};NOTI_GROUPS.forEach(g=>g.items.forE
 // 신규 카테고리를 기존 사용자 설정에 기본값으로 보강
 // 더 이상 기본값을 강제 저장하지 않음(정책 기본값이 적용되도록). 명시적으로 켠/끈 것만 notiSetting에 남김.
 function _ensureNotiDefaults(){return DB.g('notiSetting')||{};}
+// 알림 수신 자격: 로그인·입장을 마친 사용자에게만 알림(벨·OS배너·진동)을 전달한다.
+// 로그인 전(로그인 화면만 봐야 하는 상태)에 남의 알림이 벨에 쌓이거나 진동/배너가 뜨던 문제 방지.
+function _notiRecipientReady(){
+  try{if(typeof _isAppUnlocked==='function')return _isAppUnlocked();}catch(e){}
+  // 폴백(로드 타이밍상 _isAppUnlocked 미정의): 최소한 로그인 완료 여부로 판단
+  try{
+    var at=DB.g('authType');
+    if(at==='external')return true;
+    if(localStorage.getItem('_adminAuthed')==='1'||localStorage.getItem('_masterAuthed')==='1')return true;
+    var u=DB.g('currentUser')||{};
+    if(at==='kakao'&&u.dept&&u.rank&&(u.realName||u.name))return true;
+  }catch(e){}
+  return false;
+}
 function pushNoti(msg,ico,type='info',link=null,pushCat=null,opts){
   const adminOnly=!!(opts&&opts.adminOnly); // 관리자에게만 보낼 알림(권한 요청 등)
   // 특정 카카오ID들에게만 보낼 알림(시설물 담당자 등) — 전체 진동·푸시 없이 대상자 기기에서만 표시
@@ -1309,6 +1326,7 @@ function _cleanOldSharedNotis(){
 }
 function _vibeOn(){return DB.g('notiVibrate')!==false;} // 진동 설정(기본 켜짐)
 function _showSystemNoti(body,ico){
+  if(!_notiRecipientReady())return; // 미로그인 상태에는 진동·OS배너 없음(처음 로그인 경험을 깔끔하게)
   // 새 알림이 오면 진동(설정 켜져 있고 기기 지원 시) — 앱이 켜져 있어도 울림
   try{if(_vibeOn()&&navigator.vibrate)navigator.vibrate([200,100,200]);}catch(e){}
   if(document.visibilityState==='visible')return; // 화면 보이는 중엔 OS 배너는 생략(진동은 위에서 함)

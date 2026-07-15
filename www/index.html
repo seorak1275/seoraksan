@@ -120,9 +120,14 @@ if(window.Kakao&&!Kakao.isInitialized()) Kakao.init(KAKAO_KEY);
   <div class="ls-sub">SEORAKSAN FIELD MANAGEMENT</div>
   <div class="ls-divider"></div>
   <div class="ls-desc">설악산국립공원 직원 전용 앱입니다.<br>카카오 계정으로 로그인 후<br>관리자 승인이 필요합니다.</div>
-  <button class="ls-btn ls-kakao" onclick="kakaoLogin()">
+  <button id="btnKakaoLogin" class="ls-btn ls-kakao" onclick="kakaoLogin()">
     💬 카카오로 로그인
   </button>
+  <!-- 로그인 진행 표시: 버튼 누른 뒤 대기 중임을 알려 중복 클릭 방지 -->
+  <div id="loginStatus" style="display:none;align-items:center;justify-content:center;gap:9px;width:100%;max-width:320px;margin-top:2px;padding:12px;background:rgba(254,229,0,.08);border:1px solid rgba(254,229,0,.25);border-radius:12px;">
+    <span class="lg-spin"></span>
+    <span class="lg-msg" style="font-size:13px;font-weight:700;color:#f0d900;">로그인 중입니다…</span>
+  </div>
   <!-- 외부기관 로그인 토글 -->
   <div id="extLoginWrap" style="width:100%;max-width:320px;margin-top:4px;">
     <button class="ls-btn ls-ext" onclick="_toggleExtLogin()">
@@ -264,18 +269,18 @@ if(window.Kakao&&!Kakao.isInitialized()) Kakao.init(KAKAO_KEY);
 
   <!-- 4칸 메인 메뉴 -->
   <div class="home-menu" style="flex:1;min-height:0;">
-    <button class="mbtn mb-red" onclick="openApp('rescue')"><div class="mbtn-ico">🚨</div><div><div class="mbtn-title">재난/구조</div><div class="mbtn-desc" id="hdR">구조보고·위험상황</div></div></button>
-    <button class="mbtn mb-teal ext-hide" onclick="openApp('inspect')"><div class="mbtn-ico">🛠️</div><div><div class="mbtn-title">시설물 점검</div><div class="mbtn-desc" id="hdI">시설 관리·이력</div></div></button>
-    <button class="mbtn mb-alert ext-hide" onclick="openApp('alert')"><div class="mbtn-ico">🌀</div><div><div class="mbtn-title">특보운영</div><div class="mbtn-desc" id="hdA">기상특보 비상근무</div></div></button>
-    <button class="mbtn mb-purple ext-hide" onclick="openApp('stats')"><div class="mbtn-ico">📊</div><div><div class="mbtn-title">전체 통계</div><div class="mbtn-desc">현황 분석</div></div></button>
-    <button id="mbClimb" class="mbtn mb-climb ext-hide" style="grid-column:1/-1;flex-direction:row;align-items:center;gap:11px;min-height:60px;" onclick="openClimb()"><div class="mbtn-ico" style="margin-bottom:0;">🧗</div><div style="flex:1;"><div class="mbtn-title">암벽 이용관리 <span id="climbMenuBadge" style="display:none;font-size:9px;font-weight:800;color:#241a0e;background:#f0c050;border-radius:7px;padding:1px 7px;margin-left:4px;vertical-align:middle;">업로드 필요</span></div><div class="mbtn-desc">당일 명단(지구·코스별) · 통계 · 특보취소</div></div><span style="font-size:16px;color:rgba(255,255,255,.4);">›</span></button>
+    <button id="mbRescue" data-home-key="rescue" class="mbtn mb-red" onclick="openApp('rescue')"><div class="mbtn-ico">🚨</div><div><div class="mbtn-title">재난/구조</div><div class="mbtn-desc" id="hdR">구조보고·위험상황</div></div></button>
+    <button id="mbInspect" data-home-key="inspect" class="mbtn mb-teal ext-hide" onclick="openApp('inspect')"><div class="mbtn-ico">🛠️</div><div><div class="mbtn-title">시설물 점검</div><div class="mbtn-desc" id="hdI">시설 관리·이력</div></div></button>
+    <button id="mbAlert" data-home-key="alert" class="mbtn mb-alert ext-hide" onclick="openApp('alert')"><div class="mbtn-ico">🌀</div><div><div class="mbtn-title">특보운영</div><div class="mbtn-desc" id="hdA">기상특보 비상근무</div></div></button>
+    <button id="mbStats" data-home-key="stats" class="mbtn mb-purple ext-hide" onclick="openApp('stats')"><div class="mbtn-ico">📊</div><div><div class="mbtn-title">전체 통계</div><div class="mbtn-desc">현황 분석</div></div></button>
+    <button id="mbClimb" data-home-key="climb" class="mbtn mb-climb ext-hide" style="grid-column:1/-1;flex-direction:row;align-items:center;gap:11px;min-height:60px;" onclick="openClimb()"><div class="mbtn-ico" style="margin-bottom:0;">🧗</div><div style="flex:1;"><div class="mbtn-title">암벽 이용관리 <span id="climbMenuBadge" style="display:none;font-size:9px;font-weight:800;color:#241a0e;background:#f0c050;border-radius:7px;padding:1px 7px;margin-left:4px;vertical-align:middle;">업로드 필요</span></div><div class="mbtn-desc">당일 명단(지구·코스별) · 통계 · 특보취소</div></div><span style="font-size:16px;color:rgba(255,255,255,.4);">›</span></button>
   </div>
 
   <!-- 하단 2칸 소형 메뉴 -->
   <div class="home-menu-bottom" style="flex-shrink:0;">
     <button class="mbtn-sm ext-hide" onclick="openApp('settings')"><span class="mbtn-sm-ico">⚙️</span><div class="mbtn-sm-text"><div class="mbtn-sm-title">내 설정</div><div class="mbtn-sm-desc">알림·계정·API키</div></div></button>
     <button class="mbtn-sm ext-hide" style="background:#150e2a;border:1px solid rgba(139,92,246,.2);position:relative;" onclick="openApp('admin')"><span class="mbtn-sm-ico">🔐</span><div class="mbtn-sm-text"><div class="mbtn-sm-title" style="color:#c4b5fd;">관리자 전용</div><div class="mbtn-sm-desc">관제·데이터 관리</div></div><span id="admBadge" style="display:none;position:absolute;top:8px;right:10px;background:#e74c3c;color:#fff;font-size:10px;font-weight:800;min-width:17px;height:17px;line-height:17px;text-align:center;border-radius:9px;padding:0 4px;box-shadow:0 0 0 2px #150e2a;">0</span></button>
-    <button class="mbtn-sm ext-hide" style="grid-column:1/-1;background:#06121f;border:1px solid rgba(79,168,208,.22);" onclick="openBoard()"><span class="mbtn-sm-ico">🖥️</span><div class="mbtn-sm-text"><div class="mbtn-sm-title" style="color:#7dd3fa;">상황판</div><div class="mbtn-sm-desc">본소 모니터 거치용 관제 화면 — 지도+진행중 구조 (주소 뒤 ?board=1 북마크)</div></div></button>
+    <button id="mbBoard" data-home-key="board" class="mbtn-sm ext-hide" style="grid-column:1/-1;background:#06121f;border:1px solid rgba(79,168,208,.22);" onclick="openBoard()"><span class="mbtn-sm-ico">🖥️</span><div class="mbtn-sm-text"><div class="mbtn-sm-title" style="color:#7dd3fa;">상황판</div><div class="mbtn-sm-desc">본소 모니터 거치용 관제 화면 — 지도+진행중 구조 (주소 뒤 ?board=1 북마크)</div></div></button>
     <!-- 외부기관 전용: 로그아웃 버튼 -->
     <button id="extLogoutBtn" class="mbtn-sm" style="grid-column:1/-1;background:rgba(255,80,30,.08);border:1px solid rgba(255,80,30,.22);" onclick="extAgencyLogout()"><span class="mbtn-sm-ico">🚪</span><div class="mbtn-sm-text"><div class="mbtn-sm-title" style="color:#f08050;">로그아웃</div><div class="mbtn-sm-desc">외부기관 세션 종료</div></div></button>
   </div>

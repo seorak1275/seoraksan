@@ -908,6 +908,7 @@ function renderBoard(){
 function goHome(){
   const ov=document.getElementById('adminLoginOverlay');
   if(ov)ov.style.display='none';
+  try{if(typeof _applyHomeMenuVisibility==='function')_applyHomeMenuVisibility();}catch(e){}
   showV('v-home');
   document.getElementById('appHdr').style.display='none';
   document.getElementById('bnav').style.display='none';

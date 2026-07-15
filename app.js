@@ -232,8 +232,21 @@ function _recordLoginLog(){
 function _kakaoRedirectUri(){
   return (typeof _isNativeApp==='function'&&_isNativeApp()) ? 'https://localhost' : 'https://seorak1275.github.io/seoraksan/';
 }
+// 로그인 진행 표시: 버튼 누른 뒤(또는 카카오에서 돌아와 토큰 교환 중) '로그인 중입니다…'를 띄우고
+// 로그인 버튼을 잠가 중복 클릭을 막는다. 실패·완료 시 off로 원복.
+function _loginBusy(on,msg){
+  try{
+    var b=document.getElementById('btnKakaoLogin');
+    var s=document.getElementById('loginStatus');
+    var ext=document.getElementById('extLoginWrap');
+    if(b){b.style.pointerEvents=on?'none':'';b.style.opacity=on?'.45':'';}
+    if(ext){ext.style.pointerEvents=on?'none':'';ext.style.opacity=on?'.4':'';}
+    if(s){s.style.display=on?'flex':'none';var m=s.querySelector('.lg-msg');if(m&&msg)m.textContent=msg;}
+  }catch(e){}
+}
 function kakaoLogin(){
   if(!window.Kakao||!Kakao.isInitialized()){toast('⚠️ 카카오 SDK 오류');return;}
+  _loginBusy(true,'카카오에 연결 중입니다…'); // 리다이렉트 전에 즉시 피드백(느린 통신에서 중복 클릭 방지)
   // throughTalk:true → 휴대폰에 카카오톡이 깔려 있으면 앱이 켜지며 간편 로그인(이메일·비번 입력 불필요).
   //   앱 없거나 PC면 SDK가 자동으로 웹 로그인으로 폴백. 'prompt:login' 같은 강제 재입력 옵션은 두지 않음.
   // 네이티브 APK는 방금 안정화한 https://localhost 복귀 흐름을 유지하기 위해 throughTalk를 끔(카톡 앱 왕복은
@@ -334,6 +347,8 @@ function _handleKakaoCode(code,redirectUri){
     }
   })
   .catch(function(e){
+    window._needsCode=false; // 실패 → 코드 처리중 플래그 해제(재시도 가능하게)
+    try{_loginBusy(false);}catch(_e){} // 진행 표시 원복 → 로그인 버튼 복귀
     if(window._hideLoading)window._hideLoading();
     toast('⚠️ 카카오 로그인 실패: '+e.message);
   });
@@ -1162,8 +1177,38 @@ function updateSummary(){
   try{renderHomeActive();}catch(e){}
   try{renderMobilizeBanner();}catch(e){}
 }
+// ── 홈 메뉴 표시 관리 (관리자 전용, 전 직원 동기화) ──
+// 미완성 기능을 전 직원 화면에서 숨긴다. 잠금 방지를 위해 '내 설정'·'관리자 전용'은 숨김 대상에서 제외.
+var HOME_MENUS=[
+  {k:'rescue', id:'mbRescue', label:'🚨 재난/구조'},
+  {k:'inspect',id:'mbInspect',label:'🛠️ 시설물 점검'},
+  {k:'alert',  id:'mbAlert',  label:'🌀 특보운영'},
+  {k:'stats',  id:'mbStats',  label:'📊 전체 통계'},
+  {k:'climb',  id:'mbClimb',  label:'🧗 암벽 이용관리'},
+  {k:'board',  id:'mbBoard',  label:'🖥️ 상황판'}
+];
+function _homeHiddenSet(){try{return new Set((DB.g('homeHidden')||[]).map(String));}catch(e){return new Set();}}
+function _applyHomeMenuVisibility(){
+  var hid=_homeHiddenSet();
+  HOME_MENUS.forEach(function(m){
+    var el=document.getElementById(m.id);if(!el)return;
+    el.style.display=hid.has(m.k)?'none':'';
+  });
+}
+function _setHomeMenuHidden(key,hidden){
+  if(!(typeof isAdminUser==='function'&&isAdminUser())){toast('⚠️ 관리자만 변경할 수 있습니다');return;}
+  var arr=(DB.g('homeHidden')||[]).map(String).filter(Boolean);
+  var set=new Set(arr);
+  if(hidden)set.add(String(key));else set.delete(String(key));
+  DB.s('homeHidden',Array.from(set));
+  try{_applyHomeMenuVisibility();}catch(e){}
+  try{if(typeof renderAdmSys==='function'&&document.getElementById('admSysWrap'))renderAdmSys();}catch(e){}
+  var m=HOME_MENUS.find(function(x){return x.k===String(key);});
+  toast((hidden?'🙈 숨김: ':'👁️ 표시: ')+(m?m.label:key));
+}
 // 홈: 진행중 구조 건을 가로 스크롤 카드로 즉시 노출 (한눈에 현황 파악)
 function renderHomeActive(){
+  try{_applyHomeMenuVisibility();}catch(e){}
   const el=document.getElementById('homeActiveStrip');if(!el)return;
   if(isExternal()){el.style.display='none';el.innerHTML='';return;}
   el.style.display='block';
@@ -1401,9 +1446,23 @@ async function _climbProcessFile(file){
     const wb=XLSX.read(new Uint8Array(buf),{type:'array'});
     const recs=_climbParseWB(wb);
     if(!recs||!recs.length){if(typeof _busyDone==='function')_busyDone();toast('⚠️ 인식된 이용내역이 없습니다 — 원본(신청내역) 파일인지 확인');return;}
+    // ── 중복 업로드 방어 ──
+    // 저장은 이용일자별 문서 덮어쓰기(.set) → 같은 파일을 다시 올려도 중복 합산되지 않는다(구조적 방어).
+    // 다만 이미 등록된 날짜를 (부분 파일로) 실수로 교체하는 것을 막기 위해, 겹치는 날짜가 있으면 확인받는다.
+    const upDates=Array.from(new Set(recs.map(r=>r.useDate))).sort();
+    const covered=new Set((DB.g('climbDates')||[]).map(String));
+    const dup=upDates.filter(d=>covered.has(d));
+    const fresh=upDates.filter(d=>!covered.has(d));
+    if(typeof _busyDone==='function')_busyDone(); // 확인창 전에 로딩 해제
+    if(dup.length){
+      const shown=dup.slice(0,10).join(', ')+(dup.length>10?` 외 ${dup.length-10}일`:'');
+      const ok=confirm('⚠️ 이미 등록된 날짜가 포함돼 있습니다.\n\n· 재등록(덮어쓰기): '+dup.length+'일\n  '+shown+'\n· 신규: '+fresh.length+'일\n\n계속하면 겹치는 날짜의 기존 자료는 이 파일 내용으로 교체됩니다.\n(같은 파일을 다시 올려도 중복 합산되지 않습니다)\n\n진행할까요?');
+      if(!ok){toast('업로드를 취소했습니다');return;}
+    }
+    if(typeof _busy==='function')_busy('💾 저장 중…');
     const dates=await _climbSave(recs);
     if(typeof _busyDone==='function')_busyDone();
-    toast('✅ '+recs.length+'건 저장 · '+dates.length+'일치 ('+dates[0]+'~'+dates[dates.length-1]+')',4000);
+    toast('✅ '+recs.length+'건 저장 · 신규 '+fresh.length+'일'+(dup.length?' · 재등록 '+dup.length+'일':'')+' ('+dates[0]+'~'+dates[dates.length-1]+')',4500);
     try{renderHomeActive();}catch(e){}
     _climbStaged=null;_climbCache=null;openClimb();
   }catch(e){
@@ -3281,7 +3340,7 @@ function sosToRescue(id){
 // 앱 자체 업데이트 (OTA · Capgo 자체호스팅) — APK 전용. 웹/PWA는 서비스워커가 자동 갱신.
 // 번들(www)의 새 버전을 ota.json으로 알리면, 설치된 앱이 받아서 그 자리에서 교체(재빌드 불필요).
 // ══════════════════════════════════════════
-const OTA_VER='2026.07.15.131';                         // ← 현재 번들 버전 (릴리스마다 올림 · build-ota.sh가 ota.json에 반영)
+const OTA_VER='2026.07.15.132';                         // ← 현재 번들 버전 (릴리스마다 올림 · build-ota.sh가 ota.json에 반영)
 const OTA_MANIFEST='https://seorak1275.github.io/seoraksan/ota.json';
 let _otaInfo=null;
 function _otaPlugin(){try{return (window.Capacitor&&window.Capacitor.Plugins&&window.Capacitor.Plugins.CapacitorUpdater)||null;}catch(e){return null;}}
@@ -3376,11 +3435,15 @@ window.onload=function(){
         ls.style.display='flex';
         ls.style.opacity='1';
         ls.style.pointerEvents='auto';
+        // 카카오에서 돌아와 토큰 교환 중이면(느린 통신에서 6초 안전타임아웃으로 로그인화면이 드러나도)
+        // 버튼 대신 '로그인 중입니다…'를 보여 재클릭을 막는다.
+        try{_loginBusy(!!(window._needsCode||window._kakaoAuthCode));}catch(e){}
         try{_applyAppLock();}catch(e){} // 2차 방어선: #app 자체를 조작 불가로
       }
       window.hideLoginScreen=function hideLoginScreen(){
         var ls=document.getElementById('loginScreen');
         window._loginVisible=false; // 로그인 완료 → 즉시 미표시로 간주 (페이드아웃 중 오판 방지)
+        try{_loginBusy(false);}catch(e){} // 진행 표시 원복
         if(!ls||ls.style.display==='none'){try{_applyAppLock();}catch(e){}return;}
         ls.style.pointerEvents='none';
         ls.style.transition='opacity .3s';ls.style.opacity='0';

@@ -1608,7 +1608,13 @@ function _renderObsSummary(active){
   return `<div class="ao-card" style="padding:8px 12px;">${head}${rows}</div>`;
 }
 // 특보 종류에 따른 측정 항목: 호우→rain, 대설→snow, 둘 다→both. 그 외(강풍·건조 등)→''(측정 없음)
-function _alertMeasureType(op){const types=(op.alerts||[]).map(a=>a.type||'');const hasRain=types.some(t=>t.includes('호우'));const hasSnow=types.some(t=>t.includes('대설'));if(hasRain&&hasSnow)return'both';if(hasSnow)return'snow';if(hasRain)return'rain';return'';}
+// ※ 예비특보는 아직 발효 전이라 실제 강우·적설이 없음 → 측정 대상에서 제외. 실제 발효(주의보/경보)인 호우·대설만 측정.
+function _alertMeasureType(op){
+  const eff=(op.alerts||[]).filter(a=>(a.stage||'')!=='예비특보');
+  const types=eff.map(a=>a.type||'');
+  const hasRain=types.some(t=>t.includes('호우'));const hasSnow=types.some(t=>t.includes('대설'));
+  if(hasRain&&hasSnow)return'both';if(hasSnow)return'snow';if(hasRain)return'rain';return'';
+}
 // 기상청 실시간 특보에서 해당 종류의 발효 지역 목록
 function _liveRegionsOf(type){const lv=(window._kmaLiveAlerts||[]).find(x=>x.type===type);return lv&&lv.regions?lv.regions.slice():[];}
 // ── 특보 발령 단계 모델 (수동·자동 공통, 발령 목록 op.alerts[]) ──
@@ -3455,7 +3461,18 @@ function _loadAllErrLogs(){
 function renderAdmSys(){
   const unseenCnt=_getUnseenCount();
   document.getElementById('admSysWrap').innerHTML=`
-
+    ${(()=>{try{
+      if(typeof HOME_MENUS==='undefined')return'';
+      const hid=_homeHiddenSet();
+      return `<div class="scard" style="margin-bottom:8px;">
+        <div class="stitle">🏠 홈 화면 메뉴 표시</div>
+        <div style="font-size:11px;color:#7a9cb8;margin-bottom:8px;">완성 전인(미완성) 메뉴를 <b style="color:#cfe2f2;">전 직원 홈 화면</b>에서 숨깁니다. 숨겨도 데이터는 보존되며, 다시 표시하면 그대로 나타납니다. <span style="color:#5a7e98;">(‘내 설정’·‘관리자 전용’은 잠금 방지를 위해 항상 표시)</span></div>
+        ${HOME_MENUS.map(m=>{const h=hid.has(m.k);return `<div style="display:flex;align-items:center;gap:8px;padding:8px 2px;border-bottom:1px solid rgba(255,255,255,.04);">
+          <span style="flex:1;font-size:12.5px;color:${h?'#6a8296':'#e0edf8'};">${m.label}${h?' <span style="font-size:10px;color:#e0857a;font-weight:800;">· 숨김</span>':''}</span>
+          <button onclick="_setHomeMenuHidden('${m.k}',${h?'false':'true'})" style="background:${h?'rgba(94,207,143,.12)':'rgba(192,57,43,.1)'};color:${h?'#5fcf8f':'#e0857a'};border:1px solid ${h?'rgba(94,207,143,.35)':'rgba(192,57,43,.3)'};border-radius:8px;padding:6px 13px;font-size:11.5px;font-weight:800;cursor:pointer;white-space:nowrap;">${h?'👁️ 표시하기':'🙈 숨기기'}</button>
+        </div>`;}).join('')}
+      </div>`;
+    }catch(e){return'';}})()}
     <div class="scard" style="margin-bottom:8px;">
       <div class="stitle">💾 데이터 백업 / 복원</div>
       <div style="font-size:11px;color:#7a9cb8;margin-bottom:8px;">전체 데이터를 파일로 내려받아 보관하세요 (사진 원본은 서버에 별도 저장)</div>
