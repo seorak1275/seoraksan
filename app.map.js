@@ -2021,7 +2021,7 @@ function preloadParkTiles(){
   const ctr=new kakao.maps.LatLng((bb.minLat+bb.maxLat)/2,(bb.minLng+bb.maxLng)/2);
   const map=new kakao.maps.Map(host,{center:ctr,level:10});
   // 배율(레벨)별 화면이 덮는 범위를 실측해 이동 계획 수립 — 넓은 배율부터 상세 배율로, 총 이동 상한
-  const STEP_CAP=150;
+  const STEP_CAP=380; // 확대(상세) 배율까지 더 넓게 미리 저장 → 현장 확대 시 흰 화면 최소화
   const plan=[];let total=0;
   for(let lv=10;lv>=2;lv--){
     map.setLevel(lv);map.setCenter(ctr);
