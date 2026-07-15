@@ -4,13 +4,27 @@
 // - PWA 오프라인 캐싱 (app shell)
 // - FCM 백그라운드 메시지 수신 → 시스템 알림 표시
 // ──────────────────────────────────────────────
-const _CACHE = 'seoraksan-v163';
+const _CACHE = 'seoraksan-v164';
 // 지도 타일 캐시(2단) — 셸 버전과 무관하게 유지(배포해도 안 지움). 한 번 본 타일은 오프라인·저속에서도 즉시 표시
 // park: '설악산 인근 미리받기'분 보관 — 다른 지역 열람에 밀려나지 않음
 // recent: 일반 열람 임시 저장 — 소량만 유지(전국을 둘러봐도 이 상한까지만, 오래된 것부터 자동 정리)
 const _TILES_PARK = 'seoraksan-tiles-park-1';
 const _TILES_RECENT = 'seoraksan-tiles-recent-1';
-const _PARK_MAX = 6000, _RECENT_MAX = 1500;
+const _PARK_MAX = 14000, _RECENT_MAX = 5000;
+// 타일 fetch 모드: null=미확인, true=CORS 가능(비불투명 응답 → 캐시 용량 정확·대량 저장), false=opaque 폴백.
+// opaque(no-cors) 응답은 크롬이 용량 계산 시 큰 패딩을 붙여, 타일 몇천장이면 저장할당량을 초과해
+// put이 계속 실패 → 방금 본 타일도 캐시에 안 남아 확대/축소 때마다 다시 하얗게 받는 문제의 근본원인.
+// CORS로 받으면 실제 크기로만 계산돼 훨씬 많이 저장된다(daumcdn이 CORS 허용 시).
+let _tileCorsMode = null;
+async function _fetchTile(req) {
+  if (_tileCorsMode !== false) {
+    try {
+      const r = await fetch(req.url, { mode: 'cors', credentials: 'omit' });
+      if (r && r.ok) { _tileCorsMode = true; return r; }
+    } catch (_) { if (_tileCorsMode === null) _tileCorsMode = false; }
+  }
+  return fetch(req); // CORS 미지원 → 기존 방식(opaque)
+}
 let _parkModeUntil = 0; // 미리받기 진행 중 표시 — 클라이언트가 스텝마다 갱신(TILE_MODE_PARK 메시지)
 // 프로젝트 경로(/seoraksan/) 배포이므로 반드시 상대 경로 사용
 // v10: 단일 index.html → index.html + style.css + app.js 분리에 따라 셸 캐시에 추가
@@ -74,7 +88,7 @@ self.addEventListener('fetch', e => {
         const recent = await caches.open(_TILES_RECENT);
         hit = await recent.match(e.request, { ignoreSearch: true });
         if (hit) return hit;
-        const res = await fetch(e.request);
+        const res = await _fetchTile(e.request); // CORS 우선(용량 정확) → 실패 시 opaque
         if (res && (res.ok || res.type === 'opaque')) {
           const isPark = Date.now() < _parkModeUntil; // 미리받기 중이면 보관함, 아니면 임시함
           const c = isPark ? park : recent, max = isPark ? _PARK_MAX : _RECENT_MAX;
