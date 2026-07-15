@@ -1,1 +1,1 @@
-{"version":"2026.07.14.126","url":"https://seorak1275.github.io/seoraksan/bundle.zip","notes":"탈퇴 시 대상자에게 OS 푸시 통보 추가 — 앱을 꺼놔도 '관리자에 의해 탈퇴 처리되었습니다' 푸시 수신(안드로이드 APK). 특정 카카오ID에게만 보내는 _sendFcmPushToKakao 신설"}
+{"version":"2026.07.15.127","url":"https://seorak1275.github.io/seoraksan/bundle.zip","notes":"특보운영 발령 목록을 등급별(Ⅲ단계·경보·주의보·예비특보)로 묶어 정리 + 각 특보에 종류·지역·지속시간 표시(예비특보는 아래·연하게) + 상단 요약을 '현재 등급 N시간째 지속'으로(세션 누적시간은 흐리게) — 예비특보 하나 남아도 비상 몇시간처럼 안 보이게"}

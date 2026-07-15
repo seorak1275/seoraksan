@@ -1699,29 +1699,64 @@ function renderAlertView(){
     // 경과 시간
     let elapsed='';
     if(active.startedAtMs){const ms=Date.now()-active.startedAtMs,h=Math.floor(ms/3600000),m=Math.floor((ms%3600000)/60000);elapsed=(h>0?h+'시간 ':'')+m+'분 경과';}
-    const alertRows=active.alerts.map((a,ai)=>{
+    // 발효 시각 → 지속시간(미래발효/발효중)
+    const _durOf=(a)=>{
       const ms=a.issuedAtMs||_alertTimeMs(a.issuedAt)||active.startedAtMs||0;
-      // 기상청 특보는 발표 후 미래 시각부터 발효되기도 함(예: 17시 발표 → 18시 발효) — 음수 경과 방지
-      let dur='',future=false;
-      if(ms){
-        const diff=Date.now()-ms;
-        if(diff<0){future=true;const tm=Math.ceil(-diff/60000),th=Math.floor(tm/60);dur=(th>0?th+'시간'+(tm%60?' '+(tm%60)+'분':''):tm+'분')+' 후 발효';}
-        else{const h=Math.floor(diff/3600000),mi=Math.floor((diff%3600000)/60000);dur=h>0?h+'시간'+(mi>0?' '+mi+'분':'')+'째 발효 중':mi+'분째 발효 중';}
-      }
+      if(!ms)return {txt:'',future:false};
+      const diff=Date.now()-ms;
+      if(diff<0){const tm=Math.ceil(-diff/60000),th=Math.floor(tm/60);return {txt:(th>0?th+'시간'+(tm%60?' '+(tm%60)+'분':''):tm+'분')+' 후 발효',future:true};}
+      const h=Math.floor(diff/3600000),mi=Math.floor((diff%3600000)/60000);
+      return {txt:h>0?h+'시간'+(mi>0?' '+mi+'분':'')+'째 발효 중':mi+'분째 발효 중',future:false};
+    };
+    // 개별 특보 카드 (해제용 인덱스는 원본 배열 기준)
+    const _alertRow=(a)=>{
+      const ai=active.alerts.indexOf(a);
+      const d=_durOf(a);
       const when=a.issuedAt?String(a.issuedAt).slice(5,16):'';
-      const fc=a.announcedAt?String(a.announcedAt).slice(5,16):''; // 발표시각(TM_FC) — 발효와 다를 수 있음
+      const fc=a.announcedAt?String(a.announcedAt).slice(5,16):''; // 발표시각(TM_FC)
       const rg=(a.regions&&a.regions.length)?a.regions.join(' · '):'';
       const acol=ALERT_LEVEL_COLORS[a.stage]||'#4fa8d0';
       return `<div style="background:rgba(255,255,255,.03);border:1px solid ${acol}44;border-radius:10px;padding:8px 11px;margin-bottom:6px;">
         <div style="display:flex;align-items:center;gap:7px;flex-wrap:wrap;">
           <span style="font-size:9px;color:#6a94b0;flex-shrink:0;">${a.source==='auto'?'📡자동':'✋수동'}</span>
           <b style="font-size:13.5px;color:${acol};">${_esc(a.type)}${_stageShort(a.stage)}</b>
-          ${dur?`<span style="font-size:10.5px;color:${future?'#9ce0f0':'#f0c060'};font-weight:800;">⏱ ${dur}</span>`:''}
-          ${isAdminUser()?`<span onclick="removeAlertItem(${active.id},${ai})" style="cursor:pointer;color:#ff6b5b;margin-left:auto;font-weight:800;padding:0 4px;">×</span>`:''}
+          ${d.txt?`<span style="font-size:10.5px;color:${d.future?'#9ce0f0':'#f0c060'};font-weight:800;">⏱ ${d.txt}</span>`:''}
+          ${isAdminUser()&&ai>=0?`<span onclick="removeAlertItem(${active.id},${ai})" style="cursor:pointer;color:#ff6b5b;margin-left:auto;font-weight:800;padding:0 4px;">×</span>`:''}
         </div>
-        <div style="font-size:10.5px;color:#8fb4cc;margin-top:4px;line-height:1.5;">${(fc||when)?`🕐 ${fc?`발표 ${_esc(fc)}`:''}${fc&&when?' · ':''}${when?(future?_esc(when)+' 발효 예정':'발효 '+_esc(when)):''}`:''}${rg?`<br>📍 ${_esc(rg)}`:''}</div>
+        <div style="font-size:10.5px;color:#8fb4cc;margin-top:4px;line-height:1.5;">${(fc||when)?`🕐 ${fc?`발표 ${_esc(fc)}`:''}${fc&&when?' · ':''}${when?(d.future?_esc(when)+' 발효 예정':'발효 '+_esc(when)):''}`:''}${rg?`<br>📍 ${_esc(rg)}`:''}</div>
       </div>`;
-    }).join('');
+    };
+    // 등급별 묶음: Ⅲ단계 → 경보 → 주의보 → 예비특보 (급한 것 위로), 그 외 단계는 '기타'로 보존
+    const _grpDefs=[
+      {key:'Ⅲ단계',label:'🟣 Ⅲ단계',col:'#d7aefb'},
+      {key:'Ⅱ단계(경보)',label:'🔴 경보',col:'#ff6b5b'},
+      {key:'Ⅰ단계(주의보)',label:'🟠 주의보',col:'#ffa040'},
+      {key:'예비특보',label:'🟡 예비특보',col:'#f0d040'}
+    ];
+    const _known=new Set(_grpDefs.map(g=>g.key));
+    const _grpBlock=(label,col,items)=>{
+      if(!items.length)return '';
+      items=items.slice().sort((a,b)=>(a.issuedAtMs||0)-(b.issuedAtMs||0)); // 오래된 발효 위로
+      return `<div style="margin-bottom:9px;">
+        <div style="display:flex;align-items:center;gap:6px;margin:2px 0 5px;">
+          <span style="font-size:11px;font-weight:800;color:${col};">${label}</span>
+          <span style="font-size:9px;color:#5a7e98;">${items.length}건</span>
+          <span style="flex:1;height:1px;background:${col}33;"></span>
+        </div>
+        ${items.map(_alertRow).join('')}
+      </div>`;
+    };
+    const alertRows=active.alerts.length
+      ?(_grpDefs.map(g=>_grpBlock(g.label,g.col,active.alerts.filter(a=>a.stage===g.key))).join('')
+        +_grpBlock('⚪ 기타','#8aa0b4',active.alerts.filter(a=>!_known.has(a.stage))))
+      :'';
+    // 현재 최고등급이 몇 시간째 지속 중인지 (그 등급 특보 중 가장 이른 발효시각 기준) — 상단 요약용
+    let hiDurStr='';
+    {
+      const hiItems=active.alerts.filter(a=>a.stage===opLevel);
+      let earliest=0;hiItems.forEach(a=>{const m=a.issuedAtMs||_alertTimeMs(a.issuedAt)||0;if(m&&(!earliest||m<earliest))earliest=m;});
+      if(earliest){const diff=Date.now()-earliest;if(diff>=0){const h=Math.floor(diff/3600000),mi=Math.floor((diff%3600000)/60000);hiDurStr=(h>0?h+'시간 ':'')+mi+'분째 지속';}}
+    }
     // 히어로 배너 + 요약 stat + 상세
     activeHtml=`
       <div class="ao-hero" style="background:linear-gradient(135deg,${lvColor}26,${lvColor}0d);border:1.5px solid ${lvColor}55;">
@@ -1729,7 +1764,8 @@ function renderAlertView(){
           <div>
             <span class="ao-hero-live" style="color:${lvColor};"><span class="ao-pulse"></span>특보운영 중</span>
             <div class="ao-hero-lv" style="color:${lvColor};">${_esc(opLevel)}</div>
-            <div class="ao-hero-meta">🕐 ${_esc(active.startedAt||'')} 시작${elapsed?' · '+elapsed:''}</div>
+            ${hiDurStr?`<div class="ao-hero-meta">⏱ 현재 등급 <b style="color:${lvColor};">${hiDurStr}</b></div>`:''}
+            <div class="ao-hero-meta" style="opacity:.65;">🕐 ${_esc(active.startedAt||'')} 운영 시작${elapsed?' · 누적 '+elapsed:''}</div>
             ${mt?`<div class="ao-hero-meta">⏱️ 관측 보고 주기: ${itv>=60?(itv/60)+'시간':itv+'분'}마다</div>`:''}
           </div>
           ${isAdminUser()?`<button onclick="endAlertOps(${active.id})" class="ao-end-btn">운영 종료</button>`:''}
