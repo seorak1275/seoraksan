@@ -1,1 +1,1 @@
-{"version":"2026.07.15.139","url":"https://seorak1275.github.io/seoraksan/bundle.zip","notes":"지도 확대/축소 흰화면 근본개선(재적용) — 타일 CORS 수신으로 opaque 패딩 낭비 제거해 대량 캐시(방금 본 타일 재다운로드 방지) + 캐시상한 확대(임시5000·미리받기14000). ※sw.js는 루트가 원본이라 이번엔 루트 수정"}
+{"version":"2026.07.15.140","url":"https://seorak1275.github.io/seoraksan/bundle.zip","notes":"암벽 이용관리 — 뒤로가기로 패널 닫히게(다른 홈메뉴처럼) + 당일명단에 동반자 전화번호 표시(기존엔 신청자만 나옴), 신청자 나이도 표시(생년월일 파싱 추가)"}

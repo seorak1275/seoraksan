@@ -1382,7 +1382,8 @@ function _climbParseWB(wb){
   const col=n=>hdr.indexOf(n);
   // 신청자 블록 인덱스
   const iApply=col('신청일자'),iUse=col('이용일자'),iStat=col('상태'),iTot=col('총원'),iCourse=col('신청코스'),
-        iName=col('신청자'),iPhone=hdr.indexOf('연락처'),iGender=hdr.indexOf('성별'),iExp=hdr.indexOf('등반경력'),iComp=col('동반자 수');
+        iName=col('신청자'),iPhone=hdr.indexOf('연락처'),iGender=hdr.indexOf('성별'),iExp=hdr.indexOf('등반경력'),iComp=col('동반자 수'),
+        iDob=hdr.indexOf('생년월일'); // 신청자 생년월일(첫 번째 '생년월일' 열 — 동반자 것은 각 블록 offset으로 별도 취득)
   // 비고번호(사고표시): 있으면 사용
   const iBigo=hdr.indexOf('비고번호');
   // 동반자 블록: '동반자N 이름'부터 5칸(이름·생년월일·연락처·성별·등반경력)
@@ -1404,7 +1405,7 @@ function _climbParseWB(wb){
       applyDate:_climbDate(row[iApply]),useDate:use,status:String(row[iStat]==null?'':row[iStat]).trim(),
       total:parseInt(row[iTot])||((comps.length+1)),course:String(row[iCourse]==null?'':row[iCourse]).trim(),
       district:_climbDistrictOf(row[iCourse]),
-      applicant:{name,phone:iPhone>=0?String(row[iPhone]==null?'':row[iPhone]).trim():'',gender:iGender>=0?String(row[iGender]==null?'':row[iGender]).trim():'',exp:iExp>=0?String(row[iExp]==null?'':row[iExp]).trim():''},
+      applicant:{name,phone:iPhone>=0?String(row[iPhone]==null?'':row[iPhone]).trim():'',gender:iGender>=0?String(row[iGender]==null?'':row[iGender]).trim():'',exp:iExp>=0?String(row[iExp]==null?'':row[iExp]).trim():'',dob:iDob>=0?String(row[iDob]==null?'':row[iDob]).trim():''},
       companions:comps,
       accident:iBigo>=0?(String(row[iBigo]).trim()==='2'):false,
       bigo:iBigo>=0?String(row[iBigo]==null?'':row[iBigo]).trim():''
@@ -1630,9 +1631,9 @@ function _renderClimbRoster(all){
   const byDist={};day.forEach(r=>{(byDist[r.district||'기타']=byDist[r.district||'기타']||[]).push(r);});
   const callBtn=(ph,nm)=>ph?`<a href="tel:${_esc(String(ph).replace(/[^0-9+]/g,''))}" onclick="event.stopPropagation();" style="color:#7dd3fa;text-decoration:none;font-size:10.5px;white-space:nowrap;">📞 ${_esc(ph)}</a>`:'';
   const person=(nm,gender,age,exp,ph,lead)=>`<div style="display:flex;align-items:baseline;gap:6px;flex-wrap:wrap;padding:2px 0;">
-      <span style="font-size:12.5px;font-weight:${lead?'800':'600'};color:${lead?'#eaf2fa':'#cfe2f2'};">${lead?'👤 ':''}${_esc(nm||'-')}</span>
+      <span style="font-size:12.5px;font-weight:${lead?'800':'600'};color:${lead?'#eaf2fa':'#cfe2f2'};">${lead?'👤 ':'└ '}${_esc(nm||'-')}</span>
       <span style="font-size:10px;color:#8fb4cc;">${[gender,age!=null?age+'세':'',exp?'경력'+_esc(exp):''].filter(Boolean).join(' · ')}</span>
-      ${lead?callBtn(ph):''}</div>`;
+      ${callBtn(ph)}</div>`;
   let html=`<div style="display:flex;align-items:center;gap:6px;margin-bottom:10px;">
       <button onclick="climbRosterStep(-1)" ${idx<=0?'disabled':''} style="background:#0e2436;border:1px solid rgba(79,168,208,.25);color:#7fc4e0;border-radius:9px;padding:8px 11px;font-size:14px;font-weight:800;cursor:pointer;${idx<=0?'opacity:.35;':''}">◀</button>
       <div style="flex:1;text-align:center;">
@@ -1659,7 +1660,7 @@ function _renderClimbRoster(all){
         const a=r.applicant||{};const accMark=r.accident?' <span style="color:#ff6b5b;font-weight:800;">🚨사고</span>':'';
         html+=`<div style="border-top:1px solid rgba(255,255,255,.05);padding:6px 0 4px;">
           <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:2px;"><span style="font-size:9.5px;color:#6a94b0;background:rgba(79,168,208,.1);border-radius:5px;padding:1px 6px;">${_esc(r.status||'-')} · ${r.total||'-'}명</span>${accMark}</div>
-          ${person(a.name,a.gender,null,a.exp,a.phone,true)}
+          ${person(a.name,a.gender,_climbAge(a.dob),a.exp,a.phone,true)}
           ${(r.companions||[]).map(c=>person(c.name,c.gender,_climbAge(c.dob),c.exp,c.phone,false)).join('')}
         </div>`;
       });
@@ -3352,7 +3353,7 @@ function sosToRescue(id){
 // 앱 자체 업데이트 (OTA · Capgo 자체호스팅) — APK 전용. 웹/PWA는 서비스워커가 자동 갱신.
 // 번들(www)의 새 버전을 ota.json으로 알리면, 설치된 앱이 받아서 그 자리에서 교체(재빌드 불필요).
 // ══════════════════════════════════════════
-const OTA_VER='2026.07.15.139';                         // ← 현재 번들 버전 (릴리스마다 올림 · build-ota.sh가 ota.json에 반영)
+const OTA_VER='2026.07.15.140';                         // ← 현재 번들 버전 (릴리스마다 올림 · build-ota.sh가 ota.json에 반영)
 const OTA_MANIFEST='https://seorak1275.github.io/seoraksan/ota.json';
 let _otaInfo=null;
 function _otaPlugin(){try{return (window.Capacitor&&window.Capacitor.Plugins&&window.Capacitor.Plugins.CapacitorUpdater)||null;}catch(e){return null;}}
@@ -3513,6 +3514,9 @@ window.onload=function(){
     // 관리자 로그인 오버레이가 떠 있으면 그것부터 닫기 (전체 화면을 덮고 있어 안 닫으면 먹통처럼 보임)
     var adminOv=document.getElementById('adminLoginOverlay');
     if(adminOv&&adminOv.style.display==='flex'){adminOv.style.display='none';history.pushState({view:'home'},'','');return;}
+    // 암벽 이용관리 패널(전체화면) → 뒤로가기로 닫기 (다른 홈 메뉴처럼 동작)
+    var cPanel=document.getElementById('climbPanel');
+    if(cPanel){cPanel.remove();history.pushState({view:'home'},'','');return;}
     // 사진 전체보기 닫기
     var lb=document.getElementById('photoLightbox');
     if(lb&&lb.style.display==='flex'){lb.style.display='none';history.pushState({view:'home'},'','');return;}
