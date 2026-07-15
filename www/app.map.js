@@ -924,6 +924,7 @@ function viewOnMap(lat,lng){
   },200);
 }
 function openApp(mode){
+  try{_applyAppLock();}catch(e){} // 진입 시 잠금 재평가(관리자 로그인·승인 직후 즉시 해제)
   if(isExternal()&&['inspect','stats','admin','settings','alert'].includes(mode)){toast('⚠️ 외부기관 계정은 해당 메뉴에 접근할 수 없습니다');return;}
   // 작성 폼에서 다른 메뉴로 이동: 미저장 입력은 임시저장만 남기고 작성모드 해제
   if(window._reportMode==='form'){try{_saveDraftNow();}catch(e){}window._reportMode='';clearInterval(_draftAutoTimer);}
@@ -1871,6 +1872,8 @@ function clearTileCache(){
 }
 let _tpAbort=false;
 function preloadParkTiles(){
+  // 오프라인 대비: 지도 타일과 함께 암벽 당일명단도 미리 받아둔다(무통신 산악지역 현장 확인용)
+  try{if(typeof _climbLoadAll==='function')_climbLoadAll().catch(function(){});}catch(e){}
   if(!('caches' in window)||!('serviceWorker' in navigator)){toast('⚠️ 이 브라우저는 오프라인 저장을 지원하지 않습니다');return;}
   if(!navigator.serviceWorker.controller){toast('⚠️ 저장 준비가 아직 안 됐습니다 — 앱을 완전히 닫았다 다시 열어 재시도하세요');return;}
   if(!(window.kakao&&kakao.maps&&window._KR)){toast('⚠️ 지도가 아직 로드되지 않았습니다 — 잠시 후 재시도');return;}

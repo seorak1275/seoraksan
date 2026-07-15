@@ -159,6 +159,7 @@ function _enforceAccessGate(){
       _aclSelfApprove(u.kakaoId||_authKakaoId);
       gate.style.display='none';
       try{closeM('modalUser');}catch(e){}
+      try{_applyAppLock();}catch(e){} // 승인 완료 → 앱 잠금 해제
       return false;
     }
     // 수동 승인 대기 화면을 최상단에 표시(로그인·프로필 모달 닫고 게이트만 남김)
@@ -167,11 +168,13 @@ function _enforceAccessGate(){
     var idEl=document.getElementById('approvalGateId');
     if(idEl)idEl.innerHTML='이름: <b style="color:#cfe2f2;">'+_esc(u.realName||u.name||'-')+'</b> · '+_esc(u.dept||'')+'<br>내 카카오 ID: <b style="color:#cfe2f2;">'+(u.kakaoId||_authKakaoId||'?')+'</b><br><span style="color:#5a8aaa;">이 ID를 관리자에게 전달하면 승인됩니다</span>';
     gate.style.display='flex';
+    try{_applyAppLock();}catch(e){} // 승인 대기 → 앱 잠금 유지
     _startApprovalPoll(); // 승인되면 재로그인 없이 자동 입장
     return true; // 차단됨
   }
   _stopApprovalPoll();
   gate.style.display='none';
+  try{_applyAppLock();}catch(e){} // 게이트 통과 → 잠금 재평가
   return false;
 }
 // "승인 확인" 버튼 — 토큰 재발급 후 멤버면 게이트 해제
@@ -431,6 +434,31 @@ function updateUserUI(){
   // 외부기관 모드: 제한된 메뉴 표시
   const ext=authType==='external';
   document.body.classList.toggle('ext-mode',ext);
+  try{_applyAppLock();}catch(e){}
+}
+
+// ── 앱 하드 잠금(2차 방어선) ──
+// 완전 인증(외부기관 · 관리자 · 카카오+프로필+멤버) 이전에는 #app 자체를 조작 불가로 만든다.
+// 로그인·승인 오버레이가 화면을 덮지만, 그 오버레이가 페이드 중이거나(투명 클릭통과)
+// 어떤 이유로 잠깐 사라져도 홈이 조작·열람되지 않도록 하는 근본 차단.
+function _isAppUnlocked(){
+  try{
+    if(typeof isExternal==='function'&&isExternal())return true;         // 외부기관
+    if(typeof isAdminUser==='function'&&isAdminUser())return true;        // 관리자·개발자
+    var at=(typeof _resolveAuthType==='function')?_resolveAuthType():DB.g('authType');
+    var u=DB.g('currentUser')||{};
+    var profileDone=!!(u.dept&&u.rank&&(u.realName||u.name));
+    if(at==='kakao'&&profileDone&&_isMember())return true;               // 카카오+프로필완료+승인멤버
+  }catch(e){return true;} // 판정이 깨지면 정상 사용자 잠김 방지 위해 개방(1차 방어는 오버레이)
+  return false;
+}
+function _applyAppLock(){
+  try{
+    var app=document.getElementById('app');if(!app)return;
+    var locked=!_isAppUnlocked();
+    app.style.pointerEvents=locked?'none':'';
+    app.setAttribute('aria-hidden',locked?'true':'false');
+  }catch(e){}
 }
 
 // ══════════════════════════════════════════

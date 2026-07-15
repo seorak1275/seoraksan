@@ -33,8 +33,8 @@ function renderSettings(){
         <button onclick="_otaCheck(true)" style="width:100%;padding:11px;border-radius:8px;border:1px solid rgba(79,168,208,.4);background:rgba(79,168,208,.12);color:#4fa8d0;font-size:13px;font-weight:700;cursor:pointer;">🔄 업데이트 확인 / 적용</button>
       </div>
       <div class="scard" style="margin-bottom:8px;">
-        <div class="stitle">🗺️ 오프라인 지도</div>
-        <div style="font-size:11px;color:#7a9cb8;line-height:1.6;margin-bottom:8px;">한 번 본 지도는 자동 저장되어 다음부터 통신 없이 즉시 표시됩니다. 아래 버튼으로 <b style="color:#cfe2f2;">설악산 인근 전체를 미리 저장</b>해두면 통신이 느리거나 끊기는 산악지역에서도 지도가 바로 뜹니다. (Wi-Fi에서 실행 권장 · 1~2분)<br><span style="color:#5a7e98;">※ 미리받기는 설악산 인근만 저장합니다. 다른 지역 열람분은 최근 1,500장(약 25MB)까지만 임시 보관되고 오래된 것부터 자동 삭제되며, 미리받은 설악산 지도는 이에 밀려나지 않습니다.</span></div>
+        <div class="stitle">📴 오프라인 대비 (무통신 산악지역)</div>
+        <div style="font-size:11px;color:#7a9cb8;line-height:1.6;margin-bottom:8px;">통신이 끊기는 산악지역 진입에 대비해 미리 받아두세요. 아래 버튼으로 <b style="color:#cfe2f2;">설악산 인근 지도 전체를 미리 저장</b>하면 무통신 구역에서도 지도가 바로 뜹니다. (Wi-Fi에서 실행 권장 · 1~2분)<br><span style="color:#5a7e98;">※ 구조·시설물·특보 등 앱 데이터와 최근 조회한 암벽 명단은 접속 중 자동으로 기기에 저장되어, 통신이 끊겨도 마지막 상태를 볼 수 있습니다. 미리받기는 설악산 인근만 저장하며 다른 지역 열람분은 최근 1,500장(약 25MB)까지만 임시 보관됩니다.</span></div>
         <div id="tileCacheInfo" style="font-size:10px;color:#3a6a8a;margin-bottom:8px;">저장 현황 확인 중...</div>
         <button onclick="preloadParkTiles()" style="width:100%;padding:11px;border-radius:8px;border:1px solid rgba(94,207,143,.35);background:rgba(94,207,143,.1);color:#5fcf8f;font-size:13px;font-weight:700;cursor:pointer;margin-bottom:6px;">⬇️ 설악산 인근 지도 미리받기</button>
         <button onclick="clearTileCache()" style="width:100%;padding:8px;border-radius:8px;border:1px solid rgba(255,255,255,.1);background:none;color:#5a7e98;font-size:11px;font-weight:600;cursor:pointer;">🗑️ 지도 캐시 비우기</button>
@@ -1384,9 +1384,16 @@ async function _climbSave(recs){
   return dates;
 }
 // 업로드 핸들러 (파일 input onchange)
+// 파일 선택(input) 또는 끌어놓기(File) 양쪽에서 호출 — 실제 처리는 _climbProcessFile
 async function climbUpload(inp){
-  if(!inp.files||!inp.files[0])return;
+  if(!inp||!inp.files||!inp.files[0])return;
   const file=inp.files[0];inp.value='';
+  await _climbProcessFile(file);
+}
+async function _climbProcessFile(file){
+  if(!file)return;
+  if(!_canClimbManage()){toast('⚠️ 업로드 권한이 없습니다');return;}
+  if(!/\.(xlsx|xlsm|xls)$/i.test(file.name||'')){toast('⚠️ 엑셀 파일(.xlsx/.xlsm)만 올릴 수 있습니다');return;}
   if(typeof _busy==='function')_busy('📄 엑셀 분석 중…');
   try{
     const XLSX=await _loadXlsx();
@@ -1398,20 +1405,73 @@ async function climbUpload(inp){
     if(typeof _busyDone==='function')_busyDone();
     toast('✅ '+recs.length+'건 저장 · '+dates.length+'일치 ('+dates[0]+'~'+dates[dates.length-1]+')',4000);
     try{renderHomeActive();}catch(e){}
-    _climbCache=null;openClimb();
+    _climbStaged=null;_climbCache=null;openClimb();
   }catch(e){
     if(typeof _busyDone==='function')_busyDone();
     toast('⚠️ 업로드 실패: '+((e&&e.message)||e)+(navigator.onLine?'':' (오프라인)'),4500);
   }
 }
+// ── 끌어놓기 업로드: 파일을 패널에 떨어뜨리면 스테이징 → [업로드] 버튼으로 확정 ──
+var _climbStaged=null; // 끌어다 놓은 대기 파일
+function _climbStageFile(file){
+  if(!file)return;
+  if(!_canClimbManage()){toast('⚠️ 업로드 권한이 없습니다');return;}
+  if(!/\.(xlsx|xlsm|xls)$/i.test(file.name||'')){toast('⚠️ 엑셀 파일(.xlsx/.xlsm)만 올릴 수 있습니다');return;}
+  _climbStaged=file;_renderClimbStageBar();
+}
+function _climbClearStaged(){_climbStaged=null;_renderClimbStageBar();}
+function _climbUploadStaged(){const f=_climbStaged;if(!f){toast('먼저 엑셀 파일을 끌어다 놓으세요');return;}_climbProcessFile(f);}
+function _renderClimbStageBar(){
+  const bar=document.getElementById('climbStageBar');if(!bar)return;
+  if(!_climbStaged){bar.style.display='none';bar.innerHTML='';return;}
+  const kb=Math.max(1,Math.round((_climbStaged.size||0)/1024));
+  bar.style.display='flex';
+  bar.innerHTML=`<span style="font-size:16px;">📄</span>
+    <div style="flex:1;min-width:0;">
+      <div style="font-size:12px;font-weight:700;color:#eaf2fa;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${_esc(_climbStaged.name||'파일')}</div>
+      <div style="font-size:10px;color:#7a9cb8;">${kb.toLocaleString()} KB · 준비됨</div>
+    </div>
+    <button onclick="_climbUploadStaged()" style="background:rgba(94,207,143,.16);color:#5fcf8f;border:1px solid rgba(94,207,143,.4);border-radius:8px;padding:8px 14px;font-size:12.5px;font-weight:800;cursor:pointer;white-space:nowrap;">⬆️ 업로드</button>
+    <button onclick="_climbClearStaged()" style="background:none;border:none;color:rgba(255,255,255,.45);font-size:20px;cursor:pointer;line-height:1;padding:0 4px;">×</button>`;
+}
+// climbPanel에 끌어놓기 리스너 부착(관리자만) — 드래그 중 하이라이트, 드롭 시 스테이징
+function _climbBindDnD(ov){
+  if(!ov||!_canClimbManage())return;
+  const hl=document.getElementById('climbDropHint');
+  let depth=0;
+  const show=on=>{if(hl)hl.style.opacity=on?'1':'0';if(hl)hl.style.pointerEvents='none';};
+  ov.addEventListener('dragenter',e=>{e.preventDefault();depth++;show(true);});
+  ov.addEventListener('dragover',e=>{e.preventDefault();e.dataTransfer.dropEffect='copy';});
+  ov.addEventListener('dragleave',e=>{depth=Math.max(0,depth-1);if(depth===0)show(false);});
+  ov.addEventListener('drop',e=>{
+    e.preventDefault();depth=0;show(false);
+    const f=e.dataTransfer&&e.dataTransfer.files&&e.dataTransfer.files[0];
+    if(f)_climbStageFile(f);
+  });
+}
 // 저장된 전체 이용내역 로드 (권한자 화면 열 때만)
+// climbUsage는 실시간 구독 대상이 아니라(개인정보·용량), 온라인일 때 받아 localStorage에 캐시해둔다.
+// 암벽 코스는 통신이 끊기는 산악지역 → 현장에서 당일 명단을 봐야 하므로 오프라인 폴백이 핵심.
 let _climbCache=null;
 async function _climbLoadAll(){
   if(_climbCache)return _climbCache;
-  if(!_fdb)return [];
-  const snap=await _fdb.collection('climbUsage').get();
-  const all=[];snap.forEach(d=>{const v=d.data()||{};(v.records||[]).forEach(r=>all.push(r));});
-  _climbCache=all;return all;
+  if(!_fdb){return _climbReadOffline();}
+  try{
+    const snap=await _fdb.collection('climbUsage').get();
+    const all=[];snap.forEach(d=>{const v=d.data()||{};(v.records||[]).forEach(r=>all.push(r));});
+    _climbCache=all;_climbWriteOffline(all);return all;
+  }catch(e){
+    const off=_climbReadOffline(); // 오프라인·통신실패 → 마지막으로 받아둔 명단으로 폴백
+    if(off.length){_climbCache=off;toast('📴 오프라인 — 마지막 저장 명단 표시',2500);return off;}
+    throw e;
+  }
+}
+// 오프라인 대비 명단 캐시 (localStorage) — 용량 초과 시 조용히 실패(온라인 재조회로 복구)
+function _climbWriteOffline(all){
+  try{localStorage.setItem('_climbOffline',JSON.stringify({at:Date.now(),recs:all||[]}));}catch(e){}
+}
+function _climbReadOffline(){
+  try{const v=JSON.parse(localStorage.getItem('_climbOffline')||'null');return (v&&Array.isArray(v.recs))?v.recs:[];}catch(e){return [];}
 }
 // 시즌 내 데이터 없는 이용일자 목록 (업로드 필요일)
 //  · 첫 업로드 전: 어제~내일만(초기 과도 알림 방지)  · 업로드 후: 가장 이른 업로드일 ~ 내일 중 빈 날
@@ -1458,11 +1518,19 @@ function openClimb(){
   const canMng=_canClimbManage();
   ov.innerHTML=`<div style="display:flex;align-items:center;gap:10px;padding:calc(12px + env(safe-area-inset-top)) 14px 12px;border-bottom:1px solid rgba(79,168,208,.15);flex-shrink:0;">
       <span style="font-size:16px;font-weight:800;color:#eaf2fa;">🧗 암벽 이용관리</span>
-      ${canMng?`<label style="margin-left:auto;background:rgba(94,207,143,.14);color:#5fcf8f;border:1px solid rgba(94,207,143,.35);border-radius:9px;padding:7px 12px;font-size:12px;font-weight:800;cursor:pointer;white-space:nowrap;">⬆️ 업로드<input type="file" accept=".xlsx,.xlsm,.xls" onchange="climbUpload(this)" style="display:none;"></label>`:'<span style="margin-left:auto;"></span>'}
+      ${canMng?`<label title="파일 선택 또는 화면으로 끌어다 놓기" style="margin-left:auto;background:rgba(94,207,143,.14);color:#5fcf8f;border:1px solid rgba(94,207,143,.35);border-radius:9px;padding:7px 12px;font-size:12px;font-weight:800;cursor:pointer;white-space:nowrap;">⬆️ 업로드<input type="file" accept=".xlsx,.xlsm,.xls" onchange="climbUpload(this)" style="display:none;"></label>`:'<span style="margin-left:auto;"></span>'}
       <button onclick="var e=document.getElementById('climbPanel');if(e)e.remove();" style="background:none;border:none;color:rgba(255,255,255,.5);font-size:24px;cursor:pointer;line-height:1;">×</button>
     </div>
-    <div id="climbBody" style="flex:1;overflow-y:auto;padding:14px;"><div style="text-align:center;color:#5a7e98;font-size:13px;padding:40px 0;">불러오는 중…</div></div>`;
+    ${canMng?`<div id="climbStageBar" style="display:none;align-items:center;gap:10px;margin:10px 14px 0;padding:10px 12px;background:rgba(94,207,143,.08);border:1px solid rgba(94,207,143,.28);border-radius:11px;flex-shrink:0;"></div>`:''}
+    <div id="climbBody" style="flex:1;overflow-y:auto;padding:14px;"><div style="text-align:center;color:#5a7e98;font-size:13px;padding:40px 0;">불러오는 중…</div></div>
+    ${canMng?`<div id="climbDropHint" style="position:absolute;inset:0;background:rgba(6,13,26,.9);display:flex;flex-direction:column;align-items:center;justify-content:center;opacity:0;transition:opacity .15s;pointer-events:none;z-index:5;border:3px dashed rgba(94,207,143,.6);border-radius:16px;">
+        <div style="font-size:52px;margin-bottom:10px;">📥</div>
+        <div style="font-size:16px;font-weight:800;color:#5fcf8f;">여기에 엑셀 파일을 놓으세요</div>
+        <div style="font-size:12px;color:#7a9cb8;margin-top:6px;">놓은 뒤 업로드 버튼을 누르면 저장됩니다</div>
+      </div>`:''}`;
   document.body.appendChild(ov);
+  try{_climbBindDnD(ov);}catch(e){}
+  try{_renderClimbStageBar();}catch(e){}
   _climbLoadAll().then(all=>{
     const dates=Array.from(new Set(all.map(r=>r.useDate))).sort();
     const today=_ymd(new Date());
@@ -3213,7 +3281,7 @@ function sosToRescue(id){
 // 앱 자체 업데이트 (OTA · Capgo 자체호스팅) — APK 전용. 웹/PWA는 서비스워커가 자동 갱신.
 // 번들(www)의 새 버전을 ota.json으로 알리면, 설치된 앱이 받아서 그 자리에서 교체(재빌드 불필요).
 // ══════════════════════════════════════════
-const OTA_VER='2026.07.15.130';                         // ← 현재 번들 버전 (릴리스마다 올림 · build-ota.sh가 ota.json에 반영)
+const OTA_VER='2026.07.15.131';                         // ← 현재 번들 버전 (릴리스마다 올림 · build-ota.sh가 ota.json에 반영)
 const OTA_MANIFEST='https://seorak1275.github.io/seoraksan/ota.json';
 let _otaInfo=null;
 function _otaPlugin(){try{return (window.Capacitor&&window.Capacitor.Plugins&&window.Capacitor.Plugins.CapacitorUpdater)||null;}catch(e){return null;}}
@@ -3302,39 +3370,40 @@ window.onload=function(){
         var ls=document.getElementById('loginScreen');
         if(!ls)return;
         window._loginVisible=true; // 뒤로가기 판정용 (style.display 의존 제거)
-        ls.style.opacity='0';
+        // 즉시 완전히 덮는다 — 예전엔 opacity 0 + pointerEvents none 상태로 잠깐 두었다가
+        // rAF 뒤에 켜서, 그 사이 홈이 비쳐 보이고 클릭이 통과되는 버그가 있었다. 페이드 없이 바로 표시.
+        ls.style.transition='';
         ls.style.display='flex';
-        ls.style.pointerEvents='none';
-        requestAnimationFrame(function(){requestAnimationFrame(function(){
-          ls.style.transition='opacity .3s';ls.style.opacity='1';ls.style.pointerEvents='auto';
-        });});
+        ls.style.opacity='1';
+        ls.style.pointerEvents='auto';
+        try{_applyAppLock();}catch(e){} // 2차 방어선: #app 자체를 조작 불가로
       }
       window.hideLoginScreen=function hideLoginScreen(){
         var ls=document.getElementById('loginScreen');
         window._loginVisible=false; // 로그인 완료 → 즉시 미표시로 간주 (페이드아웃 중 오판 방지)
-        if(!ls||ls.style.display==='none')return;
+        if(!ls||ls.style.display==='none'){try{_applyAppLock();}catch(e){}return;}
         ls.style.pointerEvents='none';
         ls.style.transition='opacity .3s';ls.style.opacity='0';
         if(_hlTimer)clearTimeout(_hlTimer);
         _hlTimer=setTimeout(function(){_hlTimer=null;ls.style.display='none';ls.style.transition='';},350);
+        try{_applyAppLock();}catch(e){} // 로그인만 됐고 프로필·승인 미완이면 앱은 계속 잠긴 채로
       }
       function checkAuth(){
         updateUserUI();
         var authType=(typeof DB!=='undefined'&&typeof _resolveAuthType==='function')?_resolveAuthType():'';
         if(!authType){showLoginScreen();}
         else{_checkAndRequireProfile();}
+        try{_applyAppLock();}catch(e){}
       }
+      // 먼저 인증 판정을 끝내(필요 시 loginScreen[z10000]이 loadingScreen[z9999] 위로 즉시 덮음)
+      // 그 다음 로딩화면을 걷어낸다 → 로딩 제거~로그인 표시 사이에 홈이 노출되던 창을 없앰.
       setTimeout(function(){
         var ls=document.getElementById('loadingScreen');
+        checkAuth();
         if(ls){
           ls.style.pointerEvents='none';
           ls.style.transition='opacity .35s';ls.style.opacity='0';
-          setTimeout(function(){
-            if(ls.parentNode)ls.parentNode.removeChild(ls);
-            checkAuth();
-          },350);
-        } else {
-          checkAuth();
+          setTimeout(function(){ if(ls.parentNode)ls.parentNode.removeChild(ls); },350);
         }
       },120);
     };
