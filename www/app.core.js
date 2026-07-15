@@ -713,6 +713,14 @@ function _ensureSignSeed(){
   DB.s('facilities',_facs.concat(_seeded));
 }
 function initDB(){
+  // ⚠️ 인증(익명/커스텀 토큰) 준비 전에는 시드·마이그레이션 쓰기를 하지 않는다.
+  // Firestore onSnapshot은 로컬 캐시에서 인증 완료 전에도 먼저 발화 → initDB가 인증 전에 돌면
+  // 없는 문서의 기본값 쓰기가 실패해 '동기화 대기' 큐에 쌓이고, 문서가 안 생겨 매 접속마다 재시드됐다.
+  // 인증 완료 후 실행하면 쓰기가 곧바로 성공 → 큐·배지 없음, 문서 생성되어 재시드도 안 됨.
+  if(_fdb&&!_authReady){
+    window._initDBWaitN=(window._initDBWaitN||0)+1;
+    if(window._initDBWaitN<=30){setTimeout(initDB,300);return;} // 최대 ~9초 대기, 그 뒤엔 진행(오프라인 등)
+  }
   // 더미 직원 데이터 정리
   const _existStaff=DB.g('staff');
   if(!_existStaff||(_existStaff.length&&['손경완','김택찬','염원종','김종식','나진영','양지석','윤태종'].some(n=>_existStaff.some(s=>s.name===n)))){
@@ -773,6 +781,8 @@ function initDB(){
   if(!DB.g('notiSetting'))   DB.s('notiSetting',{});
   _ensureNotiDefaults();
   if(!DB.g('currentUser'))   DB.s('currentUser',{name:'',dept:'',rank:'',kakao:null});
+  // 인증 대기로 지연 실행됐다면 시드 반영 위해 화면 갱신 (첫 호출이면 부팅 흐름이 이어서 갱신하므로 무해)
+  if(window._initDBWaitN){try{updateSummary();}catch(e){}try{updateUserUI();}catch(e){}}
 }
 
 // ══════════════════════════════════════════
