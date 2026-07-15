@@ -926,6 +926,8 @@ function viewOnMap(lat,lng){
 }
 function openApp(mode){
   try{_applyAppLock();}catch(e){} // 진입 시 잠금 재평가(관리자 로그인·승인 직후 즉시 해제)
+  // 지도 생성은 부팅 시 지연됨 → 지도 탭 진입 시 아직 없으면 지금 생성(initMaps는 중복 생성 방지 가드 있음)
+  if((mode==='rescue'||mode==='inspect')&&window._KR){try{if(typeof mapI==='undefined'||!mapI||!mapR)initMaps();}catch(e){}}
   if(isExternal()&&['inspect','stats','admin','settings','alert'].includes(mode)){toast('⚠️ 외부기관 계정은 해당 메뉴에 접근할 수 없습니다');return;}
   // 작성 폼에서 다른 메뉴로 이동: 미저장 입력은 임시저장만 남기고 작성모드 해제
   if(window._reportMode==='form'){try{_saveDraftNow();}catch(e){}window._reportMode='';clearInterval(_draftAutoTimer);}

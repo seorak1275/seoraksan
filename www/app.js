@@ -3340,7 +3340,7 @@ function sosToRescue(id){
 // 앱 자체 업데이트 (OTA · Capgo 자체호스팅) — APK 전용. 웹/PWA는 서비스워커가 자동 갱신.
 // 번들(www)의 새 버전을 ota.json으로 알리면, 설치된 앱이 받아서 그 자리에서 교체(재빌드 불필요).
 // ══════════════════════════════════════════
-const OTA_VER='2026.07.15.135';                         // ← 현재 번들 버전 (릴리스마다 올림 · build-ota.sh가 ota.json에 반영)
+const OTA_VER='2026.07.15.136';                         // ← 현재 번들 버전 (릴리스마다 올림 · build-ota.sh가 ota.json에 반영)
 const OTA_MANIFEST='https://seorak1275.github.io/seoraksan/ota.json';
 let _otaInfo=null;
 function _otaPlugin(){try{return (window.Capacitor&&window.Capacitor.Plugins&&window.Capacitor.Plugins.CapacitorUpdater)||null;}catch(e){return null;}}
@@ -3642,21 +3642,24 @@ window.onload=function(){
 
   initFirebase(function(){
     initDB();
-    if(window._KR){ initMaps(); } else { window._KCB=function(){initMaps();}; }
-    updateSummary();updateUserUI();fetchWeather();
-    try{setTimeout(_autoApplyCoordFix,3500);}catch(e){} // 표지판 좌표 자동 최신화(1회)
-    try{if((DB.g('alertOps')||[]).some(o=>!o.closedAt))_startAlertReminder();}catch(e){}
-    try{_startKmaWarnPoll();}catch(e){}
+    updateSummary();updateUserUI();
     const d=new Date();const days=['일','월','화','수','목','금','토'];
     document.getElementById('homeDate').textContent=d.getFullYear()+'년 '+(d.getMonth()+1)+'월 '+d.getDate()+'일 ('+days[d.getDay()]+')';
-    try{_initSosWatch();}catch(e){} // 🆘 조난·사고자 위치 실시간 구독 (early return 전에 보장)
-    if(window._kakaoAuthCode){var _kc=window._kakaoAuthCode;window._kakaoAuthCode=null;_handleKakaoCode(_kc);return;}
-    // Firebase 준비 후 FCM 토큰 갱신 (권한·SW·VAPID 모두 준비된 경우만)
-    if('Notification' in window&&Notification.permission==='granted') _initFCM();
-    _flushFcmToken(); // 네이티브 토큰이 Firebase 준비 전 등록됐으면 지금 저장
-    // 모니터 거치용: 주소에 ?board=1 붙이면 켜자마자 상황판
-    if(/[?&]board=1/.test(location.search))setTimeout(openBoard,300);
-    if(window._hideLoading) window._hideLoading();
+    // ── 로그인/홈 화면을 먼저 띄운다(체감 속도 개선) ──
+    // 지도 2개 생성·날씨·특보폴링 등 무거운 초기화가 로딩화면을 붙잡던 것을 첫 페인트 뒤로 미룬다.
+    if(window._kakaoAuthCode){var _kc=window._kakaoAuthCode;window._kakaoAuthCode=null;_handleKakaoCode(_kc);} // 토큰 교환이 로딩화면 해제 담당
+    else if(window._hideLoading) window._hideLoading();
+    setTimeout(function(){
+      try{if(window._KR){initMaps();}else{window._KCB=function(){initMaps();};}}catch(e){}
+      try{fetchWeather();}catch(e){}
+      try{setTimeout(_autoApplyCoordFix,3500);}catch(e){} // 표지판 좌표 자동 최신화(1회)
+      try{if((DB.g('alertOps')||[]).some(o=>!o.closedAt))_startAlertReminder();}catch(e){}
+      try{_startKmaWarnPoll();}catch(e){}
+      try{_initSosWatch();}catch(e){} // 🆘 조난·사고자 위치 실시간 구독
+      try{if('Notification' in window&&Notification.permission==='granted') _initFCM();}catch(e){} // FCM 토큰 갱신
+      try{_flushFcmToken();}catch(e){} // 네이티브 토큰이 Firebase 준비 전 등록됐으면 지금 저장
+      if(/[?&]board=1/.test(location.search))setTimeout(openBoard,300); // ?board=1 → 상황판
+    },0);
   });
 };
 

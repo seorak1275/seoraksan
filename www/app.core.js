@@ -866,10 +866,25 @@ function _fixAppHeight(){
 // 뷰포트 크기 변화(모바일 주소창 접힘/펼침·화면 회전·백그라운드 복귀) 후 카카오 지도 내부 크기 재계산.
 // 이걸 빼먹으면 지도 DIV만 새 크기가 되고 카카오 내부 이벤트 레이어는 옛 크기라 터치 좌표가 어긋나
 // '지도 터치 먹통'이 된다(그래서 새로고침하면 지도 재생성으로 풀림). relayout은 중심·배율 보존, 멱등.
+// relayout은 카카오 내부 크기를 다시 계산(타일 리플로우 유발) → 비용이 있다.
+// 화면에 보이는 지도만, 그리고 컨테이너 크기가 실제로 바뀐 경우에만 호출해 스크롤 중 잦은 흰 깜빡임·버벅임을 없앤다.
+var _lastMapSize={};
+function _relayoutIfChanged(map,elId){
+  try{
+    if(!map)return;
+    var el=document.getElementById(elId);if(!el)return;
+    var w=el.offsetWidth,h=el.offsetHeight;
+    if(!w||!h)return; // 숨겨진(display:none) 지도는 크기 0 → 건드리지 않음
+    var p=_lastMapSize[elId];
+    if(p&&p.w===w&&p.h===h)return; // 크기 변화 없으면 relayout 생략
+    _lastMapSize[elId]={w:w,h:h};
+    map.relayout();
+  }catch(e){}
+}
 function _relayoutMaps(){
-  try{if(typeof mapI!=='undefined'&&mapI)mapI.relayout();}catch(e){}
-  try{if(typeof mapR!=='undefined'&&mapR)mapR.relayout();}catch(e){}
-  try{if(typeof _boardMap!=='undefined'&&_boardMap)_boardMap.relayout();}catch(e){}
+  _relayoutIfChanged(typeof mapI!=='undefined'?mapI:null,'mapInspect');
+  _relayoutIfChanged(typeof mapR!=='undefined'?mapR:null,'mapRescue');
+  try{if(typeof _boardMap!=='undefined'&&_boardMap){var be=document.getElementById('boardMap');if(be&&be.offsetWidth)_boardMap.relayout();}}catch(e){}
   try{if(typeof _applyMapVOff==='function')_applyMapVOff();}catch(e){}
 }
 function _afterViewport(){try{_fixAppHeight();}catch(e){}_relayoutMaps();requestAnimationFrame(_relayoutMaps);}
