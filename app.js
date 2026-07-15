@@ -1456,38 +1456,53 @@ function _renderClimb(all){
     ${miss.length?`<span style="color:#f0a500;font-weight:800;">⚠️ 미업로드 ${miss.length}일</span>: <span style="font-size:10.5px;color:#c79a4a;">${miss.slice(0,14).map(_esc).join(', ')}${miss.length>14?' …':''}</span>`:'<span style="color:#5fcf8f;font-weight:700;">✅ 오늘까지 모두 업로드됨</span>'}</div>
   </div>`;
   if(!all.length){b.innerHTML=html+`<div style="text-align:center;color:#5a7e98;font-size:13px;padding:30px 0;">아직 저장된 이용내역이 없습니다.<br>우측 상단 <b>⬆️ 엑셀 업로드</b>로 원본 파일을 올리세요.</div>`;return;}
-  // ── 기본 통계 ──
-  const teams=all.length;
-  const people=all.reduce((s,r)=>s+(r.total||(r.companions?r.companions.length+1:1)),0);
+  // ── 통계 산출 ──
+  const _num=v=>{const n=parseInt(String(v==null?'':v).replace(/[^\d]/g,''));return isNaN(n)?null:n;};
+  const _wd=['일','월','화','수','목','금','토'];
+  const _dow=ymd=>{const p=String(ymd).split('-');if(p.length<3)return -1;const d=new Date(+p[0],+p[1]-1,+p[2]);return isNaN(d)?-1:d.getDay();};
+  const cancelled=all.filter(r=>String(r.bigo)==='1');
   const acc=all.filter(r=>r.accident).length;
+  const used=all.filter(r=>String(r.bigo)!=='1');
+  const teams=all.length, usedTeams=used.length;
+  const people=used.reduce((s,r)=>s+(r.total||(r.companions?r.companions.length+1:1)),0);
   const st={};all.forEach(r=>{st[r.status||'-']=(st[r.status||'-']||0)+1;});
-  const gender={남:0,여:0,기타:0};all.forEach(r=>{const g=r.applicant&&r.applicant.gender;gender[g==='남'?'남':g==='여'?'여':'기타']++;});
-  // 코스·지구별 인원/팀
-  const byCourse={};all.forEach(r=>{const c=r.course||'-';const o=byCourse[c]||(byCourse[c]={ppl:0,team:0,dist:r.district});o.ppl+=(r.total||1);o.team++;});
-  const courseRank=Object.keys(byCourse).map(c=>({c,...byCourse[c]})).sort((a,b)=>b.ppl-a.ppl);
-  const byDist={};all.forEach(r=>{const d=r.district||'기타';const o=byDist[d]||(byDist[d]={ppl:0,team:0});o.ppl+=(r.total||1);o.team++;});
-  const distRank=Object.keys(byDist).map(d=>({d,...byDist[d]})).sort((a,b)=>b.ppl-a.ppl);
-  // 동반자 연령대
+  const gender={'남':0,'여':0};used.forEach(r=>{const g=r.applicant&&r.applicant.gender;if(g==='남')gender['남']++;else if(g==='여')gender['여']++;(r.companions||[]).forEach(c=>{if(c.gender==='남')gender['남']++;else if(c.gender==='여')gender['여']++;});});
+  const byMon={};used.forEach(r=>{const m=(r.useDate||'').slice(0,7);if(!m)return;const o=byMon[m]||(byMon[m]={ppl:0,team:0});o.ppl+=(r.total||1);o.team++;});
+  const monRows=Object.keys(byMon).sort().map(m=>({k:m.slice(5)+'월',v:byMon[m].ppl,team:byMon[m].team}));
+  const byDow=[0,0,0,0,0,0,0],byDowT=[0,0,0,0,0,0,0];used.forEach(r=>{const w=_dow(r.useDate);if(w<0)return;byDow[w]+=(r.total||1);byDowT[w]++;});
+  const dowRows=[1,2,3,4,5,6,0].map(w=>({k:_wd[w]+(w===0||w===6?'⭐':''),v:byDow[w],team:byDowT[w]}));
+  const byDay={};used.forEach(r=>{byDay[r.useDate]=(byDay[r.useDate]||0)+(r.total||1);});
+  const topDays=Object.keys(byDay).map(d=>({d,v:byDay[d]})).sort((a,b)=>b.v-a.v).slice(0,5);
+  const byDist={};used.forEach(r=>{const d=r.district||'기타';const o=byDist[d]||(byDist[d]={ppl:0,team:0});o.ppl+=(r.total||1);o.team++;});
+  const distRank=Object.keys(byDist).map(d=>({d,ppl:byDist[d].ppl,team:byDist[d].team})).sort((a,b)=>b.ppl-a.ppl);
+  const byCourse={};used.forEach(r=>{const c=r.course||'-';const o=byCourse[c]||(byCourse[c]={ppl:0,team:0});o.ppl+=(r.total||1);o.team++;});
+  const courseRank=Object.keys(byCourse).map(c=>({c,ppl:byCourse[c].ppl,team:byCourse[c].team})).sort((a,b)=>b.ppl-a.ppl);
   const ageB={'20↓':0,'20대':0,'30대':0,'40대':0,'50대':0,'60대':0,'70↑':0};let ageN=0;
-  all.forEach(r=>(r.companions||[]).forEach(c=>{const a=_climbAge(c.dob);if(a==null)return;ageN++;ageB[a<20?'20↓':a<30?'20대':a<40?'30대':a<50?'40대':a<60?'50대':a<70?'60대':'70↑']++;}));
-  const mini=(lbl,val,col,sub)=>`<div style="background:#060d1a;border-radius:10px;padding:11px 8px;text-align:center;"><div style="font-size:19px;font-weight:800;color:${col||'#e0edf8'};">${val}</div><div style="font-size:9.5px;color:#7a9cb8;margin-top:3px;">${lbl}</div>${sub?`<div style="font-size:8.5px;color:#4a7090;margin-top:1px;">${sub}</div>`:''}</div>`;
-  const bar=(rows,keyf,valf,colf,max)=>rows.map(x=>{const v=valf(x);return `<div style="display:flex;align-items:center;gap:8px;padding:4px 0;"><span style="font-size:11.5px;color:#c0d8ec;min-width:92px;flex-shrink:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${_esc(keyf(x))}</span><div style="flex:1;height:9px;background:rgba(255,255,255,.05);border-radius:5px;overflow:hidden;"><div style="height:100%;width:${Math.max(3,Math.round(v/max*100))}%;background:${colf?colf(x):'#4fa8d0'};border-radius:5px;"></div></div><span style="font-size:11px;color:#e0edf8;font-weight:800;min-width:52px;text-align:right;">${valf(x)}명</span></div>`;}).join('');
+  used.forEach(r=>(r.companions||[]).forEach(c=>{const a=_climbAge(c.dob);if(a==null)return;ageN++;ageB[a<20?'20↓':a<30?'20대':a<40?'30대':a<50?'40대':a<60?'50대':a<70?'60대':'70↑']++;}));
+  const expB={'1년↓':0,'2-5년':0,'6-10년':0,'11-20년':0,'20년↑':0};let expN=0;
+  used.forEach(r=>{const e=_num(r.applicant&&r.applicant.exp);if(e==null||e>80)return;expN++;expB[e<=1?'1년↓':e<=5?'2-5년':e<=10?'6-10년':e<=20?'11-20년':'20년↑']++;});
+  const mini=(lbl,val,col,sub)=>`<div style="background:#060d1a;border-radius:10px;padding:11px 8px;text-align:center;"><div style="font-size:18px;font-weight:800;color:${col||'#e0edf8'};line-height:1.15;">${val}</div><div style="font-size:9.5px;color:#7a9cb8;margin-top:3px;">${lbl}</div>${sub?`<div style="font-size:8.5px;color:#4a7090;margin-top:1px;">${sub}</div>`:''}</div>`;
+  const bar=(rows,unit,colf)=>{const max=Math.max.apply(null,[1].concat(rows.map(x=>x.v)));return rows.map(x=>`<div style="display:flex;align-items:center;gap:8px;padding:4px 0;"><span style="font-size:11.5px;color:#c0d8ec;min-width:78px;flex-shrink:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${_esc(x.k)}</span><div style="flex:1;height:9px;background:rgba(255,255,255,.05);border-radius:5px;overflow:hidden;"><div style="height:100%;width:${Math.max(3,Math.round(x.v/max*100))}%;background:${colf?colf(x):'#4fa8d0'};border-radius:5px;"></div></div><span style="font-size:11px;color:#e0edf8;font-weight:800;min-width:64px;text-align:right;">${x.v}${unit||'명'}${x.team!=null?` <span style="color:#5a7e98;font-weight:600;font-size:9px;">${x.team}팀</span>`:''}</span></div>`).join('');};
   html+=`<div class="scard" style="margin-bottom:10px;">
-    <div class="stitle">📊 이용 요약 <span style="font-size:9px;font-weight:400;color:#5a7e98;">· 저장분 전체</span></div>
+    <div class="stitle">📊 이용 요약 <span style="font-size:9px;font-weight:400;color:#5a7e98;">· 취소 제외 실이용</span></div>
     <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:6px;">
-      ${mini('총 이용인원',people+'명','#4fa8d0')}
-      ${mini('총 팀(신청건)',teams+'팀','#7ee0a8')}
+      ${mini('실이용 인원',people.toLocaleString()+'명','#4fa8d0',usedTeams+'팀')}
+      ${mini('전체 인원 성별','<span style="font-size:13px;">남 '+gender['남']+' · 여 '+gender['여']+'</span>','#e0edf8','신청자+동반자')}
+      ${mini('특보·우천 취소',cancelled.length+'팀',cancelled.length?'#f0a44a':'#27ae60','비고 표시분')}
       ${mini('안전사고',acc+'건',acc?'#ff6b5b':'#27ae60',acc?'':'없음')}
-      ${mini('신청자 성별','<span style="font-size:14px;">남 '+gender.남+' · 여 '+gender.여+'</span>','#e0edf8')}
     </div>
-    <div style="font-size:10px;color:#8fb4cc;margin-top:8px;">상태 · ${Object.keys(st).map(k=>_esc(k)+' '+st[k]).join(' / ')}</div>
+    <div style="font-size:10px;color:#8fb4cc;margin-top:8px;">신청상태 · ${Object.keys(st).map(k=>_esc(k)+' '+st[k]).join(' / ')}</div>
   </div>`;
-  html+=`<div class="scard" style="margin-bottom:10px;"><div class="stitle">🏔️ 지구별 이용</div>${bar(distRank,x=>x.d,x=>x.ppl,null,Math.max(1,distRank[0]&&distRank[0].ppl))}</div>`;
-  html+=`<div class="scard" style="margin-bottom:10px;"><div class="stitle">🧗 코스별 이용 (상위 12)</div>${bar(courseRank.slice(0,12),x=>x.c,x=>x.ppl,null,Math.max(1,courseRank[0]&&courseRank[0].ppl))}<div style="font-size:9px;color:#46708f;margin-top:5px;">코스 ${courseRank.length}개 · 팀수는 상세에서</div></div>`;
-  if(ageN)html+=`<div class="scard" style="margin-bottom:10px;"><div class="stitle">👥 동반자 연령대 <span style="font-size:9px;font-weight:400;color:#5a7e98;">· ${ageN}명 (신청자 본인은 생년월일 미제공)</span></div>${bar(Object.keys(ageB).map(k=>({k,v:ageB[k]})).filter(x=>x.v),x=>x.k,x=>x.v,null,Math.max(1,Math.max.apply(null,Object.values(ageB))))}</div>`;
+  if(monRows.length)html+=`<div class="scard" style="margin-bottom:10px;"><div class="stitle">🗓️ 월별 이용 추이</div>${bar(monRows,'명')}</div>`;
+  html+=`<div class="scard" style="margin-bottom:10px;"><div class="stitle">📆 요일별 이용 <span style="font-size:9px;font-weight:400;color:#5a7e98;">· ⭐주말</span></div>${bar(dowRows,'명',x=>x.k.indexOf('⭐')>=0?'#ff8a73':'#4fa8d0')}<div style="font-size:9px;color:#46708f;margin-top:5px;">주말 집중도 — 구조 대기·순찰 편성 참고</div></div>`;
+  if(topDays.length)html+=`<div class="scard" style="margin-bottom:10px;"><div class="stitle">🔝 최다 이용일 TOP 5</div>${topDays.map((x,i)=>`<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid rgba(255,255,255,.04);"><span style="font-size:11px;font-weight:800;color:${i===0?'#f0c060':'#7a9cb8'};min-width:18px;">${i+1}</span><span style="flex:1;font-size:12px;color:#dceaf6;">${_esc(x.d)} (${_wd[Math.max(0,_dow(x.d))]})</span><b style="font-size:12.5px;color:#4fa8d0;">${x.v}명</b></div>`).join('')}</div>`;
+  html+=`<div class="scard" style="margin-bottom:10px;"><div class="stitle">🏔️ 지구별 이용</div>${bar(distRank.map(x=>({k:x.d,v:x.ppl,team:x.team})),'명')}</div>`;
+  html+=`<div class="scard" style="margin-bottom:10px;"><div class="stitle">🧗 코스별 이용 (상위 12 / 총 ${courseRank.length}개)</div>${bar(courseRank.slice(0,12).map(x=>({k:x.c,v:x.ppl,team:x.team})),'명')}</div>`;
+  if(expN)html+=`<div class="scard" style="margin-bottom:10px;"><div class="stitle">🧗 신청자 등반경력 <span style="font-size:9px;font-weight:400;color:#5a7e98;">· ${expN}명</span></div>${bar(Object.keys(expB).map(k=>({k,v:expB[k]})).filter(x=>x.v),'명',x=>x.k==='1년↓'?'#ff8a73':'#5fcf8f')}<div style="font-size:9px;color:#46708f;margin-top:5px;">1년 이하 초심자 ${expB['1년↓']}명 — 안전 유의</div></div>`;
+  if(ageN)html+=`<div class="scard" style="margin-bottom:10px;"><div class="stitle">👥 동반자 연령대 <span style="font-size:9px;font-weight:400;color:#5a7e98;">· ${ageN}명 (신청자 본인 생년월일 미제공)</span></div>${bar(Object.keys(ageB).map(k=>({k,v:ageB[k]})).filter(x=>x.v),'명',x=>(x.k==='60대'||x.k==='70↑')?'#f0a44a':'#4fa8d0')}<div style="font-size:9px;color:#46708f;margin-top:5px;">60대+ ${ageB['60대']+ageB['70↑']}명 — 고령자 비중 참고</div></div>`;
   if(acc){
     const accs=all.filter(r=>r.accident);
-    html+=`<div class="scard" style="margin-bottom:10px;"><div class="stitle" style="color:#ff8a80;">🚨 안전사고 표시 (${acc}건)</div>${accs.map(r=>`<div style="font-size:11.5px;color:#dceaf6;padding:5px 0;border-bottom:1px solid rgba(255,255,255,.04);">${_esc(r.useDate)} · ${_esc(r.course)} · <b>${_esc(r.applicant&&r.applicant.name)}</b> 팀 (${r.total||'-'}명)</div>`).join('')}</div>`;
+    html+=`<div class="scard" style="margin-bottom:10px;"><div class="stitle" style="color:#ff8a80;">🚨 안전사고 표시 (${acc}건)</div>${accs.map(r=>`<div style="font-size:11.5px;color:#dceaf6;padding:5px 0;border-bottom:1px solid rgba(255,255,255,.04);">${_esc(r.useDate)} (${_wd[Math.max(0,_dow(r.useDate))]}) · ${_esc(r.district)} ${_esc(r.course)} · <b>${_esc(r.applicant&&r.applicant.name)}</b> 팀 (${r.total||'-'}명)</div>`).join('')}<div style="font-size:9px;color:#46708f;margin-top:5px;">비고번호 2(안전사고) 자동 인식 · 구조기록 연계는 다음 단계</div></div>`;
   }
   b.innerHTML=html;
 }
@@ -3086,7 +3101,7 @@ function sosToRescue(id){
 // 앱 자체 업데이트 (OTA · Capgo 자체호스팅) — APK 전용. 웹/PWA는 서비스워커가 자동 갱신.
 // 번들(www)의 새 버전을 ota.json으로 알리면, 설치된 앱이 받아서 그 자리에서 교체(재빌드 불필요).
 // ══════════════════════════════════════════
-const OTA_VER='2026.07.15.128';                         // ← 현재 번들 버전 (릴리스마다 올림 · build-ota.sh가 ota.json에 반영)
+const OTA_VER='2026.07.15.129';                         // ← 현재 번들 버전 (릴리스마다 올림 · build-ota.sh가 ota.json에 반영)
 const OTA_MANIFEST='https://seorak1275.github.io/seoraksan/ota.json';
 let _otaInfo=null;
 function _otaPlugin(){try{return (window.Capacitor&&window.Capacitor.Plugins&&window.Capacitor.Plugins.CapacitorUpdater)||null;}catch(e){return null;}}
