@@ -1309,15 +1309,17 @@ function _climbInSeason(d){d=d||new Date();const md=(d.getMonth()+1)*100+d.getDa
 function _climbCancels(){return DB.g('climbCancels')||{};}
 function _climbIsCancelled(r){return String(r&&r.bigo)==='1'||!!_climbCancels()[r&&r.useDate];}
 function climbCancelDate(d,reason){
-  if(!_canClimbManage()){toast('⚠️ 특보·우천 취소는 특수산악구조대·관리자만 가능');return;}
+  if(!_canClimbManage()){toast('⚠️ 특수산악구조대·관리자만 가능');return;}
   d=(d||'').trim();
-  if(!/^\d{4}-\d{2}-\d{2}$/.test(d)){toast('⚠️ 취소할 날짜를 선택하세요');return;}
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(d)){toast('⚠️ 날짜를 선택하세요');return;}
   const cnt=(_climbCache||[]).filter(r=>r.useDate===d&&String(r.bigo)!=='1').length;
-  if(!confirm(d+' 암벽이용을 「'+reason+'」(으)로 일괄 취소하시겠습니까?'+(cnt?('\n\n대상 '+cnt+'팀 → 통계 실이용에서 제외됩니다'):'\n\n(등록된 예약이 없어도 그날은 취소로 표시됩니다)')))return;
+  const isNone=reason==='이용없음';
+  const verb=isNone?'이용없음(예약 0)으로 처리':'「'+reason+'」(으)로 일괄 취소';
+  if(!confirm(d+' 암벽이용을 '+verb+'하시겠습니까?'+(cnt?('\n\n대상 '+cnt+'팀 → 통계 실이용에서 제외됩니다'):'\n\n(그날은 통계·미업로드 목록에서 제외됩니다)')))return;
   const c=_climbCancels();
   c[d]={reason:reason,by:(DB.g('currentUser')||{}).name||getAuthor(),at:Date.now()};
   DB.s('climbCancels',c);
-  toast('🚫 '+d+' 「'+reason+'」 일괄취소'+(cnt?(' — '+cnt+'팀 제외'):''),4000);
+  toast((isNone?'🈳 ':'🚫 ')+d+' 「'+reason+'」 처리'+(cnt?(' — '+cnt+'팀 제외'):''),4000);
   try{renderHomeActive();}catch(e){}
   try{_renderClimbActive();}catch(e){}
 }
@@ -1613,9 +1615,10 @@ function climbRosterStep(delta){
   let i=dates.indexOf(_climbRosterDate);
   if(i<0)i=delta>0?-1:dates.length;
   i=Math.max(0,Math.min(dates.length-1,i+delta));
-  _climbRosterDate=dates[i];_renderClimbRoster(_climbCache||[]);
+  _climbRosterDate=dates[i];window._climbRosterDistF='';_renderClimbRoster(_climbCache||[]);
 }
-function climbRosterPick(d){_climbRosterDate=(d||'').trim();_renderClimbRoster(_climbCache||[]);}
+function climbRosterPick(d){_climbRosterDate=(d||'').trim();window._climbRosterDistF='';_renderClimbRoster(_climbCache||[]);}
+function climbRosterDist(d){window._climbRosterDistF=d||'';_renderClimbRoster(_climbCache||[]);}
 function _renderClimbRoster(all){
   const b=document.getElementById('climbInner');if(!b)return;
   const D=_climbRosterDate||_ymd(new Date());
@@ -1642,12 +1645,20 @@ function _renderClimbRoster(all){
       </div>
       <button onclick="climbRosterStep(1)" ${idx>=dates.length-1?'disabled':''} style="background:#0e2436;border:1px solid rgba(79,168,208,.25);color:#7fc4e0;border-radius:9px;padding:8px 11px;font-size:14px;font-weight:800;cursor:pointer;${idx>=dates.length-1?'opacity:.35;':''}">▶</button>
     </div>
-    <input type="date" value="${_esc(D)}" onchange="climbRosterPick(this.value)" style="width:100%;background:#0a1626;color:#cfe2f2;border:1px solid rgba(79,168,208,.2);border-radius:8px;padding:8px;font-size:12px;margin-bottom:12px;">`;
+    <input type="date" value="${_esc(D)}" onchange="climbRosterPick(this.value)" style="width:100%;background:#0a1626;color:#cfe2f2;border:1px solid rgba(79,168,208,.2);border-radius:8px;padding:8px;font-size:12px;margin-bottom:10px;">`;
+  // 지구별 검색 칩 — 특정 지구만 빠르게 보기 (현장 이동 중 확인)
+  const distF=window._climbRosterDistF||'';
+  const distsPresent=DORDER.filter(dist=>byDist[dist]&&byDist[dist].length);
+  if(day.length&&distsPresent.length>1){
+    const chip=(lbl,val)=>`<span onclick="climbRosterDist('${val}')" style="display:inline-block;padding:6px 12px;margin:0 5px 5px 0;border-radius:15px;font-size:11.5px;font-weight:700;cursor:pointer;border:1px solid ${distF===val?'#7fc4e0':'rgba(79,168,208,.25)'};background:${distF===val?'rgba(79,168,208,.22)':'#0a1626'};color:${distF===val?'#aed8ee':'#8ab4cc'};white-space:nowrap;">${_esc(lbl)}</span>`;
+    html+=`<div style="display:flex;flex-wrap:wrap;margin-bottom:12px;">${chip('전체 '+people+'명','')}${distsPresent.map(dist=>chip(dist.replace('지구','')+' '+byDist[dist].reduce((s,r)=>s+(r.total||1),0),dist)).join('')}</div>`;
+  }
   if(!day.length){
     b.innerHTML=html+`<div style="text-align:center;color:#5a7e98;font-size:13px;padding:26px 0;">이 날짜의 저장된 이용내역이 없습니다.${dates.length?'<br>◀▶ 로 데이터 있는 날짜로 이동하세요.':''}</div>`;
     return;
   }
   DORDER.forEach(dist=>{
+    if(distF&&dist!==distF)return; // 지구 필터 적용
     const teams=byDist[dist];if(!teams||!teams.length)return;
     const byCourse={};teams.forEach(r=>{(byCourse[r.course||'-']=byCourse[r.course||'-']||[]).push(r);});
     const dPpl=teams.reduce((s,r)=>s+(r.total||1),0);
@@ -1671,42 +1682,69 @@ function _renderClimbRoster(all){
   html+=`<div style="font-size:9.5px;color:#46708f;text-align:center;padding:4px 0 10px;">현장 점검용 — 지구·코스별 인원·인적사항 대조. 📞 눌러 전화</div>`;
   b.innerHTML=html;
 }
+function _climbAccidents(){return DB.g('climbAccidents')||[];}
 function _renderClimbStats(all){
   const b=document.getElementById('climbInner');if(!b)return;
+  const canMng=_canClimbManage();
   const covered=(DB.g('climbDates')||[]).slice().sort();
   const miss=_climbMissingDates();
-  // 커버리지 카드
+  const _wd=['일','월','화','수','목','금','토'];
+  const _dow=ymd=>{const p=String(ymd).split('-');if(p.length<3)return -1;const d=new Date(+p[0],+p[1]-1,+p[2]);return isNaN(d)?-1:d.getDay();};
+  const _num=v=>{const n=parseInt(String(v==null?'':v).replace(/[^\d]/g,''));return isNaN(n)?null:n;};
+  // ── 업로드 현황 ──
   let html=`<div class="scard" style="margin-bottom:10px;">
-    <div class="stitle">📅 업로드 현황 <span style="font-size:9px;font-weight:400;color:#5a7e98;">· 시즌 5.16~11.14</span></div>
+    <div class="stitle">📅 업로드 현황 <span style="font-size:9px;font-weight:400;color:#5a7e98;">시즌 5.16~11.14</span></div>
     <div style="font-size:12px;color:#cfe2f2;line-height:1.9;">저장된 이용일 <b style="color:#7fc4e0;">${covered.length}일</b>${covered.length?` (${covered[0]} ~ ${covered[covered.length-1]})`:''}<br>
-    ${miss.length?`<span style="color:#f0a500;font-weight:800;">⚠️ 미업로드 ${miss.length}일</span>: <span style="font-size:10.5px;color:#c79a4a;">${miss.slice(0,14).map(_esc).join(', ')}${miss.length>14?' …':''}</span>`:'<span style="color:#5fcf8f;font-weight:700;">✅ 오늘까지 모두 업로드됨</span>'}</div>
+    ${miss.length?`<span style="color:#f0a500;font-weight:800;">⚠️ 미업로드 ${miss.length}일</span>: <span style="font-size:10.5px;color:#c79a4a;">${miss.slice(0,14).map(_esc).join(', ')}${miss.length>14?' …':''}</span>${canMng?`<br><span style="font-size:10px;color:#5a7e98;">예약이 없던 날은 아래 🈳이용없음으로 처리하면 목록에서 빠집니다.</span>`:''}`:'<span style="color:#5fcf8f;font-weight:700;">✅ 오늘까지 모두 처리됨</span>'}</div>
   </div>`;
-  // 특보·우천 일괄취소 관리 (관리자만)
-  if(_canClimbManage()){
+  // ── 이용 처리(관리자): 특보·우천·이용없음 + 사고자 등록 ──
+  if(canMng){
     const cx=_climbCancels();const cxDates=Object.keys(cx).sort();
     const todayV=_ymd(new Date());
+    const cbtn=(reason,ico,bg,col)=>`<button onclick="climbCancelDate(document.getElementById('climbCxDate').value,'${reason}')" style="background:${bg};color:${col};border:1px solid ${col}66;border-radius:8px;padding:8px 10px;font-size:12px;font-weight:800;cursor:pointer;white-space:nowrap;">${ico} ${reason}</button>`;
     html+=`<div class="scard" style="margin-bottom:10px;">
-      <div class="stitle">🚫 특보·우천 일괄취소 <span style="font-size:9px;font-weight:400;color:#5a7e98;">· 그날 이용을 취소 처리(통계 제외)</span></div>
-      <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-bottom:${cxDates.length?'9px':'0'};">
-        <input type="date" id="climbCxDate" value="${todayV}" style="flex:1;min-width:130px;background:#0a1626;color:#cfe2f2;border:1px solid rgba(79,168,208,.25);border-radius:8px;padding:8px;font-size:12px;">
-        <button onclick="climbCancelDate(document.getElementById('climbCxDate').value,'특보')" style="background:rgba(240,165,0,.14);color:#f0c050;border:1px solid rgba(240,165,0,.4);border-radius:8px;padding:8px 11px;font-size:12px;font-weight:800;cursor:pointer;white-space:nowrap;">🌩️ 특보</button>
-        <button onclick="climbCancelDate(document.getElementById('climbCxDate').value,'우천')" style="background:rgba(79,168,208,.14);color:#7fc4e0;border:1px solid rgba(79,168,208,.4);border-radius:8px;padding:8px 11px;font-size:12px;font-weight:800;cursor:pointer;white-space:nowrap;">🌧️ 우천</button>
+      <div class="stitle">🛠️ 이용 처리 <span style="font-size:9px;font-weight:400;color:#5a7e98;">해당 날짜를 통계·미업로드에서 제외</span></div>
+      <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
+        <input type="date" id="climbCxDate" value="${todayV}" style="flex:1;min-width:120px;background:#0a1626;color:#cfe2f2;border:1px solid rgba(79,168,208,.25);border-radius:8px;padding:8px;font-size:12px;">
+        ${cbtn('특보','🌩️','rgba(240,165,0,.14)','#f0c050')}${cbtn('우천','🌧️','rgba(79,168,208,.14)','#7fc4e0')}${cbtn('이용없음','🈳','rgba(120,140,160,.12)','#9fb6c8')}
       </div>
-      ${cxDates.length?`<div style="line-height:2;">${cxDates.map(d=>{const cnt=(all||[]).filter(r=>r.useDate===d).length;return `<span style="display:inline-block;background:rgba(240,165,0,.1);border:1px solid rgba(240,165,0,.3);border-radius:12px;padding:2px 4px 2px 9px;margin:2px 3px 2px 0;color:#f0c050;font-size:11px;">${_esc(d)} · ${_esc(cx[d].reason)}${cnt?` <span style="color:#8fb4cc;">${cnt}팀</span>`:''} <span onclick="climbUncancelDate('${d}')" style="cursor:pointer;color:#ff8a80;font-weight:800;padding:0 5px;">×</span></span>`;}).join('')}</div>`:'<div style="font-size:10px;color:#5a7e98;margin-top:2px;">취소된 날짜 없음 — 날짜 선택 후 특보/우천 버튼</div>'}
+      ${cxDates.length?`<div style="line-height:2;margin-top:9px;">${cxDates.map(d=>{const cnt=(all||[]).filter(r=>r.useDate===d).length;return `<span style="display:inline-block;background:rgba(240,165,0,.1);border:1px solid rgba(240,165,0,.3);border-radius:12px;padding:2px 4px 2px 9px;margin:2px 3px 2px 0;color:#f0c050;font-size:11px;">${_esc(d)} · ${_esc(cx[d].reason)}${cnt?` <span style="color:#8fb4cc;">${cnt}팀</span>`:''} <span onclick="climbUncancelDate('${d}')" style="cursor:pointer;color:#ff8a80;font-weight:800;padding:0 5px;">×</span></span>`;}).join('')}</div>`:''}
+      <button onclick="climbAddAccident()" style="width:100%;margin-top:10px;background:rgba(255,107,91,.12);color:#ff8a80;border:1px solid rgba(255,107,91,.35);border-radius:8px;padding:9px;font-size:12.5px;font-weight:800;cursor:pointer;">🚨 사고자 등록</button>
     </div>`;
   }
   if(!all.length){b.innerHTML=html+`<div style="text-align:center;color:#5a7e98;font-size:13px;padding:30px 0;">아직 저장된 이용내역이 없습니다.<br>우측 상단 <b>⬆️ 엑셀 업로드</b>로 원본 파일을 올리세요.</div>`;return;}
-  // ── 통계 산출 ──
-  const _num=v=>{const n=parseInt(String(v==null?'':v).replace(/[^\d]/g,''));return isNaN(n)?null:n;};
-  const _wd=['일','월','화','수','목','금','토'];
-  const _dow=ymd=>{const p=String(ymd).split('-');if(p.length<3)return -1;const d=new Date(+p[0],+p[1]-1,+p[2]);return isNaN(d)?-1:d.getDay();};
+  // ── 통계 산출 (요약 + 상세) ──
   const cancelled=all.filter(_climbIsCancelled);
-  const acc=all.filter(r=>r.accident&&!_climbIsCancelled(r)).length;
   const used=all.filter(r=>!_climbIsCancelled(r));
-  const teams=all.length, usedTeams=used.length;
+  const usedTeams=used.length;
   const people=used.reduce((s,r)=>s+(r.total||(r.companions?r.companions.length+1:1)),0);
-  const st={};all.forEach(r=>{st[r.status||'-']=(st[r.status||'-']||0)+1;});
   const gender={'남':0,'여':0};used.forEach(r=>{const g=r.applicant&&r.applicant.gender;if(g==='남')gender['남']++;else if(g==='여')gender['여']++;(r.companions||[]).forEach(c=>{if(c.gender==='남')gender['남']++;else if(c.gender==='여')gender['여']++;});});
+  // 사고: 수동 등록(신뢰) + 엑셀 비고번호 자동인식(참고) — 합산·중복제거
+  const manualAcc=_climbAccidents().slice().sort((a,b)=>String(b.date).localeCompare(String(a.date)));
+  const autoAcc=all.filter(r=>r.accident&&!_climbIsCancelled(r)).map(r=>({date:r.useDate,name:(r.applicant&&r.applicant.name)||'-',course:r.course,district:r.district,total:r.total,auto:true}));
+  const accList=manualAcc.map(a=>Object.assign({},a,{auto:false})).concat(autoAcc.filter(a=>!manualAcc.some(m=>m.date===a.date&&m.name===a.name)));
+  const accN=accList.length;
+  const mini=(lbl,val,col,sub)=>`<div style="background:#060d1a;border-radius:10px;padding:11px 8px;text-align:center;"><div style="font-size:18px;font-weight:800;color:${col||'#e0edf8'};line-height:1.15;">${val}</div><div style="font-size:9.5px;color:#7a9cb8;margin-top:3px;">${lbl}</div>${sub?`<div style="font-size:8.5px;color:#4a7090;margin-top:1px;">${sub}</div>`:''}</div>`;
+  const bar=(rows,unit,colf)=>{const max=Math.max.apply(null,[1].concat(rows.map(x=>x.v)));return rows.map(x=>`<div style="display:flex;align-items:center;gap:8px;padding:4px 0;"><span style="font-size:11.5px;color:#c0d8ec;min-width:78px;flex-shrink:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${_esc(x.k)}</span><div style="flex:1;height:9px;background:rgba(255,255,255,.05);border-radius:5px;overflow:hidden;"><div style="height:100%;width:${Math.max(3,Math.round(x.v/max*100))}%;background:${colf?colf(x):'#4fa8d0'};border-radius:5px;"></div></div><span style="font-size:11px;color:#e0edf8;font-weight:800;min-width:64px;text-align:right;">${x.v}${unit||'명'}${x.team!=null?` <span style="color:#5a7e98;font-weight:600;font-size:9px;">${x.team}팀</span>`:''}</span></div>`).join('');};
+  // ── 총 통계 요약 ──
+  html+=`<div class="scard" style="margin-bottom:10px;">
+    <div class="stitle">📊 총 통계 <span style="font-size:9px;font-weight:400;color:#5a7e98;">취소·이용없음 제외 실이용</span></div>
+    <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:6px;">
+      ${mini('실이용 인원',people.toLocaleString()+'명','#4fa8d0',usedTeams+'팀')}
+      ${mini('성별','<span style="font-size:14px;">남 '+gender['남']+' · 여 '+gender['여']+'</span>','#e0edf8','신청자+동반자')}
+      ${mini('취소·이용없음',cancelled.length+'팀',cancelled.length?'#f0a44a':'#27ae60','')}
+      ${mini('안전사고',accN+'건',accN?'#ff6b5b':'#27ae60',accN?'':'없음')}
+    </div>
+  </div>`;
+  // ── 안전사고 목록 (항상 표시 — 중요) ──
+  if(accN){
+    html+=`<div class="scard" style="margin-bottom:10px;"><div class="stitle" style="color:#ff8a80;">🚨 안전사고 (${accN}건)</div>${accList.map(a=>`<div style="display:flex;align-items:center;gap:6px;font-size:11.5px;color:#dceaf6;padding:5px 0;border-bottom:1px solid rgba(255,255,255,.04);"><span style="flex:1;">${_esc(a.date)} (${_wd[Math.max(0,_dow(a.date))]})${a.district?' · '+_esc(a.district):''}${a.course?' '+_esc(a.course):''} · <b>${_esc(a.name)}</b>${a.total?' ('+a.total+'명)':''}${a.note?` <span style="color:#9fb6c8;">— ${_esc(a.note)}</span>`:''}</span>${a.auto?'<span style="font-size:8.5px;color:#5a7e98;flex-shrink:0;">엑셀</span>':(canMng?`<span onclick="climbDelAccident(${a.id})" style="cursor:pointer;color:#ff8a80;font-weight:800;padding:0 5px;flex-shrink:0;">×</span>`:'')}</div>`).join('')}</div>`;
+  }
+  // ── 모든 통계 보기 (접기/펼치기) ──
+  if(!window._climbStatsFull){
+    html+=`<button onclick="climbToggleStatsFull()" style="width:100%;padding:12px;border-radius:10px;border:1px solid rgba(79,168,208,.3);background:rgba(79,168,208,.08);color:#7fc4e0;font-size:13px;font-weight:800;cursor:pointer;">📊 모든 통계 보기 (월별·요일·지구·코스·연령 등) ▾</button>`;
+    b.innerHTML=html;return;
+  }
   const byMon={};used.forEach(r=>{const m=(r.useDate||'').slice(0,7);if(!m)return;const o=byMon[m]||(byMon[m]={ppl:0,team:0});o.ppl+=(r.total||1);o.team++;});
   const monRows=Object.keys(byMon).sort().map(m=>({k:m.slice(5)+'월',v:byMon[m].ppl,team:byMon[m].team}));
   const byDow=[0,0,0,0,0,0,0],byDowT=[0,0,0,0,0,0,0];used.forEach(r=>{const w=_dow(r.useDate);if(w<0)return;byDow[w]+=(r.total||1);byDowT[w]++;});
@@ -1718,33 +1756,41 @@ function _renderClimbStats(all){
   const byCourse={};used.forEach(r=>{const c=r.course||'-';const o=byCourse[c]||(byCourse[c]={ppl:0,team:0});o.ppl+=(r.total||1);o.team++;});
   const courseRank=Object.keys(byCourse).map(c=>({c,ppl:byCourse[c].ppl,team:byCourse[c].team})).sort((a,b)=>b.ppl-a.ppl);
   const ageB={'20↓':0,'20대':0,'30대':0,'40대':0,'50대':0,'60대':0,'70↑':0};let ageN=0;
-  used.forEach(r=>(r.companions||[]).forEach(c=>{const a=_climbAge(c.dob);if(a==null)return;ageN++;ageB[a<20?'20↓':a<30?'20대':a<40?'30대':a<50?'40대':a<60?'50대':a<70?'60대':'70↑']++;}));
+  used.forEach(r=>{const aa=_climbAge(r.applicant&&r.applicant.dob);if(aa!=null){ageN++;ageB[aa<20?'20↓':aa<30?'20대':aa<40?'30대':aa<50?'40대':aa<60?'50대':aa<70?'60대':'70↑']++;}(r.companions||[]).forEach(c=>{const a=_climbAge(c.dob);if(a==null)return;ageN++;ageB[a<20?'20↓':a<30?'20대':a<40?'30대':a<50?'40대':a<60?'50대':a<70?'60대':'70↑']++;});});
   const expB={'1년↓':0,'2-5년':0,'6-10년':0,'11-20년':0,'20년↑':0};let expN=0;
   used.forEach(r=>{const e=_num(r.applicant&&r.applicant.exp);if(e==null||e>80)return;expN++;expB[e<=1?'1년↓':e<=5?'2-5년':e<=10?'6-10년':e<=20?'11-20년':'20년↑']++;});
-  const mini=(lbl,val,col,sub)=>`<div style="background:#060d1a;border-radius:10px;padding:11px 8px;text-align:center;"><div style="font-size:18px;font-weight:800;color:${col||'#e0edf8'};line-height:1.15;">${val}</div><div style="font-size:9.5px;color:#7a9cb8;margin-top:3px;">${lbl}</div>${sub?`<div style="font-size:8.5px;color:#4a7090;margin-top:1px;">${sub}</div>`:''}</div>`;
-  const bar=(rows,unit,colf)=>{const max=Math.max.apply(null,[1].concat(rows.map(x=>x.v)));return rows.map(x=>`<div style="display:flex;align-items:center;gap:8px;padding:4px 0;"><span style="font-size:11.5px;color:#c0d8ec;min-width:78px;flex-shrink:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${_esc(x.k)}</span><div style="flex:1;height:9px;background:rgba(255,255,255,.05);border-radius:5px;overflow:hidden;"><div style="height:100%;width:${Math.max(3,Math.round(x.v/max*100))}%;background:${colf?colf(x):'#4fa8d0'};border-radius:5px;"></div></div><span style="font-size:11px;color:#e0edf8;font-weight:800;min-width:64px;text-align:right;">${x.v}${unit||'명'}${x.team!=null?` <span style="color:#5a7e98;font-weight:600;font-size:9px;">${x.team}팀</span>`:''}</span></div>`).join('');};
-  html+=`<div class="scard" style="margin-bottom:10px;">
-    <div class="stitle">📊 이용 요약 <span style="font-size:9px;font-weight:400;color:#5a7e98;">· 취소 제외 실이용</span></div>
-    <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:6px;">
-      ${mini('실이용 인원',people.toLocaleString()+'명','#4fa8d0',usedTeams+'팀')}
-      ${mini('전체 인원 성별','<span style="font-size:13px;">남 '+gender['남']+' · 여 '+gender['여']+'</span>','#e0edf8','신청자+동반자')}
-      ${mini('특보·우천 취소',cancelled.length+'팀',cancelled.length?'#f0a44a':'#27ae60','비고 표시분')}
-      ${mini('안전사고',acc+'건',acc?'#ff6b5b':'#27ae60',acc?'':'없음')}
-    </div>
-    <div style="font-size:10px;color:#8fb4cc;margin-top:8px;">신청상태 · ${Object.keys(st).map(k=>_esc(k)+' '+st[k]).join(' / ')}</div>
-  </div>`;
   if(monRows.length)html+=`<div class="scard" style="margin-bottom:10px;"><div class="stitle">🗓️ 월별 이용 추이</div>${bar(monRows,'명')}</div>`;
-  html+=`<div class="scard" style="margin-bottom:10px;"><div class="stitle">📆 요일별 이용 <span style="font-size:9px;font-weight:400;color:#5a7e98;">· ⭐주말</span></div>${bar(dowRows,'명',x=>x.k.indexOf('⭐')>=0?'#ff8a73':'#4fa8d0')}<div style="font-size:9px;color:#46708f;margin-top:5px;">주말 집중도 — 구조 대기·순찰 편성 참고</div></div>`;
+  html+=`<div class="scard" style="margin-bottom:10px;"><div class="stitle">📆 요일별 이용 <span style="font-size:9px;font-weight:400;color:#5a7e98;">⭐주말</span></div>${bar(dowRows,'명',x=>x.k.indexOf('⭐')>=0?'#ff8a73':'#4fa8d0')}</div>`;
   if(topDays.length)html+=`<div class="scard" style="margin-bottom:10px;"><div class="stitle">🔝 최다 이용일 TOP 5</div>${topDays.map((x,i)=>`<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid rgba(255,255,255,.04);"><span style="font-size:11px;font-weight:800;color:${i===0?'#f0c060':'#7a9cb8'};min-width:18px;">${i+1}</span><span style="flex:1;font-size:12px;color:#dceaf6;">${_esc(x.d)} (${_wd[Math.max(0,_dow(x.d))]})</span><b style="font-size:12.5px;color:#4fa8d0;">${x.v}명</b></div>`).join('')}</div>`;
   html+=`<div class="scard" style="margin-bottom:10px;"><div class="stitle">🏔️ 지구별 이용</div>${bar(distRank.map(x=>({k:x.d,v:x.ppl,team:x.team})),'명')}</div>`;
   html+=`<div class="scard" style="margin-bottom:10px;"><div class="stitle">🧗 코스별 이용 (상위 12 / 총 ${courseRank.length}개)</div>${bar(courseRank.slice(0,12).map(x=>({k:x.c,v:x.ppl,team:x.team})),'명')}</div>`;
-  if(expN)html+=`<div class="scard" style="margin-bottom:10px;"><div class="stitle">🧗 신청자 등반경력 <span style="font-size:9px;font-weight:400;color:#5a7e98;">· ${expN}명</span></div>${bar(Object.keys(expB).map(k=>({k,v:expB[k]})).filter(x=>x.v),'명',x=>x.k==='1년↓'?'#ff8a73':'#5fcf8f')}<div style="font-size:9px;color:#46708f;margin-top:5px;">1년 이하 초심자 ${expB['1년↓']}명 — 안전 유의</div></div>`;
-  if(ageN)html+=`<div class="scard" style="margin-bottom:10px;"><div class="stitle">👥 동반자 연령대 <span style="font-size:9px;font-weight:400;color:#5a7e98;">· ${ageN}명 (신청자 본인 생년월일 미제공)</span></div>${bar(Object.keys(ageB).map(k=>({k,v:ageB[k]})).filter(x=>x.v),'명',x=>(x.k==='60대'||x.k==='70↑')?'#f0a44a':'#4fa8d0')}<div style="font-size:9px;color:#46708f;margin-top:5px;">60대+ ${ageB['60대']+ageB['70↑']}명 — 고령자 비중 참고</div></div>`;
-  if(acc){
-    const accs=all.filter(r=>r.accident);
-    html+=`<div class="scard" style="margin-bottom:10px;"><div class="stitle" style="color:#ff8a80;">🚨 안전사고 표시 (${acc}건)</div>${accs.map(r=>`<div style="font-size:11.5px;color:#dceaf6;padding:5px 0;border-bottom:1px solid rgba(255,255,255,.04);">${_esc(r.useDate)} (${_wd[Math.max(0,_dow(r.useDate))]}) · ${_esc(r.district)} ${_esc(r.course)} · <b>${_esc(r.applicant&&r.applicant.name)}</b> 팀 (${r.total||'-'}명)</div>`).join('')}<div style="font-size:9px;color:#46708f;margin-top:5px;">비고번호 2(안전사고) 자동 인식 · 구조기록 연계는 다음 단계</div></div>`;
-  }
+  if(expN)html+=`<div class="scard" style="margin-bottom:10px;"><div class="stitle">🧗 신청자 등반경력 <span style="font-size:9px;font-weight:400;color:#5a7e98;">${expN}명</span></div>${bar(Object.keys(expB).map(k=>({k,v:expB[k]})).filter(x=>x.v),'명',x=>x.k==='1년↓'?'#ff8a73':'#5fcf8f')}</div>`;
+  if(ageN)html+=`<div class="scard" style="margin-bottom:10px;"><div class="stitle">👥 연령대 <span style="font-size:9px;font-weight:400;color:#5a7e98;">${ageN}명</span></div>${bar(Object.keys(ageB).map(k=>({k,v:ageB[k]})).filter(x=>x.v),'명',x=>(x.k==='60대'||x.k==='70↑')?'#f0a44a':'#4fa8d0')}</div>`;
+  html+=`<button onclick="climbToggleStatsFull()" style="width:100%;padding:11px;border-radius:10px;border:1px solid rgba(255,255,255,.12);background:none;color:#7a9cb8;font-size:12.5px;font-weight:700;cursor:pointer;">▲ 통계 접기</button>`;
   b.innerHTML=html;
+}
+function climbToggleStatsFull(){window._climbStatsFull=!window._climbStatsFull;_renderClimbActive();}
+// 사고자 수동 등록 (엑셀 상태값은 다운로드 시점따라 갈려 신뢰 불가 → 직접 등록이 정확)
+function climbAddAccident(){
+  if(!_canClimbManage()){toast('⚠️ 관리자만 가능');return;}
+  var def=(document.getElementById('climbCxDate')||{}).value||_ymd(new Date());
+  var date=prompt('사고 발생일 (YYYY-MM-DD)',def);if(date==null)return;date=(date||'').trim();
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(date)){toast('⚠️ 날짜 형식(YYYY-MM-DD)을 확인하세요');return;}
+  var name=prompt('사고자(팀 신청자) 이름','');if(name==null)return;name=(name||'').trim();if(!name){toast('⚠️ 이름을 입력하세요');return;}
+  var note=prompt('사고 내용(선택 — 부위·경위 등)','');if(note==null)note='';
+  var arr=_climbAccidents();
+  arr.push({id:Date.now(),date:date,name:name,note:(note||'').trim(),by:(DB.g('currentUser')||{}).name||getAuthor(),at:Date.now()});
+  DB.s('climbAccidents',arr);
+  toast('🚨 사고자 등록: '+name+' ('+date+')',3500);
+  try{renderHomeActive();}catch(e){}
+  try{_renderClimbActive();}catch(e){}
+}
+function climbDelAccident(id){
+  if(!_canClimbManage()){toast('⚠️ 관리자만 가능');return;}
+  var arr=_climbAccidents();var i=arr.findIndex(a=>a.id===id);if(i<0)return;
+  if(!confirm('이 사고 등록을 삭제하시겠습니까?\n('+arr[i].date+' · '+arr[i].name+')'))return;
+  arr.splice(i,1);DB.s('climbAccidents',arr);toast('삭제됨');
+  try{_renderClimbActive();}catch(e){}
 }
 // ══════════════════════════════════════════
 // 전체 통계 (일반직원도 열람 가능)
@@ -3353,7 +3399,7 @@ function sosToRescue(id){
 // 앱 자체 업데이트 (OTA · Capgo 자체호스팅) — APK 전용. 웹/PWA는 서비스워커가 자동 갱신.
 // 번들(www)의 새 버전을 ota.json으로 알리면, 설치된 앱이 받아서 그 자리에서 교체(재빌드 불필요).
 // ══════════════════════════════════════════
-const OTA_VER='2026.07.15.141';                         // ← 현재 번들 버전 (릴리스마다 올림 · build-ota.sh가 ota.json에 반영)
+const OTA_VER='2026.07.15.142';                         // ← 현재 번들 버전 (릴리스마다 올림 · build-ota.sh가 ota.json에 반영)
 const OTA_MANIFEST='https://seorak1275.github.io/seoraksan/ota.json';
 let _otaInfo=null;
 function _otaPlugin(){try{return (window.Capacitor&&window.Capacitor.Plugins&&window.Capacitor.Plugins.CapacitorUpdater)||null;}catch(e){return null;}}
