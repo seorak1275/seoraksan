@@ -209,12 +209,12 @@ function _syncWriteFailed(item){ // item: {key, op:'set'|'del', coll?, id?, doc?
   if(i>=0)q[i]=item;else q.push(item); // 같은 문서는 최신 내용으로 교체
   _saveSyncQ(q);
   if(Date.now()-_syncQWarnedAt>30000){
-    _syncQWarnedAt=Date.now();
     // 인증이 안 된 상태면 원인을 명확히 안내 (콘솔 익명 인증 누락이 가장 흔함)
+    // ※ 부팅 직후 '인증 대기'는 정상 과도상태(인증 완료 시 큐 자동 재전송) → 경고하지 않음(첫 진입에 오류처럼 보이던 문제).
     var msg=_authErrCode==='auth/operation-not-allowed'
       ?'⚠️ 동기화 차단: Firebase 익명 인증이 꺼져 있습니다 (관리자 설정 필요)'
-      :(!_authReady?'⚠️ 인증 대기 중 — 동기화는 인증 완료 후 자동 재시도':'⚠️ 서버 저장 대기 중 — 연결되면 자동 재시도');
-    try{toast(msg);}catch(e){}
+      :(!_authReady?'':'⚠️ 서버 저장 대기 중 — 연결되면 자동 재시도');
+    if(msg){_syncQWarnedAt=Date.now();try{toast(msg);}catch(e){}}
   }
 }
 let _syncQFlushing=false;
@@ -245,7 +245,8 @@ function _flushSyncQueue(){
       }
     }
     _syncQFlushing=false;
-    if(ok&&!_loadSyncQ().length)try{toast('✅ 대기 변경 '+ok+'건 동기화 완료');}catch(e){}
+    // 동기화 완료 토스트는 띄우지 않음(반복 노이즈) — 대기 배지가 사라지는 것으로 충분.
+    if(ok)try{_updateSyncBadge();}catch(e){}
   })();
 }
 // 실패 항목 처리 — 회복 가능한 실패는 큐에 보존·재시도, '영영 저장 불가'(터미널)는 데드레터로 격리해

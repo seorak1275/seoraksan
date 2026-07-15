@@ -1433,6 +1433,7 @@ function openAddFac(){
   const _fa=document.getElementById('facAuthor');_fa.value=getAuthor();_fa.disabled=true;
   document.getElementById('prevFac').innerHTML='📸 촬영 또는 앨범';
   try{gpsFromMap('facGpsIn','inspect');}catch(e){}
+  try{_resetFacFormMap();}catch(e){} // 지도 선택기 초기화(🗺 버튼으로 열림)
   const _ic=window._lastInspectCrosshairCoord;
   const _li=document.getElementById('facLocIn');
   if(_li){const _ls=_ic?_nearestSign(_ic.lat,_ic.lng):null;_li.value=_ls||'';}
@@ -1456,6 +1457,7 @@ function openEditFac(id){
   document.getElementById('facNote').value=f.note||'';
   const _fa=document.getElementById('facAuthor');_fa.value=f.author||getAuthor();_fa.disabled=true;
   document.getElementById('prevFac').innerHTML='📸 촬영 또는 앨범';
+  try{_resetFacFormMap();}catch(e){} // 지도 선택기 초기화(🗺 버튼으로 열림 — 저장 좌표에서 시작)
   closeM('modalFacDetail');
   document.getElementById('modalAddFac').classList.add('on');
 }

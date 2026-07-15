@@ -812,9 +812,12 @@ if(window.Kakao&&!Kakao.isInitialized()) Kakao.init(KAKAO_KEY);
     <div class="fg">
       <span class="fl">GPS 좌표 <span class="muted" style="font-weight:400;">(선택 — 지명만도 OK)</span></span>
       <div class="gps-row"><input type="text" id="facGpsIn" class="fi" placeholder="위도, 경도">
-        <button class="sm-btn" onclick="gpsFromMap('facGpsIn','inspect')">🗺</button>
+        <button class="sm-btn" onclick="_facToggleMap()">🗺 지도</button>
         <button class="sm-btn" onclick="gpsFromPhone('facGpsIn')">📍GPS</button>
       </div>
+      <div id="fac_loc_mini_map" style="display:none;width:100%;height:220px;border-radius:10px;margin-top:8px;overflow:hidden;border:1px solid rgba(79,168,208,.25);"></div>
+      <div id="fac_minimap_coords" style="display:none;font-size:11px;color:#8ab4cc;font-family:monospace;margin-top:5px;text-align:center;"></div>
+      <div id="fac_map_hint" style="display:none;font-size:10.5px;color:#5f9bc4;margin-top:3px;text-align:center;">🗺 지도를 드래그해 십자선(중앙)을 시설 위치에 맞추세요</div>
     </div>
     <div class="fg"><span class="fl">설치일</span><input type="date" id="facInstall" class="fi"></div>
     <div class="fg"><span class="fl">안전등급 <span class="muted" style="font-weight:400;">(선택)</span></span><select id="facGradeSel" class="fsel"><option value="">미지정</option><option value="A">A — 우수</option><option value="B">B — 양호</option><option value="C">C — 보통</option><option value="D">D — 미흡</option><option value="E">E — 불량</option></select></div>

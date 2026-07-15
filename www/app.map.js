@@ -1467,7 +1467,8 @@ function _updateFormMiniMap(lat,lng){
           const g=document.getElementById('r_gps');if(g)g.value=la.toFixed(5)+', '+ln.toFixed(5);
           _autoFillLoc(la,ln);
           const _e=(typeof _elevStr==='function')?_elevStr(la,ln):'';
-          if(cd&&_e)cd.textContent=la.toFixed(5)+', '+ln.toFixed(5)+' '+_e;
+          // _elevStr는 고도 미확보 시 <span class="elev-ph"> HTML을 반환 → textContent면 태그가 그대로 글자로 보임. innerHTML로 삽입.
+          if(cd&&_e)cd.innerHTML=la.toFixed(5)+', '+ln.toFixed(5)+' '+_e;
           const st=document.getElementById('r_gps_status');if(st)st.textContent='✅ 지도 중심으로 위치 지정됨';
         },280);
       });
@@ -1487,6 +1488,84 @@ function initFormMiniMap(lat,lng){
     const st=document.getElementById('r_gps_status');if(st)st.textContent='✅ 위치 확인 — 🗺 지도를 드래그해 조정';
     setTimeout(()=>_updateFormMiniMap(+lat,+lng),200);
   }
+}
+// ══════════════════════════════════════════
+// 시설물 등록/수정 — 지도에서 위치 선택 (드래그하는 중앙 십자선 = 선택 좌표)
+// ══════════════════════════════════════════
+let _facMap=null,_facMapSignsAdded=false;
+function _facToggleMap(){
+  const el=document.getElementById('fac_loc_mini_map');
+  const cd=document.getElementById('fac_minimap_coords');
+  const hint=document.getElementById('fac_map_hint');
+  if(!el)return;
+  if(el.style.display!=='none'){ // 열려있으면 닫기(토글)
+    el.style.display='none';if(cd)cd.style.display='none';if(hint)hint.style.display='none';return;
+  }
+  el.style.display='block';if(cd)cd.style.display='block';if(hint)hint.style.display='block';
+  // 시작 좌표: 입력칸 → 시설점검 지도 중심 → 공원 중심
+  let lat,lng;
+  const gv=((document.getElementById('facGpsIn')||{}).value||'').split(',');
+  if(gv.length===2&&!isNaN(parseFloat(gv[0]))&&!isNaN(parseFloat(gv[1]))){lat=parseFloat(gv[0]);lng=parseFloat(gv[1]);}
+  else{try{const c=mapI.getCenter();lat=c.getLat();lng=c.getLng();}catch(e){lat=DC.lat;lng=DC.lng;}}
+  _updateFacFormMap(lat,lng);
+}
+function _updateFacFormMap(lat,lng){
+  if(!window._KR){setTimeout(()=>_updateFacFormMap(lat,lng),300);return;}
+  const el=document.getElementById('fac_loc_mini_map');if(!el)return;
+  el.style.display='block';
+  const pos=new kakao.maps.LatLng(lat,lng);
+  const cd=document.getElementById('fac_minimap_coords');
+  const _e=(typeof _elevStr==='function')?_elevStr(lat,lng):'';
+  if(cd)cd.innerHTML=lat.toFixed(5)+', '+lng.toFixed(5)+(_e?' '+_e:'');
+  if(!_facMap){
+    try{
+      el.style.position='relative';
+      _facMap=new kakao.maps.Map(el,{center:pos,level:4});
+      _facMap.setMapTypeId(kakao.maps.MapTypeId.HYBRID);
+      const cross=document.createElement('div');
+      cross.style.cssText='position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);z-index:5;pointer-events:none;width:36px;height:36px;';
+      cross.innerHTML='<div style="position:absolute;left:50%;top:0;width:2px;height:100%;background:rgba(231,76,60,.9);transform:translateX(-50%);"></div><div style="position:absolute;top:50%;left:0;height:2px;width:100%;background:rgba(231,76,60,.9);transform:translateY(-50%);"></div><div style="position:absolute;left:50%;top:50%;width:11px;height:11px;border:2px solid #fff;border-radius:50%;background:rgba(231,76,60,.75);transform:translate(-50%,-50%);box-shadow:0 0 6px rgba(0,0,0,.7);"></div>';
+      el.appendChild(cross);
+      _addFacMapSigns();
+      let _ft=null;
+      kakao.maps.event.addListener(_facMap,'center_changed',function(){
+        const c=_facMap.getCenter(),la=c.getLat(),ln=c.getLng();
+        if(cd)cd.textContent=la.toFixed(5)+', '+ln.toFixed(5);
+        clearTimeout(_ft);
+        _ft=setTimeout(function(){
+          const g=document.getElementById('facGpsIn');if(g)g.value=la.toFixed(5)+', '+ln.toFixed(5);
+          // 위치설명이 비어 있으면 가까운 표지판명 자동 채움
+          const li=document.getElementById('facLocIn');
+          if(li&&!li.value.trim()){const s=(typeof _nearestSign==='function')?_nearestSign(la,ln):'';if(s)li.value=s;}
+          const _ev=(typeof _elevStr==='function')?_elevStr(la,ln):'';
+          if(cd&&_ev)cd.innerHTML=la.toFixed(5)+', '+ln.toFixed(5)+' '+_ev;
+        },280);
+      });
+    }catch(e){console.warn('facMap',e);return;}
+  }else{
+    try{el.style.display='block';_facMap.relayout();_facMap.setCenter(pos);_addFacMapSigns();}catch(e){}
+  }
+}
+function _addFacMapSigns(){
+  if(_facMapSignsAdded||!_facMap)return;
+  const signs=(DB.g('facilities')||[]).filter(f=>f.type&&f.type.includes('다목적위치표지판')&&f.lat&&f.lng);
+  if(!signs.length)return;
+  signs.forEach(f=>{
+    const m=(f.name||'').match(/^\d{1,2}-\d{1,3}/);
+    const code=m?m[0]:(f.name||'').slice(0,5);
+    const d=document.createElement('div');
+    d.style.cssText='background:rgba(8,18,36,.82);border:1px solid rgba(125,211,250,.45);border-radius:5px;padding:1px 4px;font-size:9px;font-weight:700;color:#7dd3fa;font-family:monospace;pointer-events:none;white-space:nowrap;';
+    d.textContent=code;
+    new kakao.maps.CustomOverlay({position:new kakao.maps.LatLng(f.lat,f.lng),content:d,zIndex:2}).setMap(_facMap);
+  });
+  _facMapSignsAdded=true;
+}
+// 폼 열 때 지도 상태 초기화 (모달 DOM은 재사용되므로 인스턴스만 리셋)
+function _resetFacFormMap(){
+  _facMap=null;_facMapSignsAdded=false;
+  const el=document.getElementById('fac_loc_mini_map');if(el){el.style.display='none';el.innerHTML='';}
+  const cd=document.getElementById('fac_minimap_coords');if(cd){cd.style.display='none';cd.textContent='';}
+  const hint=document.getElementById('fac_map_hint');if(hint)hint.style.display='none';
 }
 function _updateHazMiniMap(lat,lng){_updateMiniMapEl('hz_loc_mini_map',lat,lng);}
 function initHazMiniMap(){
@@ -1514,7 +1593,7 @@ function gpsToFormMap(){
     const v=lat.toFixed(5)+', '+lng.toFixed(5);
     const gpsEl=document.getElementById('r_gps');if(gpsEl)gpsEl.value=v;
     const _e=(typeof _elevStr==='function')?_elevStr(lat,lng,window._formGpsAlt):'';
-    const cd=document.getElementById('r_minimap_coords');if(cd)cd.textContent=v+(_e?' '+_e:'');
+    const cd=document.getElementById('r_minimap_coords');if(cd)cd.innerHTML=v+(_e?' '+_e:''); // _e가 <span> HTML일 수 있어 innerHTML
     if(btn)btn.textContent='📡 GPS';
     if(st)st.textContent='✅ 현재 위치'+(acc<50?' (±'+Math.round(acc)+'m)':'')+ ' — 🗺 지도에서 조정 가능';
     _autoFillLoc(lat,lng);

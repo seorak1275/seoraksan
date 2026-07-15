@@ -2060,7 +2060,7 @@ function render1BoForm(prefill=null){
       </div>`:''}
       <div class="rsec" style="margin-top:${isNbo?'0':'12px'};"><div class="rsec-t">📞 접수 경로</div>
         <div style="display:flex;gap:6px;" id="recvRouteBtns">
-          ${['119','사무소 전화','현장 접수'].map(o=>`<button class="tog-btn${(p.recvRoute||'119')===o?' on':''}" data-val="${o}" style="flex:1;" onclick="selRecvRoute('${o}')">${o==='119'?'🚒 119':o==='사무소 전화'?'☎️ 사무소 전화':'🧍 현장 접수'}</button>`).join('')}
+          ${['119','사무소 전화','현장 접수'].map(o=>`<button class="tog-btn${(p.recvRoute||'119')===o?' on':''}" data-val="${o}" style="flex:1;white-space:nowrap;padding:9px 4px;font-size:11.5px;" onclick="selRecvRoute('${o}')">${o==='119'?'🚒 119':o==='사무소 전화'?'☎️ 사무소전화':'🧍 현장접수'}</button>`).join('')}
         </div>
         <input type="hidden" id="r_recvRoute" value="${p.recvRoute||'119'}">
       </div>
