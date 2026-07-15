@@ -571,7 +571,8 @@ function _facInfoHtml(f){
   const sRow=(k,v)=>v?`<div style="display:flex;gap:6px;padding:2px 0;"><span style="width:46px;flex-shrink:0;font-size:10px;color:#5d86a3;font-weight:700;">${k}</span><span style="flex:1;min-width:0;font-size:11px;color:#c9dcec;line-height:1.45;word-break:break-all;">${v}</span></div>`:'';
   const shortRows=[
     sRow('종류',`<span style="color:${col};font-weight:700;">${_esc(f.type)}</span>`),
-    sRow('위치',_esc(f.loc||'')),
+    sRow('위치',_esc(_facZoneLbl(f)||'')),
+    sRow('지점',_esc(_facSignDesc(f))),
     sRow('관리번호',f.mgmt?`<span style="font-family:monospace;font-size:10.5px;letter-spacing:.2px;">${_esc(f.mgmt)}</span>`:''),
     sRow('좌표',f.lat?`<span style="font-family:monospace;font-size:10.5px;">${f.lat.toFixed(5)}, ${f.lng.toFixed(5)}</span>`:''),
     sRow('설치',_esc(f.install||'')),
@@ -607,7 +608,7 @@ function openFacFromMap(id){
   _facPinHighlight(id);
   const col=_facTypeColor(f.type);
   document.getElementById('facPopTitle').innerHTML=
-    `<span style="display:inline-flex;align-items:center;gap:7px;flex-wrap:wrap;"><span style="width:25px;height:25px;border-radius:50%;background:${col}33;border:2px solid ${col};display:inline-flex;align-items:center;justify-content:center;font-size:12px;flex-shrink:0;">${_esc(f.type.split(' ')[0])}</span><span>${_esc(f.name)}</span>${_facGradeBadge(f)}${f.hidden?'<span style="font-size:9px;color:#8a6d3b;">🙈 숨김중</span>':''}</span>`;
+    `<span style="display:inline-flex;align-items:center;gap:7px;flex-wrap:wrap;"><span style="width:25px;height:25px;border-radius:50%;background:${col}33;border:2px solid ${col};display:inline-flex;align-items:center;justify-content:center;font-size:12px;flex-shrink:0;">${_esc(f.type.split(' ')[0])}</span><span>${_esc(_facDispName(f))}</span>${_facGradeBadge(f)}${f.hidden?'<span style="font-size:9px;color:#8a6d3b;">🙈 숨김중</span>':''}</span>`;
   document.getElementById('facPopMeta').innerHTML=_facInfoHtml(f);
   const _bw=document.getElementById('facPopBtns');
   const mng=_canManageFac();
@@ -692,8 +693,8 @@ function renderFacList(){
     const cg=_facCurGrade(f);
     return `<div class="lcard" style="padding:7px 10px;border-left:3px solid ${col};" onclick="openFacDetail(${f.id})">
       <div class="lico" style="width:30px;height:30px;font-size:14px;border-color:${col};color:${col};background:${col}1e;">${_esc(f.type.split(' ')[0])}</div>
-      <div class="linfo"><div class="lname" style="font-size:12px;">${_esc(f.name)}${f.hidden?' <span style="font-size:9px;color:#8a6d3b;">🙈 숨김</span>':''}</div>
-        <div class="lmeta">${_esc(f.type.split(' ').slice(1).join(' ')||f.type)} · ${_esc(f.loc||'-')} · ${f.lat?'📍':''}</div>
+      <div class="linfo"><div class="lname" style="font-size:12px;">${_esc(_facDispName(f))}${f.hidden?' <span style="font-size:9px;color:#8a6d3b;">🙈 숨김</span>':''}</div>
+        <div class="lmeta">${_esc(f.type.split(' ').slice(1).join(' ')||f.type)} · ${_esc(_facZoneLbl(f)||'-')} · ${f.lat?'📍':''}</div>
         ${w&&w.reason?`<span style="font-size:9px;color:#e05050;margin-top:2px;display:block;">⚠️ ${_esc(w.reason)}</span>`:''}
       </div>
       ${cg?`<span class="lbadge" style="background:${_gColor(cg.g)}22;color:${_gColor(cg.g)};font-weight:900;">${_esc(cg.g)}</span>`:''}
@@ -745,13 +746,13 @@ function openFacDetail(id){
   const facs=DB.g('facilities')||[];const f=facs.find(x=>x.id===id);if(!f)return;
   selFacId=id;window._selFacDetailId=id;
   const w=_facWarn(f);const canMng=_canManageFac();
-  document.getElementById('facDetailTitle').textContent=f.name;
+  document.getElementById('facDetailTitle').textContent=_facDispName(f);
   const _dcol=_facTypeColor(f.type);
   document.getElementById('facDetailContent').innerHTML=`
     ${_navBtns('fac',id,'openFacDetail')}
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
       <div style="width:38px;height:38px;border-radius:50%;background:${_dcol}33;border:2px solid ${_dcol};display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;">${_esc(f.type.split(' ')[0])}</div>
-      <div style="flex:1;min-width:0;"><div style="font-size:14px;font-weight:700;color:#e0edf8;">${_esc(f.name)} ${_facGradeBadge(f)}</div>
+      <div style="flex:1;min-width:0;"><div style="font-size:14px;font-weight:700;color:#e0edf8;">${_esc(_facDispName(f))} ${_facGradeBadge(f)}</div>
         <div style="font-size:11px;color:${_dcol};margin-top:2px;">${_esc(f.type.split(' ').slice(1).join(' ')||f.type)}${f.hidden?' <span style="color:#8a6d3b;">· 🙈 숨김중</span>':''}</div>
       </div>
     </div>

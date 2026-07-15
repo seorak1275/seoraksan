@@ -1081,11 +1081,54 @@ const ZONE_NAMES = {
 };
 // 위치필터 칩 라벨: '01 (천불동계곡)'
 function _zoneLbl(z){return ZONE_NAMES[z]?z+' ('+ZONE_NAMES[z]+')':z;}
-// 시설물이 해당 존(zz)에 속하는지: 코드(NN-?? 또는 NN) prefix로 판정 (substring 오매칭 방지)
-function _facInZone(f,z){
-  const c=((f&&(f.loc||''))||'').trim()||(((f&&f.name)||'').match(/^\d+-\d+/)||[''])[0];
-  return c.startsWith(z+'-')||c===z;
+// ── 시설물 위치구간 통일 표기 ─────────────────────────────────────────
+// 표지판은 자기 코드(NN-NN)에서, 그 외 시설(교량·데크 등)은 '가장 가까운 표지판'의 존에서 구간을 도출.
+// → 백담 교량·데크 등도 자동으로 '10 (백담계곡)'으로 통일. 목록 표시·위치 표시·필터가 같은 기준을 쓴다.
+function _facZoneOwn(f){ // 시설 자신에게서 존(2자리) 추출 — 없으면 ''
+  const loc=((f&&f.loc)||'').trim();
+  let m=loc.match(/^(\d{2})\s*\(/);if(m)return m[1];            // 이미 'NN (구간명)' 형식
+  m=(loc+' '+((f&&f.name)||'')).match(/(?:^|\s)(\d{2})-\d+/);if(m)return m[1]; // 'NN-NN' 코드
+  m=loc.match(/^(\d{2})$/);if(m)return m[1];                    // 정확히 'NN'
+  return '';
 }
+let _facZoneCache={},_facZoneCacheSig='';
+function _facZoneCode(f){
+  if(!f)return '';
+  const own=_facZoneOwn(f);
+  if(own)return own;
+  if(f.lat&&f.lng){ // 코드 없는 시설: 좌표로 가장 가까운 표지판의 존(캐시)
+    const facs=DB.g('facilities')||[];
+    const sig=facs.length+'';
+    if(sig!==_facZoneCacheSig){_facZoneCache={};_facZoneCacheSig=sig;}
+    if(_facZoneCache[f.id])return _facZoneCache[f.id];
+    let best='',bd=1e9;
+    facs.forEach(s=>{
+      if(!(s.type&&s.type.includes('다목적위치표지판')&&s.lat&&s.lng))return;
+      const zc=_facZoneOwn(s);if(!zc)return;
+      const d=_haversine(f.lat,f.lng,s.lat,s.lng);
+      if(d<bd){bd=d;best=zc;}
+    });
+    if(best){_facZoneCache[f.id]=best;return best;}
+  }
+  return '';
+}
+// 목록·상세 이름: 표지판은 코드만(예: '01-01'), 그 외는 원래 이름
+function _facDispName(f){
+  if(f&&f.type&&f.type.includes('다목적위치표지판')){
+    const c=(((f.name||'').match(/^\d{2}-\d+/))||((f.loc||'').match(/^\d{2}-\d+/))||[''])[0];
+    if(c)return c;
+  }
+  return f?(f.name||''):'';
+}
+// 표지판의 상세 지점 설명(코드 뒤 부분) — 상세에서 참고용으로 보존
+function _facSignDesc(f){
+  if(!(f&&f.type&&f.type.includes('다목적위치표지판')))return '';
+  return (f.name||'').replace(/^\d{2}-\d+\s*/,'').trim();
+}
+// 위치 표시: '01 (천불동계곡)' 형식(필터칩과 동일). 존을 못 구하면 원래 loc.
+function _facZoneLbl(f){const z=_facZoneCode(f);return z?_zoneLbl(z):((f&&f.loc)||'');}
+// 시설물이 해당 존(zz)에 속하는지 — 표시와 동일 기준으로 판정
+function _facInZone(f,z){return _facZoneCode(f)===z;}
 
 // 표지판 코드(ZZ-NN) → 거점 {primary, alt} 반환 ← 모든 라우팅의 단일 진입점
 function getBaseForSign(signCode){
