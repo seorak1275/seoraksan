@@ -1171,12 +1171,13 @@ function renderHomeActive(){
   const haz=(DB.g('hazards')||[]).filter(h=>!h.hazStatus||h.hazStatus==='미조치'||h.hazStatus==='조치중');
   const badFac=(DB.g('facilities')||[]).filter(f=>f.status==='bad');
   const total=og.length+haz.length+badFac.length;
+  let climbCard='';try{climbCard=_climbHomeCardHtml();}catch(e){}
   if(!total){
     el.innerHTML=`<div style="display:flex;align-items:center;gap:12px;background:linear-gradient(135deg,#0e2a20,#0b1c19);border:1px solid rgba(39,174,96,.22);border-radius:16px;padding:15px 16px;">
       <div style="width:40px;height:40px;border-radius:50%;background:rgba(39,174,96,.15);display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;">✅</div>
       <div style="min-width:0;"><div style="font-size:14px;font-weight:800;color:#eaf2fa;">현재 주의 항목 없음</div>
       <div style="font-size:11.5px;color:#7fb89c;margin-top:2px;">진행 중인 구조·위험 상황이 없습니다</div></div>
-    </div>`;
+    </div>${climbCard?`<div style="display:flex;gap:8px;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch;margin-top:8px;padding-bottom:2px;">${climbCard}</div>`:''}`;
     return;
   }
   // 상단 요약(0건 카테고리는 생략)
@@ -1222,7 +1223,7 @@ function renderHomeActive(){
       <span style="font-size:12.5px;font-weight:800;color:#eaf2fa;">⚡ 주의 현황</span>
       <span style="font-size:10.5px;color:#9bb8cc;">${sum.join(' <span style=\"color:#3a5a74;\">·</span> ')}</span>
     </div>
-    <div style="display:flex;gap:8px;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch;padding-bottom:2px;">${cards.join('')}</div>`;
+    <div style="display:flex;gap:8px;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch;padding-bottom:2px;">${climbCard}${cards.join('')}</div>`;
 }
 function openRescueFromHome(id){
   openApp('rescue');
@@ -1235,6 +1236,260 @@ function openHazFromHome(id){
 function openFacFromHome(id){
   openApp('inspect');
   setTimeout(()=>{try{openFacDetail(id);}catch(e){}},120);
+}
+// ══════════════════════════════════════════
+// 🧗 암벽훈련장 이용관리 (Phase 1: 업로드·저장·홈알림·기본통계)
+//  · 시스템 원본 엑셀(신청내역 flat)만 올리면 앱이 파싱→저장→통계 자동 산출
+//  · 개인정보(실명·전화·생년월일)라 특수산악구조대·관리자만 열람. 명단은 climbUsage 컬렉션(전체 동기화 X)
+//  · 홈 알림·시즌: 암벽 5.16~11.14 (빙벽 추후)
+// ══════════════════════════════════════════
+// 코스→지구 매핑 (시스템 통계 시트 기준)
+const CLIMB_DISTRICTS={
+  '천화대지구':['천화대','흑범길','염라길','석주길'],
+  '비선대지구':['적벽','장군봉','삼형제길','유선대'],
+  '울산바위지구':['울산암벽','하나되는길','돌잔치길','나들이길'],
+  '소토왕골지구':['소토왕골암장','한편의시를위한길'],
+  '토왕골지구':['솜다리의추억','경원대길','4인의우정길','별을따는소년들'],
+  '한계산성지구':['미륵장군봉','몽유도원도','아갈바위'],
+  '오색지구':['칠형제봉']
+};
+const _climbCourseDistrict=(()=>{const m={};Object.keys(CLIMB_DISTRICTS).forEach(d=>CLIMB_DISTRICTS[d].forEach(c=>{m[c]=d;}));return m;})();
+function _climbDistrictOf(course){const c=String(course||'').trim();return _climbCourseDistrict[c]||'기타';}
+// 열람 권한: 특수산악구조대 부서 · 마스터/개발자 (개인정보 보호)
+function _canClimb(){try{const u=DB.g('currentUser')||{};if(u.dept==='특수산악구조대')return true;if(typeof _isMasterAdmin==='function'&&_isMasterAdmin())return true;if(typeof _isDeveloper==='function'&&_isDeveloper(u.kakaoId))return true;}catch(e){}return false;}
+// 암벽 시즌(5.16~11.14) 여부
+function _climbInSeason(d){d=d||new Date();const md=(d.getMonth()+1)*100+d.getDate();return md>=516&&md<=1114;}
+function _ymd(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
+// 생년월일(YYYYMMDD 등) → 만나이
+function _climbAge(dob){try{const s=String(dob).replace(/\D/g,'');if(s.length<8)return null;const y=+s.slice(0,4),mo=+s.slice(4,6),da=+s.slice(6,8);if(!y||y<1900)return null;const t=new Date();let a=t.getFullYear()-y;if((t.getMonth()+1)*100+t.getDate()<mo*100+da)a--;return (a>=0&&a<=120)?a:null;}catch(e){return null;}}
+// 날짜 셀 정규화 (문자열/시리얼/Date → 'YYYY-MM-DD')
+function _climbDate(v){
+  if(v==null||v==='')return '';
+  if(v instanceof Date&&!isNaN(v))return _ymd(v);
+  const s=String(v).trim();
+  let m=s.match(/(\d{4})[-.\/]\s*(\d{1,2})[-.\/]\s*(\d{1,2})/);
+  if(m)return m[1]+'-'+String(+m[2]).padStart(2,'0')+'-'+String(+m[3]).padStart(2,'0');
+  if(/^\d{8}$/.test(s))return s.slice(0,4)+'-'+s.slice(4,6)+'-'+s.slice(6,8);
+  const n=parseFloat(s); // 엑셀 시리얼(1900 기준)
+  if(!isNaN(n)&&n>30000&&n<80000){const dt=new Date(Date.UTC(1899,11,30)+n*86400000);return _ymd(new Date(dt.getUTCFullYear(),dt.getUTCMonth(),dt.getUTCDate()));}
+  return '';
+}
+// SheetJS 지연 로드 (업로드 시 최초 1회만) — 오프라인이면 안내
+let _xlsxLoading=null;
+function _loadXlsx(){
+  if(window.XLSX)return Promise.resolve(window.XLSX);
+  if(_xlsxLoading)return _xlsxLoading;
+  _xlsxLoading=new Promise((res,rej)=>{
+    const s=document.createElement('script');
+    s.src='https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js';
+    s.onload=()=>window.XLSX?res(window.XLSX):rej(new Error('xlsx load fail'));
+    s.onerror=()=>rej(new Error('xlsx net fail'));
+    document.head.appendChild(s);
+  });
+  return _xlsxLoading;
+}
+// 헤더명 기반 컬럼 매핑 — 원본/가공본 양식 모두 대응 (열 위치 달라도 이름으로 찾음)
+function _climbParseWB(wb){
+  const XLSX=window.XLSX;
+  let best=null;
+  wb.SheetNames.forEach(name=>{
+    const ws=wb.Sheets[name];if(!ws)return;
+    const rows=XLSX.utils.sheet_to_json(ws,{header:1,raw:true,defval:''});
+    // 헤더행: '이용일자'와 '신청자'가 같이 있는 행
+    let hi=-1;
+    for(let i=0;i<Math.min(rows.length,12);i++){
+      const line=(rows[i]||[]).map(c=>String(c==null?'':c).trim());
+      if(line.indexOf('이용일자')>=0&&line.indexOf('신청자')>=0){hi=i;break;}
+    }
+    if(hi<0)return;
+    const dataCnt=rows.length-hi-1;
+    if(!best||dataCnt>best.dataCnt)best={name,rows,hi,dataCnt};
+  });
+  if(!best)return null;
+  const {rows,hi}=best;
+  const hdr=(rows[hi]||[]).map(c=>String(c==null?'':c).trim());
+  const col=n=>hdr.indexOf(n);
+  // 신청자 블록 인덱스
+  const iApply=col('신청일자'),iUse=col('이용일자'),iStat=col('상태'),iTot=col('총원'),iCourse=col('신청코스'),
+        iName=col('신청자'),iPhone=hdr.indexOf('연락처'),iGender=hdr.indexOf('성별'),iExp=hdr.indexOf('등반경력'),iComp=col('동반자 수');
+  // 비고번호(사고표시): 있으면 사용
+  const iBigo=hdr.indexOf('비고번호');
+  // 동반자 블록: '동반자N 이름'부터 5칸(이름·생년월일·연락처·성별·등반경력)
+  const compBlocks=[];
+  for(let n=1;n<=4;n++){const ci=hdr.indexOf('동반자'+n+' 이름');if(ci>=0)compBlocks.push(ci);}
+  const recs=[];
+  for(let r=hi+1;r<rows.length;r++){
+    const row=rows[r]||[];
+    const use=_climbDate(row[iUse]);
+    const name=String(row[iName]==null?'':row[iName]).trim();
+    if(!use||!name)continue; // 유효 데이터행만
+    const comps=[];
+    compBlocks.forEach(ci=>{
+      const cn=String(row[ci]==null?'':row[ci]).trim();
+      if(!cn)return;
+      comps.push({name:cn,dob:String(row[ci+1]==null?'':row[ci+1]).trim(),phone:String(row[ci+2]==null?'':row[ci+2]).trim(),gender:String(row[ci+3]==null?'':row[ci+3]).trim(),exp:String(row[ci+4]==null?'':row[ci+4]).trim()});
+    });
+    recs.push({
+      applyDate:_climbDate(row[iApply]),useDate:use,status:String(row[iStat]==null?'':row[iStat]).trim(),
+      total:parseInt(row[iTot])||((comps.length+1)),course:String(row[iCourse]==null?'':row[iCourse]).trim(),
+      district:_climbDistrictOf(row[iCourse]),
+      applicant:{name,phone:iPhone>=0?String(row[iPhone]==null?'':row[iPhone]).trim():'',gender:iGender>=0?String(row[iGender]==null?'':row[iGender]).trim():'',exp:iExp>=0?String(row[iExp]==null?'':row[iExp]).trim():''},
+      companions:comps,
+      accident:iBigo>=0?(String(row[iBigo]).trim()==='2'):false,
+      bigo:iBigo>=0?String(row[iBigo]==null?'':row[iBigo]).trim():''
+    });
+  }
+  return recs;
+}
+// 파싱된 레코드를 이용일자별 Firestore 문서로 저장 + climbDates 갱신
+async function _climbSave(recs){
+  if(!_fdb)throw new Error('DB 미연결 — 온라인에서 업로드하세요');
+  const byDate={};
+  recs.forEach(r=>{(byDate[r.useDate]=byDate[r.useDate]||[]).push(r);});
+  const dates=Object.keys(byDate).sort();
+  const by=(DB.g('currentUser')||{}).name||getAuthor();
+  for(const d of dates){
+    await _fdb.collection('climbUsage').doc(d).set({date:d,records:byDate[d],count:byDate[d].length,uploadedAt:Date.now(),uploadedBy:by});
+  }
+  // 커버리지 날짜 병합(개인정보 아님 → 동기화 OK)
+  const cur=new Set((DB.g('climbDates')||[]).map(String));
+  dates.forEach(d=>cur.add(d));
+  DB.s('climbDates',Array.from(cur).sort());
+  return dates;
+}
+// 업로드 핸들러 (파일 input onchange)
+async function climbUpload(inp){
+  if(!inp.files||!inp.files[0])return;
+  const file=inp.files[0];inp.value='';
+  if(typeof _busy==='function')_busy('📄 엑셀 분석 중…');
+  try{
+    const XLSX=await _loadXlsx();
+    const buf=await file.arrayBuffer();
+    const wb=XLSX.read(new Uint8Array(buf),{type:'array'});
+    const recs=_climbParseWB(wb);
+    if(!recs||!recs.length){if(typeof _busyDone==='function')_busyDone();toast('⚠️ 인식된 이용내역이 없습니다 — 원본(신청내역) 파일인지 확인');return;}
+    const dates=await _climbSave(recs);
+    if(typeof _busyDone==='function')_busyDone();
+    toast('✅ '+recs.length+'건 저장 · '+dates.length+'일치 ('+dates[0]+'~'+dates[dates.length-1]+')',4000);
+    try{renderHomeActive();}catch(e){}
+    _climbCache=null;openClimb();
+  }catch(e){
+    if(typeof _busyDone==='function')_busyDone();
+    toast('⚠️ 업로드 실패: '+((e&&e.message)||e)+(navigator.onLine?'':' (오프라인)'),4500);
+  }
+}
+// 저장된 전체 이용내역 로드 (권한자 화면 열 때만)
+let _climbCache=null;
+async function _climbLoadAll(){
+  if(_climbCache)return _climbCache;
+  if(!_fdb)return [];
+  const snap=await _fdb.collection('climbUsage').get();
+  const all=[];snap.forEach(d=>{const v=d.data()||{};(v.records||[]).forEach(r=>all.push(r));});
+  _climbCache=all;return all;
+}
+// 시즌 내 데이터 없는 이용일자 목록 (업로드 필요일)
+//  · 첫 업로드 전: 어제~내일만(초기 과도 알림 방지)  · 업로드 후: 가장 이른 업로드일 ~ 내일 중 빈 날
+function _climbMissingDates(){
+  const cov=(DB.g('climbDates')||[]).map(String).sort();
+  const covered=new Set(cov);
+  const out=[];const t=new Date();t.setHours(0,0,0,0);
+  const end=new Date(t);end.setDate(end.getDate()+1); // 내일까지
+  let start;
+  if(cov.length){const p=cov[0].split('-');start=new Date(+p[0],+p[1]-1,+p[2]);}
+  else{start=new Date(t);start.setDate(start.getDate()-1);} // 아직 없으면 어제부터
+  for(let d=new Date(start);d<=end;d.setDate(d.getDate()+1)){
+    if(!_climbInSeason(d))continue;
+    const s=_ymd(d);if(!covered.has(s))out.push(s);
+  }
+  return out;
+}
+// 홈 카드용: 오늘/내일이 미업로드면 알림 대상
+function _climbHomeNeed(){
+  if(!_canClimb()||!_climbInSeason())return null;
+  const covered=new Set((DB.g('climbDates')||[]).map(String));
+  const t=new Date();const todayS=_ymd(t);const tm=new Date(t);tm.setDate(tm.getDate()+1);const tmS=_ymd(tm);
+  const miss=_climbMissingDates();
+  const needTodayTm=!covered.has(todayS)||(_climbInSeason(tm)&&!covered.has(tmS));
+  return {need:needTodayTm||miss.length>0,missCount:miss.length,todayCovered:covered.has(todayS)};
+}
+function _climbHomeCardHtml(){
+  const n=_climbHomeNeed();if(!n)return '';
+  const dates=(DB.g('climbDates')||[]).length;
+  if(n.need){
+    return `<div onclick="openClimb()" style="flex:0 0 auto;width:190px;background:#241a0e;border:1px solid rgba(240,165,0,.35);border-left:3px solid #f0a500;border-radius:13px;padding:10px 12px;cursor:pointer;box-shadow:0 2px 9px rgba(0,0,0,.3);">
+      <div style="display:flex;align-items:center;gap:5px;margin-bottom:6px;"><span style="font-size:14px;">🧗</span><span style="font-size:10px;font-weight:800;color:#f0c050;background:rgba(240,165,0,.18);border-radius:6px;padding:2px 6px;">업로드 필요</span></div>
+      <div style="font-size:11.5px;font-weight:700;color:#eaf2fa;">암벽 이용현황 파일</div>
+      <div style="font-size:9.5px;color:#c79a4a;margin-top:3px;">${n.missCount?('미업로드 '+n.missCount+'일'):'오늘/내일 업로드 필요'} · 눌러서 확인</div>
+    </div>`;
+  }
+  // 데이터 있음 → 보기 카드
+  return `<div onclick="openClimb()" style="flex:0 0 auto;width:190px;background:#0e2436;border:1px solid rgba(79,168,208,.28);border-left:3px solid #4fa8d0;border-radius:13px;padding:10px 12px;cursor:pointer;box-shadow:0 2px 9px rgba(0,0,0,.3);">
+    <div style="display:flex;align-items:center;gap:5px;margin-bottom:6px;"><span style="font-size:14px;">🧗</span><span style="font-size:10px;font-weight:800;color:#7fc4e0;background:rgba(79,168,208,.16);border-radius:6px;padding:2px 6px;">암벽 현황</span></div>
+    <div style="font-size:11.5px;font-weight:700;color:#eaf2fa;">이용현황·통계 보기</div>
+    <div style="font-size:9.5px;color:#8ab4cc;margin-top:3px;">${dates}일치 데이터 · 눌러서 열기</div>
+  </div>`;
+}
+// 암벽 관리 화면 (전체화면 패널)
+function openClimb(){
+  if(!_canClimb()){toast('⚠️ 특수산악구조대·관리자만 열람 가능');return;}
+  let ov=document.getElementById('climbPanel');
+  if(ov)ov.remove();
+  ov=document.createElement('div');ov.id='climbPanel';
+  ov.style.cssText='position:fixed;inset:0;z-index:9600;background:#060d1a;display:flex;flex-direction:column;';
+  ov.innerHTML=`<div style="display:flex;align-items:center;gap:10px;padding:calc(12px + env(safe-area-inset-top)) 14px 12px;border-bottom:1px solid rgba(79,168,208,.15);flex-shrink:0;">
+      <span style="font-size:16px;font-weight:800;color:#eaf2fa;">🧗 암벽 이용관리</span>
+      <label style="margin-left:auto;background:rgba(94,207,143,.14);color:#5fcf8f;border:1px solid rgba(94,207,143,.35);border-radius:9px;padding:7px 12px;font-size:12px;font-weight:800;cursor:pointer;">⬆️ 엑셀 업로드<input type="file" accept=".xlsx,.xlsm,.xls" onchange="climbUpload(this)" style="display:none;"></label>
+      <button onclick="var e=document.getElementById('climbPanel');if(e)e.remove();" style="background:none;border:none;color:rgba(255,255,255,.5);font-size:24px;cursor:pointer;line-height:1;">×</button>
+    </div>
+    <div id="climbBody" style="flex:1;overflow-y:auto;padding:14px;"><div style="text-align:center;color:#5a7e98;font-size:13px;padding:40px 0;">불러오는 중…</div></div>`;
+  document.body.appendChild(ov);
+  _climbLoadAll().then(all=>_renderClimb(all)).catch(e=>{const b=document.getElementById('climbBody');if(b)b.innerHTML='<div style="text-align:center;color:#ff8a73;padding:40px 0;">불러오기 실패 — 온라인 상태를 확인하세요</div>';});
+}
+function _renderClimb(all){
+  const b=document.getElementById('climbBody');if(!b)return;
+  const covered=(DB.g('climbDates')||[]).slice().sort();
+  const miss=_climbMissingDates();
+  // 커버리지 카드
+  let html=`<div class="scard" style="margin-bottom:10px;">
+    <div class="stitle">📅 업로드 현황 <span style="font-size:9px;font-weight:400;color:#5a7e98;">· 시즌 5.16~11.14</span></div>
+    <div style="font-size:12px;color:#cfe2f2;line-height:1.9;">저장된 이용일 <b style="color:#7fc4e0;">${covered.length}일</b>${covered.length?` (${covered[0]} ~ ${covered[covered.length-1]})`:''}<br>
+    ${miss.length?`<span style="color:#f0a500;font-weight:800;">⚠️ 미업로드 ${miss.length}일</span>: <span style="font-size:10.5px;color:#c79a4a;">${miss.slice(0,14).map(_esc).join(', ')}${miss.length>14?' …':''}</span>`:'<span style="color:#5fcf8f;font-weight:700;">✅ 오늘까지 모두 업로드됨</span>'}</div>
+  </div>`;
+  if(!all.length){b.innerHTML=html+`<div style="text-align:center;color:#5a7e98;font-size:13px;padding:30px 0;">아직 저장된 이용내역이 없습니다.<br>우측 상단 <b>⬆️ 엑셀 업로드</b>로 원본 파일을 올리세요.</div>`;return;}
+  // ── 기본 통계 ──
+  const teams=all.length;
+  const people=all.reduce((s,r)=>s+(r.total||(r.companions?r.companions.length+1:1)),0);
+  const acc=all.filter(r=>r.accident).length;
+  const st={};all.forEach(r=>{st[r.status||'-']=(st[r.status||'-']||0)+1;});
+  const gender={남:0,여:0,기타:0};all.forEach(r=>{const g=r.applicant&&r.applicant.gender;gender[g==='남'?'남':g==='여'?'여':'기타']++;});
+  // 코스·지구별 인원/팀
+  const byCourse={};all.forEach(r=>{const c=r.course||'-';const o=byCourse[c]||(byCourse[c]={ppl:0,team:0,dist:r.district});o.ppl+=(r.total||1);o.team++;});
+  const courseRank=Object.keys(byCourse).map(c=>({c,...byCourse[c]})).sort((a,b)=>b.ppl-a.ppl);
+  const byDist={};all.forEach(r=>{const d=r.district||'기타';const o=byDist[d]||(byDist[d]={ppl:0,team:0});o.ppl+=(r.total||1);o.team++;});
+  const distRank=Object.keys(byDist).map(d=>({d,...byDist[d]})).sort((a,b)=>b.ppl-a.ppl);
+  // 동반자 연령대
+  const ageB={'20↓':0,'20대':0,'30대':0,'40대':0,'50대':0,'60대':0,'70↑':0};let ageN=0;
+  all.forEach(r=>(r.companions||[]).forEach(c=>{const a=_climbAge(c.dob);if(a==null)return;ageN++;ageB[a<20?'20↓':a<30?'20대':a<40?'30대':a<50?'40대':a<60?'50대':a<70?'60대':'70↑']++;}));
+  const mini=(lbl,val,col,sub)=>`<div style="background:#060d1a;border-radius:10px;padding:11px 8px;text-align:center;"><div style="font-size:19px;font-weight:800;color:${col||'#e0edf8'};">${val}</div><div style="font-size:9.5px;color:#7a9cb8;margin-top:3px;">${lbl}</div>${sub?`<div style="font-size:8.5px;color:#4a7090;margin-top:1px;">${sub}</div>`:''}</div>`;
+  const bar=(rows,keyf,valf,colf,max)=>rows.map(x=>{const v=valf(x);return `<div style="display:flex;align-items:center;gap:8px;padding:4px 0;"><span style="font-size:11.5px;color:#c0d8ec;min-width:92px;flex-shrink:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${_esc(keyf(x))}</span><div style="flex:1;height:9px;background:rgba(255,255,255,.05);border-radius:5px;overflow:hidden;"><div style="height:100%;width:${Math.max(3,Math.round(v/max*100))}%;background:${colf?colf(x):'#4fa8d0'};border-radius:5px;"></div></div><span style="font-size:11px;color:#e0edf8;font-weight:800;min-width:52px;text-align:right;">${valf(x)}명</span></div>`;}).join('');
+  html+=`<div class="scard" style="margin-bottom:10px;">
+    <div class="stitle">📊 이용 요약 <span style="font-size:9px;font-weight:400;color:#5a7e98;">· 저장분 전체</span></div>
+    <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:6px;">
+      ${mini('총 이용인원',people+'명','#4fa8d0')}
+      ${mini('총 팀(신청건)',teams+'팀','#7ee0a8')}
+      ${mini('안전사고',acc+'건',acc?'#ff6b5b':'#27ae60',acc?'':'없음')}
+      ${mini('신청자 성별','<span style="font-size:14px;">남 '+gender.남+' · 여 '+gender.여+'</span>','#e0edf8')}
+    </div>
+    <div style="font-size:10px;color:#8fb4cc;margin-top:8px;">상태 · ${Object.keys(st).map(k=>_esc(k)+' '+st[k]).join(' / ')}</div>
+  </div>`;
+  html+=`<div class="scard" style="margin-bottom:10px;"><div class="stitle">🏔️ 지구별 이용</div>${bar(distRank,x=>x.d,x=>x.ppl,null,Math.max(1,distRank[0]&&distRank[0].ppl))}</div>`;
+  html+=`<div class="scard" style="margin-bottom:10px;"><div class="stitle">🧗 코스별 이용 (상위 12)</div>${bar(courseRank.slice(0,12),x=>x.c,x=>x.ppl,null,Math.max(1,courseRank[0]&&courseRank[0].ppl))}<div style="font-size:9px;color:#46708f;margin-top:5px;">코스 ${courseRank.length}개 · 팀수는 상세에서</div></div>`;
+  if(ageN)html+=`<div class="scard" style="margin-bottom:10px;"><div class="stitle">👥 동반자 연령대 <span style="font-size:9px;font-weight:400;color:#5a7e98;">· ${ageN}명 (신청자 본인은 생년월일 미제공)</span></div>${bar(Object.keys(ageB).map(k=>({k,v:ageB[k]})).filter(x=>x.v),x=>x.k,x=>x.v,null,Math.max(1,Math.max.apply(null,Object.values(ageB))))}</div>`;
+  if(acc){
+    const accs=all.filter(r=>r.accident);
+    html+=`<div class="scard" style="margin-bottom:10px;"><div class="stitle" style="color:#ff8a80;">🚨 안전사고 표시 (${acc}건)</div>${accs.map(r=>`<div style="font-size:11.5px;color:#dceaf6;padding:5px 0;border-bottom:1px solid rgba(255,255,255,.04);">${_esc(r.useDate)} · ${_esc(r.course)} · <b>${_esc(r.applicant&&r.applicant.name)}</b> 팀 (${r.total||'-'}명)</div>`).join('')}</div>`;
+  }
+  b.innerHTML=html;
 }
 // ══════════════════════════════════════════
 // 전체 통계 (일반직원도 열람 가능)
@@ -2831,7 +3086,7 @@ function sosToRescue(id){
 // 앱 자체 업데이트 (OTA · Capgo 자체호스팅) — APK 전용. 웹/PWA는 서비스워커가 자동 갱신.
 // 번들(www)의 새 버전을 ota.json으로 알리면, 설치된 앱이 받아서 그 자리에서 교체(재빌드 불필요).
 // ══════════════════════════════════════════
-const OTA_VER='2026.07.15.127';                         // ← 현재 번들 버전 (릴리스마다 올림 · build-ota.sh가 ota.json에 반영)
+const OTA_VER='2026.07.15.128';                         // ← 현재 번들 버전 (릴리스마다 올림 · build-ota.sh가 ota.json에 반영)
 const OTA_MANIFEST='https://seorak1275.github.io/seoraksan/ota.json';
 let _otaInfo=null;
 function _otaPlugin(){try{return (window.Capacitor&&window.Capacitor.Plugins&&window.Capacitor.Plugins.CapacitorUpdater)||null;}catch(e){return null;}}

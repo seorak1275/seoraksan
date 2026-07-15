@@ -111,7 +111,8 @@ const _FB_CFG={
 // history: 점검이력은 무제한으로 계속 쌓이는 로그성 데이터라 단일문서 그대로 두면 매 점검마다 전체가 전원에게 재전송됨 → 건별 문서로 전환
 const _SHARED_COLL=['rescues','hazards','facilities','history','facIssues'];
 // _SHARED_DOC: 단일 문서에 JSON 배열 저장 (관리자 전용, 동시 쓰기 없음)
-const _SHARED_DOC=['alertOps','alertLog','staff','catFac','catFacMeta','pendingUsers','approvedUsers','deletedKakaoIds','adminOwnerKakaoId','adminApprovalCode','extAgencies','extAgencyCode','extAgencyDisplayName','geminiApiKey','kmaProxyUrl','_acl','loginLog','trailStatus','crisisLevel','weatherBrief','weatherLog','trailLog','sosBlocked','autoApprove','pushLog','devKakaoId','notiPolicy','customResTypes','facManagers'];
+const _SHARED_DOC=['alertOps','alertLog','staff','catFac','catFacMeta','pendingUsers','approvedUsers','deletedKakaoIds','adminOwnerKakaoId','adminApprovalCode','extAgencies','extAgencyCode','extAgencyDisplayName','geminiApiKey','kmaProxyUrl','_acl','loginLog','trailStatus','crisisLevel','weatherBrief','weatherLog','trailLog','sosBlocked','autoApprove','pushLog','devKakaoId','notiPolicy','customResTypes','facManagers','climbDates'];
+// climbDates: 암벽 이용현황 업로드가 된 '이용일자' 목록(날짜만·개인정보 아님) — 홈 업로드알림용. 실제 명단(PII)은 climbUsage 컬렉션에 별도 저장(전체 동기화 X).
 // 시설물 레거시(단일문서) 폴백/시드 동기화 상태
 let _legacyFacBackup=null; // appData/facilities(구버전)의 백업 — 컬렉션 비었을 때 화면 폴백
 let _facSeedReady=false;   // 시설물 첫 스냅샷·레거시 백업 확인 완료(시드 레이스 방지)
@@ -245,10 +246,25 @@ function _flushSyncQueue(){
     if(ok&&!_loadSyncQ().length)try{toast('✅ 대기 변경 '+ok+'건 동기화 완료');}catch(e){}
   })();
 }
-// 실패 항목에 진단 정보 누적 (시도 횟수·마지막 에러) — 폐기는 하지 않음
+// 실패 항목 처리 — 회복 가능한 실패는 큐에 보존·재시도, '영영 저장 불가'(터미널)는 데드레터로 격리해
+// 무한 재시도·반복 경고를 중단(데이터는 _syncQDead에 별도 보존 — 폐기 아님).
+//  터미널: 문서 1MB 초과(invalid-argument 등)·존재하지 않는 대상·10회 이상 실패
+function _syncDead(){try{return JSON.parse(localStorage.getItem('_syncQDead')||'[]');}catch(e){return[];}}
 function _markSyncFail(it,code,msg){
   const cur=_loadSyncQ();const ci=cur.findIndex(x=>x.key===it.key&&x.json===it.json);
-  if(ci>=0){cur[ci]=Object.assign({},cur[ci],{_n:(cur[ci]._n||0)+1,_err:code||'unknown',_errMsg:(msg||'').slice(0,140),_at:Date.now()});_saveSyncQ(cur);}
+  if(ci<0)return;
+  const n=(cur[ci]._n||0)+1;
+  const terminal=/invalid-argument|not-found|failed-precondition|out-of-range/i.test(code||'')
+    || /longer than|exceeds the maximum|maximum.*byte|1048|too large/i.test(msg||'')
+    || n>=10; // 10회 재시도해도 안 되면 사실상 저장 불가
+  if(terminal){
+    const dead=Object.assign({},cur[ci],{_n:n,_err:code||'unknown',_errMsg:(msg||'').slice(0,140),_at:Date.now()});
+    cur.splice(ci,1);_saveSyncQ(cur); // 활성 큐에서 제거 → 배지·경고 중단
+    try{const dl=_syncDead();if(!dl.some(x=>x.key===dead.key&&x.json===dead.json)){dl.push(dead);localStorage.setItem('_syncQDead',JSON.stringify(dl.slice(-300)));}}catch(e){}
+    if(Date.now()-_syncQWarnedAt>30000){_syncQWarnedAt=Date.now();try{toast('⚠️ 서버 저장 불가한 변경을 대기목록에서 내렸습니다 (설정→시스템에서 확인·재시도)',4500);}catch(e){}}
+  }else{
+    cur[ci]=Object.assign({},cur[ci],{_n:n,_err:code||'unknown',_errMsg:(msg||'').slice(0,140),_at:Date.now()});_saveSyncQ(cur);
+  }
 }
 // 대기 항목 상세 — 무엇이/왜 안 되는지 사용자가 직접 확인
 function _showSyncQueueInfo(){
@@ -270,11 +286,22 @@ function _showSyncQueueInfo(){
     });
     return;
   }
-  alert('서버에 아직 저장되지 못한 변경 '+q.length+'건:\n\n'+lines.join('\n\n')+'\n\n※ 자동으로 계속 재시도하며, 데이터는 이 기기에 안전하게 보존됩니다.\n※ 1000KB(1MB) 이상이면 Firestore 문서 한계로 저장 불가 — 사진을 줄여야 합니다.');
+  const dead=_syncDead();
+  const deadNote=dead.length?('\n\n───────\n⛔ 저장 불가로 내려둔 항목 '+dead.length+'건(문서 1MB 초과 등):\n'+dead.slice(0,8).map(function(it,i){return (i+1)+'. '+(it.doc!==undefined?('문서 '+it.doc):((it.op==='del'?'삭제 ':'저장 ')+it.coll+'/'+it.id))+(it.json?(' ~'+Math.round(it.json.length/1024)+'KB'):'')+(it._err?(' · '+it._err):'');}).join('\n')+(dead.length>8?('\n… 외 '+(dead.length-8)+'건'):'')):'';
+  alert('서버에 아직 저장되지 못한 변경 '+q.length+'건:\n\n'+lines.join('\n\n')+'\n\n※ 자동으로 계속 재시도하며, 데이터는 이 기기에 안전하게 보존됩니다.\n※ 1000KB(1MB) 이상이면 Firestore 문서 한계로 저장 불가 — 사진을 줄여야 합니다.'+deadNote);
 }
 function _clearSyncQueue(){
-  if(!confirm('서버에 아직 전송되지 않은 변경 '+_loadSyncQ().length+'건을 삭제하시겠습니까?\n(이미 저장된 데이터는 영향 없음)'))return;
+  const dead=_syncDead();
+  const n=_loadSyncQ().length;
+  if(!n&&!dead.length){try{toast('대기 항목 없음');}catch(e){}return;}
+  // 데드레터가 있으면 우선 재시도 옵션 제공
+  if(dead.length&&confirm('저장 불가로 내려둔 항목 '+dead.length+'건이 있습니다.\n\n[확인] 다시 저장 시도 (사진 용량 등 해결됐을 때)\n[취소] 아래에서 삭제 여부 선택')){
+    try{const cur=_loadSyncQ();dead.forEach(function(d){delete d._dead;cur.push(d);});_saveSyncQ(cur);localStorage.removeItem('_syncQDead');setTimeout(_flushSyncQueue,300);toast('↻ '+dead.length+'건 재시도 — 실패 시 다시 내려갑니다');}catch(e){}
+    return;
+  }
+  if(!confirm('서버에 아직 전송되지 않은 변경 '+(n+dead.length)+'건을 삭제하시겠습니까?\n(이미 저장된 데이터는 영향 없음)'))return;
   _saveSyncQ([]);
+  try{localStorage.removeItem('_syncQDead');}catch(e){}
   toast('✅ 대기 항목 삭제됨');
 }
 window.addEventListener('online',()=>setTimeout(_flushSyncQueue,1500));
@@ -734,6 +761,7 @@ function initDB(){
   if(!DB.g('history'))    DB.s('history',[]);
   if(!DB.g('alertOps'))   DB.s('alertOps',[]);
   if(!DB.g('alertLog'))   DB.s('alertLog',[]);
+  if(!DB.g('climbDates')) DB.s('climbDates',[]);
   if(!DB.g('notis'))         DB.s('notis',[]);
   if(!DB.g('notiSetting'))   DB.s('notiSetting',{});
   _ensureNotiDefaults();
