@@ -1576,7 +1576,9 @@ function openClimb(){
   let ov=document.getElementById('climbPanel');
   if(ov)ov.remove();
   ov=document.createElement('div');ov.id='climbPanel';
-  ov.style.cssText='position:fixed;inset:0;z-index:9600;background:#060d1a;display:flex;flex-direction:column;';
+  // #app 안에 절대배치 — 재난/구조 등 다른 화면과 같은 프레임(최대 430px 중앙정렬·같은 높이)을 그대로 상속.
+  // 예전엔 body에 fixed로 붙여 넓은 화면에서 전체폭으로 퍼져 규격이 달라 보였음.
+  ov.style.cssText='position:absolute;inset:0;z-index:9600;background:#060d1a;display:flex;flex-direction:column;';
   const canMng=_canClimbManage();
   ov.innerHTML=`<div style="display:flex;align-items:center;gap:8px;padding:calc(6px + env(safe-area-inset-top)) 10px 8px;border-bottom:1px solid rgba(79,168,208,.15);flex-shrink:0;">
       <button class="back-btn" onclick="history.back()">← 뒤로</button>
@@ -1590,7 +1592,7 @@ function openClimb(){
         <div style="font-size:16px;font-weight:800;color:#5fcf8f;">여기에 엑셀 파일을 놓으세요</div>
         <div style="font-size:12px;color:#7a9cb8;margin-top:6px;">놓은 뒤 업로드 버튼을 누르면 저장됩니다</div>
       </div>`:''}`;
-  document.body.appendChild(ov);
+  (document.getElementById('app')||document.body).appendChild(ov);
   try{_climbBindDnD(ov);}catch(e){}
   try{_renderClimbStageBar();}catch(e){}
   _climbLoadAll().then(all=>{
@@ -3479,7 +3481,7 @@ function sosToRescue(id){
 // 앱 자체 업데이트 (OTA · Capgo 자체호스팅) — APK 전용. 웹/PWA는 서비스워커가 자동 갱신.
 // 번들(www)의 새 버전을 ota.json으로 알리면, 설치된 앱이 받아서 그 자리에서 교체(재빌드 불필요).
 // ══════════════════════════════════════════
-const OTA_VER='2026.07.15.144';                         // ← 현재 번들 버전 (릴리스마다 올림 · build-ota.sh가 ota.json에 반영)
+const OTA_VER='2026.07.16.145';                         // ← 현재 번들 버전 (릴리스마다 올림 · build-ota.sh가 ota.json에 반영)
 const OTA_MANIFEST='https://seorak1275.github.io/seoraksan/ota.json';
 let _otaInfo=null;
 function _otaPlugin(){try{return (window.Capacitor&&window.Capacitor.Plugins&&window.Capacitor.Plugins.CapacitorUpdater)||null;}catch(e){return null;}}

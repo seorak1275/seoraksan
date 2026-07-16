@@ -721,16 +721,16 @@ function initDB(){
     window._initDBWaitN=(window._initDBWaitN||0)+1;
     if(window._initDBWaitN<=30){setTimeout(initDB,300);return;} // 최대 ~9초 대기, 그 뒤엔 진행(오프라인 등)
   }
-  // 더미 직원 데이터 정리
+  // 더미 직원 데이터 정리 — 실제 더미가 있을 때만 쓰기(없는 문서에 빈 배열을 만들지 않음: 불필요한 서버 쓰기 방지)
   const _existStaff=DB.g('staff');
-  if(!_existStaff||(_existStaff.length&&['손경완','김택찬','염원종','김종식','나진영','양지석','윤태종'].some(n=>_existStaff.some(s=>s.name===n)))){
+  if(_existStaff&&_existStaff.length&&['손경완','김택찬','염원종','김종식','나진영','양지석','윤태종'].some(n=>_existStaff.some(s=>s.name===n))){
     DB.s('staff',[]);
   }
   if(!DB.g('catFac'))     DB.s('catFac',['🪧 다목적위치표지판','📍 장소','🛤️ 데크/계단','🌉 교량','🏠 대피소','🛡️ 안전난간','🪵 목재계단','🚿 계곡시설']);
   // 카테고리 마이그레이션: 위치표지판 제거, 장소 추가
   (function(){var c=DB.g('catFac');if(!c)return;var c2=c.filter(function(x){return x!=='🪧 위치표지판';});if(!c2.includes('📍 장소'))c2.splice(1,0,'📍 장소');if(c2.length!==c.length||!c.includes('📍 장소'))DB.s('catFac',c2);})();
   // 이모지 없는 카테고리명 마이그레이션 (catFac + facilities + catFacMeta)
-  (function(){var map={'분소':'🏠 분소','암빙벽':'🧗 암빙벽'};var c=DB.g('catFac');if(c){var changed=false;var c2=c.map(function(x){return map[x]?(changed=true,map[x]):x;});if(changed)DB.s('catFac',c2);}var facs=DB.g('facilities');if(facs){var fc=false;var f2=facs.map(function(f){if(map[f.type]){fc=true;return Object.assign({},f,{type:map[f.type]});}return f;});if(fc)DB.s('facilities',f2);}var m=DB.g('catFacMeta')||{};Object.keys(map).forEach(function(old){if(m[old]){m[map[old]]=m[old];delete m[old];}});DB.s('catFacMeta',m);})();
+  (function(){var map={'분소':'🏠 분소','암빙벽':'🧗 암빙벽'};var c=DB.g('catFac');if(c){var changed=false;var c2=c.map(function(x){return map[x]?(changed=true,map[x]):x;});if(changed)DB.s('catFac',c2);}var facs=DB.g('facilities');if(facs){var fc=false;var f2=facs.map(function(f){if(map[f.type]){fc=true;return Object.assign({},f,{type:map[f.type]});}return f;});if(fc)DB.s('facilities',f2);}var m=DB.g('catFacMeta')||{};var mc=false;Object.keys(map).forEach(function(old){if(m[old]){m[map[old]]=m[old];delete m[old];mc=true;}});if(mc)DB.s('catFacMeta',m);})(); // ← 변경 있을 때만 저장(예전엔 무조건 저장 → 매 부팅 서버 쓰기 유발)
   // 탐방지원센터 분리 마이그레이션
   (function(){
     var c=DB.g('catFac')||[];var meta=DB.g('catFacMeta')||{};var changed=false;
@@ -773,10 +773,10 @@ function initDB(){
   if(!DB.g('rescues'))    DB.s('rescues',[]);
   if(!DB.g('hazards'))    DB.s('hazards',[]);
   if(!DB.g('history'))    DB.s('history',[]);
-  if(!DB.g('alertOps'))   DB.s('alertOps',[]);
-  if(!DB.g('alertLog'))   DB.s('alertLog',[]);
-  if(!DB.g('climbDates')) DB.s('climbDates',[]);
-  if(!DB.g('climbCancels')) DB.s('climbCancels',{});
+  // ※ alertOps·alertLog·climbDates·climbCancels 빈 껍데기 시드는 제거 —
+  //   모든 읽기가 ||[] / ||{} 폴백을 갖고 있어 서버 문서가 없어도 정상 동작.
+  //   (첫 접속 기기가 아무 입력 없이 서버에 빈 문서를 쓰던 불필요 동기화의 원인이었음.
+  //    각 문서는 실제 데이터가 처음 생길 때 그 쓰기로 자연 생성됨)
   if(!DB.g('notis'))         DB.s('notis',[]);
   if(!DB.g('notiSetting'))   DB.s('notiSetting',{});
   _ensureNotiDefaults();
