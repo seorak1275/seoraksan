@@ -761,6 +761,11 @@ function renderInspectStats(){
 function openFacDetail(id){
   const facs=DB.g('facilities')||[];const f=facs.find(x=>x.id===id);if(!f)return;
   selFacId=id;window._selFacDetailId=id;
+  // 상세 ◀▶: 목록 정렬(이름·가까운순 등)과 무관하게 트레일 순(구간→표지판 번호→인접 거리)으로 통일
+  try{
+    const _meta=DB.g('catFacMeta')||{};const _adm=isAdminUser();
+    _navOrder.fac=_facTrailSort(facs.filter(x=>_facVisibleTo(x)&&(_adm||!(_meta[x.type]||{}).adminOnly))).map(x=>String(x.id));
+  }catch(e){}
   const w=_facWarn(f);const canMng=_canManageFac();
   document.getElementById('facDetailTitle').textContent=_facDispName(f);
   const _dcol=_facTypeColor(f.type);

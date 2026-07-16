@@ -81,7 +81,8 @@ img{-webkit-user-drag:none;}
 .ok{color:#27ae60;}.warn{color:#e67e22;}.bad{color:#c0392b;}.blu{color:#4fa8d0;}.muted{color:rgba(255,255,255,.3);}
 
 /* ═══ 홈 ═══ */
-#v-home{background:#060d1a;overflow:hidden !important;}
+/* 글씨 크게 설정 기기: 내용이 화면보다 커지면 눌러 찌그러뜨리지(겹침) 말고 세로 스크롤 */
+#v-home{background:#060d1a;overflow-y:auto !important;overflow-x:hidden !important;overscroll-behavior:contain;}
 .home-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;flex-shrink:0;}
 .home-brand-sub{font-size:10px;color:#5a90b8;font-weight:600;letter-spacing:.8px;text-transform:uppercase;}
 .home-brand-title{font-size:19px;font-weight:800;color:#e0edf8;letter-spacing:-.3px;}

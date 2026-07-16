@@ -268,7 +268,7 @@ if(window.Kakao&&!Kakao.isInitialized()) Kakao.init(KAKAO_KEY);
   <div id="permBanners" style="display:flex;flex-direction:column;gap:5px;flex-shrink:0;"></div>
 
   <!-- 4칸 메인 메뉴 -->
-  <div class="home-menu" style="flex:1;min-height:0;">
+  <div class="home-menu" style="flex:1;"><!-- min-height:0 제거 — 글씨 확대 시 버튼이 겹치지 않고 홈이 스크롤되도록 -->
     <button id="mbRescue" data-home-key="rescue" class="mbtn mb-red" onclick="openApp('rescue')"><div class="mbtn-ico">🚨</div><div><div class="mbtn-title">재난/구조</div><div class="mbtn-desc" id="hdR">구조보고·위험상황</div></div></button>
     <button id="mbInspect" data-home-key="inspect" class="mbtn mb-teal ext-hide" onclick="openApp('inspect')"><div class="mbtn-ico">🛠️</div><div><div class="mbtn-title">시설물 점검</div><div class="mbtn-desc" id="hdI">시설 관리·이력</div></div></button>
     <button id="mbAlert" data-home-key="alert" class="mbtn mb-alert ext-hide" onclick="openApp('alert')"><div class="mbtn-ico">🌀</div><div><div class="mbtn-title">특보운영</div><div class="mbtn-desc" id="hdA">기상특보 비상근무</div></div></button>

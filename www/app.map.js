@@ -1136,6 +1136,41 @@ function _facZoneCode(f){
   }
   return '';
 }
+// ── 트레일(등산로) 순 정렬 — 시설물 상세 ◀▶ 이동용 ─────────────────
+// 순서: 구간(01~14) → 표지판 번호(등산로 진행 순) → 부속시설(교량·데크 등)은 가장 가까운 표지판 뒤 거리순.
+// 목록의 필터·정렬(이름순·가까운순 등)과 무관하게 상세에서는 항상 '같은 구간을 따라' 옆 시설로 이동.
+// 삼거리·구간 경계 시설은 가장 가까운 표지판의 구간 하나에만 속하므로 엉뚱한 구간 점프가 없다.
+// (다목적위치표지판 배치는 사실상 고정 → 이 기준은 안정적으로 유지됨)
+let _facTrailCache={},_facTrailSig='';
+function _facTrailKey(f){
+  if(!f)return [99,999,9e9];
+  const facs=DB.g('facilities')||[];
+  const sig=facs.length+'';
+  if(sig!==_facTrailSig){_facTrailCache={};_facTrailSig=sig;}
+  if(_facTrailCache[f.id])return _facTrailCache[f.id];
+  let z=99,n=999,d=9e9;
+  const code=(((f.name||'')+' '+(f.loc||'')).match(/(\d{2})-(\d{2,3})/));
+  if(f.type&&f.type.includes('다목적위치표지판')&&code){z=+code[1];n=+code[2];d=0;}
+  else if(f.lat&&f.lng){
+    let bs=null,bd=1e9;
+    facs.forEach(s=>{
+      if(!(s.type&&s.type.includes('다목적위치표지판')&&s.lat&&s.lng))return;
+      const dd=_haversine(f.lat,f.lng,s.lat,s.lng);
+      if(dd<bd){bd=dd;bs=s;}
+    });
+    if(bs){const m=(((bs.name||'')+' '+(bs.loc||'')).match(/(\d{2})-(\d{2,3})/));if(m){z=+m[1];n=+m[2];d=bd;}}
+  }else{
+    const zz=_facZoneOwn(f);if(zz)z=+zz;
+  }
+  const k=[z,n,d];
+  _facTrailCache[f.id]=k;return k;
+}
+function _facTrailSort(arr){
+  return (arr||[]).slice().sort((a,b)=>{
+    const ka=_facTrailKey(a),kb=_facTrailKey(b);
+    return (ka[0]-kb[0])||(ka[1]-kb[1])||(ka[2]-kb[2])||((Number(a.id)||0)-(Number(b.id)||0));
+  });
+}
 // 목록·상세 이름: 표지판은 코드만(예: '01-01'), 그 외는 원래 이름
 function _facDispName(f){
   if(f&&f.type&&f.type.includes('다목적위치표지판')){
