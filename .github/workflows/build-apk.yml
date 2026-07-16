@@ -146,6 +146,8 @@ jobs:
           VER: v${{ steps.version.outputs.version }}
           HEAD_MSG: ${{ github.event.head_commit.message }}
         run: |
+          # 커밋 트레일러(Co-Authored-By·세션 링크 등)는 릴리즈 노트에서 제외
+          CLEAN_MSG=$(printf '%s\n' "${HEAD_MSG:-수동 실행(workflow_dispatch)}" | sed '/^Co-Authored-By:/d;/^Claude-Session:/d' | sed -e :a -e '/^\s*$/{$d;N;ba' -e '}')
           cat > /tmp/relnotes.md <<EOF
           ## 설악산 현장관리 앱
 
@@ -155,7 +157,7 @@ jobs:
           3. 다운로드된 APK 실행하여 설치
 
           ### 변경사항
-          ${HEAD_MSG:-수동 실행(workflow_dispatch)}
+          ${CLEAN_MSG}
           EOF
           publish() {
             if gh release view "$VER" >/dev/null 2>&1; then
