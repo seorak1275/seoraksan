@@ -101,7 +101,8 @@ function _showClusterList(group){
   m.onclick=function(e){if(e.target===m)m.remove();};
 }
 function _clusterZoom(map,lat,lng){
-  try{map.setLevel(Math.max(1,map.getLevel()-2),{anchor:new kakao.maps.LatLng(lat,lng)});}
+  // 부드러운 확대 — 즉시 점프 대신 애니메이션으로 (겹친 핀·클러스터 탭 시 자연스럽게)
+  try{map.setLevel(Math.max(1,map.getLevel()-2),{anchor:new kakao.maps.LatLng(lat,lng),animate:{duration:300}});}
   catch(e){try{map.setCenter(new kakao.maps.LatLng(lat,lng));map.setLevel(Math.max(1,map.getLevel()-2));}catch(e2){}}
 }
 // 구조 지도: 사고/위험 '상황' 핀만 클러스터 (다목적위치표지판 등 시설물은 제외)

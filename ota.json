@@ -1,1 +1,1 @@
-{"version":"2026.07.16.178","url":"https://seorak1275.github.io/seoraksan/bundle.zip","notes":"줌 중 핀 사라짐·프레임 저하 해결 — 핀치줌 레벨 통과마다 수백 개 오버레이 재부착·재클러스터하던 것을 줌 종료 후 1회로(디바운스 150ms), 무변경 재부착 생략, 재클러스터 배율·데이터 가드"}
+{"version":"2026.07.16.179","url":"https://seorak1275.github.io/seoraksan/bundle.zip","notes":"겹친 핀·클러스터 탭 확대를 부드러운 애니메이션으로(300ms, 탭 지점 기준 앵커)"}
