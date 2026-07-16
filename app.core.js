@@ -930,6 +930,30 @@ document.addEventListener('visibilitychange',function(){if(!document.hidden)_onV
 try{if(window.visualViewport)window.visualViewport.addEventListener('resize',function(){_onViewportChange(180);});}catch(e){}
 setTimeout(_fixAppHeight,500);setTimeout(_fixAppHeight,2000);
 
+// ── 실시간 회복 워치독 — '새로고침해야 새 정보가 보이는' 문제의 근본 대응 ──────────
+// 폰에서 화면이 꺼지거나 앱이 백그라운드로 가면 JS가 얼면서 Firestore 수신 스트림이 끊기는데,
+// 복귀 후 SDK가 알아서 다시 붙기까지 수십 초 걸리거나 가끔 끊긴 채 방치된다(그동안 화면이 옛 데이터).
+// 복귀 즉시 네트워크를 재사이클(disable→enable)하면 스트림이 바로 재수립되어 밀린 변경이 즉시 들어오고,
+// 각 리스너가 화면을 자동 갱신하므로 '새로고침 없이' 카톡처럼 이어진다.
+var _rtHiddenAt=0,_rtKickBusy=false,_rtKickLast=0;
+function _fsKick(){
+  if(!_fdb||_rtKickBusy)return;
+  if(Date.now()-_rtKickLast<8000)return; // 과도 재사이클 방지
+  _rtKickBusy=true;_rtKickLast=Date.now();
+  try{
+    _fdb.disableNetwork().then(function(){return _fdb.enableNetwork();}).catch(function(){})
+      .then(function(){_rtKickBusy=false;});
+  }catch(e){_rtKickBusy=false;}
+}
+document.addEventListener('visibilitychange',function(){
+  if(document.visibilityState==='hidden'){_rtHiddenAt=Date.now();return;}
+  // 복귀: 15초 이상 떠나 있었으면 스트림 재수립 + 홈 요약 즉시 갱신(로컬 상태로 우선 페인트)
+  if(Date.now()-_rtHiddenAt>15000)_fsKick();
+  try{if(typeof updateSummary==='function')updateSummary();}catch(e){}
+});
+window.addEventListener('online',function(){_fsKick();}); // 통신 복구 시에도 즉시 재수립
+
+
 // ── 유령 오버레이 방어(전역 터치 먹통 자가복구) ─────────────────────────
 // 팝업/바텀시트의 반투명 배경(백드롭)이 닫히며 '투명'해진 뒤 요소가 미처 제거되지 않으면,
 // 보이지 않는 전체화면 레이어가 모든 탭을 삼켜 앱 전체(지도·목록·뒤로가기)가 먹통이 된다(→새로고침 필요).

@@ -1,1 +1,1 @@
-{"version":"2026.07.16.160","url":"https://seorak1275.github.io/seoraksan/bundle.zip","notes":"긴급수정 — 최초 가입 신청 모달이 앱 하드락(#app 터치차단)에 같이 잠겨 아무 입력도 안 되던 문제: 잠금을 class 방식으로 바꾸고 가입 모달·관리자 비밀번호 창은 예외 처리(홈 차단은 유지)"}
+{"version":"2026.07.16.161","url":"https://seorak1275.github.io/seoraksan/bundle.zip","notes":"실시간 반영 개선 — 백그라운드 복귀·통신복구 시 Firestore 스트림 즉시 재수립(새로고침 없이 밀린 변경 자동 반영, 카톡처럼) + 웹 새 배포 확인(복귀시·30분마다) + APK OTA 재확인(복귀시·60분마다, 앱 안 꺼도 새 버전 적용)"}

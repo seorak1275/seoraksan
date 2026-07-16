@@ -3556,7 +3556,7 @@ function sosToRescue(id){
 // 앱 자체 업데이트 (OTA · Capgo 자체호스팅) — APK 전용. 웹/PWA는 서비스워커가 자동 갱신.
 // 번들(www)의 새 버전을 ota.json으로 알리면, 설치된 앱이 받아서 그 자리에서 교체(재빌드 불필요).
 // ══════════════════════════════════════════
-const OTA_VER='2026.07.16.160';                         // ← 현재 번들 버전 (릴리스마다 올림 · build-ota.sh가 ota.json에 반영)
+const OTA_VER='2026.07.16.161';                         // ← 현재 번들 버전 (릴리스마다 올림 · build-ota.sh가 ota.json에 반영)
 const OTA_MANIFEST='https://seorak1275.github.io/seoraksan/ota.json';
 // 업데이트 확인 폴백 소스 — 일부 기관망·통신사에서 github.io가 막혀 '확인 실패(네트워크)'가 나는 경우 대비.
 // 순서대로 시도: ① GitHub Pages(원본·즉시 반영) ② jsDelivr CDN(공개저장소 미러·거의 모든 망 통과)
@@ -3647,6 +3647,11 @@ function _otaInit(){
   const plug=_otaPlugin();
   if(plug&&plug.notifyAppReady){try{plug.notifyAppReady();}catch(e){}} // 현재 번들 정상 표시(미호출 시 다음 실행 롤백)
   setTimeout(function(){_otaCheck(false);},4000); // 시작 후 조용히 확인 → 있으면 가운데 팝업
+  // 앱을 껐다 켜지 않아도 새 버전이 반영되도록: 복귀 시(30분 스로틀) + 60분마다 재확인
+  var _last=Date.now();
+  var _re=function(){if(Date.now()-_last<1800000)return;_last=Date.now();_otaCheck(false);};
+  setInterval(function(){_re();},3600000);
+  document.addEventListener('visibilitychange',function(){if(document.visibilityState==='visible')_re();});
 }
 
 window.onload=function(){
@@ -3877,6 +3882,10 @@ window.onload=function(){
       _swReg=reg;
       if('Notification' in window&&Notification.permission==='granted') _initFCM();
       try{var _up=reg.update();if(_up&&_up.catch)_up.catch(function(){});}catch(e){} // 새 버전 즉시 확인(업데이트 실패 시 조용히 — iOS 'sw.js load failed' 미처리거부 방지)
+      // 켜둔 채로도 새 배포가 스스로 적용되도록: 복귀 시 + 30분마다 확인(새 버전이면 1회 자동 새로고침)
+      var _swChk=function(){try{var u=reg.update();if(u&&u.catch)u.catch(function(){});}catch(e){}};
+      setInterval(_swChk,1800000);
+      document.addEventListener('visibilitychange',function(){if(document.visibilityState==='visible')_swChk();});
     }).catch(function(){});
     // 새 서비스워커가 활성화(업데이트)되면 자동 새로고침 → '며칠 전 버전에 멈춤' 방지(자가치유)
     navigator.serviceWorker.addEventListener('controllerchange',function(){
