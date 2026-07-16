@@ -2068,13 +2068,13 @@ let _tpAbort=false;
 function _autoPreloadParkTiles(){
   try{
     if(document.getElementById('tpOv'))return;
-    var last=parseInt(localStorage.getItem('_tpAutoAt')||'0',10);
+    var last=parseInt(localStorage.getItem('_tpAutoAt2')||'0',10); // v2: 위성 타일 포함으로 바뀌어 전 기기 1회 재실행
     if(Date.now()-last<7*86400000)return;
     var c=navigator.connection||{};
     if(c.saveData)return;
     if(c.type&&c.type!=='wifi'&&c.type!=='ethernet')return;
     if(!navigator.onLine)return;
-    localStorage.setItem('_tpAutoAt',String(Date.now()));
+    localStorage.setItem('_tpAutoAt2',String(Date.now()));
     preloadParkTiles(true);
   }catch(e){}
 }
@@ -2102,6 +2102,7 @@ function preloadParkTiles(auto){
   document.body.appendChild(host);
   const ctr=new kakao.maps.LatLng((bb.minLat+bb.maxLat)/2,(bb.minLng+bb.maxLng)/2);
   const map=new kakao.maps.Map(host,{center:ctr,level:10});
+  map.setMapTypeId(kakao.maps.MapTypeId.HYBRID);window._tpCurHy=true; // 기본 화면(위성+라벨)과 같은 타일부터 저장
   // 배율(레벨)별 화면이 덮는 범위를 실측해 이동 계획 수립 — 넓은 배율부터 상세 배율로, 총 이동 상한
   const STEP_CAP=380; // 확대(상세) 배율까지 더 넓게 미리 저장 → 현장 확대 시 흰 화면 최소화
   const plan=[];let total=0;
@@ -2116,11 +2117,14 @@ function preloadParkTiles(auto){
     plan.push({level:lv,rows,cols,spanLat,spanLng});
     total+=rows*cols;
   }
-  const steps=[];
+  const stepsOne=[];
   plan.forEach(p=>{
     for(let r=0;r<p.rows;r++)for(let c=0;c<p.cols;c++)
-      steps.push({level:p.level,lat:Math.min(bb.minLat+p.spanLat*(r+.5),bb.maxLat),lng:Math.min(bb.minLng+p.spanLng*(c+.5),bb.maxLng)});
+      stepsOne.push({level:p.level,lat:Math.min(bb.minLat+p.spanLat*(r+.5),bb.maxLat),lng:Math.min(bb.minLng+p.spanLng*(c+.5),bb.maxLng)});
   });
+  // 위성(기본 화면)과 일반지도 두 벌 저장 — 예전엔 일반지도만 받아서 위성 모드에선 캐시가 비어
+  // 확대/축소 때마다 주변이 베이지색으로 남는(영상 확인) 원인이었음
+  const steps=stepsOne.map(s=>Object.assign({},s,{mt:'H'})).concat(stepsOne.map(s=>Object.assign({},s,{mt:'R'})));
   if(!steps.length){host.remove();toast('⚠️ 이동 계획 생성 실패 — 다시 시도하세요');return;}
   // 진행 표시
   _tpAbort=false;
@@ -2150,12 +2154,14 @@ function preloadParkTiles(auto){
       i++;
       const bar=document.getElementById('tpBar'),txt=document.getElementById('tpTxt');
       if(bar)bar.style.width=Math.round(i/steps.length*100)+'%';
-      if(txt)txt.textContent='배율 '+s.level+' · '+i+' / '+steps.length+' 구역';
+      if(txt)txt.textContent=(s.mt==='R'?'일반':'위성')+' 배율 '+s.level+' · '+i+' / '+steps.length+' 구역';
       setTimeout(runStep,120); // 타일 서버 부담 완화
     };
     pending=advance;
     const to=setTimeout(advance,4000); // tilesloaded 유실·전체 캐시 히트 대비
     _tileParkMode(); // 보관함 지정 연장 (20초 시한 — 스텝마다 갱신)
+    const wantHy=s.mt!=='R';
+    if(window._tpCurHy!==wantHy){window._tpCurHy=wantHy;map.setMapTypeId(wantHy?kakao.maps.MapTypeId.HYBRID:kakao.maps.MapTypeId.ROADMAP);}
     if(map.getLevel()!==s.level)map.setLevel(s.level);
     map.setCenter(new kakao.maps.LatLng(s.lat,s.lng));
   };
