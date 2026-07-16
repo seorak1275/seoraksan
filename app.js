@@ -3481,18 +3481,34 @@ function sosToRescue(id){
 // 앱 자체 업데이트 (OTA · Capgo 자체호스팅) — APK 전용. 웹/PWA는 서비스워커가 자동 갱신.
 // 번들(www)의 새 버전을 ota.json으로 알리면, 설치된 앱이 받아서 그 자리에서 교체(재빌드 불필요).
 // ══════════════════════════════════════════
-const OTA_VER='2026.07.16.146';                         // ← 현재 번들 버전 (릴리스마다 올림 · build-ota.sh가 ota.json에 반영)
+const OTA_VER='2026.07.16.147';                         // ← 현재 번들 버전 (릴리스마다 올림 · build-ota.sh가 ota.json에 반영)
 const OTA_MANIFEST='https://seorak1275.github.io/seoraksan/ota.json';
+// 업데이트 확인 폴백 소스 — 일부 기관망·통신사에서 github.io가 막혀 '확인 실패(네트워크)'가 나는 경우 대비.
+// 순서대로 시도: ① GitHub Pages(원본·즉시 반영) ② jsDelivr CDN(공개저장소 미러·거의 모든 망 통과)
+// ③ raw.githubusercontent(원본 직접). 매니페스트를 받은 소스에서 번들(bundle.zip)도 같이 받는다.
+const OTA_SOURCES=[
+  {mf:'https://seorak1275.github.io/seoraksan/ota.json',                      base:'https://seorak1275.github.io/seoraksan/'},
+  {mf:'https://cdn.jsdelivr.net/gh/seorak1275/seoraksan@main/ota.json',       base:'https://cdn.jsdelivr.net/gh/seorak1275/seoraksan@main/'},
+  {mf:'https://raw.githubusercontent.com/seorak1275/seoraksan/main/ota.json', base:'https://raw.githubusercontent.com/seorak1275/seoraksan/main/'}
+];
 let _otaInfo=null;
 function _otaPlugin(){try{return (window.Capacitor&&window.Capacitor.Plugins&&window.Capacitor.Plugins.CapacitorUpdater)||null;}catch(e){return null;}}
 function _isNativeApp(){try{return !!(window.Capacitor&&window.Capacitor.isNativePlatform&&window.Capacitor.isNativePlatform());}catch(e){return false;}}
 async function _otaCheck(manual){
   const plug=_otaPlugin();
   if(!_isNativeApp()||!plug){ if(manual)toast('웹은 새로고침으로 자동 갱신됩니다(앱 전용 기능)'); return; }
-  let m;
-  try{ const r=await fetch(OTA_MANIFEST+'?t='+Date.now(),{cache:'no-store'}); m=await r.json(); }
-  catch(e){ if(manual)toast('⚠️ 업데이트 확인 실패 (네트워크)'); return; }
-  if(!m||!m.version||!m.url){ if(manual)toast('업데이트 정보 없음'); return; }
+  let m=null,src=null,lastErr='';
+  for(const s of OTA_SOURCES){
+    try{
+      const r=await fetch(s.mf+'?t='+Date.now(),{cache:'no-store'});
+      if(!r.ok)throw new Error('HTTP '+r.status);
+      m=await r.json(); src=s; break;
+    }catch(e){ lastErr=(e&&e.message)||String(e); }
+  }
+  if(!m){ if(manual)toast('⚠️ 업데이트 확인 실패 — 서버 3곳 모두 접근 불가 ('+lastErr+') · 네트워크(Wi-Fi↔LTE)를 바꿔 재시도해 보세요',5000); return; }
+  if(!m.version||!m.url){ if(manual)toast('업데이트 정보 없음'); return; }
+  // github.io가 막힌 망: 매니페스트를 받아온 폴백 소스에서 번들도 받도록 URL 재작성
+  try{ if(src&&src.base.indexOf('github.io')<0){ const fn=String(m.url).split('/').pop()||'bundle.zip'; m.url=src.base+fn; } }catch(e){}
   if(String(m.version)===String(OTA_VER)){ _otaInfo=null;_otaBanner(); if(manual)toast('✅ 최신 버전입니다 ('+OTA_VER+')'); return; }
   _otaInfo=m; _otaBanner();
   if(manual)_otaApply();

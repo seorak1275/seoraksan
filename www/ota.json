@@ -1,1 +1,1 @@
-{"version":"2026.07.16.146","url":"https://seorak1275.github.io/seoraksan/bundle.zip","notes":"웹 지도 확대/축소 재다운로드 마저 수정 — 타일 저장 실패 시 고정목표(max/2)로만 정리해 할당량보다 커서 영원히 저장 실패하던 것을 '현재 보관량 절반'으로 적응 축소+1회 재시도로 변경(기기 할당량에 자동 안착), CORS 실패 3회면 포기해 2중 요청 방지, 부팅 시 저장소 영속화 요청(브라우저의 캐시 임의삭제 방지)"}
+{"version":"2026.07.16.147","url":"https://seorak1275.github.io/seoraksan/bundle.zip","notes":"OTA 업데이트 확인 실패(네트워크) 대응 — 확인 소스 3중 폴백(GitHub Pages→jsDelivr CDN→raw.githubusercontent, github.io 막힌 망에서도 확인·다운로드 가능), 실패 시 원인 문구 표시"}
