@@ -11,9 +11,11 @@ function openChangeUser(){
   const u=DB.g('currentUser')||{};
   const authType=DB.g('authType');
   const isKakao=authType==='kakao';
-  const notApproved=isKakao&&u.approvalStatus!=='approved';
+  // 제목: 최초 가입(프로필 미완성)일 때만 '가입 신청' — 기존엔 구버전 approvalStatus를 봐서
+  // 승인된 직원에게도 '가입 신청'이 떴음(현 승인체계는 _acl 기준이라 이 필드가 안 채워짐)
+  const _pDone0=!!(u.dept&&u.rank&&(u.realName||u.name));
   const titleEl=document.getElementById('modalUserTitle');
-  if(titleEl)titleEl.textContent=notApproved?'🆕 가입 신청':'👤 작성자 설정';
+  if(titleEl)titleEl.textContent=(isKakao&&!_pDone0)?'🆕 가입 신청':(_pDone0?'👤 내 정보':'👤 작성자 설정');
   // 승인코드 폐지 — 입력란 항상 숨김(승인은 관리자 멤버 지정으로만)
   const codeWrap=document.getElementById('uCodeWrap');
   if(codeWrap)codeWrap.style.display='none';
@@ -24,9 +26,10 @@ function openChangeUser(){
   const banner=document.getElementById('kakaoUserBanner');
   if(banner)banner.style.display=(u.kakaoId||u.kakaoImg)?'block':'none';
   _renderStaffQuickPick();
-  // 개인정보 잠금: 이미 입력 완료된 카카오 사용자는 본인이 못 바꾸고 관리자만 수정(이름·소속 임의변경 혼선 방지)
-  const _profileDone=!!(u.dept&&u.rank&&(u.realName||u.name));
-  const _locked=isKakao&&_profileDone&&!isAdminUser();
+  // 개인정보 잠금: 최초 가입 입력 때만 수정 가능, 이후엔 전원(관리자 본인 포함) 열람 전용 —
+  // 수정은 '관리자에게 수정 요청' 버튼으로만 (직원 정보 관리는 관리자 전용 → 직원 탭에서)
+  const _profileDone=_pDone0;
+  const _locked=isKakao&&_profileDone;
   const _nameIn=document.getElementById('uNameIn');
   const _deptIn=document.getElementById('uDeptIn');
   const _pillsBox=document.getElementById('rankPills');
