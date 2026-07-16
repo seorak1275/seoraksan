@@ -634,6 +634,7 @@ function renderRescueMap(){
   });
   // 사고/위험 상황 핀 클러스터링 (밀집 시 개수 버블로 묶음 — 시설물은 제외)
   _rEvItems=_rEvOvs.map(ov=>({ov,lat:ov._lat,lng:ov._lng,noClus:ov._noClus}));
+  window._rcLastSig=null; // 핀 데이터가 새로 구성됨 — 다음 재클러스터는 반드시 수행(줌 생략 가드 해제)
   try{_reclusterRescue();}catch(e){}
   // 🆘 조난자 위치 핀 (클러스터 제외, 최상단, 맥동)
   try{_drawSosPins();}catch(e){}

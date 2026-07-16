@@ -108,6 +108,11 @@ function _clusterZoom(map,lat,lng){
 var _rClusterOvs=[],_rEvItems=[];
 function _reclusterRescue(){
   if(!mapR)return;
+  // 배율·데이터가 그대로면 재클러스터 생략 — 클러스터 전면 재생성은 비싸고 핀이 잠깐 사라져 보임
+  let _lv=9;try{_lv=mapR.getLevel();}catch(e){}
+  const _rcSig=_lv+'|'+_rEvItems.length;
+  if(window._rcLastSig===_rcSig)return;
+  window._rcLastSig=_rcSig;
   _rClusterOvs.forEach(o=>{try{o.setMap(null);}catch(e){}});_rClusterOvs=[];
   // 종료/위험만 클러스터링(개수 버블). 진행중은 절대 합치지 않고 개별 칩으로 항상 표시.
   const others=_rEvItems.filter(it=>!it.noClus);
@@ -127,8 +132,8 @@ var _iClusterOvs=[],_iItems=[];
 function _reclusterInspect(){
   if(!mapI)return;
   _iClusterOvs.forEach(o=>{try{o.setMap(null);}catch(e){}});_iClusterOvs=[];
-  // 배율과 무관하게 전체 시설물 표시 (기본값 = 다 보임)
-  iOvs.forEach(o=>{try{o.setMap(mapI);}catch(e){}});
+  // 배율과 무관하게 전체 시설물 표시 — 이미 붙어 있는 핀은 건드리지 않음(재부착 = DOM 재생성 → 깜빡임·프레임 저하)
+  iOvs.forEach(o=>{try{if(o.getMap()!==mapI)o.setMap(mapI);}catch(e){}});
 }
 // ── 시설물 겹친 핀: 하단 목록 시트로 선택 ──────────────────────────────
 // 핀은 모두 그대로 표시(숫자 뭉치기 없음). 확대해도 겹쳐 못 누르는 지점을 누르면
@@ -336,8 +341,17 @@ function initMaps(){
     kakao.maps.event.addListener(mapI,'center_changed',saveInspectCenter);
     saveInspectCenter();
     // 줌 레벨에 따른 핀 크기 자동 조절
-    kakao.maps.event.addListener(mapR,'zoom_changed',()=>{_scaleOvs(rEls,mapR.getLevel(),5);try{_reclusterRescue();}catch(e){}});
-    kakao.maps.event.addListener(mapI,'zoom_changed',()=>{try{_closeFacOverlapSheet();}catch(e){}_scaleOvs(iEls,mapI.getLevel(),1);try{_reclusterInspect();}catch(e){}});
+    // 핀 크기조정·재클러스터는 줌이 '멈춘 뒤' 1회만 — 핀치줌은 레벨을 지날 때마다 zoom_changed가
+    // 연사되는데, 그때마다 수백 개 오버레이를 재부착·재스타일하면 핀이 사라져 보이고 프레임이 급락함
+    kakao.maps.event.addListener(mapR,'zoom_changed',()=>{
+      clearTimeout(window._rZoomT);
+      window._rZoomT=setTimeout(()=>{_scaleOvs(rEls,mapR.getLevel(),5);try{_reclusterRescue();}catch(e){}},150);
+    });
+    kakao.maps.event.addListener(mapI,'zoom_changed',()=>{
+      try{_closeFacOverlapSheet();}catch(e){}
+      clearTimeout(window._iZoomT);
+      window._iZoomT=setTimeout(()=>{_scaleOvs(iEls,mapI.getLevel(),1);try{_reclusterInspect();}catch(e){}},150);
+    });
     if(window._hideLoading)setTimeout(window._hideLoading,600);
   }
   if(window._KR){doInit();return;}
