@@ -3443,7 +3443,12 @@ function importAllData(inp){
 function _getAcl(){
   const a=DB.g('_acl')||{};
   const norm=x=>(Array.isArray(x)?x:[]).map(String).filter(Boolean);
-  return {members:norm(a.members),admins:norm(a.admins)};
+  // 탈퇴자(deletedKakaoIds)는 _acl에 남아 있어도 무시 — 옛 캐시를 가진 기기가 _acl을 통째로
+  // 덮어써 탈퇴 관리자가 '부활'하는 사고가 실제 발생(2026-07 점검). 권한 판정에서 원천 차단하고,
+  // 다음 역할 변경 저장 때 문서도 자연히 정화된다. (정식 재가입 승인 시엔 deletedKakaoIds에서
+  // 제거되므로 필터에 걸리지 않음)
+  const del=new Set((DB.g('deletedKakaoIds')||[]).map(String));
+  return {members:norm(a.members).filter(id=>!del.has(id)),admins:norm(a.admins).filter(id=>!del.has(id))};
 }
 function _aclSetRole(kakaoId,role){
   if(!isAdminUser()){toast('⚠️ 관리자만 가능');return;}

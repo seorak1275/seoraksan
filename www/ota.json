@@ -1,1 +1,1 @@
-{"version":"2026.07.16.187","url":"https://seorak1275.github.io/seoraksan/bundle.zip","notes":"핀치줌 커밋 수학 수정 — 앵커를 제스처 시작 시점 좌표로 고정(스케일된 화면에서 재계산해 위치가 튀던 버그), 두 손가락 이동(팬)도 추적해 손 뗄 때 panBy로 정확 반영"}
+{"version":"2026.07.16.188","url":"https://seorak1275.github.io/seoraksan/bundle.zip","notes":"ACL 자가방어 — 탈퇴자(deletedKakaoIds)는 _acl에 남아 있어도 권한 판정에서 무시(옛 캐시 기기의 덮어쓰기로 탈퇴 관리자가 부활하는 경로 원천 차단)"}
