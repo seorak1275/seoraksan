@@ -1834,15 +1834,16 @@ function render1BoForm(prefill=null){
             ${['과태료 해당 없음','과태료 부과 예정','확인 필요'].map(o=>`<option${p.fine===o?' selected':''}>${o}</option>`).join('')}
           </select>
         </div>
+        <div id="climbLocWrap" style="display:${(p.loctype==='암벽'||p.loctype==='빙벽')?'block':'none'};" class="fg">
+          ${(p.loctype==='암벽'||p.loctype==='빙벽')?`<span class="fl">📍 ${p.loctype} 위치 선택 <span style="font-size:9px;color:#7a9cb8;font-weight:400;">${p.loctype==='암벽'?'지구별':''}</span></span>${_climbLocBtnsHtml(p.loctype,p.location)}`:''}
+        </div>
         <div id="permitWrap" style="display:${p.loctype&&(p.loctype==='암벽'||p.loctype==='빙벽')?'block':'none'};" class="fg">
           <span class="fl">🏔️ 암빙벽 허가</span>
           <select id="r_permit" class="fsel" onchange="chkPermit(this)">${['해당없음','허가자 있음','무허가'].map(o=>`<option${p.permit===o?' selected':''}>${o}</option>`).join('')}</select>
         </div>
-        <div id="permitNote" style="display:${p.permit&&p.permit==='허가자 있음'?'block':'none'};" class="fg">
-          <input type="text" id="r_permitNote" class="fi" placeholder="허가번호, 소속 등" value="${p.permitNote||''}">
-        </div>
-        <div id="climbLocWrap" style="display:${(p.loctype==='암벽'||p.loctype==='빙벽')?'block':'none'};" class="fg">
-          ${(p.loctype==='암벽'||p.loctype==='빙벽')?`<span class="fl">📍 ${p.loctype} 위치 선택</span><div style="display:flex;flex-wrap:wrap;gap:5px;margin-top:6px;" id="climbLocBtns">${(p.loctype==='암벽'?_ROCK_LOCS:_ICE_LOCS).map(l=>`<button class="tog-btn${(p.location||'')===(l)?' on':''}" onclick="selClimbLoc('${l.replace(/'/g,"\\'")}',this)">${l}</button>`).join('')}</div>`:''}
+        <div id="permitRoster" style="display:${p.permit==='허가자 있음'?'block':'none'};" class="fg">
+          <button type="button" onclick="openClimbVictimPick()" style="width:100%;background:linear-gradient(145deg,#3a2409,#5a3a12);color:#f0c88a;border:1px solid rgba(240,200,138,.35);border-radius:8px;padding:10px;font-size:12.5px;font-weight:800;cursor:pointer;">🧗 그날 암벽 신청명단 확인 · 사고자 불러오기</button>
+          <div style="font-size:9.5px;color:#7a9cb8;margin-top:4px;">※ 사고자가 신청자가 아닐 수 있습니다 — 명단에서 동반자도 개별 선택됩니다</div>
         </div>
       </div>
       <div class="rsec"><div class="rsec-t">🌤️ 기상 정보</div>

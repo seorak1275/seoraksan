@@ -1434,10 +1434,24 @@ function openAddFac(){
   document.getElementById('prevFac').innerHTML='📸 촬영 또는 앨범';
   try{gpsFromMap('facGpsIn','inspect');}catch(e){}
   try{_resetFacFormMap();}catch(e){} // 지도 선택기 초기화(🗺 버튼으로 열림)
+  // 위치: 구간 선택식 — 지도 십자선 근처 표지판의 구간을 기본 선택(수기 입력 폐지 → 데이터 통일)
   const _ic=window._lastInspectCrosshairCoord;
-  const _li=document.getElementById('facLocIn');
-  if(_li){const _ls=_ic?_nearestSign(_ic.lat,_ic.lng):null;_li.value=_ls||'';}
+  let _zone='';
+  try{const _ls=_ic?_nearestSign(_ic.lat,_ic.lng):null;const m=(_ls||'').match(/^(\d{2})-/);if(m&&typeof _zoneLbl==='function')_zone=_zoneLbl(m[1]);}catch(e){}
+  _fillFacLocSel(_zone);
   document.getElementById('modalAddFac').classList.add('on');
+}
+// 위치(구간) 셀렉트 채우기 — ZONE_NAMES 기준 'NN (구간명)' 옵션. 기존 자유입력(레거시) 값은 옵션으로 보존
+function _fillFacLocSel(cur){
+  const sel=document.getElementById('facLocIn');if(!sel)return;
+  cur=String(cur||'').trim();
+  let opts='<option value="">위치 미지정</option>';
+  try{Object.keys(ZONE_NAMES).forEach(z=>{const v=_zoneLbl(z);opts+=`<option value="${_esc(v)}">${_esc(v)}</option>`;});}catch(e){}
+  sel.innerHTML=opts;
+  if(cur){
+    if(![...sel.options].some(o=>o.value===cur))sel.insertAdjacentHTML('beforeend',`<option value="${_esc(cur)}">${_esc(cur)} (기존값)</option>`);
+    sel.value=cur;
+  }
 }
 function openEditFac(id){
   if(!_canManageFac()){toast('⚠️ 탐방시설과·개발자만 수정 가능');return;}
@@ -1447,7 +1461,7 @@ function openEditFac(id){
   fillSel('facTypeSel',DB.g('catFac')||[]);
   document.getElementById('facTypeSel').value=f.type;
   document.getElementById('facNameIn').value=f.name||'';
-  document.getElementById('facLocIn').value=f.loc||'';
+  _fillFacLocSel(f.loc||''); // 구간 셀렉트 — 레거시 자유입력 값은 '(기존값)' 옵션으로 유지
   document.getElementById('facGpsIn').value=f.lat&&f.lng?f.lat.toFixed(5)+', '+f.lng.toFixed(5):'';
   document.getElementById('facInstall').value=f.install||'';
   {const g=document.getElementById('facGradeSel');if(g)g.value=f.grade||'';}

@@ -1154,30 +1154,41 @@ function sPill(el,wrId){document.querySelectorAll(`#${wrId} .pill`).forEach(p=>p
 }
 // 여러 핀 그룹의 선택(.on) 일괄 해제
 function _resetPills(...ids){ids.forEach(id=>document.querySelectorAll(`#${id} .pill`).forEach(p=>p.classList.remove('on')));}
+// 암벽=지구별 그룹(암벽 이용관리와 동일 분류) / 빙벽=단일 목록 — 위치 선택 버튼 HTML (폼 템플릿·chkIllegal 공용)
+function _climbLocBtnsHtml(kind,cur){
+  cur=String(cur||'').trim();
+  const btn=l=>`<button class="tog-btn${cur===l?' on':''}" onclick="selClimbLoc('${l.replace(/'/g,"\\'")}',this)">${l}</button>`;
+  if(kind==='암벽'&&typeof CLIMB_DISTRICTS!=='undefined'){
+    return Object.keys(CLIMB_DISTRICTS).map(d=>`<div style="margin-top:7px;"><div style="font-size:10px;color:#7fc4e0;font-weight:800;margin-bottom:4px;">🏔️ ${d.replace('지구','')}</div><div style="display:flex;flex-wrap:wrap;gap:5px;">${CLIMB_DISTRICTS[d].map(btn).join('')}</div></div>`).join('');
+  }
+  const locs=kind==='빙벽'?_ICE_LOCS:_ROCK_LOCS;
+  return `<div style="display:flex;flex-wrap:wrap;gap:5px;margin-top:6px;" id="climbLocBtns">${locs.map(btn).join('')}</div>`;
+}
 function chkIllegal(sel){
   document.getElementById('fineWrap').style.display=sel.value.includes('비법정')?'block':'none';
+  const isClimb=sel.value==='암벽'||sel.value==='빙벽';
   const pw=document.getElementById('permitWrap');
-  if(pw) pw.style.display=(sel.value==='암벽'||sel.value==='빙벽')?'block':'none';
+  if(pw) pw.style.display=isClimb?'block':'none';
+  if(!isClimb){const pr=document.getElementById('permitRoster');if(pr)pr.style.display='none';}
   const clw=document.getElementById('climbLocWrap');
   if(clw){
-    const isClimb=sel.value==='암벽'||sel.value==='빙벽';
     clw.style.display=isClimb?'block':'none';
     if(isClimb){
-      const locs=sel.value==='암벽'?_ROCK_LOCS:_ICE_LOCS;
       const curVal=(document.getElementById('r_loc')?.value||'').trim();
-      clw.innerHTML=`<span class="fl">📍 ${sel.value} 위치 선택</span><div style="display:flex;flex-wrap:wrap;gap:5px;margin-top:6px;" id="climbLocBtns">${locs.map(l=>`<button class="tog-btn${curVal===l?' on':''}" onclick="selClimbLoc('${l.replace(/'/g,"\\'")}',this)">${l}</button>`).join('')}</div>`;
+      clw.innerHTML=`<span class="fl">📍 ${sel.value} 위치 선택 <span style="font-size:9px;color:#7a9cb8;font-weight:400;">${sel.value==='암벽'?'지구별':''}</span></span>${_climbLocBtnsHtml(sel.value,curVal)}`;
     }
   }
 }
 function selClimbLoc(loc,btn){
   const inp=document.getElementById('r_loc');
   if(inp){inp.value=loc;autoGenTitle();}
-  // Scope to the clicked button's own group — #climbLocBtns can exist in two modals
-  const grp=btn?btn.parentElement:document.getElementById('climbLocBtns');
-  if(grp)grp.querySelectorAll('.tog-btn').forEach(b=>b.classList.remove('on'));
+  // 지구별 여러 그룹에 걸쳐 하나만 선택되도록 climbLocWrap 전체에서 해제 (십자선 모달 등 다른 곳은 자기 그룹만)
+  const wrap=btn?(btn.closest('#climbLocWrap')||btn.parentElement):document.getElementById('climbLocBtns');
+  if(wrap)wrap.querySelectorAll('.tog-btn').forEach(b=>b.classList.remove('on'));
   if(btn)btn.classList.add('on');
 }
-function chkPermit(sel){document.getElementById('permitNote').style.display=sel.value==='허가자 있음'?'block':'none';}
+// 허가자 있음 → 암벽 이용관리 명단 연계 버튼 표시 (허가번호·소속 수기입력은 폐지)
+function chkPermit(sel){const e=document.getElementById('permitRoster');if(e)e.style.display=sel.value==='허가자 있음'?'block':'none';}
 let _companionCount=(window._companionCount)||0;
 function addCompanion(){
   _companionCount++;
