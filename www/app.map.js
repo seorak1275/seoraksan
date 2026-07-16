@@ -1796,11 +1796,16 @@ function selHasRep(val){
   document.querySelectorAll('#hasRepBtns .tog-btn').forEach(b=>b.classList.toggle('on',b.dataset.val===val));
   document.getElementById('reporterWrap').style.display=val==='y'?'block':'none';
 }
-// 동반자 토글
+// 동반자 토글 — '있음' 선택 즉시 첫 입력칸이 열리고 포커스(추가 버튼 누를 필요 없음)
 function selHasComp(val){
   document.getElementById('r_hasComp').value=val;
   document.querySelectorAll('#hasCompBtns .tog-btn').forEach(b=>b.classList.toggle('on',b.dataset.val===val));
   document.getElementById('companionWrap').style.display=val==='y'?'block':'none';
+  if(val==='y'){
+    const list=document.getElementById('companionList');
+    if(list&&!list.children.length){try{addCompanion();}catch(e){}}
+    setTimeout(()=>{try{const n=document.querySelector('#companionList .companion-item:last-child .comp-name');if(n)n.focus();}catch(e){}},60);
+  }
 }
 // 신고자 성별 버튼
 function selRepGender(v){
@@ -1852,6 +1857,19 @@ const _INJ_TYPES={
   '외상':['골절','탈구','염좌','열상','타박상','두부손상','절단','화상','기타'],
   '내상':['저혈당','심정지','저체온증','열사병','탈진/탈수','호흡곤란','흉통','복통','경련','의식저하','익수','기타'],
 };
+// ⚡ 자주 발생 부상 원터치 목록 [유형, 부위, 라벨] — 설악산 실사고 다발 조합(실족→발목·무릎·두부 / 탈진 / 심질환) 순.
+// 여기 없는 사고는 아래 기존 유형·부위 선택으로 — 목록은 지름길일 뿐 제한이 아님
+const _QUICK_INJ=[
+  ['염좌','발목','🦶 발목 염좌'],
+  ['골절','발목','🦶 발목 골절'],
+  ['타박상','무릎','🦵 무릎 타박'],
+  ['골절','무릎','🦵 무릎 골절'],
+  ['열상','머리','🩹 머리 열상'],
+  ['골절','손목','✋ 손목 골절'],
+  ['탈진/탈수','','💦 탈진·탈수'],
+  ['저체온증','','🥶 저체온증'],
+  ['심정지','','💔 심정지'],
+];
 // 부상 표기 통일: 좌→왼쪽·우→오른쪽 자연어. 좌우 없으면 '팔목골절'처럼 압축, 전신(내상)은 유형만
 function _injLabel(i){
   if(!i)return '';
@@ -1935,6 +1953,16 @@ function addInjury(){
   try{autoGenTitle();}catch(e){}
 }
 function removeInjury(i){_injuries.splice(i,1);renderInjuries();try{autoGenTitle();}catch(e){}}
+// ⚡ 자주 발생 부상 원터치 추가 — 실사고 통계 상위 조합을 한 번에 (세부는 기존 유형·부위 pill로 언제든 가능)
+function quickInjury(type,part){
+  const cat=(_INJ_TYPES['내상']||[]).includes(type)?'내상':'외상';
+  _injuries.push({type:type,part:cat==='내상'?'전신':(part||''),side:'',cat:cat});
+  renderInjuries();
+  try{autoGenTitle();}catch(e){}
+  try{if(typeof _updateTabDots==='function')_updateTabDots();}catch(e){}
+  if(typeof _hapt==='function')_hapt(8);
+  toast('🩺 추가됨: '+((part&&part!=='전신')?part+' ':'')+type+' — 좌/우 등 세부는 아래에서 다시 추가 가능');
+}
 function renderInjuries(){
   const el=document.getElementById('injuryList');
   if(!el) return;

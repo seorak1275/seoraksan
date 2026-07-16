@@ -1945,6 +1945,18 @@ function render1BoForm(prefill=null){
         </label>
         <div id="aiScanStatus" style="display:none;font-size:10px;color:#7a9cb8;margin-top:6px;padding:0 4px;line-height:1.6;"></div>
       </div>
+      <!-- 📞 접수 — 시간순으로 가장 먼저 아는 정보라 첫 탭 최상단 (기타 탭에서 이동, '경위'와의 중복 혼동 해소) -->
+      <div class="rsec"><div class="rsec-t">📞 사고 접수 <span style="font-size:9px;color:#7a9cb8;font-weight:400;">신고 받은 그대로</span></div>
+        <div class="fg"><span class="fl">접수 경로</span>
+          <div style="display:flex;gap:6px;" id="recvRouteBtns">
+            ${['119','사무소 전화','현장 접수'].map(o=>`<button class="tog-btn${(p.recvRoute||'119')===o?' on':''}" data-val="${o}" style="flex:1;white-space:nowrap;padding:9px 4px;font-size:11.5px;" onclick="selRecvRoute('${o}')">${o==='119'?'🚒 119':o==='사무소 전화'?'☎️ 사무소전화':'🧍 현장접수'}</button>`).join('')}
+          </div>
+          <input type="hidden" id="r_recvRoute" value="${p.recvRoute||'119'}">
+        </div>
+        <div class="fg"><span class="fl">접수 내용 <span style="font-size:9px;color:#7a9cb8;font-weight:400;">(신고 원문 — 파악된 사고 전개는 환자·부상 탭 '사고 경위'에)</span></span>
+          <textarea id="r_recv" class="fta" rows="3" placeholder="예) 119 이첩 — 천불동계곡 하산 중 발목 부상, 자력 이동 불가, 일행 1명">${p.reception||''}</textarea>
+        </div>
+      </div>
       <div class="rsec"><div class="rsec-t">🚨 사고 유형</div>
         <div class="pills" id="typePills">
           ${(()=>{const base=['안전사고','조난','고립','실종','기타'];const cur=p.type||'안전사고';const isCustom=!base.includes(cur);return base.map(o=>`<div class="pill${(isCustom?o==='기타':cur===o)?' on':''}" onclick="selAccType('${o}')">${o}</div>`).join('');})()}
@@ -2030,14 +2042,20 @@ function render1BoForm(prefill=null){
             ${['본인부주의','실족','추락','낙석 피격','탈진/탈수','저체온','심혈관 이상','동물 피해','익수','기타'].map(o=>`<option${(p.cause||'본인부주의')===o?' selected':''}>${o}</option>`).join('')}
           </select>
         </div>
-        <div class="fg"><span class="fl">사고 경위 <span style="font-size:9px;color:#7a9cb8;font-weight:400;">(상세 기술)</span></span>
+        <div class="fg"><span class="fl">사고 경위 <span style="font-size:9px;color:#7a9cb8;font-weight:400;">(파악된 사실 — 접수 원문과 달라진 내용 포함)</span></span>
           <textarea id="r_sit" class="fta" rows="4" placeholder="예) 오전 09:00 비선대 주차장에서 산행 시작, 11:30경 천불동계곡 3km 지점 하산 중 실족하여 우측 발목 부상 발생">${p.situation||''}</textarea>
+          <button type="button" onclick="_copyRecvToSit()" style="margin-top:5px;background:rgba(79,168,208,.08);border:1px solid rgba(79,168,208,.25);color:#5d92bc;border-radius:7px;padding:5px 10px;font-size:10.5px;font-weight:700;cursor:pointer;">📞 접수 내용 가져와서 시작</button>
         </div>
       </div>
 
       <!-- 2. 부상 현황 -->
       <div class="rsec"><div class="rsec-t">🩺 부상 현황</div>
         <div style="background:#060d1a;border-radius:8px;border:1px solid rgba(255,255,255,.07);padding:10px;margin-bottom:8px;">
+          <!-- ⚡ 자주 발생 원터치 — 다발 조합 한 번에. 그 외는 아래 유형·부위 선택 -->
+          <div style="font-size:10px;color:#f0c060;font-weight:700;margin-bottom:5px;">⚡ 자주 발생 — 누르면 바로 추가</div>
+          <div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:10px;padding-bottom:9px;border-bottom:1px dashed rgba(255,255,255,.08);">
+            ${(typeof _QUICK_INJ!=='undefined'?_QUICK_INJ:[]).map(q=>`<div class="pill" style="font-size:11px;cursor:pointer;" onclick="quickInjury('${q[0]}','${q[1]}')">${q[2]}</div>`).join('')}
+          </div>
           <!-- 외상/내상 구분 (기본: 외상) -->
           <div style="display:flex;gap:6px;margin-bottom:8px;" id="injCatBtns">
             <button class="tog-btn on" data-val="외상" style="flex:1;padding:7px 4px;min-height:34px;font-size:12px;" onclick="selInjCat('외상')">🩹 외상</button>
@@ -2211,16 +2229,8 @@ function render1BoForm(prefill=null){
           ${['특구대','재난과','전직원응소'].map(o=>`<div class="pill${(p.mobilize||[]).includes(o)?' on':''}" onclick="tPill(this)">${o}</div>`).join('')}
         </div>
       </div>`:''}
-      <div class="rsec" style="margin-top:${isNbo?'0':'12px'};"><div class="rsec-t">📞 접수 경로</div>
-        <div style="display:flex;gap:6px;" id="recvRouteBtns">
-          ${['119','사무소 전화','현장 접수'].map(o=>`<button class="tog-btn${(p.recvRoute||'119')===o?' on':''}" data-val="${o}" style="flex:1;white-space:nowrap;padding:9px 4px;font-size:11.5px;" onclick="selRecvRoute('${o}')">${o==='119'?'🚒 119':o==='사무소 전화'?'☎️ 사무소전화':'🧍 현장접수'}</button>`).join('')}
-        </div>
-        <input type="hidden" id="r_recvRoute" value="${p.recvRoute||'119'}">
-      </div>
-      <div class="rsec" style="margin-top:12px;"><div class="rsec-t">📝 사고접수 내용 (자유작성)</div>
-        <textarea id="r_recv" class="fta" rows="4" placeholder="사고 접수 당시 상황을 자유롭게 적어주세요 (신고 내용, 현장 상황, 인지 경위 등)">${p.reception||''}</textarea>
-      </div>
-      <div class="rsec" style="margin-top:12px;"><div class="rsec-t">📋 사고 제목 및 작성 정보</div>
+      <!-- 접수 경로·내용은 위치·기상 탭 최상단으로 이동 (경위와 중복 혼동 해소) -->
+      <div class="rsec" style="margin-top:${isNbo?'0':'12px'};"><div class="rsec-t">📋 사고 제목 및 작성 정보</div>
         <div class="fg">
           <span class="fl">사고 제목 <span style="font-size:9px;color:#7a9cb8;font-weight:400;">(자동생성 — 수정 가능)</span></span>
           <input type="text" id="r_title" class="fi" placeholder="위치·기상 탭 입력 시 자동생성" value="${p.title||''}">
@@ -2314,7 +2324,7 @@ function _updateTabDots(){
     repSec1:(_v('r_gps')||_v('r_loc'))?'ok':'req',                                                          // 위치 필수
     repSec2:((typeof _injuries!=='undefined'&&_injuries.length)||getSelPills('sevPills').length||_v('r_sit'))?'ok':'req', // 부상·중증도·경위 중 1 필수
     repSec3:(_v('r_vName')||_v('r_vTel'))?'ok':'req',                                                       // 이름 또는 연락처 필수
-    repSec5:(_v('r_recv')||_v('r_extra')||getSelPills('rescMeth').length||getSelPills('mobilizePills').length)?'ok':'opt', // 선택
+    repSec5:(_v('r_extra')||getSelPills('rescMeth').length||getSelPills('mobilizePills').length)?'ok':'opt', // 선택 (접수내용은 섹터1로 이동)
   };
   Object.entries(state).forEach(([sec,st])=>{
     const d=document.getElementById('dot_'+sec);
@@ -2322,6 +2332,15 @@ function _updateTabDots(){
     d.style.background=st==='ok'?'#27ae60':st==='req'?'#e05a4e':'rgba(255,255,255,.14)';
     d.style.boxShadow=st==='req'?'0 0 5px rgba(224,90,78,.85)':'none';
   });
+}
+// 경위 칸에 접수 원문을 가져와 시작점으로 — 같은 내용 두 번 타이핑 방지
+function _copyRecvToSit(){
+  const rv=(document.getElementById('r_recv')?.value||'').trim();
+  if(!rv){toast('접수 내용이 비어있습니다 — 위치·기상 탭 맨 위 📞 사고 접수에 먼저 입력하세요');return;}
+  const s=document.getElementById('r_sit');if(!s)return;
+  s.value=s.value.trim()?(s.value.trim()+'\n'+rv):rv;
+  toast('📞 접수 내용을 붙여넣었습니다 — 파악된 사실로 다듬어 주세요');
+  try{_updateTabDots();}catch(e){}
 }
 // 제출 직전 필수 미입력 목록 — 비어 있으면 빈 배열 (응급 시 확인 후 그대로 등록 가능해야 하므로 차단하지 않음)
 function _collect1BoMissing(){
