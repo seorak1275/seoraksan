@@ -1,1 +1,1 @@
-{"version":"2026.07.16.192","url":"https://seorak1275.github.io/seoraksan/bundle.zip","notes":"시설물 지도 축소 시 표지판 숨김 — 점 수백 개가 등산로를 뒤덮던 문제(레벨 8부터 숨김·경고 시설은 항상 표시·교량 등 주요 시설은 색 점 유지, 확대하면 전부 등장)"}
+{"version":"2026.07.16.193","url":"https://seorak1275.github.io/seoraksan/bundle.zip","notes":"시설물 지도 축소 시 핀 전부 숨김(구조지도와 동일 감각) — 빈 원 자체가 안 생김, ⚠️경고 시설만 항상 표시(최소 크기 보장), 확대하면 아이콘 핀으로 전부 등장"}

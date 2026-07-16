@@ -21,10 +21,11 @@ function _scaleOvs(els,level,off){
   els.forEach(el=>{
     if(!el)return;
     if(el.classList.contains('mpin')||el.classList.contains('mpin-sm')){
-      el.style.width=s.sz+'px';el.style.height=s.sz+'px';
-      // 이모지는 5px 이하로 렌더되지 않아 축소 시 원(테두리)보다 커져 보임 → 소형 핀은 글자 숨기고 색 점으로
-      el.style.fontSize=(s.fs<6?0:s.fs)+'px';
-      el.style.borderWidth=s.bw+'px';
+      let sz=s.sz,fs=(s.fs<6?0:s.fs),bw=s.bw; // 이모지는 5px 이하 렌더 불가(원 밖으로 넘침) → 소형은 글자 숨김
+      if(el.classList.contains('p-bad')){sz=Math.max(sz,16);fs=Math.max(s.fs,9);bw=Math.max(bw,1.5);} // ⚠️경고 시설은 축소해도 식별 가능한 최소 크기
+      el.style.width=sz+'px';el.style.height=sz+'px';
+      el.style.fontSize=fs+'px';
+      el.style.borderWidth=bw+'px';
     } else if(el.classList.contains('mpin-num')){
       if(s.numFs===0){el.style.display='none';}
       else{el.style.display='';el.style.fontSize=s.numFs+'px';el.style.padding=s.numPad;}
@@ -135,14 +136,14 @@ var _iClusterOvs=[],_iItems=[];
 function _reclusterInspect(){
   if(!mapI)return;
   _iClusterOvs.forEach(o=>{try{o.setMap(null);}catch(e){}});_iClusterOvs=[];
-  // 축소(레벨 8 이상)에서는 다목적위치표지판을 숨김 — 점 수백 개가 등산로를 구슬처럼 뒤덮는 문제.
-  // 경고 표시된 시설은 항상 표시, 교량·데크 등 주요 시설(수십 개)은 색 점으로 유지. 확대하면 전부 등장.
+  // 축소(레벨 8 이상)에서는 시설물 핀을 전부 숨김(구조지도와 동일 감각) — 아이콘이 안 들어가는
+  // '빈 원' 자체가 생기지 않게 한다. ⚠️경고 표시 시설만 예외로 항상 표시. 확대하면 전부 등장.
   // 이미 원하는 상태인 핀은 건드리지 않음(재부착 = DOM 재생성 → 깜빡임·프레임 저하)
   let lv=9;try{lv=mapI.getLevel();}catch(e){}
-  const hideSigns=lv>=8;
+  const hideAll=lv>=8;
   iOvs.forEach(o=>{
     try{
-      const want=(hideSigns&&o._sign&&!o._warn)?null:mapI;
+      const want=(hideAll&&!o._warn)?null:mapI;
       if(o.getMap()!==want)o.setMap(want);
     }catch(e){}
   });
