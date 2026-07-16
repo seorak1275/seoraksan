@@ -564,7 +564,7 @@ function _applyRFacFilter(){
   });
   rOvs=[..._rEvOvs,...[..._rFacPool.values()].map(e=>e.ov)];
   rEls=[..._rEvEls,...facEls];
-  if(mapR)_scaleOvs(rEls,mapR.getLevel(),5);
+  if(mapR)_scaleOvs(rEls,mapR.getLevel(),3);
 }
 function _resDateOk(dateStr){
   if(!resDateFrom&&!resDateTo)return true;

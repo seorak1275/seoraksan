@@ -1,1 +1,1 @@
-{"version":"2026.07.16.185","url":"https://seorak1275.github.io/seoraksan/bundle.zip","notes":"아이폰 화면 잘림 추적 — 진단창을 홈 상단 날짜 5연타로도 열 수 있게 + 순수 화면 테스트 페이지(/test.html) 추가"}
+{"version":"2026.07.16.186","url":"https://seorak1275.github.io/seoraksan/bundle.zip","notes":"핀치줌 직접 처리(모바일) — 두 손가락으로 벌리는 동안 핀이 지도와 한 몸으로 유지·추적, 손 떼면 핀치 중심 기준 즉시 확정(핀 숨김 구간 제거, 공개 API만 사용) + 더블탭 확대 대체 제공 · 구조지도 핀 크기 중간 배율 축소"}

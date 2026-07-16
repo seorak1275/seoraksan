@@ -6,10 +6,10 @@ let mapI,mapR,iOvs=[],rOvs=[],iEls=[],rEls=[],myOv=null,mapIType='hybrid',mapRTy
 function _pinSz(level,off){
   const o=off||0;
   if(level<=3) return {sz:30+o,fs:13,bw:2,  numFs:11,numPad:'2px 5px'};
-  if(level<=4) return {sz:26+o,fs:11,bw:2,  numFs:10,numPad:'2px 4px'};
-  if(level<=5) return {sz:22+o,fs:9, bw:1.5,numFs:9, numPad:'2px 3px'};
-  if(level<=6) return {sz:18+o,fs:8, bw:1.5,numFs:8, numPad:'1px 3px'};
-  if(level<=7) return {sz:14+o,fs:6, bw:1,  numFs:7, numPad:'1px 2px'};
+  if(level<=4) return {sz:24+o,fs:10, bw:2,  numFs:10,numPad:'2px 4px'};
+  if(level<=5) return {sz:20+o,fs:8, bw:1.5,numFs:9, numPad:'2px 3px'};
+  if(level<=6) return {sz:16+o,fs:7, bw:1.5,numFs:8, numPad:'1px 3px'};
+  if(level<=7) return {sz:13+o,fs:6, bw:1,  numFs:7, numPad:'1px 2px'};
   if(level<=8) return {sz:11+o,fs:5, bw:1,  numFs:6, numPad:'1px 2px'};
   if(level<=9) return {sz:8+o, fs:3, bw:0.5,numFs:6, numPad:'1px 2px'};
   if(level<=10)return {sz:7+o, fs:3, bw:0.5,numFs:5, numPad:'0px 2px'};
@@ -99,6 +99,68 @@ function _showClusterList(group){
     +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;"><span style="font-size:14px;font-weight:800;color:#e0edf8;">📍 같은 위치 '+items.length+'건</span><button onclick="var e=document.getElementById(\'clusListModal\');if(e)e.remove();" style="background:none;border:none;color:rgba(255,255,255,.5);font-size:22px;cursor:pointer;line-height:1;">×</button></div>'
     +rows+'</div>';
   m.onclick=function(e){if(e.target===m)m.remove();};
+}
+// ── 커스텀 핀치줌: 두 손가락으로 벌리는 '동안' 핀이 제자리에 붙어 지도와 함께 확대/축소 ──
+// SDK 핀치는 줌 중 오버레이(핀)를 숨긴다 → 모바일에서는 SDK 줌을 끄고 제스처를 직접 처리.
+// 벌리는 동안 지도 컨테이너 전체(타일+핀)를 CSS scale로 확대(핀=지도의 일부처럼 유지),
+// 손을 떼면 그 배율만큼 setLevel(즉시, 핀치 중심 앵커)로 확정하고 스케일을 걷어낸다.
+// 공개 API(setZoomable/setLevel/getProjection)만 사용 — SDK 내부 구조에 의존하지 않음.
+function _customPinch(map,el){
+  try{
+    if(!el||!map||!map.setZoomable)return;
+    if(!(navigator.maxTouchPoints>0&&/Android|iPhone|iPad|iPod/i.test(navigator.userAgent||'')))return; // 모바일만(데스크톱 휠 줌 유지)
+    map.setZoomable(false);
+  }catch(e){return;}
+  let zooming=false,d0=1,cx=0,cy=0,scale=1,rect=null,lastTapAt=0,lastTapX=0,lastTapY=0;
+  const dist=t=>Math.hypot(t[0].clientX-t[1].clientX,t[0].clientY-t[1].clientY)||1;
+  const finish=()=>{
+    if(!zooming)return;zooming=false;
+    el.style.transform='';el.style.transformOrigin='';el.style.willChange='';
+    const steps=Math.round(Math.log(scale)/Math.LN2);
+    if(steps){
+      try{
+        const lv=Math.max(1,Math.min(14,map.getLevel()-steps));
+        let opt;
+        try{const proj=map.getProjection();opt={anchor:proj.coordsFromContainerPoint(new kakao.maps.Point(cx-rect.left,cy-rect.top))};}catch(e){}
+        map.setLevel(lv,opt); // 즉시 전환(애니메이션 없음 → 핀 숨김 구간 자체가 없음)
+      }catch(e){}
+    }
+    scale=1;
+  };
+  el.addEventListener('touchstart',e=>{
+    if(e.touches.length===2){
+      zooming=true;rect=el.getBoundingClientRect();
+      d0=dist(e.touches);scale=1;
+      cx=(e.touches[0].clientX+e.touches[1].clientX)/2;
+      cy=(e.touches[0].clientY+e.touches[1].clientY)/2;
+      el.style.willChange='transform';
+      el.style.transformOrigin=(cx-rect.left)+'px '+(cy-rect.top)+'px';
+    }
+  },{capture:true,passive:true});
+  el.addEventListener('touchmove',e=>{
+    if(!zooming||e.touches.length!==2)return;
+    e.preventDefault();e.stopPropagation(); // 브라우저 페이지 확대·SDK 드래그 개입 차단
+    cx=(e.touches[0].clientX+e.touches[1].clientX)/2;
+    cy=(e.touches[0].clientY+e.touches[1].clientY)/2;
+    scale=Math.max(.25,Math.min(4,dist(e.touches)/d0));
+    el.style.transform='scale('+scale+')';
+  },{capture:true,passive:false});
+  el.addEventListener('touchend',e=>{
+    // 더블탭 확대(SDK 줌을 꺼서 직접 제공): 0.35초 내 같은 지점 두 번 탭 → 한 단계 확대(즉시)
+    if(!zooming&&e.changedTouches&&e.changedTouches.length===1&&e.touches.length===0){
+      const t=e.changedTouches[0],now=Date.now();
+      if(now-lastTapAt<350&&Math.abs(t.clientX-lastTapX)<30&&Math.abs(t.clientY-lastTapY)<30){
+        lastTapAt=0;
+        try{
+          const r2=el.getBoundingClientRect();
+          const proj=map.getProjection();
+          map.setLevel(Math.max(1,map.getLevel()-1),{anchor:proj.coordsFromContainerPoint(new kakao.maps.Point(t.clientX-r2.left,t.clientY-r2.top))});
+        }catch(err){}
+      }else{lastTapAt=now;lastTapX=t.clientX;lastTapY=t.clientY;}
+    }
+    if(zooming&&e.touches.length<2)finish();
+  },{capture:true,passive:true});
+  el.addEventListener('touchcancel',()=>{if(zooming)finish();},{capture:true,passive:true});
 }
 function _clusterZoom(map,lat,lng){
   // 부드러운 확대 — 즉시 점프 대신 애니메이션으로 (겹친 핀·클러스터 탭 시 자연스럽게)
@@ -346,14 +408,16 @@ function initMaps(){
     // 연사되는데, 그때마다 수백 개 오버레이를 재부착·재스타일하면 핀이 사라져 보이고 프레임이 급락함
     kakao.maps.event.addListener(mapR,'zoom_changed',()=>{
       clearTimeout(window._rZoomT);
-      window._rZoomT=setTimeout(()=>{_scaleOvs(rEls,mapR.getLevel(),5);try{_reclusterRescue();}catch(e){}},150);
+      window._rZoomT=setTimeout(()=>{_scaleOvs(rEls,mapR.getLevel(),3);try{_reclusterRescue();}catch(e){}},150);
     });
     kakao.maps.event.addListener(mapI,'zoom_changed',()=>{
       try{_closeFacOverlapSheet();}catch(e){}
       clearTimeout(window._iZoomT);
       window._iZoomT=setTimeout(()=>{_scaleOvs(iEls,mapI.getLevel(),1);try{_reclusterInspect();}catch(e){}},150);
     });
-    // (롤백) 줌 중 핀 유지 실험(_bindZoomPinHold)은 실기기에서 화면 미표시·핀 크기 오염 부작용 → 비활성
+    // 핀치줌을 직접 처리(모바일) — 벌리는 동안 핀이 지도와 한 몸으로 유지, 손 떼면 즉시 확정
+    try{_customPinch(mapR,document.getElementById('mapRescue'));}catch(e){}
+    try{_customPinch(mapI,document.getElementById('mapInspect'));}catch(e){}
     if(window._hideLoading)setTimeout(window._hideLoading,600);
   }
   if(window._KR){doInit();return;}
