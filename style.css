@@ -81,6 +81,11 @@ img{-webkit-user-drag:none;}
 .ok{color:#27ae60;}.warn{color:#e67e22;}.bad{color:#c0392b;}.blu{color:#4fa8d0;}.muted{color:rgba(255,255,255,.3);}
 
 /* ═══ 홈 ═══ */
+/* ── 지도 줌 전환 '흰 화면 번쩍임' 제거 ──
+   카카오 SDK는 확대/축소 순간 이전 화면을 늘리거나 줄여 두고, 나머지 여백을 지도 루트의
+   기본 배경(밝은 회색/흰색)으로 채운다 → 어두운 위성지도에서 화면 전체가 하얗게 깜빡여 보임(영상 확인).
+   루트 배경을 어두운 색으로 강제하면 같은 전환이 조용한 어두운 페이드로 바뀐다. */
+#mapRescue>div,#mapInspect>div,#boardMap>div,#mapPicker>div{background:#0b141f !important;}
 /* 글씨 크게 설정 기기: 내용이 화면보다 커지면 눌러 찌그러뜨리지(겹침) 말고 세로 스크롤 */
 #v-home{background:#060d1a;overflow-y:auto !important;overflow-x:hidden !important;overscroll-behavior:contain;}
 .home-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;flex-shrink:0;}
