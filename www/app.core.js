@@ -953,6 +953,26 @@ document.addEventListener('visibilitychange',function(){if(!document.hidden)_onV
 // iOS 등: 주소창 접힘/펼침이 window.resize를 안 띄우고 visualViewport만 바꾸는 경우 대비
 try{if(window.visualViewport)window.visualViewport.addEventListener('resize',function(){_onViewportChange(180);});}catch(e){}
 setTimeout(_fixAppHeight,500);setTimeout(_fixAppHeight,2000);
+// 화면 진단: 하단 버전 라벨을 5번 연속 탭 → 이 기기의 뷰포트·앱 높이 수치 표시 (아이폰 잘림 등 원인 파악용)
+(function(){
+  var n=0,t=0;
+  document.addEventListener('click',function(e){
+    if(!e.target||e.target.id!=='appVerLabel')return;
+    var now=Date.now();if(now-t>1500)n=0;t=now;
+    if(++n<5)return;n=0;
+    try{
+      var app=document.getElementById('app');var r=app.getBoundingClientRect();
+      var vv=window.visualViewport||{};
+      alert('📐 화면 진단\ninner: '+window.innerWidth+'x'+window.innerHeight
+        +'\nvisual: '+Math.round(vv.width||0)+'x'+Math.round(vv.height||0)+' · scale '+((vv.scale||1).toFixed(2))
+        +'\napp rect: '+Math.round(r.width)+'x'+Math.round(r.height)+' (top '+Math.round(r.top)+')'
+        +'\napp style.height: '+(app.style.height||'(없음)')
+        +'\ndvh 지원: '+((window.CSS&&CSS.supports&&CSS.supports('height','100dvh'))?'예':'아니오')
+        +'\nscreen: '+screen.width+'x'+screen.height+' · dpr '+devicePixelRatio
+        +'\n버전: '+(typeof OTA_VER!=='undefined'?OTA_VER:'?'));
+    }catch(err){alert('진단 실패: '+err);}
+  });
+})();
 
 // ── 실시간 회복 워치독 — '새로고침해야 새 정보가 보이는' 문제의 근본 대응 ──────────
 // 폰에서 화면이 꺼지거나 앱이 백그라운드로 가면 JS가 얼면서 Firestore 수신 스트림이 끊기는데,

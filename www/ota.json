@@ -1,1 +1,1 @@
-{"version":"2026.07.16.183","url":"https://seorak1275.github.io/seoraksan/bundle.zip","notes":"롤백 — 줌 중 핀 유지 실험 제거(실기기에서 화면 미표시·핀 크기 오염 부작용). 지도는 v205 동작으로 복귀(줌 후 핀 즉시 복귀·부드러운 클러스터 확대·위성 캐시 유지)"}
+{"version":"2026.07.16.184","url":"https://seorak1275.github.io/seoraksan/bundle.zip","notes":"화면 진단 도구 — 하단 버전 라벨 5연타 시 기기 뷰포트·앱 높이 수치 표시(아이폰 화면 잘림 원인 확정용)"}
