@@ -1282,6 +1282,8 @@ function chkIllegal(sel){
   const pw=document.getElementById('permitWrap');
   if(pw) pw.style.display=isClimb?'block':'none';
   if(!isClimb){const pr=document.getElementById('permitRoster');if(pr)pr.style.display='none';}
+  // 인적사항 탭의 '암벽 명단 불러오기' — 암벽 사고일 때만 (신청명단은 암벽 전용)
+  {const cp3=document.getElementById('climbPickWrap3');if(cp3)cp3.style.display=sel.value==='암벽'?'block':'none';}
   const clw=document.getElementById('climbLocWrap');
   if(clw){
     clw.style.display=isClimb?'block':'none';

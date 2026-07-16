@@ -2121,7 +2121,8 @@ function render1BoForm(prefill=null){
     <!-- ══ 섹터3: 인적사항 ══ -->
     <div id="repSec3" class="rep-sec" style="display:none;padding:12px;overflow-y:auto;">
       <div class="rsec"><div class="rsec-t">🧑 사고자 인적사항 <button class="info-btn" onclick="openGuide('victim')">ℹ</button></div>
-        ${(DB.g('climbDates')||[]).length?`<button type="button" onclick="openClimbVictimPick()" style="width:100%;margin-bottom:9px;background:linear-gradient(145deg,#3a2409,#5a3a12);color:#f0c88a;border:1px solid rgba(240,200,138,.35);border-radius:8px;padding:10px;font-size:12.5px;font-weight:800;cursor:pointer;">🧗 암벽 명단에서 불러오기 (사고자·동반자 자동입력)</button>`:''}
+        <!-- 암벽 명단 불러오기 — 장소구분=암벽일 때만 표시 (chkIllegal이 토글). 코스를 골랐으면 그 코스 명단만 뜸 -->
+        ${(DB.g('climbDates')||[]).length?`<div id="climbPickWrap3" style="display:${p.loctype==='암벽'?'block':'none'};"><button type="button" onclick="openClimbVictimPick()" style="width:100%;margin-bottom:9px;background:linear-gradient(145deg,#3a2409,#5a3a12);color:#f0c88a;border:1px solid rgba(240,200,138,.35);border-radius:8px;padding:10px;font-size:12.5px;font-weight:800;cursor:pointer;">🧗 암벽 명단에서 불러오기 (사고자·동반자 자동입력)</button></div>`:''}
         <div class="frow">
           <div class="fg"><span class="fl">성명</span><input type="text" id="r_vName" class="fi" value="${p.vName||''}"></div>
           <div class="fg"><span class="fl">연락처</span><input type="tel" id="r_vTel" class="fi" value="${p.vTel||''}"></div>
