@@ -418,9 +418,12 @@ function _updateFacListFilterPanel(types,locs){
 // ─── 재난/구조 필터 ───
 function _updateResFilterPanels(){
   const dateActive=(resDateFrom||resDateTo)?1:0;
-  const total=resTypeF.size+resStatusF.size+dateActive;
-  ['resMapFilterBadge','resListFilterBadge'].forEach(id=>{const el=document.getElementById(id);if(!el)return;el.style.display=total?'inline-flex':'none';if(total)el.textContent=total;});
-  ['resMapFilterCount','resListFilterCount'].forEach(id=>{const el=document.getElementById(id);if(!el)return;el.textContent=total?`(${total})` : '';});
+  // 지도 배지=전체 필터 수 / 목록 배지=날짜만 (목록은 상태·종류 필터를 적용하지 않음 — 항상 진행중+종료 표시)
+  const totalMap=resTypeF.size+resStatusF.size+dateActive;
+  {const el=document.getElementById('resMapFilterBadge');if(el){el.style.display=totalMap?'inline-flex':'none';if(totalMap)el.textContent=totalMap;}}
+  {const el=document.getElementById('resMapFilterCount');if(el)el.textContent=totalMap?`(${totalMap})`:'';}
+  {const el=document.getElementById('resListFilterBadge');if(el){el.style.display=dateActive?'inline-flex':'none';if(dateActive)el.textContent=dateActive;}}
+  {const el=document.getElementById('resListFilterCount');if(el)el.textContent=dateActive?`(${dateActive})`:'';}
   const inpSt='background:#0a1828;color:#4fa8d0;border:1px solid rgba(79,168,208,.3);border-radius:6px;padding:5px 6px;font-size:11px;width:100%;box-sizing:border-box;';
   const dateHtml=`<div style="display:flex;gap:6px;align-items:center;margin-top:4px;">
     <input type="date" value="${resDateFrom}" style="${inpSt}" onchange="setResDate('from',this.value)">
@@ -430,8 +433,10 @@ function _updateResFilterPanels(){
   const typeHtml=_filterAllChip(resTypeF,`_srfAll('t')`)+[{v:'🚨구조',l:'🚨 구조보고'},{v:'⚠️위험상황',l:'⚠️ 위험상황'}].map(({v,l})=>_filterChip(l,resTypeF,v,`setResTypeF('${v}')`)).join('');
   const stHtml=_filterAllChip(resStatusF,`_srfAll('s')`)+[{v:'진행중',l:'🔴 진행중/미조치'},{v:'종료',l:'✅ 종료/완료'}].map(({v,l})=>_filterChip(l,resStatusF,v,`setResStatusF('${v}')`)).join('');
   ['resMFP_date','resLFP_date'].forEach(id=>_filterSec(id,'📅 날짜',dateHtml,null,dateActive));
-  ['resMFP_type','resLFP_type'].forEach(id=>_filterSec(id,'종류',typeHtml,resTypeF));
-  ['resMFP_status','resLFP_status'].forEach(id=>_filterSec(id,'상태',stHtml,resStatusF));
+  _filterSec('resMFP_type','종류',typeHtml,resTypeF);
+  _filterSec('resMFP_status','상태',stHtml,resStatusF);
+  // 목록 패널에서는 종류·상태 섹션 제거 — 목록은 항상 진행중+종료 전부 표시(지도만 필터)
+  ['resLFP_type','resLFP_status'].forEach(id=>{const el=document.getElementById(id);if(el)el.innerHTML='';});
   _syncOngoingBtn();
 }
 // 지도 '🔴 진행중' 토글 — 현재 사고만 보기 (상태 필터를 진행중 단독으로)

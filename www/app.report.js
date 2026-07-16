@@ -40,7 +40,7 @@ function addPhase(){
     ...(prevReport||{}),
     _phaseNum: phaseNum+1,
     title: r.title,
-    date: now().replace(' ','T'),
+    date: String(r.date||'').replace(' ','T')||now().replace(' ','T'), // 본 기록의 사고일시 그대로 (예전 now() 강제는 일시 오염 원인)
     timetable: r.timetable||[],
   };
   render1BoForm(prefill);
@@ -60,7 +60,7 @@ function submitNBoFromForm(){
     rid: 'r'+Date.now().toString(36)+Math.random().toString(36).slice(2,6), // 보고 고유 id(동시편집 병합 키)
     repTime: now(),
     type: (typeof _resolvedAccType==='function'&&document.getElementById('r_type'))?_resolvedAccType():(res[idx].type),
-    date: document.getElementById('r_accdt')?.value?.replace('T',' ')||now(),
+    date: document.getElementById('r_accdt')?.value?.replace('T',' ')||res[idx].date, // 미입력 시 기존 사고일시 유지 (예전 now() 폴백은 제출 시각으로 덮던 버그)
     weather: getSelPills('weatherPills')[0]||res[idx].weather||'',
     weatherAlert: getWeatherAlertStr(),
     location: document.getElementById('r_loc')?.value||res[idx].location,
@@ -157,6 +157,14 @@ function submitNBoFromForm(){
         res[idx].lat=+nlat.toFixed(6);res[idx].lng=+nlng.toFixed(6);
         phaseData.lat=res[idx].lat;phaseData.lng=res[idx].lng;
       }
+    }
+  }catch(e){}
+  // 사고일시: N보 폼에서 바꿨으면 본 기록에 반영(종료 후 정정 포함) — 변경 이력에 기록
+  try{
+    const nd=(document.getElementById('r_accdt')?.value||'').replace('T',' ');
+    if(/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}/.test(nd)&&nd.slice(0,16)!==String(res[idx].date||'').slice(0,16)){
+      changes.push({label:'사고일시',from:res[idx].date||'(없음)',to:nd});
+      res[idx].date=nd;phaseData.date=nd;
     }
   }catch(e){}
   phaseData.changes=changes;
@@ -1261,7 +1269,9 @@ function renderTimeline(r,viewMode,outId){
       }
     } else {
       _ftEl.style.display='block';
-      _ftEl.innerHTML='<div style="text-align:center;font-size:12px;color:#27ae60;padding:8px;">✅ 상황 종료됨</div>';
+      // 종료된 사고도 보고서 내용·사고일시 수정 가능 — 추가 보고 폼(사고일시 칸 포함)으로 진입. status는 종료 유지
+      _ftEl.innerHTML='<div style="text-align:center;font-size:12px;color:#27ae60;padding:6px 0 6px;">✅ 상황 종료됨</div>'
+        +((mode==='write'&&!isExternal())?`<button class="btn-submit" style="width:100%;background:#1a4a6e;color:#fff;" onclick="selResId=${r.id};curResId=${r.id};addPhase();">📝 기록 수정·추가 보고 <span style="font-size:10px;font-weight:400;opacity:.75;">(사고일시·내용 수정)</span></button>`:'');
     }
   }
 }
@@ -1851,6 +1861,8 @@ function render1BoForm(prefill=null){
 
     <!-- ══ 섹터1: 위치·기상 ══ -->
     <div id="repSec1" class="rep-sec" style="padding:12px;overflow-y:auto;">
+      ${isNbo?`<div class="fg" style="margin-bottom:10px;"><span class="fl">🕐 사고 일시 <span style="font-size:9px;color:#7a9cb8;font-weight:400;">(잘못 기록된 경우 수정 — 저장 시 반영)</span></span>
+        <input type="datetime-local" id="r_accdt" class="fi" value="${String(p.date||'').replace(' ','T').slice(0,16)}"></div>`:''}
       <!-- AI 출동지령서 스캔 (상단 고정칸에서 섹터1 안으로 이동 — 화면 낭비 제거) -->
       <div style="margin-bottom:10px;">
         <label style="display:flex;align-items:center;gap:9px;background:rgba(139,92,246,.1);border:1px solid rgba(139,92,246,.3);border-radius:10px;padding:10px 13px;cursor:pointer;touch-action:manipulation;">
