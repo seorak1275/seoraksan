@@ -135,8 +135,17 @@ var _iClusterOvs=[],_iItems=[];
 function _reclusterInspect(){
   if(!mapI)return;
   _iClusterOvs.forEach(o=>{try{o.setMap(null);}catch(e){}});_iClusterOvs=[];
-  // 배율과 무관하게 전체 시설물 표시 — 이미 붙어 있는 핀은 건드리지 않음(재부착 = DOM 재생성 → 깜빡임·프레임 저하)
-  iOvs.forEach(o=>{try{if(o.getMap()!==mapI)o.setMap(mapI);}catch(e){}});
+  // 축소(레벨 8 이상)에서는 다목적위치표지판을 숨김 — 점 수백 개가 등산로를 구슬처럼 뒤덮는 문제.
+  // 경고 표시된 시설은 항상 표시, 교량·데크 등 주요 시설(수십 개)은 색 점으로 유지. 확대하면 전부 등장.
+  // 이미 원하는 상태인 핀은 건드리지 않음(재부착 = DOM 재생성 → 깜빡임·프레임 저하)
+  let lv=9;try{lv=mapI.getLevel();}catch(e){}
+  const hideSigns=lv>=8;
+  iOvs.forEach(o=>{
+    try{
+      const want=(hideSigns&&o._sign&&!o._warn)?null:mapI;
+      if(o.getMap()!==want)o.setMap(want);
+    }catch(e){}
+  });
 }
 // ── 시설물 겹친 핀: 하단 목록 시트로 선택 ──────────────────────────────
 // 핀은 모두 그대로 표시(숫자 뭉치기 없음). 확대해도 겹쳐 못 누르는 지점을 누르면

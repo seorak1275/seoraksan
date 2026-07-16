@@ -197,7 +197,8 @@ function renderInspectMap(){
     el.addEventListener('click',e=>{e.stopPropagation();_facPinTap(f.id);});
     const ov=new kakao.maps.CustomOverlay({position:new kakao.maps.LatLng(f.lat,f.lng),content:el,clickable:true});
     ov._lat=f.lat;ov._lng=f.lng;ov._facId=f.id; // 부채꼴 펼침이 겹친 핀을 찾을 때 사용
-    ov._sign=!!(f.type&&f.type.includes('다목적위치표지판')); // 줌아웃 시 표지판만 표시하기 위한 플래그
+    ov._sign=!!(f.type&&f.type.includes('다목적위치표지판')); // 줌아웃 시 표지판 숨김용 플래그
+    ov._warn=!!_facWarn(f); // 경고 표시 시설은 축소 상태에서도 항상 표시
     // 지도 부착은 _reclusterInspect가 결정(밀집 핀은 버블로 묶음) — 초기 수백개 일괄 부착/제거 비용 제거
     iOvs.push(ov);iEls.push(el);
   });

@@ -1,1 +1,1 @@
-{"version":"2026.07.16.191","url":"https://seorak1275.github.io/seoraksan/bundle.zip","notes":"구조 통계 탭에서 전체·과거 기간 선택 시 1년 이전 기록도 로드해 집계(전체통계처럼) — 전체로 바꿔도 최근 1년만 나오던 문제"}
+{"version":"2026.07.16.192","url":"https://seorak1275.github.io/seoraksan/bundle.zip","notes":"시설물 지도 축소 시 표지판 숨김 — 점 수백 개가 등산로를 뒤덮던 문제(레벨 8부터 숨김·경고 시설은 항상 표시·교량 등 주요 시설은 색 점 유지, 확대하면 전부 등장)"}
