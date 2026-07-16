@@ -26,10 +26,11 @@ function openChangeUser(){
   const banner=document.getElementById('kakaoUserBanner');
   if(banner)banner.style.display=(u.kakaoId||u.kakaoImg)?'block':'none';
   _renderStaffQuickPick();
-  // 개인정보 잠금: 최초 가입 입력 때만 수정 가능, 이후엔 전원(관리자 본인 포함) 열람 전용 —
-  // 수정은 '관리자에게 수정 요청' 버튼으로만 (직원 정보 관리는 관리자 전용 → 직원 탭에서)
+  // 개인정보 잠금: '관리자 승인(멤버 등록)'이 끝난 뒤부터 — 가입 입력~승인 대기 중엔 본인이 자유롭게 수정 가능
+  // (프로필 채움만으로 잠그면 가입 직후 오타도 못 고치고, 재설치·기기변경 자동복원 첫 로그인도 잠겨버림)
+  // 승인 후엔 전원(관리자 본인 포함) 열람 전용 — 변경은 '관리자에게 정정 요청' 또는 관리자 전용→직원 탭에서만
   const _profileDone=_pDone0;
-  const _locked=isKakao&&_profileDone;
+  const _locked=isKakao&&_profileDone&&(typeof _isMember==='function'?_isMember():true);
   const _nameIn=document.getElementById('uNameIn');
   const _deptIn=document.getElementById('uDeptIn');
   const _pillsBox=document.getElementById('rankPills');
