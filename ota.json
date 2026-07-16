@@ -1,1 +1,1 @@
-{"version":"2026.07.16.190","url":"https://seorak1275.github.io/seoraksan/bundle.zip","notes":"축소 시 시설물 핀 이모지가 원보다 커 보이던 문제(소형 핀은 색 점으로) · 구조통계: 발생 시간대 2시간 단위 세분화+시간 순, 연령대 나이 순, 월별 시간 순 정렬(값 크기순 아님)"}
+{"version":"2026.07.16.191","url":"https://seorak1275.github.io/seoraksan/bundle.zip","notes":"구조 통계 탭에서 전체·과거 기간 선택 시 1년 이전 기록도 로드해 집계(전체통계처럼) — 전체로 바꿔도 최근 1년만 나오던 문제"}

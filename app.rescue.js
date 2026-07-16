@@ -920,6 +920,10 @@ function _buildRespTimeCard(res){
 }
 function renderRescueStats(){
   document.getElementById('topTitle').textContent='재난/구조 관리';
+  // 기간을 과거·전체로 넓힌 통계를 위해 1년 이전 기록도 1회 로드(평소엔 최근 1년만 구독) — 로드되면 자동 재집계
+  if(typeof _ARCHIVE_COLLS!=='undefined'&&_ARCHIVE_COLLS.some(k=>!_archiveLoaded[k])){
+    Promise.all(_ARCHIVE_COLLS.map(_loadArchive)).then(()=>{try{if(window._rescueTab===3||document.getElementById('rescueStatsWrap'))renderRescueStats();}catch(e){}});
+  }
   if(!window._rescueStatTab)window._rescueStatTab='rescue';
   const tab=window._rescueStatTab;
   const rsTabR=document.getElementById('rsTabRescue');
