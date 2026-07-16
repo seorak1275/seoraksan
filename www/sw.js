@@ -4,7 +4,7 @@
 // - PWA 오프라인 캐싱 (app shell)
 // - FCM 백그라운드 메시지 수신 → 시스템 알림 표시
 // ──────────────────────────────────────────────
-const _CACHE = 'seoraksan-v170';
+const _CACHE = 'seoraksan-v171';
 // 지도 타일 캐시(2단) — 셸 버전과 무관하게 유지(배포해도 안 지움). 한 번 본 타일은 오프라인·저속에서도 즉시 표시
 // park: '설악산 인근 미리받기'분 보관 — 다른 지역 열람에 밀려나지 않음
 // recent: 일반 열람 임시 저장 — 소량만 유지(전국을 둘러봐도 이 상한까지만, 오래된 것부터 자동 정리)
@@ -15,15 +15,30 @@ const _PARK_MAX = 14000, _RECENT_MAX = 5000;
 // opaque(no-cors) 응답은 크롬이 용량 계산 시 큰 패딩을 붙여, 타일 몇천장이면 저장할당량을 초과해
 // put이 계속 실패 → 방금 본 타일도 캐시에 안 남아 확대/축소 때마다 다시 하얗게 받는 문제의 근본원인.
 // CORS로 받으면 실제 크기로만 계산돼 훨씬 많이 저장된다(daumcdn이 CORS 허용 시).
-let _tileCorsMode = null;
+let _tileCorsMode = null, _tileCorsFails = 0;
 async function _fetchTile(req) {
   if (_tileCorsMode !== false) {
     try {
       const r = await fetch(req.url, { mode: 'cors', credentials: 'omit' });
       if (r && r.ok) { _tileCorsMode = true; return r; }
+      // 응답은 왔지만 실패(403 등) — 확정 전이면 몇 번 보고 CORS 포기(매 타일 2중 요청 방지)
+      if (_tileCorsMode === null && ++_tileCorsFails >= 3) _tileCorsMode = false;
     } catch (_) { if (_tileCorsMode === null) _tileCorsMode = false; }
   }
   return fetch(req); // CORS 미지원 → 기존 방식(opaque)
+}
+// 저장 실패(할당량 초과) 시: 고정 목표가 아니라 '현재 보관량의 절반'으로 줄이고 1회 재시도.
+// opaque 응답은 브라우저가 용량 계산에 큰 패딩을 붙여 실제 할당량이 몇백 장일 수 있는데,
+// 예전 로직(max/2 고정)은 그보다 커서 영원히 저장 실패 → 확대/축소 때마다 재다운로드되던 웹 증상의 원인.
+// 절반씩 적응적으로 줄이면 몇 번의 실패 후 그 기기 할당량에 맞는 크기로 자리잡아 이후 저장이 계속 성공한다.
+function _putAdaptive(c, req, res) {
+  const first = res.clone(), retry = res.clone();
+  return c.put(req, first).catch(() =>
+    c.keys().then(ks => {
+      const target = Math.max(50, Math.floor(ks.length / 2));
+      return Promise.all(ks.slice(0, Math.max(0, ks.length - target)).map(k => c.delete(k)));
+    }).then(() => c.put(req, retry)).catch(() => {})
+  );
 }
 let _parkModeUntil = 0; // 미리받기 진행 중 표시 — 클라이언트가 스텝마다 갱신(TILE_MODE_PARK 메시지)
 // 프로젝트 경로(/seoraksan/) 배포이므로 반드시 상대 경로 사용
@@ -92,8 +107,7 @@ self.addEventListener('fetch', e => {
         if (res && (res.ok || res.type === 'opaque')) {
           const isPark = Date.now() < _parkModeUntil; // 미리받기 중이면 보관함, 아니면 임시함
           const c = isPark ? park : recent, max = isPark ? _PARK_MAX : _RECENT_MAX;
-          // 저장 실패(용량 초과 등) 시 절반으로 정리 — 지도 표시 자체는 계속
-          c.put(e.request, res.clone()).catch(() => _pruneTiles(c, Math.floor(max / 2)));
+          _putAdaptive(c, e.request, res); // 실패 시 보관량 절반으로 줄여 재시도(할당량 자동 적응)
           if (Math.random() < 0.03) _pruneTiles(c, max);
         }
         return res;

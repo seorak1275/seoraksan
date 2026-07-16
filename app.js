@@ -3481,7 +3481,7 @@ function sosToRescue(id){
 // 앱 자체 업데이트 (OTA · Capgo 자체호스팅) — APK 전용. 웹/PWA는 서비스워커가 자동 갱신.
 // 번들(www)의 새 버전을 ota.json으로 알리면, 설치된 앱이 받아서 그 자리에서 교체(재빌드 불필요).
 // ══════════════════════════════════════════
-const OTA_VER='2026.07.16.145';                         // ← 현재 번들 버전 (릴리스마다 올림 · build-ota.sh가 ota.json에 반영)
+const OTA_VER='2026.07.16.146';                         // ← 현재 번들 버전 (릴리스마다 올림 · build-ota.sh가 ota.json에 반영)
 const OTA_MANIFEST='https://seorak1275.github.io/seoraksan/ota.json';
 let _otaInfo=null;
 function _otaPlugin(){try{return (window.Capacitor&&window.Capacitor.Plugins&&window.Capacitor.Plugins.CapacitorUpdater)||null;}catch(e){return null;}}
@@ -3794,6 +3794,8 @@ window.onload=function(){
     if(window._kakaoAuthCode){var _kc=window._kakaoAuthCode;window._kakaoAuthCode=null;_handleKakaoCode(_kc);} // 토큰 교환이 로딩화면 해제 담당
     else if(window._hideLoading) window._hideLoading();
     setTimeout(function(){
+      // 저장소 영속화 요청 — 승인되면 브라우저가 공간 부족 시에도 타일 캐시·데이터를 임의 삭제하지 않음(웹 오프라인 지도 보존)
+      try{if(navigator.storage&&navigator.storage.persist)navigator.storage.persist().catch(function(){});}catch(e){}
       try{if(window._KR){initMaps();}else{window._KCB=function(){initMaps();};}}catch(e){}
       try{fetchWeather();}catch(e){}
       try{setTimeout(_autoApplyCoordFix,3500);}catch(e){} // 표지판 좌표 자동 최신화(1회)
