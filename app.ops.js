@@ -1860,6 +1860,8 @@ function renderAlertView(){
         </div>
       </div>
 
+      ${_quickRespBtnHtml(active)}
+
       ${mt?`<div class="ao-stats">
         <div class="ao-stat"><div class="ao-stat-num" style="color:${lvColor};">${active.alerts.length}</div><div class="ao-stat-lbl">발효 특보</div></div>
         <div class="ao-stat"><div class="ao-stat-num" style="color:#7ee0a8;">${active.responders.length}</div><div class="ao-stat-lbl">응소 인원</div></div>
@@ -2124,6 +2126,8 @@ function _renderAlertInput(active){
       </div>
     </div>`;
   }
+  // 🙋 원탭 응소 — 분소 카드보다 먼저 (내 응소는 여기서 한 번에)
+  html+=_quickRespBtnHtml(active);
   // 응소는 호우·대설 특보에서만 — 그 외 특보(강풍·건조 등)는 대피소 체류인원 입력만 노출
   html+=`<div class="ao-sec-hd"><span class="bar"></span>📍 ${_mtIn?'분소별 빠른 입력':'대피소 체류인원'}</div>`;
   ALERT_GROUPS.forEach(g=>{
@@ -2745,7 +2749,7 @@ function _renderStationPills(wrapId,sel,fnName){
 function openAddResponder(id,presetLoc){
   _respLoc=presetLoc||'';_respRole='';
   document.getElementById('respTargetId').value=id;
-  document.getElementById('respNameIn').value='';
+  document.getElementById('respNameIn').value=_myRespName()||''; // 내 이름 미리 채움 — 다른 사람 등록 시 지우거나 빠른선택
   document.getElementById('respArrivedAt').value='';
   // 분소 카드에서 호출 시 소속 고정, 그렇지 않으면 선택 가능
   const locWrap=document.getElementById('respLocPills');
@@ -2754,7 +2758,13 @@ function openAddResponder(id,presetLoc){
   }else{
     _renderStationPills('respLocPills',_respLoc,'selRespLoc');
   }
-  document.querySelectorAll('#respRolePills .pill').forEach(p=>p.classList.remove('on'));
+  // 지난번 선택한 역할 미리 선택 (원탭 응소와 같은 기억 사용)
+  const _prRole=(_myRespPref()||{}).role||'';
+  document.querySelectorAll('#respRolePills .pill').forEach(p=>{
+    const on=!!_prRole&&p.textContent.trim()===_prRole;
+    p.classList.toggle('on',on);
+    if(on)_respRole=_prRole;
+  });
   // 등록된 직원 빠른선택
   const users=(DB.g('pendingUsers')||[]).filter(u=>u.approvalStatus==='approved');
   document.getElementById('respNameQuickWrap').innerHTML=users.map(u=>`<div onclick="document.getElementById('respNameIn').value='${_escq(u.realName||u.name||'')}'" style="cursor:pointer;background:rgba(79,168,208,.08);border:1px solid rgba(79,168,208,.2);color:#7db8d8;border-radius:20px;padding:3px 9px;font-size:10px;font-weight:600;">${_esc(u.realName||u.name||'')}</div>`).join('');
@@ -2778,6 +2788,8 @@ function addAlertResponder(){
   if(dup){toast('⚠️ 이미 등록된 응소자입니다: '+name+' ('+_respLoc+')');return;}
   ops[idx].responders.push({name,loc:_respLoc,role:_respRole,arrivedAt});
   DB.s('alertOps',ops);
+  // 본인 등록이면 근무지·역할 기억 → 다음부터 🙋 응소하기 원탭
+  if(name===_myRespName()){try{localStorage.setItem('_myRespPref',JSON.stringify({loc:_respLoc,role:_respRole}));}catch(e){}}
   closeM('modalAlertResp');
   toast('✅ 응소자 추가: '+name);
   renderAlertView();
@@ -2793,6 +2805,102 @@ function removeAlertResponder(id,name,loc){
     return true;
   });
   DB.s('alertOps',ops);
+  renderAlertView();
+}
+
+// ══════════════════════════════════════════
+// 🙋 원탭 응소 체크인 — 내 이름으로 즉시 등록
+// 기존: 입력 탭 → 분소 카드 → 모달 → 이름 입력 → 역할 → 저장 (5~6탭+타이핑)
+// 개선: 특보 화면 상단 큰 버튼 1탭. 근무지·역할은 첫 1회만 선택하고 기기에 기억.
+//       잘못 눌렀으면 같은 버튼(✅ 응소 완료)을 다시 눌러 스스로 취소 — 관리자 필요 없음.
+// ══════════════════════════════════════════
+function _myRespName(){const me=DB.g('currentUser')||{};return String(me.realName||me.name||'').trim();}
+function _myRespPref(){try{return JSON.parse(localStorage.getItem('_myRespPref')||'null')||{};}catch(e){return {};}}
+function _findMyResp(op){const n=_myRespName();if(!n)return null;return (op.responders||[]).find(r=>String(r.name||'').trim()===n)||null;}
+// 히어로(목록 탭)·입력 탭 공용 버튼 — 응소 대상 특보(호우·대설)일 때만 표시
+function _quickRespBtnHtml(active){
+  if(!active||active.closedAt||!_alertMeasureType(active))return '';
+  const n=_myRespName();
+  const mine=_findMyResp(active);
+  if(mine){
+    return `<button onclick="quickRespCancel(${active.id})" class="btn2 btn2-blk" style="background:rgba(39,174,96,.13);border:1px solid rgba(39,174,96,.42);color:#5fcf8f;margin-bottom:10px;flex-wrap:wrap;">✅ 응소 완료 — ${_esc(mine.name)} · ${_esc(_stationLabel(mine.loc||'사무소'))}${mine.arrivedAt?' '+_esc(mine.arrivedAt):''} <span style="font-size:10px;font-weight:600;opacity:.65;">(누르면 취소)</span></button>`;
+  }
+  return `<button onclick="quickRespond(${active.id})" class="btn2 btn2-blk" style="background:linear-gradient(135deg,#1f8a52,#166b3e);color:#fff;box-shadow:0 4px 14px rgba(39,174,96,.32);margin-bottom:10px;font-size:14.5px;padding:14px;">🙋 응소하기${n?` — ${_esc(n)}`:''} <span style="font-size:10px;font-weight:600;opacity:.75;">한 번에 등록</span></button>`;
+}
+function quickRespond(opId){
+  const n=_myRespName();
+  if(!n){toast('⚠️ 내 이름 정보가 없습니다 — 입력 탭의 분소 카드에서 등록해주세요');return;}
+  const pref=_myRespPref();
+  if(pref.loc&&pref.role){_quickRespCommit(opId,pref.loc,pref.role);return;}
+  _openQuickRespSheet(opId); // 첫 1회: 근무지·역할 선택
+}
+function _openQuickRespSheet(opId){
+  const pref=_myRespPref();
+  window._qrsLoc=pref.loc||'';window._qrsRole=pref.role||'당직';
+  let m=document.getElementById('quickRespSheet');
+  if(!m){m=document.createElement('div');m.id='quickRespSheet';document.body.appendChild(m);}
+  m.style.cssText='position:fixed;inset:0;z-index:9600;background:rgba(0,0,0,.6);display:flex;align-items:flex-end;justify-content:center;';
+  const main=(typeof ALERT_STATIONS!=='undefined'?ALERT_STATIONS:[]).filter(s=>!s.obs);
+  const roles=['당직','비상근무','과장','소장','지원반'];
+  m.innerHTML=`<div style="background:#0a1828;border:1px solid rgba(39,174,96,.3);border-radius:16px 16px 0 0;max-width:430px;width:100%;padding:16px 16px calc(14px + env(safe-area-inset-bottom));">
+    <div style="display:flex;align-items:center;margin-bottom:4px;">
+      <b style="font-size:14.5px;color:#7ee0a8;">🙋 응소 등록 — ${_esc(_myRespName())}</b>
+      <button onclick="document.getElementById('quickRespSheet').remove()" style="margin-left:auto;background:none;border:none;color:rgba(255,255,255,.5);font-size:21px;cursor:pointer;padding:0 2px;">×</button>
+    </div>
+    <div style="font-size:10.5px;color:#6a94b0;margin-bottom:11px;">처음 1회만 선택하면 기억해뒀다가, 다음부터는 버튼 한 번에 등록됩니다</div>
+    <div style="font-size:10px;color:#5d92bc;font-weight:800;margin-bottom:5px;">근무지</div>
+    <div id="qrsLocWrap" style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:12px;">
+      ${main.map(s=>`<div class="pill${window._qrsLoc===s.loc?' on':''}" onclick="_qrsPick('loc','${_escq(s.loc)}',this)">${_esc(s.label)}</div>`).join('')}
+    </div>
+    <div style="font-size:10px;color:#5d92bc;font-weight:800;margin-bottom:5px;">역할</div>
+    <div id="qrsRoleWrap" style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:14px;">
+      ${roles.map(r=>`<div class="pill${window._qrsRole===r?' on':''}" onclick="_qrsPick('role','${r}',this)">${r}</div>`).join('')}
+    </div>
+    <button onclick="_qrsSubmit(${opId})" class="btn2 btn2-blk" style="background:linear-gradient(135deg,#1f8a52,#166b3e);color:#fff;font-size:14px;padding:13px;">✅ 응소 등록</button>
+  </div>`;
+  m.onclick=e=>{if(e.target===m)m.remove();};
+}
+function _qrsPick(kind,v,el){
+  const wrap=document.getElementById(kind==='loc'?'qrsLocWrap':'qrsRoleWrap');
+  if(wrap)wrap.querySelectorAll('.pill').forEach(p=>p.classList.remove('on'));
+  el.classList.add('on');
+  if(kind==='loc')window._qrsLoc=v;else window._qrsRole=v;
+}
+function _qrsSubmit(opId){
+  if(!window._qrsLoc){toast('근무지를 선택하세요');return;}
+  if(!window._qrsRole){toast('역할을 선택하세요');return;}
+  _quickRespCommit(opId,window._qrsLoc,window._qrsRole);
+}
+function _quickRespCommit(opId,loc,role){
+  const n=_myRespName();
+  const ops=DB.g('alertOps')||[];
+  const idx=ops.findIndex(o=>o.id===opId);
+  if(idx===-1){toast('운영 기록을 찾을 수 없습니다');return;}
+  if(!ops[idx].responders)ops[idx].responders=[];
+  if(ops[idx].responders.some(r=>String(r.name||'').trim()===n)){
+    const sh=document.getElementById('quickRespSheet');if(sh)sh.remove();
+    toast('✅ 이미 응소 등록되어 있습니다');renderAlertView();return;
+  }
+  ops[idx].responders.push({name:n,loc,role,arrivedAt:now().slice(11)});
+  DB.s('alertOps',ops);
+  try{localStorage.setItem('_myRespPref',JSON.stringify({loc,role}));}catch(e){}
+  const sh=document.getElementById('quickRespSheet');if(sh)sh.remove();
+  if(typeof _hapt==='function')_hapt([20,30,20]);
+  toast('✅ 응소 등록: '+n+' · '+_stationLabel(loc));
+  renderAlertView();
+}
+function quickRespCancel(opId){
+  const n=_myRespName();if(!n)return;
+  if(!confirm('내 응소 등록('+n+')을 취소할까요?'))return;
+  const ops=DB.g('alertOps')||[];
+  const idx=ops.findIndex(o=>o.id===opId);if(idx===-1)return;
+  let removed=false;
+  ops[idx].responders=(ops[idx].responders||[]).filter(r=>{
+    if(!removed&&String(r.name||'').trim()===n){removed=true;return false;}
+    return true;
+  });
+  DB.s('alertOps',ops);
+  toast('응소 등록을 취소했습니다');
   renderAlertView();
 }
 
