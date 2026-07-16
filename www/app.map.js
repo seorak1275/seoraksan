@@ -22,7 +22,9 @@ function _scaleOvs(els,level,off){
     if(!el)return;
     if(el.classList.contains('mpin')||el.classList.contains('mpin-sm')){
       el.style.width=s.sz+'px';el.style.height=s.sz+'px';
-      el.style.fontSize=s.fs+'px';el.style.borderWidth=s.bw+'px';
+      // 이모지는 5px 이하로 렌더되지 않아 축소 시 원(테두리)보다 커져 보임 → 소형 핀은 글자 숨기고 색 점으로
+      el.style.fontSize=(s.fs<6?0:s.fs)+'px';
+      el.style.borderWidth=s.bw+'px';
     } else if(el.classList.contains('mpin-num')){
       if(s.numFs===0){el.style.display='none';}
       else{el.style.display='';el.style.fontSize=s.numFs+'px';el.style.padding=s.numPad;}

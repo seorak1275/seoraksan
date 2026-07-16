@@ -944,8 +944,10 @@ function renderRescueStats(){
     </div>`;
   };
   const mini=(l,v,col='#e0edf8')=>`<div style="background:#060d1a;border-radius:7px;padding:6px 4px;text-align:center;"><div style="font-size:15px;font-weight:800;color:${col};line-height:1.2;">${v}</div><div style="font-size:8px;color:#3a6a8a;margin-top:1px;">${l}</div></div>`;
-  const chartCard=(title,obj,col)=>{
-    const entries=Object.entries(obj).sort((a,b)=>b[1]-a[1]);
+  const chartCard=(title,obj,col,byKey)=>{
+    // byKey=true: 값(건수) 순이 아니라 항목의 자연 순서(시간대·연령대·월 등)로 정렬 — 분포를 읽기 위한 차트
+    const entries=Object.entries(obj).filter(([,v])=>v>0)
+      .sort(byKey?((a,b)=>a[0].localeCompare(b[0],'ko',{numeric:true})):((a,b)=>b[1]-a[1]));
     if(!entries.length)return '';
     const mx=safeMax(obj);
     return `<div class="scard"><div class="stitle">${title}</div>${entries.map(([k,v])=>hbar(k,v,mx,col)).join('')}</div>`;
@@ -972,7 +974,7 @@ function renderRescueStats(){
     </button>
   </div>`;
   if(tab==='rescue'){
-    const injMap={},sevMap={},cauMap={},methodMap={},ageMap={},timeMap={'새벽(0-6시)':0,'오전(6-12시)':0,'오후(12-18시)':0,'저녁(18-24시)':0},genderMap={},loctypeMap={},weatherMap={};
+    const injMap={},sevMap={},cauMap={},methodMap={},ageMap={},timeMap={},genderMap={},loctypeMap={},weatherMap={};
     res.forEach(r=>{
       (r.injuryParts||[]).forEach(p=>{injMap[p]=(injMap[p]||0)+1;});
       if(r.severity)sevMap[r.severity]=(sevMap[r.severity]||0)+1;
@@ -983,7 +985,7 @@ function renderRescueStats(){
       if(r.weather)weatherMap[r.weather]=(weatherMap[r.weather]||0)+1;
       {let age=r.vBirth?_ageFromBirth(r.vBirth):(r.vAge!=null&&r.vAge!==''?parseInt(r.vAge):'');if(age!==''&&!isNaN(age)){const ag=age<20?'10대 이하':age<30?'20대':age<40?'30대':age<50?'40대':age<60?'50대':age<70?'60대':'70대+';ageMap[ag]=(ageMap[ag]||0)+1;}}
       // 발생 시각: r.date("YYYY-MM-DD HH:MM" 또는 "...THH:MM")에서 시(時) 추출 (r.time 필드는 존재하지 않음)
-      {const _tm=(r.date||'').match(/[ T](\d{1,2}):/);if(_tm){const h=parseInt(_tm[1],10);if(h<6)timeMap['새벽(0-6시)']++;else if(h<12)timeMap['오전(6-12시)']++;else if(h<18)timeMap['오후(12-18시)']++;else timeMap['저녁(18-24시)']++;}}
+      {const _tm=(r.date||'').match(/[ T](\d{1,2}):/);if(_tm){const h=parseInt(_tm[1],10);const b=Math.floor(h/2)*2;const k=String(b).padStart(2,'0')+'~'+String(b+2).padStart(2,'0')+'시';timeMap[k]=(timeMap[k]||0)+1;}}
     });
     // 구조 월별 추이 (최근 6개월)
     const rMonMap={};
@@ -1008,9 +1010,9 @@ function renderRescueStats(){
         <div id="heatTopList" style="margin-top:8px;"></div>
       </div>
       ${respCard}
-      ${chartCard('📈 월별 구조 발생 (최근 6개월)',rMonSorted,'#e05050')}
-      ${chartCard('⏰ 발생 시간대',timeMap,'#4fa8d0')}
-      ${chartCard('👤 연령대',ageMap,'#9b59b6')}
+      ${chartCard('📈 월별 구조 발생 (최근 6개월)',rMonSorted,'#e05050',true)}
+      ${chartCard('⏰ 발생 시간대 <span style="font-size:9px;font-weight:400;color:#5a7e98;">2시간 단위 · 시간 순</span>',timeMap,'#4fa8d0',true)}
+      ${chartCard('👤 연령대 <span style="font-size:9px;font-weight:400;color:#5a7e98;">나이 순</span>',ageMap,'#9b59b6',true)}
       ${chartCard('⚧ 성별',genderMap,'#3498db')}
       ${chartCard('🚑 구조유형',Object.fromEntries(Object.keys(RES_TYPES).map(t=>[t,res.filter(r=>r.type===t).length]).filter(([,v])=>v)),'#e05050')}
       ${chartCard('⚡ 사고원인',cauMap,'#e67e22')}
