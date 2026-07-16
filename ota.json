@@ -1,1 +1,1 @@
-{"version":"2026.07.16.182","url":"https://seorak1275.github.io/seoraksan/bundle.zip","notes":"아이폰 사파리 화면 잘림(아래 검은 공백·하단 메뉴 실종) 해결 — dvh 지원 브라우저에선 JS 높이 고정을 해제하고 CSS 100dvh에 위임(어긋난 px 고정값이 남던 원인 제거)"}
+{"version":"2026.07.16.183","url":"https://seorak1275.github.io/seoraksan/bundle.zip","notes":"롤백 — 줌 중 핀 유지 실험 제거(실기기에서 화면 미표시·핀 크기 오염 부작용). 지도는 v205 동작으로 복귀(줌 후 핀 즉시 복귀·부드러운 클러스터 확대·위성 캐시 유지)"}

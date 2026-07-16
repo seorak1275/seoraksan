@@ -100,52 +100,6 @@ function _showClusterList(group){
     +rows+'</div>';
   m.onclick=function(e){if(e.target===m)m.remove();};
 }
-// ── 줌 중에도 핀 유지 ──────────────────────────────────────────────
-// 카카오 웹 SDK는 줌 애니메이션 동안 커스텀 오버레이 판을 통째로 숨긴다(위치 재계산 전이라).
-// 여기서는 타일 래퍼에 걸리는 CSS 변환을 매 프레임 복사해 오버레이 판에도 적용 + 강제 표시
-// → 핀이 지도와 함께 커지고 작아지며 항상 보인다(카카오맵 앱과 유사). 줌이 끝나면 즉시 원복해
-// SDK의 정식 재배치에 맡긴다. 내부 구조 가정이 어긋나면 조용히 아무것도 하지 않음(안전).
-function _bindZoomPinHold(map,getContainer,getAnyPinEl){
-  let raf=0,failT=0,pane=null,orig=null;
-  const stop=()=>{
-    if(raf){cancelAnimationFrame(raf);raf=0;}
-    clearTimeout(failT);
-    try{
-      if(pane&&pane._zphOn){
-        pane.style.visibility=orig.v;pane.style.display=orig.d;
-        pane.style.transform=orig.t;pane.style.transformOrigin=orig.o;
-        pane._zphOn=0;
-      }
-    }catch(e){}
-    pane=null;
-  };
-  kakao.maps.event.addListener(map,'zoom_start',()=>{
-    try{
-      stop();
-      const cont=getContainer();const el=getAnyPinEl();
-      if(!cont||!el||!el.parentNode)return;
-      const p=el.parentNode.parentNode; // 오버레이 content → 개별 래퍼 → 공통 판(pane)
-      if(!p||p.nodeType!==1||!cont.contains(p))return;
-      // 타일 래퍼: 지도 컨테이너 하위에서 타일 이미지를 품은 노드(판 자신 제외)
-      let tileWrap=null;
-      cont.querySelectorAll('div').forEach(d=>{if(!tileWrap&&d!==p&&!p.contains(d)&&!d.contains(p)&&d.querySelector('img'))tileWrap=d;});
-      if(!tileWrap)return;
-      pane=p;orig={v:p.style.visibility,d:p.style.display,t:p.style.transform,o:p.style.transformOrigin};
-      p._zphOn=1;
-      const tick=()=>{
-        if(!pane||!pane._zphOn)return;
-        pane.style.visibility='visible';pane.style.display='block';
-        pane.style.transformOrigin=tileWrap.style.transformOrigin||'';
-        pane.style.transform=tileWrap.style.transform||'';
-        raf=requestAnimationFrame(tick);
-      };
-      tick();
-      failT=setTimeout(stop,1500); // 이벤트 유실 대비 — 반드시 원복
-    }catch(e){}
-  });
-  kakao.maps.event.addListener(map,'zoom_changed',stop);
-  kakao.maps.event.addListener(map,'idle',stop);
-}
 function _clusterZoom(map,lat,lng){
   // 부드러운 확대 — 즉시 점프 대신 애니메이션으로 (겹친 핀·클러스터 탭 시 자연스럽게)
   try{map.setLevel(Math.max(1,map.getLevel()-2),{anchor:new kakao.maps.LatLng(lat,lng),animate:{duration:300}});}
@@ -399,9 +353,7 @@ function initMaps(){
       clearTimeout(window._iZoomT);
       window._iZoomT=setTimeout(()=>{_scaleOvs(iEls,mapI.getLevel(),1);try{_reclusterInspect();}catch(e){}},150);
     });
-    // 줌 애니메이션 중에도 핀 표시(타일 변환 동기화) — 구조지도·시설물지도
-    try{_bindZoomPinHold(mapR,()=>document.getElementById('mapRescue'),()=>rEls.find(e=>e&&e.parentNode));}catch(e){}
-    try{_bindZoomPinHold(mapI,()=>document.getElementById('mapInspect'),()=>iEls.find(e=>e&&e.parentNode));}catch(e){}
+    // (롤백) 줌 중 핀 유지 실험(_bindZoomPinHold)은 실기기에서 화면 미표시·핀 크기 오염 부작용 → 비활성
     if(window._hideLoading)setTimeout(window._hideLoading,600);
   }
   if(window._KR){doInit();return;}
