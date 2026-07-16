@@ -866,6 +866,24 @@ function toast(m,dur){const t=document.getElementById('toast');t.textContent=m;t
   // 중요 메시지(실패·경고·오류)는 자동으로 4초간 표시 — 놓치지 않도록
   if(dur===undefined){dur=(/실패|오류|⚠️|에러|불가|없습니다|권한/.test(String(m)))?4000:2200;}
   _toastTimer=setTimeout(()=>t.classList.remove('on'),dur);}
+// 햅틱(진동) 피드백 — 제출·발령 등 핵심 액션에서 짧게. 미지원 기기는 조용히 무시(iOS 웹 등)
+function _hapt(p){try{if(navigator.vibrate)navigator.vibrate(p||8);}catch(e){}}
+// 숫자 카운트업 — 홈 요약 등에서 값이 바뀔 때 촤르륵 올라가는 연출(숫자 아님/첫 표시면 즉시)
+function _countTo(el,v){
+  if(!el)return;
+  var n=Number(v);
+  if(isNaN(n)||!isFinite(n)){el.textContent=v;return;}
+  var cur=parseInt(el.textContent,10);
+  if(isNaN(cur)||cur===n){el.textContent=String(n);return;}
+  if(el._cntRaf)cancelAnimationFrame(el._cntRaf);
+  var t0=performance.now(),dur=450,from=cur;
+  var step=function(t){
+    var p=Math.min(1,(t-t0)/dur);p=1-Math.pow(1-p,3);
+    el.textContent=String(Math.round(from+(n-from)*p));
+    if(p<1)el._cntRaf=requestAnimationFrame(step);else el._cntRaf=null;
+  };
+  el._cntRaf=requestAnimationFrame(step);
+}
 // 되돌리기 스낵바: 삭제 등 위험 작업 후 일정 시간 안에 취소 가능. onUndo=취소 시, onCommit=시간 경과 후 실제 확정.
 let _undoTimer=null,_undoCommit=null;
 function _undoToast(msg,onUndo,onCommit,dur=5000){

@@ -1046,6 +1046,7 @@ function openReportShare(rid){
   const b='width:100%;margin-bottom:7px;padding:12px;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;transition:transform .1s,opacity .1s;';
   m.innerHTML=`<div style="background:#0a1828;border:1px solid rgba(79,168,208,.25);border-radius:14px;max-width:300px;width:100%;padding:16px;max-height:85vh;overflow-y:auto;">
     <div style="font-size:14px;font-weight:800;color:#e0edf8;margin-bottom:12px;text-align:center;">📄 보고서</div>
+    <button class="press-fx" onclick="share119(${rid});this.closest('#repShareModal').remove();" style="${b}border:1px solid rgba(224,90,78,.45);background:rgba(224,90,78,.12);color:#ff9a8a;">🚑 유관기관 공유 <span style="font-size:10px;font-weight:600;opacity:.8;">(119·경찰 — 문자/카톡)</span></button>
     <div style="border:1px solid rgba(232,179,74,.4);background:rgba(232,179,74,.07);border-radius:10px;padding:9px 10px 8px;margin-bottom:7px;">
       <div style="font-size:12.5px;font-weight:800;color:#e8b34a;text-align:center;margin-bottom:7px;">📑 안전사고 처리현황 <span style="font-size:10px;font-weight:600;opacity:.75;">(한글용)</span></div>
       <div style="display:flex;gap:6px;">
@@ -1676,6 +1677,74 @@ function shareReportText(id){
     navigator.share({title:r.title||'구조 보고서',text:txt}).catch(()=>{});
   }else{copyReportText(id);toast('📋 공유 미지원 — 복사로 대체했습니다');}
 }
+// ── 유관기관(119·경찰 등) 상황 공유 — 전화로 부르기 힘든 좌표·지도링크를 문자/카톡 한 번에 ──
+// 보고서 전문이 아니라 '전파에 필요한 핵심만' 간결하게. 지도 링크는 카카오맵(상대방 앱 유무와 무관하게 웹으로 열림).
+function _build119Text(r){
+  if(!r)return '';
+  const L=[];
+  L.push('【설악산국립공원 사고전파】');
+  L.push('■유형: '+(r.type||'안전사고')+' ('+(r.status==='ongoing'?'구조 진행중':'상황 종료')+')');
+  if(r.date)L.push('■발생: '+r.date);
+  if(r.location)L.push('■위치: '+r.location+(r.loctype?' ['+r.loctype+']':''));
+  if(r.lat!=null&&r.lng!=null&&r.lat!==''&&r.lng!==''&&!isNaN(+r.lat)){
+    L.push('■좌표: '+(+r.lat).toFixed(5)+', '+(+r.lng).toFixed(5)+((r.alt!=null&&r.alt!=='')?' (해발약 '+Math.round(+r.alt)+'m)':''));
+    L.push('■지도: https://map.kakao.com/link/map/'+encodeURIComponent('사고지점')+','+(+r.lat).toFixed(6)+','+(+r.lng).toFixed(6));
+  }
+  {
+    const vp=[r.vName,(r.vBirth&&typeof _ageFromBirth==='function'?_ageFromBirth(r.vBirth)+'세':(r.vAge?r.vAge+'세':'')),(r.vGender&&r.vGender!=='알수없음')?r.vGender:''].filter(Boolean).join('/');
+    if(vp)L.push('■사고자: '+vp+((r.victims2&&r.victims2.length)?' 외 '+r.victims2.length+'명':''));
+  }
+  if(r.severity)L.push('■중증도: '+r.severity);
+  {const inj=(r.injuryParts||[]).filter(Boolean);if(inj.length)L.push('■부상: '+inj.join(', '));}
+  {const v=r.vitals&&_vitalsStr(r.vitals);if(v)L.push('■활력징후: '+v);}
+  if(r.vTel)L.push('■연락처: '+r.vTel);
+  if(r.situation)L.push('■경위: '+String(r.situation).replace(/\s+/g,' ').slice(0,90));
+  if(r.hospital&&r.hospital!=='미정')L.push('■이송: '+r.hospital);
+  L.push('■발신: 설악산국립공원사무소 '+(r.author||getAuthor()));
+  return L.join('\n');
+}
+function share119(rid){
+  const r=getRes(rid);
+  if(!r){toast('기록을 찾을 수 없습니다');return;}
+  window._sh119Txt=_build119Text(r); // onclick 인라인 이스케이프 지옥 회피 — 전역에 보관
+  let m=document.getElementById('share119Modal');
+  if(!m){m=document.createElement('div');m.id='share119Modal';document.body.appendChild(m);}
+  m.style.cssText='position:fixed;inset:0;z-index:99850;background:rgba(0,0,0,.6);display:flex;align-items:flex-end;justify-content:center;';
+  m.innerHTML=`<div style="background:#0a1828;border:1px solid rgba(224,90,78,.3);border-radius:16px 16px 0 0;max-width:430px;width:100%;padding:16px 16px calc(14px + env(safe-area-inset-bottom));max-height:82vh;display:flex;flex-direction:column;">
+    <div style="display:flex;align-items:center;margin-bottom:10px;flex-shrink:0;">
+      <b style="font-size:14.5px;color:#ffb3a8;">🚑 유관기관 공유</b>
+      <span style="font-size:10px;color:#7a9cb8;margin-left:8px;">119 · 경찰 · 유관기관 전파용 요약</span>
+      <button onclick="document.getElementById('share119Modal').remove()" style="margin-left:auto;background:none;border:none;color:rgba(255,255,255,.5);font-size:21px;cursor:pointer;padding:0 2px;">×</button>
+    </div>
+    <pre class="sel-ok" style="flex:1;min-height:0;overflow-y:auto;background:#060d1a;border:1px solid rgba(255,255,255,.08);border-radius:10px;padding:11px 12px;font-size:12px;line-height:1.75;color:#cfe2f2;white-space:pre-wrap;word-break:break-all;font-family:inherit;margin-bottom:11px;">${_esc(window._sh119Txt)}</pre>
+    <div style="display:flex;gap:7px;flex-shrink:0;">
+      <button class="btn2 btn2-pri" style="flex:1.2;" onclick="_share119Send('share')">📤 공유하기</button>
+      <button class="btn2 btn2-sec" style="flex:1;" onclick="_share119Send('sms')">✉️ 문자</button>
+      <button class="btn2 btn2-sec" style="flex:1;" onclick="_share119Send('copy')">📋 복사</button>
+    </div>
+    <div style="font-size:10px;color:#5a7a92;margin-top:8px;line-height:1.6;flex-shrink:0;">📤 공유하기 → 카카오톡·문자 등 앱 선택 · 지도 링크를 열면 사고지점이 바로 표시됩니다</div>
+  </div>`;
+  m.onclick=e=>{if(e.target===m)m.remove();};
+  if(typeof _hapt==='function')_hapt(10);
+}
+function _share119Send(kind){
+  const txt=window._sh119Txt||'';
+  if(!txt)return;
+  if(kind==='share'){
+    if(navigator.share){navigator.share({title:'설악산 사고전파',text:txt}).catch(()=>{});}
+    else{_share119Send('copy');toast('📋 이 기기는 공유 미지원 — 복사했습니다. 문자·카톡에 붙여넣으세요');}
+    return;
+  }
+  if(kind==='sms'){
+    // iOS는 sms:&body= / 안드로이드는 sms:?body= — 형식이 다르면 본문이 유실됨
+    const sep=/iPad|iPhone|iPod/.test(navigator.userAgent)?'&':'?';
+    try{location.href='sms:'+sep+'body='+encodeURIComponent(txt);}catch(e){_share119Send('copy');}
+    return;
+  }
+  if(navigator.clipboard&&navigator.clipboard.writeText){
+    navigator.clipboard.writeText(txt).then(()=>toast('📋 전파문이 복사되었습니다')).catch(()=>_fallbackCopy(txt));
+  }else _fallbackCopy(txt);
+}
 function printReport(id){
   const r=getRes(id);const txt=_buildReportText(r);
   const esc=s=>String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
@@ -2237,19 +2306,30 @@ function switchRepTab(secId,el){
   if(secId==='repSec0') _renderFormTl();
   try{_updateTabDots();}catch(e){}
 }
-// 섹터 탭 입력완료 점: 그 섹터의 핵심 항목이 채워졌으면 초록 점 — 뭘 안 썼는지 한눈에
+// 섹터 탭 입력 점: 초록=핵심 입력됨 · 빨강=필수 미입력 · 회색=선택 항목 비어있음 — 뭘 안 썼는지 한눈에
 function _updateTabDots(){
   const _v=id=>{const e=document.getElementById(id);return e&&String(e.value||'').trim()?1:0;};
-  const filled={
-    repSec1:_v('r_gps')||_v('r_loc'),
-    repSec2:(typeof _injuries!=='undefined'&&_injuries.length)||getSelPills('sevPills').length||_v('r_sit'),
-    repSec3:_v('r_vName')||_v('r_vTel'),
-    repSec5:_v('r_recv')||_v('r_extra')||getSelPills('rescMeth').length||getSelPills('mobilizePills').length,
+  const state={
+    repSec1:(_v('r_gps')||_v('r_loc'))?'ok':'req',                                                          // 위치 필수
+    repSec2:((typeof _injuries!=='undefined'&&_injuries.length)||getSelPills('sevPills').length||_v('r_sit'))?'ok':'req', // 부상·중증도·경위 중 1 필수
+    repSec3:(_v('r_vName')||_v('r_vTel'))?'ok':'req',                                                       // 이름 또는 연락처 필수
+    repSec5:(_v('r_recv')||_v('r_extra')||getSelPills('rescMeth').length||getSelPills('mobilizePills').length)?'ok':'opt', // 선택
   };
-  Object.entries(filled).forEach(([sec,ok])=>{
+  Object.entries(state).forEach(([sec,st])=>{
     const d=document.getElementById('dot_'+sec);
-    if(d)d.style.background=ok?'#27ae60':'rgba(255,255,255,.14)';
+    if(!d)return;
+    d.style.background=st==='ok'?'#27ae60':st==='req'?'#e05a4e':'rgba(255,255,255,.14)';
+    d.style.boxShadow=st==='req'?'0 0 5px rgba(224,90,78,.85)':'none';
   });
+}
+// 제출 직전 필수 미입력 목록 — 비어 있으면 빈 배열 (응급 시 확인 후 그대로 등록 가능해야 하므로 차단하지 않음)
+function _collect1BoMissing(){
+  const _v=id=>{const e=document.getElementById(id);return e&&String(e.value||'').trim();};
+  const miss=[];
+  if(!_v('r_gps')&&!_v('r_loc'))miss.push('사고 위치 (GPS 좌표 또는 장소)');
+  if(!(typeof _injuries!=='undefined'&&_injuries.length)&&!getSelPills('sevPills').length&&!_v('r_sit'))miss.push('환자 상태 (부상·중증도·경위 중 1개)');
+  if(!_v('r_vName')&&!_v('r_vTel'))miss.push('사고자 인적사항 (이름 또는 연락처)');
+  return miss;
 }
 
 
@@ -2266,6 +2346,11 @@ function submit1Bo(){
   // 야간(18~09시) 등록인데 응소 미선택 → 실수 방지 확인 한 번
   if(typeof _isOffHours==='function'&&_isOffHours()&&!getSelPills('mobilizePills').length){
     if(!confirm('🌙 야간 출동(18~09시)입니다.\n응소 선택 없이 등록할까요?\n(응소 선택은 기타 탭 맨 아래)'))return;
+  }
+  // 필수 미입력 요약 — 제출 전 마지막 확인 (탭의 빨간 점 항목. 응급 시 [확인]으로 그대로 등록, N보로 보완 가능)
+  {
+    const _miss=(typeof _collect1BoMissing==='function')?_collect1BoMissing():[];
+    if(_miss.length&&!confirm('⚠️ 아직 입력하지 않은 필수 항목이 있습니다:\n\n· '+_miss.join('\n· ')+'\n\n이대로 등록할까요? (이후 N보 추가 보고로 보완할 수 있습니다)'))return;
   }
   const title=document.getElementById('r_title').value.trim()||autoGenTitle(true);
   const gps=(document.getElementById('r_gps')?.value||'').split(',');
@@ -2365,6 +2450,7 @@ function submit1Bo(){
   pushNoti('🚨 구조 1보: '+title+' ('+r.type+')',RES_TYPES[r.type]?.ico||'🚨',r.type,{app:'rescue',tab:2,id:r.id},'안전사고');
   if(r.mobilize&&r.mobilize.length)pushNoti('🚨 야간 응소 요청: '+r.mobilize.join(', ')+' — '+title,'🚨','rescue_mobilize',{app:'rescue',tab:2,id:r.id});
   syncToSheets('rescue',{id:r.id,title,type:r.type,date:r.date,author:r.author});
+  if(typeof _hapt==='function')_hapt([30,40,30]); // 등록 성공 햅틱 — 긴박한 상황에서 화면 안 보고도 확인
   toast('🚨 1보 등록 완료'+(r.mobilize&&r.mobilize.length?' · 응소: '+r.mobilize.join(', '):''));
   _clearRescueDraft(); // 정상 등록됐으므로 임시저장 폐기
   // 저장 즉시 고도화 타임라인으로 이동

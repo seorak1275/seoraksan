@@ -1062,6 +1062,7 @@ function _showAdminDenied(){
 }
 function switchTab(idx,el){
   if(isExternal()&&idx!==1){toast('⚠️ 외부기관 계정은 지도만 이용 가능합니다');return;}
+  try{if(typeof _hapt==='function')_hapt(6);}catch(e){} // 탭 전환 햅틱 — 앱다운 손맛(미지원 기기는 무시)
   [1,2,3,4].forEach(i=>{var e=document.getElementById('nv'+i);if(e)e.classList.remove('on');});if(el)el.classList.add('on');closeDB();
   if(curApp==='rescue'){
     if(idx===1){showV('v-rescue-map');rMaps();updateRescueCross();try{renderRescueMap();}catch(e){}} // 복귀 시 핀 최신화

@@ -786,9 +786,48 @@ function _loadKmaLast(){try{return JSON.parse(localStorage.getItem('_kmaWrnLast'
 function _pollKmaWarnings(){
   if(document.visibilityState&&document.visibilityState!=='visible')return; // 백그라운드면 생략
   var url='https://apihub.kma.go.kr/api/typ01/url/wrn_now_data_new.php?authKey='+KMA_KEY+'&disp=1';
+  window._kmaLastTryMs=Date.now(); // 수신 상태 카드용 — 마지막 '시도' 시각
   _fetchKma(url,true).then(function(txt){
     if(_kmaWrnValid(txt)){_saveKmaLast(txt);_renderWeatherAlerts(_parseKmaWarnings(txt),false);} // 유효 응답만 공식 처리 → _syncAutoAlerts 자동 발령/해제
-  }).catch(function(){});
+    else{window._kmaLastFailMs=Date.now();_kmaRxRerender();}
+  }).catch(function(){window._kmaLastFailMs=Date.now();_kmaRxRerender();});
+}
+// 수신 상태 카드 갱신 — 특보 화면을 보고 있을 때만 다시 그림 (실패도 즉시 반영)
+function _kmaRxRerender(){try{if(window.curApp==='alert'&&typeof renderAlertView==='function')renderAlertView();}catch(e){}}
+// 마지막 성공 경로 이름 (수신 상태 카드 표기용)
+function _kmaSrcName(){
+  var s=String(window._kmaLastSrc||'');
+  if(!s)return '';
+  if(s.indexOf('https://apihub.kma.go.kr')===0)return '기상청 직접 연결';
+  var w=((DB.g('kmaProxyUrl')||'').trim()||_KMA_DEFAULT_PROXY||'').split('?')[0];
+  if(w&&s.indexOf(w)===0)return '전용 프록시';
+  return '공개 프록시';
+}
+// '지금 확인' — 수신 상태 카드에서 수동 즉시 조회 (폴링 10분 주기를 기다리지 않음)
+function _kmaCheckNow(){
+  if(window._kmaChkBusy){toast('📡 이미 확인 중입니다 — 잠시만요');return;}
+  window._kmaChkBusy=true;
+  toast('📡 기상청 특보 확인 중…');
+  var url='https://apihub.kma.go.kr/api/typ01/url/wrn_now_data_new.php?authKey='+KMA_KEY+'&disp=1';
+  window._kmaLastTryMs=Date.now();
+  _fetchKma(url,true).then(function(txt){
+    window._kmaChkBusy=false;
+    if(_kmaWrnValid(txt)){
+      _saveKmaLast(txt);
+      _renderWeatherAlerts(_parseKmaWarnings(txt),false);
+      var n=(window._kmaLiveAlerts||[]).length;
+      toast(n?('✅ 수신 완료 — 설악산 관할 발효 특보 '+n+'건'):'✅ 수신 완료 — 발효 특보 없음');
+    }else{
+      window._kmaLastFailMs=Date.now();
+      toast('⚠️ 응답이 왔지만 형식이 올바르지 않습니다 — 🔧 진단을 실행해보세요');
+    }
+    _kmaRxRerender();
+  }).catch(function(){
+    window._kmaChkBusy=false;
+    window._kmaLastFailMs=Date.now();
+    toast('❌ 수신 실패 — 네트워크 또는 프록시 문제. 🔧 진단으로 원인을 확인하세요');
+    _kmaRxRerender();
+  });
 }
 function _startKmaWarnPoll(){
   if(_kmaWarnPollTimer)return;
@@ -1166,7 +1205,7 @@ function updateSummary(){
   const res=DB.g('rescues')||[];const facs=DB.g('facilities')||[];
   const og=res.filter(r=>r.status==='ongoing');const bad=facs.filter(f=>f.status==='bad');const warn=facs.filter(f=>f.status==='warn');const ok=facs.filter(f=>f.status==='ok');
   const thisMonth=res.filter(r=>r.date&&r.date.startsWith(today().slice(0,7))).length;
-  function se(id,v){const e=document.getElementById(id);if(e)e.textContent=v;}
+  function se(id,v){const e=document.getElementById(id);if(!e)return;if(typeof _countTo==='function')_countTo(e,v);else e.textContent=v;}
   se('hs-og',og.length);
   se('hs-tot',thisMonth);
   se('hs-fb',bad.length);
@@ -1176,7 +1215,7 @@ function updateSummary(){
   function sd(id,v,col){const e=document.getElementById(id);if(!e)return;e.textContent=v;e.style.color=col||'';}
   sd('hdR',og.length?`⚠️ ${og.length}건 진행중`:'구조보고·위험상황',og.length?'#ffaaaa':'');
   sd('hdI',bad.length?`⚠️ 위험 ${bad.length}개`:'시설 관리·이력',bad.length?'#ffaaaa':'');
-  {const _ao=(DB.g('alertOps')||[]).find(o=>!o.closedAt);sd('hdA',_ao?`🌀 ${_opLevel(_ao)} 운영중`:'기상특보 비상근무',_ao?'#ffaaaa':'');}
+  {const _ao=(DB.g('alertOps')||[]).find(o=>!o.closedAt);sd('hdA',_ao?(_ao.drill?'🎯 훈련 운영중':`🌀 ${_opLevel(_ao)} 운영중`):'기상특보 비상근무',_ao?(_ao.drill?'#f0c420':'#ffaaaa'):'');}
   updateBell();
   try{_checkNewJoinerAlert();}catch(e){}
   try{renderHomeActive();}catch(e){}
@@ -3601,7 +3640,7 @@ function sosToRescue(id){
 // 앱 자체 업데이트 (OTA · Capgo 자체호스팅) — APK 전용. 웹/PWA는 서비스워커가 자동 갱신.
 // 번들(www)의 새 버전을 ota.json으로 알리면, 설치된 앱이 받아서 그 자리에서 교체(재빌드 불필요).
 // ══════════════════════════════════════════
-const OTA_VER='2026.07.16.194';                         // ← 현재 번들 버전 (릴리스마다 올림 · build-ota.sh가 ota.json에 반영)
+const OTA_VER='2026.07.16.195';                         // ← 현재 번들 버전 (릴리스마다 올림 · build-ota.sh가 ota.json에 반영)
 const OTA_MANIFEST='https://seorak1275.github.io/seoraksan/ota.json';
 // 업데이트 확인 폴백 소스 — 일부 기관망·통신사에서 github.io가 막혀 '확인 실패(네트워크)'가 나는 경우 대비.
 // 순서대로 시도: ① GitHub Pages(원본·즉시 반영) ② jsDelivr CDN(공개저장소 미러·거의 모든 망 통과)
