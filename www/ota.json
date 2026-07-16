@@ -1,1 +1,1 @@
-{"version":"2026.07.16.181","url":"https://seorak1275.github.io/seoraksan/bundle.zip","notes":"줌 애니메이션 중 핀 유지 — 오버레이 판을 타일 변환에 프레임 동기화해 강제 표시(SDK가 숨기던 것 상쇄), 종료 시 원복·구조 가정 어긋나면 자동 무시"}
+{"version":"2026.07.16.182","url":"https://seorak1275.github.io/seoraksan/bundle.zip","notes":"아이폰 사파리 화면 잘림(아래 검은 공백·하단 메뉴 실종) 해결 — dvh 지원 브라우저에선 JS 높이 고정을 해제하고 CSS 100dvh에 위임(어긋난 px 고정값이 남던 원인 제거)"}

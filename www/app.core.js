@@ -907,10 +907,17 @@ function _fixAppHeight(){
   try{
     var app=document.getElementById('app');if(!app)return;
     if(document.activeElement&&/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName))return;
-    var vh=window.innerHeight;if(!vh)return;
+    // dvh 지원 브라우저(현행 iOS·안드로이드 전부)는 CSS 100dvh가 주소창 접힘까지 항상 정확.
+    // 예전처럼 JS가 특정 순간의 innerHeight를 px로 고정하면, iOS 사파리에서 어긋난 값이
+    // 그대로 남아 '화면 2/3만 쓰고 아래는 검은 공백 + 하단 메뉴 실종'이 되던 원인 → 고정 해제.
+    if(window.CSS&&CSS.supports&&CSS.supports('height','100dvh')){
+      if(app.style.height)app.style.height='';
+      return;
+    }
+    // dvh 미지원 구형 브라우저 폴백: 시각적 뷰포트 높이로 맞춤
+    var vh=(window.visualViewport&&window.visualViewport.height)||window.innerHeight;if(!vh)return;
     var h=app.getBoundingClientRect().height;
-    if(Math.abs(h-vh)>vh*0.12)app.style.height=Math.round(vh)+'px';
-    else if(app.style.height&&Math.abs(h-vh)<=vh*0.02)app.style.height='';
+    if(Math.abs(h-vh)>vh*0.02)app.style.height=Math.round(vh)+'px';
   }catch(e){}
 }
 // 뷰포트 크기 변화(모바일 주소창 접힘/펼침·화면 회전·백그라운드 복귀) 후 카카오 지도 내부 크기 재계산.
