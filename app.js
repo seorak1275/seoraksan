@@ -1415,6 +1415,26 @@ function _climbParseWB(wb){
   }
   return recs;
 }
+// 날짜별 인원 집계(개인정보 없음) — 비고1(시스템취소) 팀 제외. 전체통계 등에서 명단 없이 인원 표시용
+function _climbBuildAgg(recs){
+  const agg={};
+  (recs||[]).forEach(r=>{
+    if(String(r.bigo)==='1')return;
+    const d=r.useDate;if(!d)return;
+    const o=agg[d]||(agg[d]={t:0,p:0});
+    o.t++;o.p+=(r.total||((r.companions||[]).length+1));
+  });
+  return agg;
+}
+// 집계를 동기화 문서(climbAgg)에 반영 — 바뀐 경우에만 저장
+function _climbSyncAgg(aggPart,full){
+  try{
+    if(typeof _authReady!=='undefined'&&!_authReady)return;
+    const cur=DB.g('climbAgg')||{};
+    const next=full?aggPart:Object.assign({},cur,aggPart);
+    if(JSON.stringify(cur)!==JSON.stringify(next))DB.s('climbAgg',next);
+  }catch(e){}
+}
 // 파싱된 레코드를 이용일자별 Firestore 문서로 저장 + climbDates 갱신
 async function _climbSave(recs){
   if(!_fdb)throw new Error('DB 미연결 — 온라인에서 업로드하세요');
@@ -1429,6 +1449,7 @@ async function _climbSave(recs){
   const cur=new Set((DB.g('climbDates')||[]).map(String));
   dates.forEach(d=>cur.add(d));
   DB.s('climbDates',Array.from(cur).sort());
+  _climbSyncAgg(_climbBuildAgg(recs)); // 날짜별 인원 집계 갱신(업로드분만 병합)
   return dates;
 }
 // 업로드 핸들러 (파일 input onchange)
@@ -1521,7 +1542,9 @@ async function _climbLoadAll(){
   try{
     const snap=await _fdb.collection('climbUsage').get();
     const all=[];snap.forEach(d=>{const v=d.data()||{};(v.records||[]).forEach(r=>all.push(r));});
-    _climbCache=all;_climbWriteOffline(all);window._climbFromOffline=false;return all;
+    _climbCache=all;_climbWriteOffline(all);window._climbFromOffline=false;
+    _climbSyncAgg(_climbBuildAgg(all),true); // 전체 집계 백필(재업로드 없이도 인원 통계 생성, 변경시에만 저장)
+    return all;
   }catch(e){
     const off=_climbReadOffline(); // 오프라인·통신실패 → 마지막으로 받아둔 명단으로 폴백
     if(off.length){_climbCache=off;window._climbFromOffline=true;toast('📴 오프라인 — '+_climbOfflineTimeStr()+' 저장 명단 표시',3000);return off;}
@@ -1809,9 +1832,9 @@ function _renderClimbStats(all){
   const _num=v=>{const n=parseInt(String(v==null?'':v).replace(/[^\d]/g,''));return isNaN(n)?null:n;};
   // ── 업로드 현황 ──
   let html=`<div class="scard" style="margin-bottom:10px;">
-    <div class="stitle">📅 업로드 현황 <span style="font-size:9px;font-weight:400;color:#5a7e98;">시즌 5.16~11.14</span></div>
-    <div style="font-size:12px;color:#cfe2f2;line-height:1.9;">저장된 이용일 <b style="color:#7fc4e0;">${covered.length}일</b>${covered.length?` (${covered[0]} ~ ${covered[covered.length-1]})`:''}<br>
-    ${miss.length?`<span style="color:#f0a500;font-weight:800;">⚠️ 미업로드 ${miss.length}일</span>: <span style="font-size:10.5px;color:#c79a4a;">${miss.slice(0,14).map(_esc).join(', ')}${miss.length>14?' …':''}</span>${canMng?`<br><span style="font-size:10px;color:#5a7e98;">예약이 없던 날은 아래 🈳이용없음으로 처리하면 목록에서 빠집니다.</span>`:''}`:'<span style="color:#5fcf8f;font-weight:700;">✅ 오늘까지 모두 처리됨</span>'}</div>
+    <div class="stitle">📅 업로드 확인 <span style="font-size:9px;font-weight:400;color:#5a7e98;">시즌 5.16~11.14 · 데이터 없는 날만 표시</span></div>
+    <div style="font-size:12px;color:#cfe2f2;line-height:1.9;">
+    ${miss.length?`<span style="color:#f0a500;font-weight:800;">⚠️ 데이터 없는 날 ${miss.length}일</span>: <span style="font-size:10.5px;color:#c79a4a;">${miss.slice(0,14).map(_esc).join(', ')}${miss.length>14?' …':''}</span>${canMng?`<br><span style="font-size:10px;color:#5a7e98;">예약이 없던 날은 아래 🈳이용없음으로 처리하면 목록에서 빠집니다.</span>`:''}`:'<span style="color:#5fcf8f;font-weight:700;">✅ 오늘까지 빠진 날 없음</span>'}</div>
   </div>`;
   // ── 이용 처리(관리자): 특보·우천·이용없음 + 사고자 등록 ──
   if(canMng){
@@ -1992,13 +2015,17 @@ function renderFullStats(){
       try{
         if(typeof _climbInSeason!=='function'||!_climbInSeason())return '';
         const cd=(DB.g('climbDates')||[]).length;if(!cd)return '';
-        const cx=Object.keys(DB.g('climbCancels')||{}).length;
+        const cxMap=DB.g('climbCancels')||{};const cx=Object.keys(cxMap).length;
         const ac=(DB.g('climbAccidents')||[]).length;
+        // 실이용 인원: 날짜별 집계(climbAgg)에서 취소일 제외 합산 — 명단 원본 없이 표시
+        const agg=DB.g('climbAgg')||{};
+        let up=0,ut=0;Object.keys(agg).forEach(d=>{if(cxMap[d])return;up+=(agg[d].p||0);ut+=(agg[d].t||0);});
         return `<div class="scard">
           <div class="stitle">🧗 암벽 이용 <span style="font-size:9px;font-weight:400;color:#5a7e98;">시즌 5.16~11.14 · 상세는 홈→암벽 이용관리</span></div>
           <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:3px;">
-            ${mini('저장 이용일',cd+'일','#4fa8d0')}${mini('특보·우천 취소',cx+'일',cx?'#e67e22':'#27ae60')}${mini('안전사고',ac+'건',ac?'#c0392b':'#27ae60')}
+            ${mini('실이용 인원',up?up.toLocaleString()+'명':'—','#4fa8d0')}${mini('특보·우천 취소',cx+'일',cx?'#e67e22':'#27ae60')}${mini('안전사고',ac+'건',ac?'#c0392b':'#27ae60')}
           </div>
+          ${ut?`<div style="font-size:9px;color:#5a8aaa;margin-top:4px;">${ut.toLocaleString()}팀 · 취소일 제외</div>`:''}
         </div>`;
       }catch(e){return '';}
     })()}
@@ -3529,7 +3556,7 @@ function sosToRescue(id){
 // 앱 자체 업데이트 (OTA · Capgo 자체호스팅) — APK 전용. 웹/PWA는 서비스워커가 자동 갱신.
 // 번들(www)의 새 버전을 ota.json으로 알리면, 설치된 앱이 받아서 그 자리에서 교체(재빌드 불필요).
 // ══════════════════════════════════════════
-const OTA_VER='2026.07.16.154';                         // ← 현재 번들 버전 (릴리스마다 올림 · build-ota.sh가 ota.json에 반영)
+const OTA_VER='2026.07.16.155';                         // ← 현재 번들 버전 (릴리스마다 올림 · build-ota.sh가 ota.json에 반영)
 const OTA_MANIFEST='https://seorak1275.github.io/seoraksan/ota.json';
 // 업데이트 확인 폴백 소스 — 일부 기관망·통신사에서 github.io가 막혀 '확인 실패(네트워크)'가 나는 경우 대비.
 // 순서대로 시도: ① GitHub Pages(원본·즉시 반영) ② jsDelivr CDN(공개저장소 미러·거의 모든 망 통과)
