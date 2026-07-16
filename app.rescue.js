@@ -113,7 +113,10 @@ function isAdminUser(){
 function _canManageFac(){
   if(typeof _isMasterAdmin==='function'&&_isMasterAdmin())return true;
   var u=DB.g('currentUser')||{};
-  return u.dept==='탐방시설과';
+  if(u.dept==='탐방시설과')return true;
+  // 🔧 시설담당자로 지정된 직원(직원관리에서 지정, ACL 기반) — 부서명이 바뀌어도 권한 유지
+  try{if(_isFacManager())return true;}catch(e){}
+  return false;
 }
 // 이 시설이 나에게 보이는가: 숨김(hidden)이면 권한자에게만 보임(일반 사용자에겐 숨김)
 function _facVisibleTo(f){return !(f&&f.hidden)||_canManageFac();}

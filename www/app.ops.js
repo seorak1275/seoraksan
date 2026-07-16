@@ -771,6 +771,12 @@ function openFacDetail(id){
   const _dcol=_facTypeColor(f.type);
   document.getElementById('facDetailContent').innerHTML=`
     ${_navBtns('fac',id,'openFacDetail')}
+    ${(()=>{try{ // 현재 구간 내 위치 표시: '10 (백담계곡) 구간 · 7/54번째' — ◀▶가 어디를 도는지 한눈에
+      const z=_facZoneCode(f);if(!z)return '';
+      const same=(_navOrder.fac||[]).map(s=>facs.find(x=>String(x.id)===s)).filter(x=>x&&_facZoneCode(x)===z);
+      const zi=same.findIndex(x=>String(x.id)===String(id));
+      return zi<0?'':`<div style="text-align:center;font-size:10px;color:#5a8aaa;margin:-4px 0 8px;">🗺 ${_esc(_zoneLbl(z))} 구간 · ${zi+1}/${same.length}</div>`;
+    }catch(e){return '';}})()}
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
       <div style="width:38px;height:38px;border-radius:50%;background:${_dcol}33;border:2px solid ${_dcol};display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;">${_esc(f.type.split(' ')[0])}</div>
       <div style="flex:1;min-width:0;"><div style="font-size:14px;font-weight:700;color:#e0edf8;">${_esc(_facDispName(f))} ${_facGradeBadge(f)}</div>
@@ -1498,12 +1504,40 @@ function openEditFac(id){
   document.getElementById('modalAddFac').classList.add('on');
 }
 function deleteFac(id){
-  if(!_canManageFac()){toast('⚠️ 탐방시설과·개발자만 삭제 가능');return;}
-  if(!confirm('이 시설물을 삭제하시겠습니까?'))return;
-  DB.s('facilities',(DB.g('facilities')||[]).filter(f=>f.id!==id));
+  if(!_canManageFac()){toast('⚠️ 시설과·시설담당자·개발자만 삭제 가능');return;}
+  const facs=DB.g('facilities')||[];const i=facs.findIndex(f=>f.id===id);if(i<0)return;
+  if(!confirm('이 시설물을 삭제하시겠습니까?\n(관리자 → 시스템의 🗑 휴지통에서 복구할 수 있습니다)'))return;
+  const rec=facs.splice(i,1)[0];
+  DB.s('facilities',facs);
+  // 휴지통 보관(실수 방지 — 복구 가능) — 최근 100건 유지
+  try{
+    const tr=DB.g('facTrash')||[];
+    tr.unshift({rec:rec,at:Date.now(),by:getAuthor()});
+    if(tr.length>100)tr.length=100;
+    DB.s('facTrash',tr);
+  }catch(e){}
   closeM('modalFacDetail');
   try{document.getElementById('facPopup').classList.remove('on');}catch(e){}
-  try{renderInspectMap();}catch(e){}renderFacList();toast('🗑️ 삭제');updateSummary();
+  try{renderInspectMap();}catch(e){}renderFacList();toast('🗑️ 삭제 — 휴지통에 보관됨');updateSummary();
+}
+// 휴지통 복구/영구삭제 (관리자 → 시스템)
+function restoreFac(at){
+  if(!_canManageFac()){toast('⚠️ 권한 없음');return;}
+  const tr=DB.g('facTrash')||[];const i=tr.findIndex(t=>t.at===at);if(i<0)return;
+  const rec=tr[i].rec;if(!rec){tr.splice(i,1);DB.s('facTrash',tr);return;}
+  const facs=DB.g('facilities')||[];
+  if(facs.some(f=>f.id===rec.id))rec.id=Date.now(); // 그 사이 같은 id가 생겼으면 새 id로 복구
+  facs.push(rec);DB.s('facilities',facs);
+  tr.splice(i,1);DB.s('facTrash',tr);
+  toast('♻️ 복구됨: '+(rec.name||''));
+  try{renderInspectMap();}catch(e){}try{renderFacList();}catch(e){}try{renderAdmSys();}catch(e){}
+}
+function purgeFacTrash(at){
+  if(!(typeof _isMasterAdmin==='function'&&_isMasterAdmin())){toast('⚠️ 개발자만 영구 삭제 가능');return;}
+  const tr=DB.g('facTrash')||[];const i=tr.findIndex(t=>t.at===at);if(i<0)return;
+  if(!confirm('영구 삭제하시겠습니까? 복구할 수 없습니다.\n('+(((tr[i]||{}).rec||{}).name||'')+')'))return;
+  tr.splice(i,1);DB.s('facTrash',tr);
+  try{renderAdmSys();}catch(e){}
 }
 function submitAddFac(){
   const name=document.getElementById('facNameIn').value.trim();if(!name){toast('⚠️ 명칭 입력');return;}
@@ -3548,6 +3582,20 @@ function _loadAllErrLogs(){
 function renderAdmSys(){
   const unseenCnt=_getUnseenCount();
   document.getElementById('admSysWrap').innerHTML=`
+    ${(()=>{try{ // 🗑 시설물 휴지통 — 삭제된 시설 복구(시설과·담당자), 영구삭제(개발자)
+      const tr=DB.g('facTrash')||[];
+      if(!tr.length)return '';
+      const canPurge=(typeof _isMasterAdmin==='function'&&_isMasterAdmin());
+      return `<div class="scard" style="margin-bottom:8px;">
+        <div class="stitle">🗑 시설물 휴지통 <span style="font-size:9px;font-weight:400;color:#5a7e98;">삭제된 시설 — ♻️로 복구 (최근 100건 보관)</span></div>
+        ${tr.map(t=>{const r=t.rec||{};const d=new Date(t.at);const ds=(d.getMonth()+1)+'/'+d.getDate();
+          return `<div style="display:flex;align-items:center;gap:7px;padding:6px 0;border-bottom:1px solid rgba(255,255,255,.05);font-size:11.5px;color:#cfe2f2;">
+            <span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${_esc((r.type||'').split(' ')[0])} ${_esc(r.name||'-')} <span style="color:#5a7e98;font-size:10px;">${ds} · ${_esc(t.by||'')}</span></span>
+            <button onclick="restoreFac(${t.at})" style="background:rgba(94,207,143,.12);color:#5fcf8f;border:1px solid rgba(94,207,143,.3);border-radius:7px;padding:4px 10px;font-size:11px;font-weight:700;cursor:pointer;flex-shrink:0;">♻️ 복구</button>
+            ${canPurge?`<button onclick="purgeFacTrash(${t.at})" style="background:none;color:#ff8a80;border:1px solid rgba(255,107,91,.3);border-radius:7px;padding:4px 8px;font-size:11px;cursor:pointer;flex-shrink:0;" title="영구 삭제">✕</button>`:''}
+          </div>`;}).join('')}
+      </div>`;
+    }catch(e){return '';}})()}
     ${(()=>{try{
       if(typeof HOME_MENUS==='undefined')return'';
       const hid=_homeHiddenSet();
