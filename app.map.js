@@ -519,7 +519,7 @@ function _boardEnsureSize(){
   if(!vb||!vb.classList.contains('on'))return;
   var w=el.clientWidth||0;
   if(w&&Math.abs(w-_boardCreateW)>4)_createBoardMap(el);
-  else{try{_boardMap.relayout();}catch(e){}}
+  // 폭이 같으면 아무것도 하지 않음 — 예전엔 여기서 relayout()을 호출해 10초마다 지도가 깜빡였음
 }
 // 컨테이너가 전체화면 최종 너비에 도달하고 '안정'될 때까지 기다렸다 지도 생성
 // (예전엔 300px만 넘으면 바로 생성 → 열림 전환 중 좁은 폭으로 만들어져 오른쪽 띠 발생)
@@ -569,6 +569,16 @@ function _initBoardMap(){
 }
 function _renderBoardPins(fit){
   if(!_boardMap)return;
+  // 데이터가 그대로면 다시 그리지 않음 — 10초 갱신마다 핀을 지웠다 다시 그려 깜빡이던 원인
+  let _sig='';
+  try{
+    const _og=(DB.g('rescues')||[]).filter(r=>r.status==='ongoing').map(r=>r.id+':'+r.lat+','+r.lng+','+(r.status||''));
+    const _hz=(DB.g('hazards')||[]).filter(h=>!h.hazStatus||h.hazStatus==='미조치'||h.hazStatus==='조치중').map(h=>h.id+':'+h.lat+','+h.lng);
+    const _ss=(window._sosPings||[]).map(p=>p.id+':'+(p.ts||''));
+    _sig=_og.join('|')+'#'+_hz.join('|')+'#'+_ss.join('|');
+  }catch(e){_sig='err'+Date.now();}
+  if(!fit&&_sig===window._boardPinSig)return;
+  window._boardPinSig=_sig;
   _boardOvs.forEach(o=>{try{o.setMap(null);}catch(e){}});_boardOvs=[];
   const bounds=new kakao.maps.LatLngBounds();let n=0;
   (DB.g('rescues')||[]).filter(r=>r.status==='ongoing'&&r.lat&&r.lng).forEach(r=>{
@@ -698,19 +708,19 @@ function renderBoard(){
   const rescueActive=_boardView==='rescue', hazActive=_boardView==='hazard', alertActive=_boardView==='alert';
   let html='';
   // 요약 스트립 (클릭 시 하단 카드 영역 전환)
-  html+=`<div style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;">
-    <div onclick="setBoardView('rescue')" style="flex:1 1 130px;min-width:0;background:${ongoing.length?'rgba(192,57,43,.12)':'rgba(39,174,96,.08)'};border:1px solid ${rescueActive?(ongoing.length?'rgba(192,57,43,.9)':'rgba(39,174,96,.75)'):(ongoing.length?'rgba(192,57,43,.4)':'rgba(39,174,96,.25)')};border-radius:12px;padding:12px 16px;text-align:center;cursor:pointer;transition:all .15s;${rescueActive?'box-shadow:inset 0 0 0 2px rgba(192,57,43,.3);':''}">
-      <div style="font-size:30px;font-weight:900;color:${ongoing.length?'#e05050':'#27ae60'};">${ongoing.length}</div>
-      <div style="font-size:12px;color:${rescueActive?'#e0edf8':'rgba(255,255,255,.5)'};font-weight:${rescueActive?'700':'400'};">🚨 진행중 구조${rescueActive?' ▾':''}</div>
+  html+=`<div style="display:flex;gap:10px;margin-bottom:16px;">
+    <div onclick="setBoardView('rescue')" class="bd-stat" style="flex:1;min-width:0;background:${ongoing.length?'rgba(192,57,43,.12)':'rgba(39,174,96,.08)'};border:1px solid ${rescueActive?(ongoing.length?'rgba(192,57,43,.9)':'rgba(39,174,96,.75)'):(ongoing.length?'rgba(192,57,43,.4)':'rgba(39,174,96,.25)')};border-radius:12px;padding:12px 16px;text-align:center;cursor:pointer;transition:all .15s;${rescueActive?'box-shadow:inset 0 0 0 2px rgba(192,57,43,.3);':''}">
+      <div class="bd-num" style="font-size:30px;font-weight:900;color:${ongoing.length?'#e05050':'#27ae60'};">${ongoing.length}</div>
+      <div class="bd-lbl" style="font-size:12px;color:${rescueActive?'#e0edf8':'rgba(255,255,255,.5)'};font-weight:${rescueActive?'700':'400'};">🚨 진행중 구조${rescueActive?' ▾':''}</div>
     </div>
-    <div onclick="setBoardView('hazard')" style="position:relative;flex:1 1 130px;min-width:0;background:${hazUnhandled?'rgba(231,76,60,.12)':'rgba(230,126,34,.08)'};border:1px solid ${hazActive?(hazUnhandled?'rgba(231,76,60,.9)':'rgba(230,126,34,.9)'):(hazUnhandled?'rgba(231,76,60,.5)':'rgba(230,126,34,.25)')};border-radius:12px;padding:12px 16px;text-align:center;cursor:pointer;transition:all .15s;${hazActive?'box-shadow:inset 0 0 0 2px rgba(230,126,34,.3);':''}">
+    <div onclick="setBoardView('hazard')" class="bd-stat" style="position:relative;flex:1;min-width:0;background:${hazUnhandled?'rgba(231,76,60,.12)':'rgba(230,126,34,.08)'};border:1px solid ${hazActive?(hazUnhandled?'rgba(231,76,60,.9)':'rgba(230,126,34,.9)'):(hazUnhandled?'rgba(231,76,60,.5)':'rgba(230,126,34,.25)')};border-radius:12px;padding:12px 16px;text-align:center;cursor:pointer;transition:all .15s;${hazActive?'box-shadow:inset 0 0 0 2px rgba(230,126,34,.3);':''}">
       ${hazUnhandled?`<span style="position:absolute;top:6px;right:6px;background:#e74c3c;color:#fff;font-size:10px;font-weight:800;border-radius:10px;padding:1px 7px;box-shadow:0 0 0 2px rgba(231,76,60,.25);animation:blink 1.2s infinite;">미조치 ${hazUnhandled}</span>`:''}
-      <div style="font-size:30px;font-weight:900;color:${hazUnhandled?'#e05050':'#e67e22'};">${haz.length}</div>
-      <div style="font-size:12px;color:${hazActive?'#e0edf8':'rgba(255,255,255,.5)'};font-weight:${hazActive?'700':'400'};">⚠️ 미조치 위험상황${hazActive?' ▾':''}</div>
+      <div class="bd-num" style="font-size:30px;font-weight:900;color:${hazUnhandled?'#e05050':'#e67e22'};">${haz.length}</div>
+      <div class="bd-lbl" style="font-size:12px;color:${hazActive?'#e0edf8':'rgba(255,255,255,.5)'};font-weight:${hazActive?'700':'400'};">⚠️ 미조치 위험상황${hazActive?' ▾':''}</div>
     </div>
-    <div onclick="setBoardView('alert')" style="flex:1 1 130px;min-width:0;background:${activeOp?'rgba(79,168,208,.12)':'rgba(39,174,96,.08)'};border:1px solid ${alertActive?(activeOp?'rgba(79,168,208,.9)':'rgba(39,174,96,.75)'):(activeOp?'rgba(79,168,208,.45)':'rgba(39,174,96,.25)')};border-radius:12px;padding:12px 16px;text-align:center;cursor:pointer;transition:all .15s;${alertActive?'box-shadow:inset 0 0 0 2px rgba(79,168,208,.3);':''}">
-      <div style="font-size:30px;font-weight:900;color:${activeOp?'#4fa8d0':'#27ae60'};">${activeOp?(opMt?opRespCnt:opAlertCnt):0}</div>
-      <div style="font-size:12px;color:${alertActive?'#e0edf8':'rgba(255,255,255,.5)'};font-weight:${alertActive?'700':'400'};">🌀 ${activeOp?(opMt?'특보 응소':'발효 특보'):'특보운영'}${alertActive?' ▾':''}</div>
+    <div onclick="setBoardView('alert')" class="bd-stat" style="flex:1;min-width:0;background:${activeOp?'rgba(79,168,208,.12)':'rgba(39,174,96,.08)'};border:1px solid ${alertActive?(activeOp?'rgba(79,168,208,.9)':'rgba(39,174,96,.75)'):(activeOp?'rgba(79,168,208,.45)':'rgba(39,174,96,.25)')};border-radius:12px;padding:12px 16px;text-align:center;cursor:pointer;transition:all .15s;${alertActive?'box-shadow:inset 0 0 0 2px rgba(79,168,208,.3);':''}">
+      <div class="bd-num" style="font-size:30px;font-weight:900;color:${activeOp?'#4fa8d0':'#27ae60'};">${activeOp?(opMt?opRespCnt:opAlertCnt):0}</div>
+      <div class="bd-lbl" style="font-size:12px;color:${alertActive?'#e0edf8':'rgba(255,255,255,.5)'};font-weight:${alertActive?'700':'400'};">🌀 ${activeOp?(opMt?'특보 응소':'발효 특보'):'특보운영'}${alertActive?' ▾':''}</div>
     </div>
   </div>
   ${trailCtrlCnt||trailWarnCnt?`<div onclick="setBoardView('trail')" style="display:flex;align-items:center;gap:12px;background:rgba(231,76,60,.1);border:1px solid ${trailActive?'rgba(231,76,60,.85)':'rgba(231,76,60,.35)'};border-radius:12px;padding:10px 16px;margin-bottom:10px;cursor:pointer;">
@@ -923,7 +933,7 @@ function renderBoard(){
     }
   }
   html+=`<div style="text-align:center;margin-top:18px;font-size:10px;color:rgba(255,255,255,.18);">10초마다 자동 갱신 · ${APP_VER}</div>`;
-  body.innerHTML=html;
+  if(body._lastHtml!==html){body._lastHtml=html;body.innerHTML=html;} // 내용이 그대로면 10초 갱신 때 다시 그리지 않음(깜빡임 방지)
   if(_boardMap)_renderBoardPins();
 }
 

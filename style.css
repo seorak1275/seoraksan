@@ -422,6 +422,12 @@ img{-webkit-user-drag:none;}
   #boardMain{flex-direction:column;}
   #boardMap{height:45%;flex:none;}
   #boardSide{width:100%;border-left:none;border-top:1px solid rgba(79,168,208,.18);flex:1;padding-bottom:calc(16px + env(safe-area-inset-bottom));}
+  /* 좁은 화면: 요약 카드 3개가 한 줄에 비율 유지되도록 축소(줄바꿈 없음) */
+  #v-board .bd-stat{padding:9px 6px !important;border-radius:10px !important;}
+  #v-board .bd-num{font-size:21px !important;}
+  #v-board .bd-lbl{font-size:10px !important;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  #v-board .board-title{font-size:16px;}
+  #v-board .board-clock{font-size:13px;}
 }
 
 /* ─── 특보운영 ─── */
