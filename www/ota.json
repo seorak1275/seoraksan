@@ -1,1 +1,1 @@
-{"version":"2026.07.16.188","url":"https://seorak1275.github.io/seoraksan/bundle.zip","notes":"ACL 자가방어 — 탈퇴자(deletedKakaoIds)는 _acl에 남아 있어도 권한 판정에서 무시(옛 캐시 기기의 덮어쓰기로 탈퇴 관리자가 부활하는 경로 원천 차단)"}
+{"version":"2026.07.16.189","url":"https://seorak1275.github.io/seoraksan/bundle.zip","notes":"지도 기존 방식 복귀(커스텀 핀치줌 제거, 핀 크기 축소는 유지) · 설정에 지도 자동 저장 모드(📶와이파이만 기본/항상/끄기) · 본인 탈퇴 시 역할(_acl)도 제거(재가입 때 옛 관리자 권한 승계되던 구멍 봉합)"}

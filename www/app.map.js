@@ -100,71 +100,6 @@ function _showClusterList(group){
     +rows+'</div>';
   m.onclick=function(e){if(e.target===m)m.remove();};
 }
-// ── 커스텀 핀치줌: 두 손가락으로 벌리는 '동안' 핀이 제자리에 붙어 지도와 함께 확대/축소 ──
-// SDK 핀치는 줌 중 오버레이(핀)를 숨긴다 → 모바일에서는 SDK 줌을 끄고 제스처를 직접 처리.
-// 벌리는 동안 지도 컨테이너 전체(타일+핀)를 CSS scale로 확대(핀=지도의 일부처럼 유지),
-// 손을 떼면 그 배율만큼 setLevel(즉시, 핀치 중심 앵커)로 확정하고 스케일을 걷어낸다.
-// 공개 API(setZoomable/setLevel/getProjection)만 사용 — SDK 내부 구조에 의존하지 않음.
-function _customPinch(map,el){
-  try{
-    if(!el||!map||!map.setZoomable)return;
-    if(!(navigator.maxTouchPoints>0&&/Android|iPhone|iPad|iPod/i.test(navigator.userAgent||'')))return; // 모바일만(데스크톱 휠 줌 유지)
-    map.setZoomable(false);
-  }catch(e){return;}
-  let zooming=false,d0=1,cx0=0,cy0=0,cx=0,cy=0,scale=1,rect=null,anchorCoord=null,lastTapAt=0,lastTapX=0,lastTapY=0;
-  const dist=t=>Math.hypot(t[0].clientX-t[1].clientX,t[0].clientY-t[1].clientY)||1;
-  const finish=()=>{
-    if(!zooming)return;zooming=false;
-    el.style.transform='';el.style.transformOrigin='';el.style.willChange='';
-    const steps=Math.round(Math.log(scale)/Math.LN2);
-    const tx=cx-cx0,ty=cy-cy0; // 제스처 동안 두 손가락 중심이 이동한 양(팬)
-    try{
-      if(steps){
-        const lv=Math.max(1,Math.min(14,map.getLevel()-steps));
-        // 앵커는 '제스처 시작 시점'에 그 지점 아래 있던 지도 좌표 — 스케일된 화면에서 재계산하면 어긋나 위치가 튐
-        map.setLevel(lv,anchorCoord?{anchor:anchorCoord}:undefined); // 즉시 전환(핀 숨김 구간 없음)
-      }
-      if(Math.abs(tx)>2||Math.abs(ty)>2)map.panBy(-tx,-ty); // 손가락 이동분 반영(내용이 +tx 이동 = 중심 -tx)
-    }catch(e){}
-    scale=1;anchorCoord=null;
-  };
-  el.addEventListener('touchstart',e=>{
-    if(e.touches.length===2){
-      zooming=true;rect=el.getBoundingClientRect();
-      d0=dist(e.touches);scale=1;
-      cx0=cx=(e.touches[0].clientX+e.touches[1].clientX)/2;
-      cy0=cy=(e.touches[0].clientY+e.touches[1].clientY)/2;
-      anchorCoord=null;
-      try{anchorCoord=map.getProjection().coordsFromContainerPoint(new kakao.maps.Point(cx0-rect.left,cy0-rect.top));}catch(err){}
-      el.style.willChange='transform';
-      el.style.transformOrigin=(cx0-rect.left)+'px '+(cy0-rect.top)+'px';
-    }
-  },{capture:true,passive:true});
-  el.addEventListener('touchmove',e=>{
-    if(!zooming||e.touches.length!==2)return;
-    e.preventDefault();e.stopPropagation(); // 브라우저 페이지 확대·SDK 드래그 개입 차단
-    cx=(e.touches[0].clientX+e.touches[1].clientX)/2;
-    cy=(e.touches[0].clientY+e.touches[1].clientY)/2;
-    scale=Math.max(.25,Math.min(4,dist(e.touches)/d0));
-    el.style.transform='translate('+(cx-cx0)+'px,'+(cy-cy0)+'px) scale('+scale+')'; // 이동+확대 동시 추적
-  },{capture:true,passive:false});
-  el.addEventListener('touchend',e=>{
-    // 더블탭 확대(SDK 줌을 꺼서 직접 제공): 0.35초 내 같은 지점 두 번 탭 → 한 단계 확대(즉시)
-    if(!zooming&&e.changedTouches&&e.changedTouches.length===1&&e.touches.length===0){
-      const t=e.changedTouches[0],now=Date.now();
-      if(now-lastTapAt<350&&Math.abs(t.clientX-lastTapX)<30&&Math.abs(t.clientY-lastTapY)<30){
-        lastTapAt=0;
-        try{
-          const r2=el.getBoundingClientRect();
-          const proj=map.getProjection();
-          map.setLevel(Math.max(1,map.getLevel()-1),{anchor:proj.coordsFromContainerPoint(new kakao.maps.Point(t.clientX-r2.left,t.clientY-r2.top))});
-        }catch(err){}
-      }else{lastTapAt=now;lastTapX=t.clientX;lastTapY=t.clientY;}
-    }
-    if(zooming&&e.touches.length<2)finish();
-  },{capture:true,passive:true});
-  el.addEventListener('touchcancel',()=>{if(zooming)finish();},{capture:true,passive:true});
-}
 function _clusterZoom(map,lat,lng){
   // 부드러운 확대 — 즉시 점프 대신 애니메이션으로 (겹친 핀·클러스터 탭 시 자연스럽게)
   try{map.setLevel(Math.max(1,map.getLevel()-2),{anchor:new kakao.maps.LatLng(lat,lng),animate:{duration:300}});}
@@ -418,9 +353,6 @@ function initMaps(){
       clearTimeout(window._iZoomT);
       window._iZoomT=setTimeout(()=>{_scaleOvs(iEls,mapI.getLevel(),1);try{_reclusterInspect();}catch(e){}},150);
     });
-    // 핀치줌을 직접 처리(모바일) — 벌리는 동안 핀이 지도와 한 몸으로 유지, 손 떼면 즉시 확정
-    try{_customPinch(mapR,document.getElementById('mapRescue'));}catch(e){}
-    try{_customPinch(mapI,document.getElementById('mapInspect'));}catch(e){}
     if(window._hideLoading)setTimeout(window._hideLoading,600);
   }
   if(window._KR){doInit();return;}
@@ -2156,16 +2088,25 @@ function _tpMinimize(min){
 // 열람 타일 자동 저장과 함께 '깜빡임 없는 지도'의 양대 축: 설악산 일대는 보기 전에 미리 받아둔다.
 function _autoPreloadParkTiles(){
   try{
+    var mode=localStorage.getItem('_tileAutoMode')||'wifi'; // 설정: wifi(기본)/always/off
+    if(mode==='off')return;
     if(document.getElementById('tpOv'))return;
     var last=parseInt(localStorage.getItem('_tpAutoAt2')||'0',10); // v2: 위성 타일 포함으로 바뀌어 전 기기 1회 재실행
     if(Date.now()-last<7*86400000)return;
-    var c=navigator.connection||{};
-    if(c.saveData)return;
-    if(c.type&&c.type!=='wifi'&&c.type!=='ethernet')return;
+    if(mode!=='always'){
+      var c=navigator.connection||{};
+      if(c.saveData)return;
+      if(c.type&&c.type!=='wifi'&&c.type!=='ethernet')return;
+    }
     if(!navigator.onLine)return;
     localStorage.setItem('_tpAutoAt2',String(Date.now()));
     preloadParkTiles(true);
   }catch(e){}
+}
+function _setTileAutoMode(m){
+  try{localStorage.setItem('_tileAutoMode',m);}catch(e){}
+  toast(m==='off'?'🔕 지도 자동 저장 끔':m==='always'?'🔁 항상 자동 저장 (요금제 주의)':'📶 와이파이에서만 자동 저장');
+  try{renderSettings();}catch(e){}
 }
 function preloadParkTiles(auto){
   // 오프라인 대비: 지도 타일과 함께 암벽 당일명단도 미리 받아둔다(무통신 산악지역 현장 확인용)

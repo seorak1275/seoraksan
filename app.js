@@ -36,6 +36,9 @@ function renderSettings(){
         <div class="stitle">📴 오프라인 대비 (무통신 산악지역)</div>
         <div style="font-size:11px;color:#7a9cb8;line-height:1.6;margin-bottom:8px;">통신이 끊기는 산악지역 진입에 대비해 미리 받아두세요. 아래 버튼으로 <b style="color:#cfe2f2;">설악산 인근 지도 전체를 미리 저장</b>하면 무통신 구역에서도 지도가 바로 뜹니다. (Wi-Fi에서 실행 권장 · 1~2분)<br><span style="color:#5a7e98;">※ 구조·시설물·특보 등 앱 데이터와 최근 조회한 암벽 명단은 접속 중 자동으로 기기에 저장되어, 통신이 끊겨도 마지막 상태를 볼 수 있습니다. 미리받기는 설악산 인근만 저장하며 다른 지역 열람분은 최근 1,500장(약 25MB)까지만 임시 보관됩니다.</span></div>
         <div id="tileCacheInfo" style="font-size:10px;color:#3a6a8a;margin-bottom:8px;">저장 현황 확인 중...</div>
+        ${(()=>{const m=(function(){try{return localStorage.getItem('_tileAutoMode')||'wifi';}catch(e){return 'wifi';}})();
+          const chip=(v,l)=>`<button onclick="_setTileAutoMode('${v}')" style="flex:1;padding:7px 4px;border-radius:8px;border:1px solid ${m===v?'rgba(94,207,143,.5)':'rgba(255,255,255,.12)'};background:${m===v?'rgba(94,207,143,.14)':'none'};color:${m===v?'#5fcf8f':'#7a9cb8'};font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap;">${l}</button>`;
+          return `<div style="display:flex;gap:5px;margin-bottom:8px;align-items:center;"><span style="font-size:10.5px;color:#7a9cb8;flex-shrink:0;">🔁 자동 저장</span>${chip('wifi','📶 와이파이만')}${chip('always','항상')}${chip('off','끄기')}</div>`;})()}
         <button onclick="preloadParkTiles()" style="width:100%;padding:11px;border-radius:8px;border:1px solid rgba(94,207,143,.35);background:rgba(94,207,143,.1);color:#5fcf8f;font-size:13px;font-weight:700;cursor:pointer;margin-bottom:6px;">⬇️ 설악산 인근 지도 미리받기</button>
         <button onclick="clearTileCache()" style="width:100%;padding:8px;border-radius:8px;border:1px solid rgba(255,255,255,.1);background:none;color:#5a7e98;font-size:11px;font-weight:600;cursor:pointer;">🗑️ 지도 캐시 비우기</button>
       </div>
@@ -438,6 +441,8 @@ function withdrawAccount(){
     // deletedKakaoIds에 추가해 재로그인 시 코드 재요청
     var deleted=DB.g('deletedKakaoIds')||[];
     if(!deleted.includes(kakaoId)){deleted.push(kakaoId);DB.s('deletedKakaoIds',deleted);}
+    // 역할(_acl)도 제거 — 남겨두면 재가입 승인 때 옛 관리자 권한이 그대로 승계되는 구멍(실제 발생)
+    try{var acl=_getAcl();acl.members=acl.members.filter(function(x){return x!==kakaoId;});acl.admins=acl.admins.filter(function(x){return x!==kakaoId;});DB.s('_acl',acl);}catch(e){}
   }
   DB.s('currentUser',{});
   DB.s('authType','');
@@ -3596,7 +3601,7 @@ function sosToRescue(id){
 // 앱 자체 업데이트 (OTA · Capgo 자체호스팅) — APK 전용. 웹/PWA는 서비스워커가 자동 갱신.
 // 번들(www)의 새 버전을 ota.json으로 알리면, 설치된 앱이 받아서 그 자리에서 교체(재빌드 불필요).
 // ══════════════════════════════════════════
-const OTA_VER='2026.07.16.188';                         // ← 현재 번들 버전 (릴리스마다 올림 · build-ota.sh가 ota.json에 반영)
+const OTA_VER='2026.07.16.189';                         // ← 현재 번들 버전 (릴리스마다 올림 · build-ota.sh가 ota.json에 반영)
 const OTA_MANIFEST='https://seorak1275.github.io/seoraksan/ota.json';
 // 업데이트 확인 폴백 소스 — 일부 기관망·통신사에서 github.io가 막혀 '확인 실패(네트워크)'가 나는 경우 대비.
 // 순서대로 시도: ① GitHub Pages(원본·즉시 반영) ② jsDelivr CDN(공개저장소 미러·거의 모든 망 통과)
