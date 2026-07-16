@@ -1423,6 +1423,7 @@ function _climbBuildAgg(recs){
     const d=r.useDate;if(!d)return;
     const o=agg[d]||(agg[d]={t:0,p:0});
     o.t++;o.p+=(r.total||((r.companions||[]).length+1));
+    if(r.accident)o.a=(o.a||0)+1; // 사고 건수(개인정보 없음) — 전체통계 카드가 명단 로드 없이 표시
   });
   return agg;
 }
@@ -1441,6 +1442,21 @@ async function _climbSave(recs){
   const byDate={};
   recs.forEach(r=>{(byDate[r.useDate]=byDate[r.useDate]||[]).push(r);});
   const dates=Object.keys(byDate).sort();
+  // 재업로드 시 기존 사고 연동 보존 — 팀 accident·사고자 acc·구조기록 rescueId는 새 파일에 비고가 없어도 유지
+  // (같은 날짜 문서를 통째로 교체(.set)하므로, 이전에 표시해둔 사고 정보를 신청자 이름+연락처로 찾아 옮겨 심는다)
+  try{
+    (Array.isArray(_climbCache)?_climbCache:[]).forEach(old=>{
+      if(!(old.accident||old.rescueId))return;
+      const list=byDate[old.useDate];if(!list)return;
+      const oa=old.applicant||{};
+      const nr=list.find(n=>{const na=n.applicant||{};return na.name===oa.name&&String(na.phone||'')===String(oa.phone||'');});
+      if(!nr)return;
+      if(old.accident)nr.accident=true;
+      if(old.rescueId&&!nr.rescueId)nr.rescueId=old.rescueId;
+      const ops=[old.applicant].concat(old.companions||[]),nps=[nr.applicant].concat(nr.companions||[]);
+      ops.forEach(op=>{if(!op||!op.acc)return;const m=nps.find(np=>np&&np.name===op.name);if(m)m.acc=true;});
+    });
+  }catch(e){}
   const by=(DB.g('currentUser')||{}).name||getAuthor();
   for(const d of dates){
     await _fdb.collection('climbUsage').doc(d).set({date:d,records:byDate[d],count:byDate[d].length,uploadedAt:Date.now(),uploadedBy:by});
@@ -1687,8 +1703,8 @@ function _renderClimbRoster(all){
   const expStr=e=>{const n=parseInt(String(e==null?'':e).replace(/[^\d]/g,''));return isNaN(n)?'':(n+'년');};
   const gChip=g=>g==='남'?'<span style="flex-shrink:0;background:rgba(79,168,208,.16);color:#7fc4e0;border-radius:6px;padding:1px 7px;font-size:10px;font-weight:800;">남</span>'
     :g==='여'?'<span style="flex-shrink:0;background:rgba(232,120,150,.16);color:#e8a0ba;border-radius:6px;padding:1px 7px;font-size:10px;font-weight:800;">여</span>':'';
-  const person=(nm,gender,age,exp,ph,lead)=>`<div style="display:flex;align-items:center;gap:7px;padding:3.5px 0;">
-      <span style="font-size:12.5px;font-weight:${lead?'800':'600'};color:${lead?'#eaf2fa':'#cfe2f2'};flex-shrink:0;">${lead?'👤 ':'└ '}${_esc(nm||'-')}</span>
+  const person=(nm,gender,age,exp,ph,lead,acc)=>`<div style="display:flex;align-items:center;gap:7px;padding:3.5px 0;">
+      <span style="font-size:12.5px;font-weight:${lead?'800':'600'};color:${acc?'#ff9a90':(lead?'#eaf2fa':'#cfe2f2')};flex-shrink:0;">${lead?'👤 ':'└ '}${_esc(nm||'-')}${acc?' <span style="font-size:9.5px;background:rgba(255,107,91,.16);color:#ff8a80;border-radius:5px;padding:1px 5px;font-weight:800;">🚨사고자</span>':''}</span>
       ${callBtn(ph)}
       <span style="margin-left:auto;font-size:10px;color:#8fb4cc;flex-shrink:0;">${[age!=null?age+'세':'',expStr(exp)].filter(Boolean).join(' · ')}</span>
       ${gChip(gender)}</div>`;
@@ -1729,11 +1745,12 @@ function _renderClimbRoster(all){
       html+=`<div class="scard" style="margin-bottom:7px;padding:9px 11px;">
         <div style="font-size:12.5px;font-weight:800;color:#eaf2fa;margin-bottom:5px;">🧗 ${_esc(course)} <span style="font-size:10px;font-weight:600;color:#8fb4cc;">${cts.length}팀 · ${cPpl}명</span></div>`;
       cts.forEach(r=>{
-        const a=r.applicant||{};const accMark=r.accident?' <span style="color:#ff6b5b;font-weight:800;">🚨사고</span>':'';
+        const a=r.applicant||{};
+        const accMark=r.accident?(r.rescueId?` <span onclick="_climbOpenRescue(${r.rescueId})" style="color:#ff6b5b;font-weight:800;cursor:pointer;text-decoration:underline;text-underline-offset:2px;">🚨사고 · 구조기록 ›</span>`:' <span style="color:#ff6b5b;font-weight:800;">🚨사고</span>'):'';
         html+=`<div style="border-top:1px solid rgba(255,255,255,.05);padding:6px 0 4px;">
           <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:2px;"><span style="font-size:9.5px;color:#6a94b0;background:rgba(79,168,208,.1);border-radius:5px;padding:1px 6px;">${r.total||'-'}명</span>${accMark}</div>
-          ${person(a.name,a.gender,_climbAge(a.dob),a.exp,a.phone,true)}
-          ${(r.companions||[]).map(c=>person(c.name,c.gender,_climbAge(c.dob),c.exp,c.phone,false)).join('')}
+          ${person(a.name,a.gender,_climbAge(a.dob),a.exp,a.phone,true,a.acc)}
+          ${(r.companions||[]).map(c=>person(c.name,c.gender,_climbAge(c.dob),c.exp,c.phone,false,c.acc)).join('')}
         </div>`;
       });
       html+=`</div>`;
@@ -1862,8 +1879,15 @@ function _renderClimbStats(all){
   const gender={'남':0,'여':0};used.forEach(r=>{const g=r.applicant&&r.applicant.gender;if(g==='남')gender['남']++;else if(g==='여')gender['여']++;(r.companions||[]).forEach(c=>{if(c.gender==='남')gender['남']++;else if(c.gender==='여')gender['여']++;});});
   // 사고: 수동 등록(신뢰) + 엑셀 비고번호 자동인식(참고) — 합산·중복제거
   const manualAcc=_climbAccidents().slice().sort((a,b)=>String(b.date).localeCompare(String(a.date)));
-  const autoAcc=all.filter(r=>r.accident&&!_climbIsCancelled(r)).map(r=>({date:r.useDate,name:(r.applicant&&r.applicant.name)||'-',course:r.course,district:r.district,total:r.total,auto:true}));
-  const accList=manualAcc.map(a=>Object.assign({},a,{auto:false})).concat(autoAcc.filter(a=>!manualAcc.some(m=>m.date===a.date&&m.name===a.name)));
+  // 명단 연동: 팀 accident 플래그 + 사고자 개인 acc 표시 + 연동된 구조기록(rescueId)
+  const autoAcc=all.filter(r=>r.accident&&!_climbIsCancelled(r)).map(r=>{
+    const team=(r.applicant&&r.applicant.name)||'-';
+    const vics=[r.applicant].concat(r.companions||[]).filter(p=>p&&p.acc).map(p=>p.name).filter(Boolean);
+    return {date:r.useDate,name:vics.length?vics.join('·'):team,team,course:r.course,district:r.district,total:r.total,rescueId:r.rescueId||null,auto:true};
+  });
+  const accList=manualAcc.map(a=>Object.assign({},a,{auto:false}))
+    .concat(autoAcc.filter(a=>!manualAcc.some(m=>m.date===a.date&&(m.name===a.name||m.name===a.team))))
+    .sort((a,b)=>String(b.date).localeCompare(String(a.date)));
   const accN=accList.length;
   const mini=(lbl,val,col,sub)=>`<div style="background:#060d1a;border-radius:10px;padding:11px 8px;text-align:center;"><div style="font-size:18px;font-weight:800;color:${col||'#e0edf8'};line-height:1.15;">${val}</div><div style="font-size:9.5px;color:#7a9cb8;margin-top:3px;">${lbl}</div>${sub?`<div style="font-size:8.5px;color:#4a7090;margin-top:1px;">${sub}</div>`:''}</div>`;
   const bar=(rows,unit,colf)=>{const max=Math.max.apply(null,[1].concat(rows.map(x=>x.v)));return rows.map(x=>`<div style="display:flex;align-items:center;gap:8px;padding:4px 0;"><span style="font-size:11px;color:#c0d8ec;width:92px;flex-shrink:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${_esc(x.k)}</span><div style="flex:1;height:9px;background:rgba(255,255,255,.05);border-radius:5px;overflow:hidden;"><div style="height:100%;width:${Math.max(3,Math.round(x.v/max*100))}%;background:${colf?colf(x):'#4fa8d0'};border-radius:5px;"></div></div><span style="font-size:11px;color:#e0edf8;font-weight:800;min-width:64px;text-align:right;">${x.v}${unit||'명'}${x.team!=null?` <span style="color:#5a7e98;font-weight:600;font-size:9px;">${x.team}팀</span>`:''}</span></div>`).join('');};
@@ -1883,7 +1907,7 @@ function _renderClimbStats(all){
   </div>`;
   // ── 안전사고 목록 (항상 표시 — 중요) ──
   if(accN){
-    html+=`<div class="scard" style="margin-bottom:10px;"><div class="stitle" style="color:#ff8a80;">🚨 안전사고 (${accN}건)</div>${accList.map(a=>`<div style="display:flex;align-items:center;gap:6px;font-size:11.5px;color:#dceaf6;padding:5px 0;border-bottom:1px solid rgba(255,255,255,.04);"><span style="flex:1;">${_esc(a.date)} (${_wd[Math.max(0,_dow(a.date))]})${a.district?' · '+_esc(a.district):''}${a.course?' '+_esc(a.course):''} · <b>${_esc(a.name)}</b>${a.total?' ('+a.total+'명)':''}${a.note?` <span style="color:#9fb6c8;">— ${_esc(a.note)}</span>`:''}</span>${a.auto?'<span style="font-size:8.5px;color:#5a7e98;flex-shrink:0;">엑셀</span>':(canMng?`<span onclick="climbDelAccident(${a.id})" style="cursor:pointer;color:#ff8a80;font-weight:800;padding:0 5px;flex-shrink:0;">×</span>`:'')}</div>`).join('')}</div>`;
+    html+=`<div class="scard" style="margin-bottom:10px;"><div class="stitle" style="color:#ff8a80;">🚨 안전사고 (${accN}건)</div>${accList.map(a=>`<div style="display:flex;align-items:center;gap:6px;font-size:11.5px;color:#dceaf6;padding:5px 0;border-bottom:1px solid rgba(255,255,255,.04);"><span style="flex:1;">${_esc(a.date)} (${_wd[Math.max(0,_dow(a.date))]})${a.district?' · '+_esc(a.district):''}${a.course?' '+_esc(a.course):''} · <b style="color:#ffb3ab;">${_esc(a.name)}</b>${a.team&&a.team!==a.name?` <span style="color:#8fb4cc;font-size:10px;">(${_esc(a.team)} 팀${a.total?' '+a.total+'명':''})</span>`:(a.total?' ('+a.total+'명)':'')}${a.note?` <span style="color:#9fb6c8;">— ${_esc(a.note)}</span>`:''}</span>${a.rescueId?`<span onclick="_climbOpenRescue(${a.rescueId})" style="cursor:pointer;color:#7fc4e0;font-size:10px;font-weight:800;flex-shrink:0;">📋 구조기록 ›</span>`:''}${a.auto?'<span style="font-size:8.5px;color:#5a7e98;flex-shrink:0;">명단</span>':(canMng?`<span onclick="climbDelAccident(${a.id})" style="cursor:pointer;color:#ff8a80;font-weight:800;padding:0 5px;flex-shrink:0;">×</span>`:'')}</div>`).join('')}</div>`;
   }
   const byMon={};used.forEach(r=>{const m=(r.useDate||'').slice(0,7);if(!m)return;const o=byMon[m]||(byMon[m]={ppl:0,team:0});o.ppl+=(r.total||1);o.team++;});
   const monRows=Object.keys(byMon).sort().map(m=>({k:m.slice(5)+'월',v:byMon[m].ppl,team:byMon[m].team}));
@@ -1923,6 +1947,11 @@ function climbAddAccident(){
   toast('🚨 사고자 등록: '+name+' ('+date+')',3500);
   try{renderHomeActive();}catch(e){}
   try{_renderClimbActive();}catch(e){}
+}
+// 명단·통계의 🚨사고 → 연동된 구조기록 열기 (암벽 패널 닫고 재난구조 탭 상세로 이동)
+function _climbOpenRescue(id){
+  var e=document.getElementById('climbPanel');if(e)e.remove();
+  try{openRescueFromHome(id);}catch(err){toast('⚠️ 구조기록을 열 수 없습니다');}
 }
 function climbDelAccident(id){
   if(!_canClimbManage()){toast('⚠️ 관리자만 가능');return;}
@@ -2016,10 +2045,11 @@ function renderFullStats(){
         if(typeof _climbInSeason!=='function'||!_climbInSeason())return '';
         const cd=(DB.g('climbDates')||[]).length;if(!cd)return '';
         const cxMap=DB.g('climbCancels')||{};const cx=Object.keys(cxMap).length;
-        const ac=(DB.g('climbAccidents')||[]).length;
         // 실이용 인원: 날짜별 집계(climbAgg)에서 취소일 제외 합산 — 명단 원본 없이 표시
         const agg=DB.g('climbAgg')||{};
-        let up=0,ut=0;Object.keys(agg).forEach(d=>{if(cxMap[d])return;up+=(agg[d].p||0);ut+=(agg[d].t||0);});
+        let up=0,ut=0,acAuto=0;Object.keys(agg).forEach(d=>{if(cxMap[d])return;up+=(agg[d].p||0);ut+=(agg[d].t||0);acAuto+=(agg[d].a||0);});
+        // 사고: 명단 연동분(집계 a) + 수동 등록(연동일자와 겹치지 않는 것만)
+        const ac=acAuto+(DB.g('climbAccidents')||[]).filter(m=>!(agg[m.date]&&agg[m.date].a)).length;
         return `<div class="scard">
           <div class="stitle">🧗 암벽 이용 <span style="font-size:9px;font-weight:400;color:#5a7e98;">시즌 5.16~11.14 · 상세는 홈→암벽 이용관리</span></div>
           <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:3px;">
@@ -3556,7 +3586,7 @@ function sosToRescue(id){
 // 앱 자체 업데이트 (OTA · Capgo 자체호스팅) — APK 전용. 웹/PWA는 서비스워커가 자동 갱신.
 // 번들(www)의 새 버전을 ota.json으로 알리면, 설치된 앱이 받아서 그 자리에서 교체(재빌드 불필요).
 // ══════════════════════════════════════════
-const OTA_VER='2026.07.16.162';                         // ← 현재 번들 버전 (릴리스마다 올림 · build-ota.sh가 ota.json에 반영)
+const OTA_VER='2026.07.16.163';                         // ← 현재 번들 버전 (릴리스마다 올림 · build-ota.sh가 ota.json에 반영)
 const OTA_MANIFEST='https://seorak1275.github.io/seoraksan/ota.json';
 // 업데이트 확인 폴백 소스 — 일부 기관망·통신사에서 github.io가 막혀 '확인 실패(네트워크)'가 나는 경우 대비.
 // 순서대로 시도: ① GitHub Pages(원본·즉시 반영) ② jsDelivr CDN(공개저장소 미러·거의 모든 망 통과)
