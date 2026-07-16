@@ -225,7 +225,7 @@ if(window.Kakao&&!Kakao.isInitialized()) Kakao.init(KAKAO_KEY);
     <!-- 날짜 왼쪽 + 네트워크/동기화 상태 칩 -->
     <div style="min-width:80px;display:flex;flex-direction:column;gap:2px;">
       <div style="font-size:10px;color:#6a9cc0;font-weight:600;" id="homeDate"></div>
-      <span id="homeNetStatus" onclick="_flushSyncQueue()" style="display:none;font-size:9px;font-weight:700;white-space:nowrap;cursor:pointer;"></span>
+      <span id="homeNetStatus" onclick="_flushSyncQueue();_showSyncQueueInfo();" style="display:none;font-size:9px;font-weight:700;white-space:nowrap;cursor:pointer;" title="탭: 재시도 + 상세 보기"></span>
     </div>
     <!-- 로고 진짜 가운데 (absolute) -->
     <div style="position:absolute;left:50%;transform:translateX(-50%);display:flex;flex-direction:column;align-items:center;gap:2px;">
@@ -286,7 +286,7 @@ if(window.Kakao&&!Kakao.isInitialized()) Kakao.init(KAKAO_KEY);
   </div>
   <!-- 버전 + 동기화 상태 -->
   <div style="flex-shrink:0;text-align:center;padding:4px 0 2px;font-size:9px;color:rgba(255,255,255,.22);user-select:none;">
-    <span id="appVerLabel"></span><span id="offlineBadge" style="display:none;margin-left:8px;color:#e74c3c;font-weight:700;">📡 오프라인</span><span id="syncBadge" style="display:none;margin-left:8px;color:#f0a500;cursor:pointer;">⏳ 동기화 대기 <span id="syncBadgeN">0</span>건 <span onclick="_flushSyncQueue()" style="font-size:10px;opacity:.7;" title="지금 재시도">↻</span><span onclick="_showSyncQueueInfo()" style="font-size:10px;opacity:.7;margin-left:3px;" title="대기 항목 상세·원인 보기">ℹ️</span><span onclick="_clearSyncQueue()" style="font-size:10px;opacity:.55;margin-left:3px;" title="대기 항목 강제 삭제">✕</span></span>
+    <span id="appVerLabel"></span><!-- 오프라인·동기화 상태는 상단 날짜 옆 칩(homeNetStatus) 한 곳에서만 표시 -->
   </div>
 </div>
 </div>

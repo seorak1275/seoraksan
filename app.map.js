@@ -2078,6 +2078,12 @@ function clearTileCache(){
   Promise.all(_TILE_CACHES.map(n=>caches.delete(n))).then(()=>{toast('🗑️ 지도 캐시 삭제됨');_updateTileCacheInfo();});
 }
 let _tpAbort=false;
+// 미리받기 진행창 크게/작게 전환
+function _tpMinimize(min){
+  const f=document.getElementById('tpFull'),m=document.getElementById('tpMini');
+  if(f)f.style.display=min?'none':'block';
+  if(m)m.style.display=min?'flex':'none';
+}
 // 자동 미리받기 — 7일마다 부팅 후 조용히 실행(요금 배려: 절약모드·확실한 셀룰러에선 건너뜀).
 // 열람 타일 자동 저장과 함께 '깜빡임 없는 지도'의 양대 축: 설악산 일대는 보기 전에 미리 받아둔다.
 function _autoPreloadParkTiles(){
@@ -2143,11 +2149,16 @@ function preloadParkTiles(auto){
   if(!steps.length){host.remove();toast('⚠️ 이동 계획 생성 실패 — 다시 시도하세요');return;}
   // 진행 표시
   _tpAbort=false;
+  // 진행 표시 — 자동 실행은 작은 알약으로 시작(방해 없음), 수동 실행은 카드로. — 버튼/탭으로 상호 전환
   const ov=document.createElement('div');ov.id='tpOv';
-  ov.style.cssText='position:fixed;left:12px;right:12px;bottom:76px;z-index:9700;background:#0a1828;border:1px solid rgba(79,168,208,.35);border-radius:12px;padding:12px 14px;box-shadow:0 6px 24px rgba(0,0,0,.5);';
-  ov.innerHTML='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;"><b style="font-size:12.5px;color:#e0edf8;">🗺️ '+(auto?'지도 자동 저장 중 (설악산 인근)':'설악산 인근 지도 미리받기')+'</b><button id="tpCancel" style="background:rgba(231,76,60,.12);border:1px solid rgba(231,76,60,.3);color:#ff8a73;border-radius:7px;padding:4px 10px;font-size:11px;font-weight:700;cursor:pointer;">중지</button></div>'
+  ov.style.cssText='position:fixed;right:12px;left:12px;bottom:calc(76px + env(safe-area-inset-bottom));z-index:9700;pointer-events:none;display:flex;justify-content:flex-end;';
+  ov.innerHTML='<div id="tpFull" style="display:'+(auto?'none':'block')+';pointer-events:auto;width:100%;max-width:430px;background:#0a1828;border:1px solid rgba(79,168,208,.35);border-radius:12px;padding:12px 14px;box-shadow:0 6px 24px rgba(0,0,0,.5);">'
+    +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;gap:6px;"><b style="font-size:12.5px;color:#e0edf8;">🗺️ '+(auto?'지도 자동 저장 중 (설악산 인근)':'설악산 인근 지도 미리받기')+'</b><span style="display:flex;gap:6px;flex-shrink:0;">'
+    +'<button onclick="_tpMinimize(1)" style="background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.15);color:#9fb6c8;border-radius:7px;padding:4px 11px;font-size:11px;font-weight:800;cursor:pointer;" title="작게 보기">—</button>'
+    +'<button id="tpCancel" style="background:rgba(231,76,60,.12);border:1px solid rgba(231,76,60,.3);color:#ff8a73;border-radius:7px;padding:4px 10px;font-size:11px;font-weight:700;cursor:pointer;">중지</button></span></div>'
     +'<div style="height:6px;background:rgba(255,255,255,.07);border-radius:3px;overflow:hidden;"><div id="tpBar" style="height:100%;width:0%;background:#4fa8d0;transition:width .3s;"></div></div>'
-    +'<div id="tpTxt" style="font-size:10.5px;color:#6a94b0;margin-top:6px;">총 '+steps.length+'개 구역 준비 중... (다른 작업 하셔도 됩니다)</div>';
+    +'<div id="tpTxt" style="font-size:10.5px;color:#6a94b0;margin-top:6px;">총 '+steps.length+'개 구역 준비 중... (다른 작업 하셔도 됩니다)</div></div>'
+    +'<div id="tpMini" onclick="_tpMinimize(0)" title="탭하면 크게" style="display:'+(auto?'flex':'none')+';pointer-events:auto;align-items:center;gap:5px;background:rgba(10,24,40,.92);border:1px solid rgba(79,168,208,.35);border-radius:16px;padding:6px 12px;font-size:11px;font-weight:800;color:#7fc4e0;cursor:pointer;box-shadow:0 3px 12px rgba(0,0,0,.4);">🗺️ <span id="tpMiniPct">0%</span></div>';
   document.body.appendChild(ov);
   document.getElementById('tpCancel').onclick=()=>{_tpAbort=true;};
   let i=0,pending=null;
@@ -2167,9 +2178,11 @@ function preloadParkTiles(auto){
     const advance=()=>{
       if(done)return;done=true;pending=null;clearTimeout(to);
       i++;
-      const bar=document.getElementById('tpBar'),txt=document.getElementById('tpTxt');
-      if(bar)bar.style.width=Math.round(i/steps.length*100)+'%';
+      const pct=Math.round(i/steps.length*100);
+      const bar=document.getElementById('tpBar'),txt=document.getElementById('tpTxt'),mp=document.getElementById('tpMiniPct');
+      if(bar)bar.style.width=pct+'%';
       if(txt)txt.textContent=(s.mt==='R'?'일반':'위성')+' 배율 '+s.level+' · '+i+' / '+steps.length+' 구역';
+      if(mp)mp.textContent=pct+'%';
       setTimeout(runStep,120); // 타일 서버 부담 완화
     };
     pending=advance;
