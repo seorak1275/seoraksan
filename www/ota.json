@@ -1,1 +1,1 @@
-{"version":"2026.07.16.149","url":"https://seorak1275.github.io/seoraksan/bundle.zip","notes":"앱(APK)에서 지도 상단 버튼(위성/진행중/시설물/구조·🆘위치요청)이 웹과 다르게 내려앉고 🆘줄이 뚝 떨어져 보이던 것 수정 — 헤더가 이미 상태바를 처리하는데 .map-ctrl에 safe-area margin이 이중 적용되던 것을 상단 컨트롤·시설물 지도에서 제거"}
+{"version":"2026.07.16.150","url":"https://seorak1275.github.io/seoraksan/bundle.zip","notes":"웹 시설물지도 '주변 시설물' 버튼·좌표가 오른쪽 📍GPS 버튼과 어긋나 붕 떠 보이던 것 정렬 — 오른쪽 FAB와 같은 안전영역 기준(bottom+env)으로 통일해 웹/앱 모두 높이 일치"}
