@@ -460,8 +460,10 @@ function _applyAppLock(){
   try{
     var app=document.getElementById('app');if(!app)return;
     var locked=!_isAppUnlocked();
-    app.style.pointerEvents=locked?'none':'';
-    app.setAttribute('aria-hidden',locked?'true':'false');
+    // class 방식: #app 전체는 잠그되, 안에 있는 가입 모달(#modalUser)·관리자 로그인 창은 CSS 예외로 조작 가능
+    // (예전 style.pointerEvents 직접 차단은 가입 신청 모달까지 잠가 최초 가입 입력이 불가능했음)
+    app.classList.toggle('applock',locked);
+    app.style.pointerEvents='';
   }catch(e){}
 }
 
