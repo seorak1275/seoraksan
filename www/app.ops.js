@@ -232,11 +232,10 @@ function openNearFacs(){
 function _showNearFacs(la,ln){
   const _meta=DB.g('catFacMeta')||{};const admin=isAdminUser();
   const facs=(DB.g('facilities')||[]).filter(f=>f.lat&&f.lng&&_facVisibleTo(f)&&(admin||!(_meta[f.type]||{}).adminOnly));
-  // 이번 분기(1~3·4~6·7~9·10~12월) 점검 여부 — 미점검 시설을 위로 (점검 누락 방지)
-  const _qd=new Date();const _qs=new Date(_qd.getFullYear(),Math.floor(_qd.getMonth()/3)*3,1).getTime();
+  // 최근 점검일 표시용(참고 정보) — '분기 미점검' 판정·정렬은 제거(점검 주기 논란 소지)
   const _lastChk={};(DB.g('facIssues')||[]).forEach(i=>{if(i.facId&&(i.id||0)>(_lastChk[i.facId]||0))_lastChk[i.facId]=i.id||0;});
-  let near=facs.map(f=>({f,d:_haversine(la,ln,f.lat,f.lng),chk:(_lastChk[f.id]||0)>=_qs?_lastChk[f.id]:0})).filter(n=>n.d<=1000); // 반경 1km 이내만
-  near.sort((a,b)=>(a.chk?1:0)-(b.chk?1:0)||a.d-b.d); // 미점검 우선, 같은 조건이면 가까운 순
+  let near=facs.map(f=>({f,d:_haversine(la,ln,f.lat,f.lng),chk:_lastChk[f.id]||0})).filter(n=>n.d<=1000); // 반경 1km 이내만
+  near.sort((a,b)=>a.d-b.d); // 가까운 순
   near=near.slice(0,15);
   if(!near.length){toast('1km 이내에 등록된 시설물이 없습니다');return;}
   const old=document.getElementById('nearFacOv');if(old)old.remove();
@@ -251,14 +250,14 @@ function _showNearFacs(la,ln){
       <span onclick="_nearFacGo(${n.f.id})" style="width:26px;height:26px;border-radius:50%;background:${col}30;border:1.5px solid ${col};display:inline-flex;align-items:center;justify-content:center;font-size:12px;flex-shrink:0;cursor:pointer;">${_esc(n.f.type.split(' ')[0])}</span>
       <span onclick="_nearFacGo(${n.f.id})" style="flex:1;min-width:0;cursor:pointer;">
         <span style="display:block;font-size:12px;font-weight:700;color:#dceaf6;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${_esc(n.f.name)} ${cg?`<span style="color:${_gColor(cg.g)};font-size:10.5px;font-weight:900;">${_esc(cg.g)}</span>`:''}</span>
-        <span style="display:block;font-size:9.5px;color:#5d86a3;">${_esc(n.f.type.split(' ').slice(1).join(' ')||'')} · <b style="color:#7fc4e0;">${dist}</b> · ${n.chk?`<span style="color:#5fcf8f;">✓ ${new Date(n.chk).toLocaleDateString('ko-KR',{month:'2-digit',day:'2-digit'})} 점검</span>`:'<span style="color:#f0a500;font-weight:700;">이번 분기 미점검</span>'}</span>
+        <span style="display:block;font-size:9.5px;color:#5d86a3;">${_esc(n.f.type.split(' ').slice(1).join(' ')||'')} · <b style="color:#7fc4e0;">${dist}</b>${n.chk?` · <span style="color:#5fcf8f;">✓ ${new Date(n.chk).toLocaleDateString('ko-KR',{month:'2-digit',day:'2-digit'})} 점검</span>`:''}</span>
       </span>
       <button onclick="document.getElementById('nearFacOv').remove();openFacIssueReport(${n.f.id})" style="flex-shrink:0;padding:6px 11px;border-radius:8px;border:1px solid rgba(79,168,208,.35);background:rgba(79,168,208,.12);color:#4fa8d0;font-size:11px;font-weight:800;cursor:pointer;-webkit-appearance:none;appearance:none;">🔧 점검</button>
     </div>`;
   }).join('');
   ov.innerHTML=`
     <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 13px 7px;flex-shrink:0;">
-      <span style="font-size:12px;font-weight:800;color:#7fc4e0;">📍 내 주변 시설물 <span style="font-size:9px;color:#46708f;font-weight:600;">1km 이내 ${near.length}개 · 미점검 우선</span></span>
+      <span style="font-size:12px;font-weight:800;color:#7fc4e0;">📍 내 주변 시설물 <span style="font-size:9px;color:#46708f;font-weight:600;">1km 이내 ${near.length}개 · 가까운 순</span></span>
       <button onclick="document.getElementById('nearFacOv').remove()" style="background:none;border:none;color:rgba(255,255,255,.45);font-size:18px;cursor:pointer;padding:0 2px;line-height:1;">×</button>
     </div>
     <div style="overflow-y:auto;padding:0 13px 10px;">${rows}</div>`;
