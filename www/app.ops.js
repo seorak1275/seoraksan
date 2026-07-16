@@ -740,7 +740,7 @@ function renderInspectStats(){
     document.getElementById('facTypeStatWrap').innerHTML=rows.map(([k,v],i)=>{
       const c=PAL[i%PAL.length];const lbl=k.split(' ').slice(1).join(' ')||k;
       return `<div class="type-row" onclick="facMapTypeF=new Set(['${_escq(lbl)}']);_persistFilters();switchTab(2,document.getElementById('nv2'));">
-        <span class="t-ico">${_esc(k.split(' ')[0])}</span><span class="t-lbl" style="flex:none;">${_esc(lbl)}</span>
+        <span class="t-ico">${_esc(k.split(' ')[0])}</span><span class="t-lbl" style="flex:none;width:104px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${_esc(lbl)}</span>
         <div style="flex:1;height:8px;background:rgba(255,255,255,.05);border-radius:4px;overflow:hidden;"><div style="height:100%;width:${Math.max(4,Math.round(v/tmax*100))}%;background:${c};border-radius:4px;"></div></div>
         <span class="t-cnt" style="color:${c};min-width:40px;text-align:right;">${v}<span style="font-size:10px;color:#8fb4cc;font-weight:600;">개</span></span></div>`;
     }).join('');
