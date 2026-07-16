@@ -959,6 +959,77 @@ async function govReport(rid,kind,noPass){
   <div id="govDoc">${body}</div></body></html>`;
   _docPreviewOverlay(doc,title); // 새 창 대신 인앱 오버레이 — '← 앱으로'로 즉시 복귀
 }
+
+// ══ 탐방객 안전지원 활동 현황 (한글용) — 업로드해주신 공단 양식 그대로 재현, 앱 기록으로 자동 채움 ══
+function safetyReport(rid){
+  const r=getRes(rid);if(!r){toast('기록을 찾을 수 없습니다');return;}
+  const esc=s=>String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  const th='border:1px solid #000;padding:6px 8px;font-weight:700;text-align:center;font-size:13px;white-space:nowrap;background:#fff;width:15%;';
+  const td='border:1px solid #000;padding:6px 9px;font-size:13px;line-height:1.6;';
+  // 체크박스 줄: 선택 항목만 ■, 나머지 □
+  const ck=(opts,sel)=>opts.map(o=>((sel&&sel.has(o))?'■':'□')+' '+o).join('&nbsp;&nbsp;');
+  // 일시: 'YYYY-MM-DD HH:MM' → 'YYYY년 M월 D일(요일) HH:MM'
+  let dtStr=r.date||'';
+  try{const m=String(r.date||'').match(/(\d{4})-(\d{2})-(\d{2})[ T]?(\d{2}:\d{2})?/);
+    if(m){const wd=['일','월','화','수','목','금','토'][new Date(+m[1],+m[2]-1,+m[3]).getDay()];
+      dtStr=m[1]+'년 '+(+m[2])+'월 '+(+m[3])+'일('+wd+')'+(m[4]?' '+m[4]:'');}}catch(e){}
+  // 부상유형 자동 체크 — 앱의 부상·유형 기록에서 매핑
+  const injSel=new Set();
+  const injAll=((r.injuries||[]).map(i=>i.type||'').concat(r.injuryParts||[])).join(',');
+  if(r.type==='조난'||r.type==='실종'||r.type==='고립')injSel.add('조난');
+  if(/염좌/.test(injAll))injSel.add('염좌');
+  if(/타박/.test(injAll))injSel.add('타박상');
+  if(/찰과|열상/.test(injAll))injSel.add('찰과상');
+  if(/저혈당|심정지|저체온|열사병|탈진|호흡곤란|흉통|복통|경련|의식|익수|지병/.test(injAll))injSel.add('지병');
+  if(/통증/.test(injAll+(r.situation||'')))injSel.add('통증');
+  if(!injSel.size&&injAll)injSel.add('기타(    )');
+  // 성별·연령대
+  const gSel=new Set();if(r.vGender==='남')gSel.add('남성');else if(r.vGender==='여')gSel.add('여성');else gSel.add('모름');
+  const aSel=new Set();
+  {let age='';try{age=r.vBirth?_ageFromBirth(r.vBirth):(r.vAge!=null&&r.vAge!==''?parseInt(r.vAge):'');}catch(e){}
+    if(age===''||isNaN(age))aSel.add('모름');
+    else aSel.add(age<20?'10대 이하':age<30?'20대':age<40?'30대':age<50?'40대':age<60?'50대':'60대 이상');}
+  // 내용: 사고경위 + 경과보고 요약 (시간 앞머리 붙여 양식 예시와 같은 흐름)
+  const lines=[];
+  if(r.situation)lines.push('- '+r.situation);
+  (r.reports||[]).forEach(p=>{if(p.update)lines.push('- '+((p.repTime||'').slice(11,16)?(p.repTime||'').slice(11,16)+'경 ':'')+p.update);});
+  // 지원자: 출동 대원 + 작성자
+  const helpers=[...new Set([...(r.members||[]),r.author].filter(Boolean))].join(', ');
+  const title='탐방객 안전지원 활동 현황';
+  const body=`
+    <table style="border-collapse:collapse;width:100%;margin-bottom:8px;"><tr>
+      <td style="border:none;vertical-align:bottom;font-size:19px;font-weight:800;letter-spacing:.5px;">&lt;${title}&gt;</td>
+      <td style="border:none;width:210px;">
+        <table style="border-collapse:collapse;width:100%;"><tr><td style="${th}width:80px;">담 당 자</td><td style="${td}height:44px;width:130px;"></td></tr></table>
+      </td></tr></table>
+    <table style="border-collapse:collapse;width:100%;">
+      <tr><td style="${th}">일시</td><td style="${td}">${esc(dtStr)}</td></tr>
+      <tr><td style="${th}">장소</td><td style="${td}">${esc(r.location||'')}</td></tr>
+      <tr><td style="${th}">부상유형</td><td style="${td}">${ck(['지병','염좌','타박상','찰과상','통증','조난','기타(    )'],injSel)}</td></tr>
+      <tr><td style="${th}">지원유형</td><td style="${td}">${ck(['구급약품지원','안전장비지원','식품지원','차량지원','기타(    )'],null)}</td></tr>
+      <tr><td style="${th}">성별</td><td style="${td}">${ck(['남성','여성','모름'],gSel)}</td></tr>
+      <tr><td style="${th}">연령대</td><td style="${td}">${ck(['10대 이하','20대','30대','40대','50대','60대 이상','모름'],aSel)}</td></tr>
+      <tr><td style="${th}">내용</td><td style="${td}">${lines.map(esc).join('<br>')||''}</td></tr>
+      <tr><td style="${th}">지원자<br>(직원 등)</td><td style="${td}">${esc(helpers)}</td></tr>
+    </table>
+    <div style="font-size:11.5px;color:#333;line-height:1.9;margin-top:8px;">
+      ** 구급약품지원 : 스프레이파스, 붕대, 밴드 등<br>
+      *** 장비지원 : 등산지팡이, 아이젠, 배낭, 등산화 등(정비/수선 포함)<br>
+      **** 식품지원 : 식수, 초코바, 각종 행동식/비상식 등<br>
+      ***** 차량지원: 탐방객 대상 차량지원 등<br>
+      ******기타 : 출동은 했으나 비조우, 허위신고, 오인신고, 또는 지원활동 외에 단순도움 등 탐방객 대상 안전지원활동 등<br>
+      ※ 확인 가능한 정보에 한하여 작성하고 5일 이내에 스마트플랫폼 입력
+    </div>
+    <p style="margin-top:12px;font-size:11px;color:#888;">※ 설악산 현장관리 앱 자동 생성 (${esc(now())}) — 지원유형 등은 한글에서 체크(■)로 바꿔 완성하세요</p>`;
+  const doc=`<!DOCTYPE html><html><head><meta charset="utf-8"><title>${esc(title)}</title></head>
+  <body style="background:#fff;color:#000;font-family:'바탕','Batang','맑은 고딕','Malgun Gothic',serif;max-width:760px;margin:0 auto;padding:18px;">
+  <div style="position:sticky;top:0;background:#f2f6fa;border:1px solid #c8d6e4;border-radius:8px;padding:10px;margin-bottom:14px;display:flex;gap:8px;" class="no-copy">
+    <button onclick="var b=document.getElementById('govDoc');var rge=document.createRange();rge.selectNodeContents(b);var sel=getSelection();sel.removeAllRanges();sel.addRange(rge);document.execCommand('copy');sel.removeAllRanges();alert('복사됨 — 한글(HWP)에서 붙여넣기 하세요. 표가 그대로 들어갑니다.');" style="flex:1;padding:10px;font-size:14px;font-weight:700;cursor:pointer;background:#1a6e9e;color:#fff;border:none;border-radius:7px;">📋 한글용 전체 복사</button>
+    <button onclick="var h=document.documentElement.outerHTML;var bl=new Blob(['\\ufeff'+h],{type:'text/html;charset=utf-8'});var a=document.createElement('a');a.href=URL.createObjectURL(bl);a.download='${esc(title)}_${(r.date||'').slice(0,10)}.html';document.body.appendChild(a);a.click();setTimeout(function(){a.remove();},1500);" style="flex:1;padding:10px;font-size:14px;font-weight:700;cursor:pointer;background:#2a7a4b;color:#fff;border:none;border-radius:7px;">💾 파일 저장 (한글에서 열기)</button>
+  </div>
+  <div id="govDoc">${body}</div></body></html>`;
+  _docPreviewOverlay(doc,title);
+}
 // 보고서 공유/복사/인쇄 — 헤더 우측 '📄 보고서' 버튼
 function openReportShare(rid){
   let m=document.getElementById('repShareModal');
@@ -975,9 +1046,7 @@ function openReportShare(rid){
       </div>
     </div>
     <button class="press-fx" onclick="govReport(${rid},'trend');this.closest('#repShareModal').remove();" style="${b}border:1px solid rgba(232,179,74,.4);background:rgba(232,179,74,.1);color:#e8b34a;">📈 동향보고 (한글용)</button>
-    <button class="press-fx" onclick="copyReportText(${rid});this.closest('#repShareModal').remove();" style="${b}border:1px solid rgba(79,168,208,.35);background:rgba(79,168,208,.1);color:#4fa8d0;">📋 텍스트 복사</button>
-    <button class="press-fx" onclick="shareReportText(${rid});this.closest('#repShareModal').remove();" style="${b}border:1px solid rgba(39,174,96,.35);background:rgba(39,174,96,.1);color:#27ae60;">📤 공유</button>
-    <button class="press-fx" onclick="printReport(${rid});this.closest('#repShareModal').remove();" style="${b}border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.05);color:#b8d4e8;">🖨 인쇄 / PDF</button>
+    <button class="press-fx" onclick="safetyReport(${rid});this.closest('#repShareModal').remove();" style="${b}border:1px solid rgba(240,140,60,.4);background:rgba(240,140,60,.1);color:#f0a05a;">🧡 안전지원활동 현황 (한글용)</button>
     <button onclick="this.closest('#repShareModal').remove();" style="width:100%;padding:9px;border:none;background:none;color:#7a9cb8;font-size:12px;cursor:pointer;">닫기</button>
   </div>`;
   m.onclick=function(e){if(e.target===m)m.remove();};
