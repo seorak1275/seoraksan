@@ -220,7 +220,7 @@ function _invalidateSignCache(){
 function _nearestSign(lat,lng){
   if(!_cachedRescueSigns){
     var _m=DB.g('catFacMeta')||{};
-    _cachedRescueSigns=(DB.g('facilities')||[]).filter(function(f){
+    _cachedRescueSigns=(DB.g('facilities')||(typeof _facBootCache==='function'&&_facBootCache())||[]).filter(function(f){
       return f.lat&&f.lng&&f.type&&(_m[f.type]||{}).rescue;
     });
   }
@@ -1148,7 +1148,7 @@ function getBaseForSign(signCode){
 // GPS → 가장 가까운 표지판 전체 정보 반환
 function _nearestSignFull(lat,lng){
   if(!_cachedFullSigns){
-    _cachedFullSigns=(DB.g('facilities')||[]).filter(function(f){
+    _cachedFullSigns=(DB.g('facilities')||(typeof _facBootCache==='function'&&_facBootCache())||[]).filter(function(f){
       return f.lat&&f.lng&&f.name&&f.type&&f.type.indexOf('다목적위치표지판')>=0;
     });
   }

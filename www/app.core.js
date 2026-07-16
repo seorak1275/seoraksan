@@ -518,7 +518,8 @@ function initFirebase(onReady){
       });
     }catch(e){_authErrCode='auth/init-failed';}
     _fdb=firebase.firestore();
-    _fdb.enablePersistence().catch(()=>{});
+    // synchronizeTabs: 웹에서 탭을 여러 개 열어도 IndexedDB 캐시 유지(없으면 두 번째 탭부터 캐시 꺼져 매번 전체 재다운로드)
+    _fdb.enablePersistence({synchronizeTabs:true}).catch(()=>{});
     _fst=firebase.storage();
     try{_fmsg=firebase.messaging();}catch(e){}
     setTimeout(_flushSyncQueue,3000); // 부팅 직후 대기 큐 재전송
@@ -593,9 +594,10 @@ function initFirebase(onReady){
             _fs[k]=_legacyFacBackup.slice(); // 화면 폴백(동기화 끊겨도 데이터 안 사라짐)
             if(!_facMigTried){_facMigTried=true;try{DB.s('facilities',_fs[k]);}catch(e){}} // 건별 문서로 이관(실패 시 큐 보존)
           }
-          if(loaded.has(k))try{_invalidateSignCache();}catch(e){}
+          try{_invalidateSignCache();}catch(e){} // 첫 수신 포함 항상 — 부트캐시 기반 메모를 실데이터로 교체
           _facSeedReady=true;
           try{_ensureSignSeed();}catch(e){}
+          try{_facBootCacheSave();}catch(e){} // 지도 즉시표시용 경량 캐시 갱신(사진 제외 최소 필드)
         }
         if(!loaded.has(k)){loaded.add(k);_checkReady();}
         else{_onRemoteUpdate();}
@@ -866,6 +868,24 @@ function _undoToast(msg,onUndo,onCommit,dur=5000){
 }
 // iOS Safari가 100dvh를 실제 창보다 작게 고착시키는 버그 보정:
 // #app 높이가 창 높이와 12% 이상 어긋나면 픽셀로 강제(입력 중=키보드일 땐 건드리지 않음)
+// ── 시설물 경량 부트 캐시 ─────────────────────────────────────────
+// Firestore 수신(사진 데이터URL 포함이라 무겁다)이 끝나기 전에도 지도 핀을 즉시 그릴 수 있도록
+// 좌표·이름 등 최소 필드만 localStorage에 저장(사진 제외 → 700개여도 ~100KB). 스냅샷 도착 시 자동 갱신.
+var _facBootMemo=null,_facBootSaveT=null;
+function _facBootCacheSave(){
+  clearTimeout(_facBootSaveT);
+  _facBootSaveT=setTimeout(function(){
+    try{
+      var list=(_fs['facilities']||[]).map(function(f){return {id:f.id,type:f.type,name:f.name,loc:f.loc,lat:f.lat,lng:f.lng,hidden:f.hidden||undefined,warn:f.warn||undefined,grade:f.grade||undefined,mgmt:f.mgmt||undefined};});
+      if(list.length){localStorage.setItem('_facBoot',JSON.stringify(list));_facBootMemo=null;}
+    }catch(e){}
+  },800);
+}
+function _facBootCache(){
+  if(_facBootMemo)return _facBootMemo;
+  try{var v=JSON.parse(localStorage.getItem('_facBoot')||'null');if(Array.isArray(v)&&v.length){_facBootMemo=v;return v;}}catch(e){}
+  return null;
+}
 function _fixAppHeight(){
   try{
     var app=document.getElementById('app');if(!app)return;

@@ -163,9 +163,11 @@ function renderInspectMap(){
   iOvs.forEach(o=>{try{o.setMap(null);}catch(e){}});iOvs=[];iEls=[];
   _iClusterOvs.forEach(o=>{try{o.setMap(null);}catch(e){}});_iClusterOvs=[];
   const _admin=isAdminUser();const _meta=DB.g('catFacMeta')||{};
-  const facs=(DB.g('facilities')||[]).filter(f=>_admin||!(_meta[f.type]||{}).adminOnly);
+  // Firestore 수신 전엔 경량 부트 캐시로 핀 먼저 표시(즉시 표시) — 수신되면 자동 재렌더로 교체
+  const _facsAll=DB.g('facilities')||(typeof _facBootCache==='function'&&_facBootCache())||[];
+  const facs=_facsAll.filter(f=>_admin||!(_meta[f.type]||{}).adminOnly);
   const types=['전체',...new Set(facs.map(f=>f.type.split(' ').slice(1).join(' ')||f.type).filter(Boolean))];
-  const _signFacs=(DB.g('facilities')||[]).filter(f=>f.type&&f.type.includes('다목적위치표지판'));
+  const _signFacs=_facsAll.filter(f=>f.type&&f.type.includes('다목적위치표지판'));
   const locs=['전체',...new Set(_signFacs.map(f=>(f.name.match(/\d+/)||[''])[0]).filter(Boolean)).values()].sort((a,b)=>a==='전체'?-1:a.localeCompare(b,'ko'));
   _updateInspFilterPanel(types,locs);
   const filtered=facs.filter(f=>{
