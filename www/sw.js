@@ -4,7 +4,7 @@
 // - PWA 오프라인 캐싱 (app shell)
 // - FCM 백그라운드 메시지 수신 → 시스템 알림 표시
 // ──────────────────────────────────────────────
-const _CACHE = 'seoraksan-v188';
+const _CACHE = 'seoraksan-v189';
 // 지도 타일 캐시(2단) — 셸 버전과 무관하게 유지(배포해도 안 지움). 한 번 본 타일은 오프라인·저속에서도 즉시 표시
 // park: '설악산 인근 미리받기'분 보관 — 다른 지역 열람에 밀려나지 않음
 // recent: 일반 열람 임시 저장 — 소량만 유지(전국을 둘러봐도 이 상한까지만, 오래된 것부터 자동 정리)
@@ -96,21 +96,32 @@ self.addEventListener('fetch', e => {
     const isImg = e.request.destination === 'image' || /\.(png|jpe?g|webp|gif)$/i.test(url.pathname);
     if (isImg) {
       e.respondWith((async () => {
-        // ignoreSearch: 타일 URL에 버전·타임스탬프 쿼리가 붙어도 '봤던 위치'로 인식해 재사용 (재방문 시 재다운로드 방지)
+        // 1) 미리받기 보관함(설악산) 우선 — 한 번 선적재한 타일은 오프라인·저속에서도 즉시
+        //    (ignoreSearch: 타일 URL에 버전·타임스탬프 쿼리가 붙어도 '봤던 위치'로 인식해 재사용)
         const park = await caches.open(_TILES_PARK);
-        let hit = await park.match(e.request, { ignoreSearch: true });
+        const hit = await park.match(e.request, { ignoreSearch: true });
         if (hit) return hit;
-        const recent = await caches.open(_TILES_RECENT);
-        hit = await recent.match(e.request, { ignoreSearch: true });
-        if (hit) return hit;
-        const res = await _fetchTile(e.request); // CORS 우선(용량 정확) → 실패 시 opaque
-        if (res && (res.ok || res.type === 'opaque')) {
-          const isPark = Date.now() < _parkModeUntil; // 미리받기 중이면 보관함, 아니면 임시함
-          const c = isPark ? park : recent, max = isPark ? _PARK_MAX : _RECENT_MAX;
-          _putAdaptive(c, e.request, res); // 실패 시 보관량 절반으로 줄여 재시도(할당량 자동 적응)
-          if (Math.random() < 0.03) _pruneTiles(c, max);
+        try {
+          if (Date.now() < _parkModeUntil) {
+            // 미리받기 진행 중에만 Cache API에 저장. CORS 우선=용량 정확, 실패 시 opaque
+            const res = await _fetchTile(e.request);
+            if (res && (res.ok || res.type === 'opaque')) {
+              _putAdaptive(park, e.request, res); // 실패 시 보관량 절반으로 줄여 재시도(할당량 자동 적응)
+              if (Math.random() < 0.05) _pruneTiles(park, _PARK_MAX);
+            }
+            return res;
+          }
+          // 2) 일반 열람: SW가 저장에 관여하지 않고 브라우저 HTTP 캐시에 맡긴다(카카오맵 사이트와 동일 경로).
+          //    예전처럼 열람 타일을 매번 Cache API에 넣으면 opaque 응답의 용량 패딩으로 할당량이 넘쳐
+          //    저장 실패→정리(keys 전체 스캔)가 확대/축소 타일 폭주 중에 반복돼
+          //    오히려 흰 화면(재다운로드)·버벅임의 원인이 됐다. 재방문 속도는 HTTP 캐시가 그대로 보장.
+          return await fetch(e.request);
+        } catch (err) {
+          // 3) 오프라인 폴백: 과거 저장분(구버전 임시함 포함) 아무 캐시에서나
+          const any = await caches.match(e.request, { ignoreSearch: true });
+          if (any) return any;
+          throw err;
         }
-        return res;
       })());
     } else {
       // SDK 스크립트·CSS — 몇 개 안 되고 오프라인 지도 부팅에 필수라 열람 타일에 안 밀리는 보관함에 저장

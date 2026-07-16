@@ -480,6 +480,7 @@ function openBoard(){
   clearInterval(_boardTimer);
   _boardTimer=setInterval(()=>{
     if(!document.getElementById('v-board').classList.contains('on')){clearInterval(_boardTimer);return;}
+    try{_boardEnsureSize();}catch(e){} // 폭 불일치(우측 띠) 최후 자가치유 — 늦어도 10초 안에 복구
     renderBoard();
   },10000);
   history.pushState({view:'board'},'','');
@@ -504,15 +505,31 @@ function _createBoardMap(el){
     _renderBoardPins(true);
     // 레이아웃 커밋 후 한 번 더 relayout (생성 직후 폭 계산 오차 보정)
     requestAnimationFrame(function(){try{_boardMap&&_boardMap.relayout();}catch(e){}});
+    // 생성 직후 컨테이너 폭이 또 달라진 경우(전체화면 전환·배율 변경 중 생성) 1회 재검증
+    setTimeout(function(){
+      try{var w=el.clientWidth||0;if(_boardMap&&w&&Math.abs(w-_boardCreateW)>4)_createBoardMap(el);}catch(e){}
+    },350);
   }catch(e){console.warn('boardMap',e);}
 }
-// 컨테이너가 전체화면 최종 너비에 도달할 때까지 기다렸다 지도 생성 (좁은 너비 생성 방지)
-function _boardMapWhenReady(tries){
+// 현재 컨테이너 폭과 지도 생성 폭이 다르면 재생성 (같으면 relayout만) — 우측 미렌더 띠 자가복구
+function _boardEnsureSize(){
+  var el=document.getElementById('boardMap');
+  if(!el||!_boardMap)return;
+  var vb=document.getElementById('v-board');
+  if(!vb||!vb.classList.contains('on'))return;
+  var w=el.clientWidth||0;
+  if(w&&Math.abs(w-_boardCreateW)>4)_createBoardMap(el);
+  else{try{_boardMap.relayout();}catch(e){}}
+}
+// 컨테이너가 전체화면 최종 너비에 도달하고 '안정'될 때까지 기다렸다 지도 생성
+// (예전엔 300px만 넘으면 바로 생성 → 열림 전환 중 좁은 폭으로 만들어져 오른쪽 띠 발생)
+function _boardMapWhenReady(tries,lastW,stable){
   var el=document.getElementById('boardMap');
   if(!el||!window._KR)return;
   var w=el.clientWidth||0;
-  if(w>=Math.min((window.innerWidth||800)*0.4,300)||tries>=24){_initBoardMap();}
-  else requestAnimationFrame(function(){_boardMapWhenReady((tries||0)+1);});
+  stable=(w>=300&&w===lastW)?(stable||0)+1:0;
+  if(stable>=2||(tries||0)>=30){_initBoardMap();}
+  else requestAnimationFrame(function(){_boardMapWhenReady((tries||0)+1,w,stable);});
 }
 function toggleBoardMapType(){
   _boardMapType=_boardMapType==='hybrid'?'roadmap':'hybrid';
@@ -537,6 +554,11 @@ function _initBoardMap(){
       }else{try{_boardMap.relayout();}catch(e){}}
     });
     el._ro.observe(el);
+  }
+  // 브라우저 배율(Ctrl +/-)·창 크기 변경은 window resize로도 확실히 감지 (배율 변경은 RO가 안 잡히는 경우 대비)
+  if(!_boardResizeBound){
+    _boardResizeBound=true;
+    window.addEventListener('resize',function(){clearTimeout(window._bdRsT);window._bdRsT=setTimeout(_boardEnsureSize,180);});
   }
   // ResizeObserver 미지원 브라우저 대비: 여러 시점에 크기 검사 후 필요 시 재생성
   [200,600,1200].forEach(function(ms){setTimeout(function(){

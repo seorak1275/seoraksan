@@ -733,8 +733,18 @@ function renderInspectStats(){
     }
   }
   const tm={};facs.forEach(f=>{tm[f.type]=(tm[f.type]||0)+1;});
-  document.getElementById('facTypeStatWrap').innerHTML=Object.entries(tm).map(([k,v])=>
-    `<div class="type-row" style="pointer-events:none;"><span class="t-ico">${_esc(k.split(' ')[0])}</span><span class="t-lbl">${_esc(k.split(' ').slice(1).join(' '))}</span><span class="t-cnt">${v}개</span></div>`).join('');
+  {// 종류별 분포 — 안전등급 분포와 같은 색 막대 스타일. 탭하면 그 종류만 지도에서 필터
+    const rows=Object.entries(tm).sort((a,b)=>b[1]-a[1]);
+    const tmax=Math.max(...rows.map(r=>r[1]),1);
+    const PAL=['#4fa8d0','#5fcf8f','#f0c050','#e8879c','#b08ae8','#f0965a','#7dd3fa','#9fb6c8'];
+    document.getElementById('facTypeStatWrap').innerHTML=rows.map(([k,v],i)=>{
+      const c=PAL[i%PAL.length];const lbl=k.split(' ').slice(1).join(' ')||k;
+      return `<div class="type-row" onclick="facMapTypeF=new Set(['${_escq(lbl)}']);_persistFilters();switchTab(2,document.getElementById('nv2'));">
+        <span class="t-ico">${_esc(k.split(' ')[0])}</span><span class="t-lbl" style="flex:none;">${_esc(lbl)}</span>
+        <div style="flex:1;height:8px;background:rgba(255,255,255,.05);border-radius:4px;overflow:hidden;"><div style="height:100%;width:${Math.max(4,Math.round(v/tmax*100))}%;background:${c};border-radius:4px;"></div></div>
+        <span class="t-cnt" style="color:${c};min-width:40px;text-align:right;">${v}<span style="font-size:10px;color:#8fb4cc;font-weight:600;">개</span></span></div>`;
+    }).join('');
+  }
   try{renderFacIssues();}catch(e){}
   const wr=document.getElementById('facWarnWrap');
   if(wr)wr.innerHTML=warned.length?warned.map(f=>{const w=_facWarn(f);
