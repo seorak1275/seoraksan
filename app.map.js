@@ -698,17 +698,17 @@ function renderBoard(){
   const rescueActive=_boardView==='rescue', hazActive=_boardView==='hazard', alertActive=_boardView==='alert';
   let html='';
   // 요약 스트립 (클릭 시 하단 카드 영역 전환)
-  html+=`<div style="display:flex;gap:10px;margin-bottom:16px;">
-    <div onclick="setBoardView('rescue')" style="flex:1;background:${ongoing.length?'rgba(192,57,43,.12)':'rgba(39,174,96,.08)'};border:1px solid ${rescueActive?(ongoing.length?'rgba(192,57,43,.9)':'rgba(39,174,96,.75)'):(ongoing.length?'rgba(192,57,43,.4)':'rgba(39,174,96,.25)')};border-radius:12px;padding:12px 16px;text-align:center;cursor:pointer;transition:all .15s;${rescueActive?'box-shadow:inset 0 0 0 2px rgba(192,57,43,.3);':''}">
+  html+=`<div style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;">
+    <div onclick="setBoardView('rescue')" style="flex:1 1 130px;min-width:0;background:${ongoing.length?'rgba(192,57,43,.12)':'rgba(39,174,96,.08)'};border:1px solid ${rescueActive?(ongoing.length?'rgba(192,57,43,.9)':'rgba(39,174,96,.75)'):(ongoing.length?'rgba(192,57,43,.4)':'rgba(39,174,96,.25)')};border-radius:12px;padding:12px 16px;text-align:center;cursor:pointer;transition:all .15s;${rescueActive?'box-shadow:inset 0 0 0 2px rgba(192,57,43,.3);':''}">
       <div style="font-size:30px;font-weight:900;color:${ongoing.length?'#e05050':'#27ae60'};">${ongoing.length}</div>
       <div style="font-size:12px;color:${rescueActive?'#e0edf8':'rgba(255,255,255,.5)'};font-weight:${rescueActive?'700':'400'};">🚨 진행중 구조${rescueActive?' ▾':''}</div>
     </div>
-    <div onclick="setBoardView('hazard')" style="position:relative;flex:1;background:${hazUnhandled?'rgba(231,76,60,.12)':'rgba(230,126,34,.08)'};border:1px solid ${hazActive?(hazUnhandled?'rgba(231,76,60,.9)':'rgba(230,126,34,.9)'):(hazUnhandled?'rgba(231,76,60,.5)':'rgba(230,126,34,.25)')};border-radius:12px;padding:12px 16px;text-align:center;cursor:pointer;transition:all .15s;${hazActive?'box-shadow:inset 0 0 0 2px rgba(230,126,34,.3);':''}">
+    <div onclick="setBoardView('hazard')" style="position:relative;flex:1 1 130px;min-width:0;background:${hazUnhandled?'rgba(231,76,60,.12)':'rgba(230,126,34,.08)'};border:1px solid ${hazActive?(hazUnhandled?'rgba(231,76,60,.9)':'rgba(230,126,34,.9)'):(hazUnhandled?'rgba(231,76,60,.5)':'rgba(230,126,34,.25)')};border-radius:12px;padding:12px 16px;text-align:center;cursor:pointer;transition:all .15s;${hazActive?'box-shadow:inset 0 0 0 2px rgba(230,126,34,.3);':''}">
       ${hazUnhandled?`<span style="position:absolute;top:6px;right:6px;background:#e74c3c;color:#fff;font-size:10px;font-weight:800;border-radius:10px;padding:1px 7px;box-shadow:0 0 0 2px rgba(231,76,60,.25);animation:blink 1.2s infinite;">미조치 ${hazUnhandled}</span>`:''}
       <div style="font-size:30px;font-weight:900;color:${hazUnhandled?'#e05050':'#e67e22'};">${haz.length}</div>
       <div style="font-size:12px;color:${hazActive?'#e0edf8':'rgba(255,255,255,.5)'};font-weight:${hazActive?'700':'400'};">⚠️ 미조치 위험상황${hazActive?' ▾':''}</div>
     </div>
-    <div onclick="setBoardView('alert')" style="flex:1;background:${activeOp?'rgba(79,168,208,.12)':'rgba(39,174,96,.08)'};border:1px solid ${alertActive?(activeOp?'rgba(79,168,208,.9)':'rgba(39,174,96,.75)'):(activeOp?'rgba(79,168,208,.45)':'rgba(39,174,96,.25)')};border-radius:12px;padding:12px 16px;text-align:center;cursor:pointer;transition:all .15s;${alertActive?'box-shadow:inset 0 0 0 2px rgba(79,168,208,.3);':''}">
+    <div onclick="setBoardView('alert')" style="flex:1 1 130px;min-width:0;background:${activeOp?'rgba(79,168,208,.12)':'rgba(39,174,96,.08)'};border:1px solid ${alertActive?(activeOp?'rgba(79,168,208,.9)':'rgba(39,174,96,.75)'):(activeOp?'rgba(79,168,208,.45)':'rgba(39,174,96,.25)')};border-radius:12px;padding:12px 16px;text-align:center;cursor:pointer;transition:all .15s;${alertActive?'box-shadow:inset 0 0 0 2px rgba(79,168,208,.3);':''}">
       <div style="font-size:30px;font-weight:900;color:${activeOp?'#4fa8d0':'#27ae60'};">${activeOp?(opMt?opRespCnt:opAlertCnt):0}</div>
       <div style="font-size:12px;color:${alertActive?'#e0edf8':'rgba(255,255,255,.5)'};font-weight:${alertActive?'700':'400'};">🌀 ${activeOp?(opMt?'특보 응소':'발효 특보'):'특보운영'}${alertActive?' ▾':''}</div>
     </div>
@@ -2053,12 +2053,27 @@ function clearTileCache(){
   Promise.all(_TILE_CACHES.map(n=>caches.delete(n))).then(()=>{toast('🗑️ 지도 캐시 삭제됨');_updateTileCacheInfo();});
 }
 let _tpAbort=false;
-function preloadParkTiles(){
+// 자동 미리받기 — 7일마다 부팅 후 조용히 실행(요금 배려: 절약모드·확실한 셀룰러에선 건너뜀).
+// 열람 타일 자동 저장과 함께 '깜빡임 없는 지도'의 양대 축: 설악산 일대는 보기 전에 미리 받아둔다.
+function _autoPreloadParkTiles(){
+  try{
+    if(document.getElementById('tpOv'))return;
+    var last=parseInt(localStorage.getItem('_tpAutoAt')||'0',10);
+    if(Date.now()-last<7*86400000)return;
+    var c=navigator.connection||{};
+    if(c.saveData)return;
+    if(c.type&&c.type!=='wifi'&&c.type!=='ethernet')return;
+    if(!navigator.onLine)return;
+    localStorage.setItem('_tpAutoAt',String(Date.now()));
+    preloadParkTiles(true);
+  }catch(e){}
+}
+function preloadParkTiles(auto){
   // 오프라인 대비: 지도 타일과 함께 암벽 당일명단도 미리 받아둔다(무통신 산악지역 현장 확인용)
   try{if(typeof _climbLoadAll==='function')_climbLoadAll().catch(function(){});}catch(e){}
-  if(!('caches' in window)||!('serviceWorker' in navigator)){toast('⚠️ 이 브라우저는 오프라인 저장을 지원하지 않습니다');return;}
-  if(!navigator.serviceWorker.controller){toast('⚠️ 저장 준비가 아직 안 됐습니다 — 앱을 완전히 닫았다 다시 열어 재시도하세요');return;}
-  if(!(window.kakao&&kakao.maps&&window._KR)){toast('⚠️ 지도가 아직 로드되지 않았습니다 — 잠시 후 재시도');return;}
+  if(!('caches' in window)||!('serviceWorker' in navigator)){if(!auto)toast('⚠️ 이 브라우저는 오프라인 저장을 지원하지 않습니다');return;}
+  if(!navigator.serviceWorker.controller){if(!auto)toast('⚠️ 저장 준비가 아직 안 됐습니다 — 앱을 완전히 닫았다 다시 열어 재시도하세요');return;}
+  if(!(window.kakao&&kakao.maps&&window._KR)){if(!auto)toast('⚠️ 지도가 아직 로드되지 않았습니다 — 잠시 후 재시도');return;}
   if(document.getElementById('tpOv'))return; // 이미 실행 중
   // 공원 경계 bbox + 여유(진입로·인접 마을) — 경계 미로딩 시 설악산 일대 고정값
   let bb={minLat:38.004,maxLat:38.264,minLng:128.255,maxLng:128.584};
@@ -2101,7 +2116,7 @@ function preloadParkTiles(){
   _tpAbort=false;
   const ov=document.createElement('div');ov.id='tpOv';
   ov.style.cssText='position:fixed;left:12px;right:12px;bottom:76px;z-index:9700;background:#0a1828;border:1px solid rgba(79,168,208,.35);border-radius:12px;padding:12px 14px;box-shadow:0 6px 24px rgba(0,0,0,.5);';
-  ov.innerHTML='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;"><b style="font-size:12.5px;color:#e0edf8;">🗺️ 설악산 인근 지도 미리받기</b><button id="tpCancel" style="background:rgba(231,76,60,.12);border:1px solid rgba(231,76,60,.3);color:#ff8a73;border-radius:7px;padding:4px 10px;font-size:11px;font-weight:700;cursor:pointer;">중지</button></div>'
+  ov.innerHTML='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;"><b style="font-size:12.5px;color:#e0edf8;">🗺️ '+(auto?'지도 자동 저장 중 (설악산 인근)':'설악산 인근 지도 미리받기')+'</b><button id="tpCancel" style="background:rgba(231,76,60,.12);border:1px solid rgba(231,76,60,.3);color:#ff8a73;border-radius:7px;padding:4px 10px;font-size:11px;font-weight:700;cursor:pointer;">중지</button></div>'
     +'<div style="height:6px;background:rgba(255,255,255,.07);border-radius:3px;overflow:hidden;"><div id="tpBar" style="height:100%;width:0%;background:#4fa8d0;transition:width .3s;"></div></div>'
     +'<div id="tpTxt" style="font-size:10.5px;color:#6a94b0;margin-top:6px;">총 '+steps.length+'개 구역 준비 중... (다른 작업 하셔도 됩니다)</div>';
   document.body.appendChild(ov);

@@ -4,13 +4,27 @@
 // - PWA 오프라인 캐싱 (app shell)
 // - FCM 백그라운드 메시지 수신 → 시스템 알림 표시
 // ──────────────────────────────────────────────
-const _CACHE = 'seoraksan-v197';
+const _CACHE = 'seoraksan-v198';
 // 지도 타일 캐시(2단) — 셸 버전과 무관하게 유지(배포해도 안 지움). 한 번 본 타일은 오프라인·저속에서도 즉시 표시
 // park: '설악산 인근 미리받기'분 보관 — 다른 지역 열람에 밀려나지 않음
 // recent: 일반 열람 임시 저장 — 소량만 유지(전국을 둘러봐도 이 상한까지만, 오래된 것부터 자동 정리)
 const _TILES_PARK = 'seoraksan-tiles-park-1';
 const _TILES_RECENT = 'seoraksan-tiles-recent-1';
-const _PARK_MAX = 14000, _RECENT_MAX = 5000;
+const _PARK_MAX = 14000, _RECENT_MAX = 20000; // 용량을 쓰더라도 재다운로드(깜빡임)를 없애는 방향 — 여유는 _quotaOk가 감시
+// 저장공간 여유 확인(30초 캐시) — 여유가 없으면 저장 시도 자체를 생략해 '실패→정리 스캔' 반복(버벅임)을 차단
+let _quotaOkCache = { ok: true, at: 0 };
+async function _quotaOk() {
+  const now = Date.now();
+  if (now - _quotaOkCache.at < 30000) return _quotaOkCache.ok;
+  _quotaOkCache.at = now;
+  try {
+    if (navigator.storage && navigator.storage.estimate) {
+      const est = await navigator.storage.estimate();
+      _quotaOkCache.ok = !est.quota || est.usage < est.quota * 0.9;
+    }
+  } catch (e) { _quotaOkCache.ok = true; }
+  return _quotaOkCache.ok;
+}
 // 타일 fetch 모드: null=미확인, true=CORS 가능(비불투명 응답 → 캐시 용량 정확·대량 저장), false=opaque 폴백.
 // opaque(no-cors) 응답은 크롬이 용량 계산 시 큰 패딩을 붙여, 타일 몇천장이면 저장할당량을 초과해
 // put이 계속 실패 → 방금 본 타일도 캐시에 안 남아 확대/축소 때마다 다시 하얗게 받는 문제의 근본원인.
@@ -96,28 +110,27 @@ self.addEventListener('fetch', e => {
     const isImg = e.request.destination === 'image' || /\.(png|jpe?g|webp|gif)$/i.test(url.pathname);
     if (isImg) {
       e.respondWith((async () => {
-        // 1) 미리받기 보관함(설악산) 우선 — 한 번 선적재한 타일은 오프라인·저속에서도 즉시
-        //    (ignoreSearch: 타일 URL에 버전·타임스탬프 쿼리가 붙어도 '봤던 위치'로 인식해 재사용)
+        // 한 번 본 타일은 무조건 자체 캐시에서 즉시 — HTTP 캐시는 타일 주소의 버전·타임스탬프
+        // 쿼리가 바뀌면 미스가 나 다시 받지만(깜빡임), ignoreSearch 매칭은 '봤던 위치'로 인식해 재사용.
         const park = await caches.open(_TILES_PARK);
-        const hit = await park.match(e.request, { ignoreSearch: true });
+        let hit = await park.match(e.request, { ignoreSearch: true });
+        if (hit) return hit;
+        const recent = await caches.open(_TILES_RECENT);
+        hit = await recent.match(e.request, { ignoreSearch: true });
         if (hit) return hit;
         try {
-          if (Date.now() < _parkModeUntil) {
-            // 미리받기 진행 중에만 Cache API에 저장. CORS 우선=용량 정확, 실패 시 opaque
-            const res = await _fetchTile(e.request);
-            if (res && (res.ok || res.type === 'opaque')) {
-              _putAdaptive(park, e.request, res); // 실패 시 보관량 절반으로 줄여 재시도(할당량 자동 적응)
-              if (Math.random() < 0.05) _pruneTiles(park, _PARK_MAX);
+          const res = await _fetchTile(e.request); // CORS 우선(용량 정확·대량 저장) → 실패 시 opaque
+          if (res && (res.ok || res.type === 'opaque')) {
+            const isPark = Date.now() < _parkModeUntil; // 미리받기 중이면 보관함, 아니면 열람함
+            const c = isPark ? park : recent, max = isPark ? _PARK_MAX : _RECENT_MAX;
+            if (await _quotaOk()) { // 저장공간 여유 있을 때만 저장(실패 반복으로 인한 버벅임 방지)
+              _putAdaptive(c, e.request, res); // 그래도 실패하면 보관량 절반으로 줄여 재시도(할당량 자동 적응)
+              if (Math.random() < 0.02) e.waitUntil(_pruneTiles(c, max));
             }
-            return res;
           }
-          // 2) 일반 열람: SW가 저장에 관여하지 않고 브라우저 HTTP 캐시에 맡긴다(카카오맵 사이트와 동일 경로).
-          //    예전처럼 열람 타일을 매번 Cache API에 넣으면 opaque 응답의 용량 패딩으로 할당량이 넘쳐
-          //    저장 실패→정리(keys 전체 스캔)가 확대/축소 타일 폭주 중에 반복돼
-          //    오히려 흰 화면(재다운로드)·버벅임의 원인이 됐다. 재방문 속도는 HTTP 캐시가 그대로 보장.
-          return await fetch(e.request);
+          return res;
         } catch (err) {
-          // 3) 오프라인 폴백: 과거 저장분(구버전 임시함 포함) 아무 캐시에서나
+          // 오프라인 폴백: 저장분 아무 캐시에서나
           const any = await caches.match(e.request, { ignoreSearch: true });
           if (any) return any;
           throw err;

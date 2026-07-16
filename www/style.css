@@ -417,10 +417,11 @@ img{-webkit-user-drag:none;}
   #boardSide{width:480px;}
 }
 /* 좁은 화면(세로 모바일 등)에서는 지도 위 / 목록 아래로 적층 */
+#boardSide{padding-bottom:env(safe-area-inset-bottom);} /* 앱(웹뷰)에서 목록 끝이 제스처바에 깔리지 않게 */
 @media(max-width:740px){
   #boardMain{flex-direction:column;}
   #boardMap{height:45%;flex:none;}
-  #boardSide{width:100%;border-left:none;border-top:1px solid rgba(79,168,208,.18);flex:1;}
+  #boardSide{width:100%;border-left:none;border-top:1px solid rgba(79,168,208,.18);flex:1;padding-bottom:calc(16px + env(safe-area-inset-bottom));}
 }
 
 /* ─── 특보운영 ─── */
@@ -516,7 +517,7 @@ img{-webkit-user-drag:none;}
 /* ─── 모달 ─── */
 .modal{position:absolute;inset:0;background:rgba(0,0,0,.88);z-index:50;display:none;flex-direction:column;justify-content:flex-end;}
 .modal.on{display:flex;}
-.mbox{background:#0b1c30;border-radius:18px 18px 0 0;padding:15px 14px 32px;max-height:90vh;max-height:90dvh;overflow-y:auto;}
+.mbox{background:#0b1c30;border-radius:18px 18px 0 0;padding:15px 14px calc(32px + env(safe-area-inset-bottom));max-height:90vh;max-height:90dvh;overflow-y:auto;} /* 하단 제스처바에 버튼이 깔리지 않게 안전영역만큼 여유 */
 .mhdr{display:flex;justify-content:space-between;align-items:center;margin-bottom:13px;}
 .mtitle{font-size:14px;font-weight:700;color:#e0edf8;}
 .mclose{background:none;border:none;color:rgba(255,255,255,.55);font-size:22px;cursor:pointer;min-width:42px;min-height:42px;display:flex;align-items:center;justify-content:center;}

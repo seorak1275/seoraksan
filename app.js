@@ -3596,7 +3596,7 @@ function sosToRescue(id){
 // 앱 자체 업데이트 (OTA · Capgo 자체호스팅) — APK 전용. 웹/PWA는 서비스워커가 자동 갱신.
 // 번들(www)의 새 버전을 ota.json으로 알리면, 설치된 앱이 받아서 그 자리에서 교체(재빌드 불필요).
 // ══════════════════════════════════════════
-const OTA_VER='2026.07.16.172';                         // ← 현재 번들 버전 (릴리스마다 올림 · build-ota.sh가 ota.json에 반영)
+const OTA_VER='2026.07.16.173';                         // ← 현재 번들 버전 (릴리스마다 올림 · build-ota.sh가 ota.json에 반영)
 const OTA_MANIFEST='https://seorak1275.github.io/seoraksan/ota.json';
 // 업데이트 확인 폴백 소스 — 일부 기관망·통신사에서 github.io가 막혀 '확인 실패(네트워크)'가 나는 경우 대비.
 // 순서대로 시도: ① GitHub Pages(원본·즉시 반영) ② jsDelivr CDN(공개저장소 미러·거의 모든 망 통과)
@@ -3967,6 +3967,7 @@ window.onload=function(){
       try{_startKmaWarnPoll();}catch(e){}
       try{_initSosWatch();}catch(e){} // 🆘 조난·사고자 위치 실시간 구독
       try{setTimeout(_climbPrefetchToday,8000);}catch(e){} // 🧗 출동 대비: 오늘·내일 암벽 명단 자동 저장(음영지역 진입 대비)
+      try{setTimeout(_autoPreloadParkTiles,25000);}catch(e){} // 🗺️ 설악산 타일 자동 미리받기(7일마다, 요금 배려) — 깜빡임 없는 지도
       try{if('Notification' in window&&Notification.permission==='granted') _initFCM();}catch(e){} // FCM 토큰 갱신
       try{_flushFcmToken();}catch(e){} // 네이티브 토큰이 Firebase 준비 전 등록됐으면 지금 저장
       if(/[?&]board=1/.test(location.search))setTimeout(openBoard,300); // ?board=1 → 상황판
