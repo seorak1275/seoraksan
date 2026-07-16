@@ -2317,7 +2317,6 @@ function submit1Bo(){
     extAgency:isExternal()?(DB.g('currentUser')||{}).name||null:null,
     extra:document.getElementById('r_extra')?.value||'',
     permit:document.getElementById('r_permit')?.value||'해당없음',
-    permitNote:document.getElementById('r_permitNote')?.value||'',
     hasRep:document.getElementById('r_hasRep')?.value||'n',
     repName:document.getElementById('r_repName')?.value||'',
     repTel:document.getElementById('r_repTel')?.value||'',

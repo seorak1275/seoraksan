@@ -111,7 +111,7 @@ const _FB_CFG={
 // history: 점검이력은 무제한으로 계속 쌓이는 로그성 데이터라 단일문서 그대로 두면 매 점검마다 전체가 전원에게 재전송됨 → 건별 문서로 전환
 const _SHARED_COLL=['rescues','hazards','facilities','history','facIssues'];
 // _SHARED_DOC: 단일 문서에 JSON 배열 저장 (관리자 전용, 동시 쓰기 없음)
-const _SHARED_DOC=['alertOps','alertLog','staff','catFac','catFacMeta','pendingUsers','approvedUsers','deletedKakaoIds','adminOwnerKakaoId','adminApprovalCode','extAgencies','extAgencyCode','extAgencyDisplayName','geminiApiKey','kmaProxyUrl','_acl','loginLog','trailStatus','crisisLevel','weatherBrief','weatherLog','trailLog','sosBlocked','autoApprove','pushLog','devKakaoId','notiPolicy','customResTypes','facManagers','climbDates','climbCancels','homeHidden','climbAccidents','otaInfo','climbAgg'];
+const _SHARED_DOC=['alertOps','alertLog','catFac','catFacMeta','pendingUsers','approvedUsers','deletedKakaoIds','adminOwnerKakaoId','adminApprovalCode','extAgencies','extAgencyCode','extAgencyDisplayName','geminiApiKey','kmaProxyUrl','_acl','loginLog','trailStatus','crisisLevel','weatherBrief','weatherLog','trailLog','sosBlocked','autoApprove','pushLog','devKakaoId','notiPolicy','customResTypes','facManagers','climbDates','climbCancels','homeHidden','climbAccidents','otaInfo','climbAgg'];
 // otaInfo: ota.json의 Firestore 미러 {version,url,notes,at} — 웹 방문자가 자동 갱신. github 계열이 막힌 망의 APK가 업데이트 정보를 받는 최후 폴백 통로
 // homeHidden: 관리자가 홈 화면에서 숨긴 메뉴 키 목록(미완성 기능 감추기용) — 전 직원 동기화 적용
 // climbAccidents: 수동 등록한 암벽 사고자 [{id,date,name,note,by,at}] — 엑셀 상태값은 다운로드 시점따라 달라 신뢰 불가라 사고는 직접 등록
@@ -406,13 +406,22 @@ function _mergeSharedArray(base,local,server){
 // base(직전 동기화 시점 스냅샷)가 있을 때만 3-way 병합 시도 — 여러 기기가 동시에
 // 점검이력·가입신청 등을 추가해도 한쪽 기기의 덮어쓰기로 다른 기기의 항목이
 // 통째로 사라지지 않는다. base가 없거나 배열이 아니면(딕셔너리/스칼라) 기존처럼 로컬 우선.
+// 추가-전용 목록: base(직전 스냅샷)가 없어도 항상 서버와 합집합으로 병합.
+// 예전엔 base 없는 기기가 저장하면 '로컬 우선'으로 서버 목록을 통째로 교체 →
+// climbDates 63일이 새로 업로드한 기기의 4일로 덮어써지는 사고가 실제 발생(2026-07 점검에서 복구).
+const _UNION_DOC=['climbDates'];
 function _txMergeDoc(key,base,localVal){
   const ref=_fdb.collection('appData').doc(key);
   return _fdb.runTransaction(t=>t.get(ref).then(snap=>{
     let serverVal=null;
     if(snap.exists){try{serverVal=JSON.parse(snap.data().d);}catch(e){serverVal=null;}}
-    const merged=(Array.isArray(localVal)&&Array.isArray(serverVal)&&Array.isArray(base))
-      ?_mergeSharedArray(base,localVal,serverVal):localVal;
+    let merged;
+    if(_UNION_DOC.includes(key)&&Array.isArray(localVal)){
+      merged=Array.from(new Set([].concat(Array.isArray(serverVal)?serverVal:[],localVal).map(String))).sort();
+    }else{
+      merged=(Array.isArray(localVal)&&Array.isArray(serverVal)&&Array.isArray(base))
+        ?_mergeSharedArray(base,localVal,serverVal):localVal;
+    }
     t.set(ref,{d:JSON.stringify(merged)});
     return merged;
   }));
@@ -724,11 +733,6 @@ function initDB(){
   if(_fdb&&!_authReady){
     window._initDBWaitN=(window._initDBWaitN||0)+1;
     if(window._initDBWaitN<=30){setTimeout(initDB,300);return;} // 최대 ~9초 대기, 그 뒤엔 진행(오프라인 등)
-  }
-  // 더미 직원 데이터 정리 — 실제 더미가 있을 때만 쓰기(없는 문서에 빈 배열을 만들지 않음: 불필요한 서버 쓰기 방지)
-  const _existStaff=DB.g('staff');
-  if(_existStaff&&_existStaff.length&&['손경완','김택찬','염원종','김종식','나진영','양지석','윤태종'].some(n=>_existStaff.some(s=>s.name===n))){
-    DB.s('staff',[]);
   }
   if(!DB.g('catFac'))     DB.s('catFac',['🪧 다목적위치표지판','📍 장소','🛤️ 데크/계단','🌉 교량','🏠 대피소','🛡️ 안전난간','🪵 목재계단','🚿 계곡시설']);
   // 카테고리 마이그레이션: 위치표지판 제거, 장소 추가

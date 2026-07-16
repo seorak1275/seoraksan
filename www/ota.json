@@ -1,1 +1,1 @@
-{"version":"2026.07.16.164","url":"https://seorak1275.github.io/seoraksan/bundle.zip","notes":"웹 지도 확대/축소 흰화면 개선(열람 타일은 브라우저 HTTP캐시에 위임 — SW 저장·정리 부하 제거, 미리받기·오프라인은 유지) · 상황판 우측 미렌더 띠 자가복구(배율·창크기 변경 감지 다층화) · 시설물 종류별 분포 색 막대·탭 필터"}
+{"version":"2026.07.16.165","url":"https://seorak1275.github.io/seoraksan/bundle.zip","notes":"점검 조치 — climbDates 등 추가전용 목록 합집합 병합(덮어쓰기 사고 재발 방지), staff 레거시 시드 제거, 구조폼 허가번호 잔재 정리"}
