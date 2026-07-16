@@ -1063,26 +1063,31 @@ function _applyPhotoDest(dest,url){
   }
   DB.s(dest.key,arr);
 }
+// ── 레거시 대기 사진 정리·구제 ──
+// 예전 방식(Firebase Storage 업로드)의 대기 항목이 IndexedDB에 남으면, Storage가 프로비저닝돼
+// 있지 않아 업로드가 영원히 실패 → 부팅마다 '대기 중인 사진 N장' 토스트가 무한 반복됐다.
+// 현행 방식(dataURL을 기록에 직접 저장)으로 변환해 원래 기록에 심어 구제하고,
+// 성공 여부와 무관하게 큐에서 제거해 재시도를 끝낸다. (메모리 dataUrlMode 항목은 prevImg가 처리)
 async function _processPhotoQueue(){
-  if(!navigator.onLine||!_fst)return;
-  // 메모리 큐 + IDB 복원분 합치기 (재시작 후에도 이어서 업로드)
   const idb=await _photoQAll();
-  idb.forEach(d=>{if(!_offlinePhotoQueue.some(x=>x.id===d.id))_offlinePhotoQueue.push(d);});
-  if(!_offlinePhotoQueue.length)return;
-  toast('🌐 대기 중인 사진 '+_offlinePhotoQueue.length+'장 업로드 중...');
-  const items=_offlinePhotoQueue.splice(0);
-  let ok=0;
-  for(const item of items){
-    if(item.dataUrlMode){_offlinePhotoQueue.push(item);continue;} // dataURL 항목은 메모리에서 처리 — Storage 업로드 대상 아님
+  if(!idb.length)return;
+  let ok=0,drop=0,defer=0;
+  for(const item of idb){
     try{
-      const url=await uploadImageToStorage(item.file,'photos/'+(item.pid||'queued'));
-      if(item.dest)_applyPhotoDest(item.dest,url);
-      const prev=item.pid?document.getElementById(item.pid):null;
-      if(prev){prev.dataset.url=url;const img=prev.querySelector('img');if(img)img.src=url;prev.querySelector('.up-badge')?.remove();}
-      _photoQDel(item.id);ok++;
-    }catch(e){_offlinePhotoQueue.push(item);} // 실패 → 큐 유지
+      const arr=item.dest?DB.g(item.dest.key):null;
+      if(item.dest&&!Array.isArray(arr)){defer++;continue;} // 해당 데이터 아직 미로딩 — 삭제하지 않고 다음 기회에
+      const durl=item.file?await _compressToDataUrl(item.file,1000,380000):'';
+      const i=item.dest?arr.findIndex(x=>x.id===item.dest.id):-1;
+      if(durl&&i>=0){
+        if(item.dest.append){(arr[i][item.dest.field]=arr[i][item.dest.field]||[]).push({url:durl,time:now(),by:item.dest.by||''});DB.s(item.dest.key,arr);ok++;}
+        else if(!arr[i][item.dest.field]){arr[i][item.dest.field]=durl;DB.s(item.dest.key,arr);ok++;}
+        else drop++; // 기록에 이미 다른 사진이 있음 — 덮어쓰지 않고 정리
+      }else drop++;   // 연결된 기록 없음/삭제됨/변환 실패
+    }catch(e){drop++;}
+    _photoQDel(item.id);
   }
-  if(ok)toast('✅ 사진 '+ok+'장 업로드 완료');
+  if(ok)toast('✅ 대기 중이던 사진 '+ok+'장을 기록에 저장했습니다');
+  else if(drop)toast('🧹 오래된 대기 사진 '+drop+'장을 정리했습니다',3500);
 }
 window.addEventListener('online',()=>setTimeout(_processPhotoQueue,2000));
 // ── 이미지 압축 (긴 축 1200px, 82% JPEG) ─────────
