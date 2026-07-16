@@ -957,7 +957,7 @@ setTimeout(_fixAppHeight,500);setTimeout(_fixAppHeight,2000);
 (function(){
   var n=0,t=0;
   document.addEventListener('click',function(e){
-    if(!e.target||e.target.id!=='appVerLabel')return;
+    if(!e.target||(e.target.id!=='appVerLabel'&&e.target.id!=='homeDate'))return; // 홈 상단 날짜로도 열림(하단이 잘린 기기 대비)
     var now=Date.now();if(now-t>1500)n=0;t=now;
     if(++n<5)return;n=0;
     try{

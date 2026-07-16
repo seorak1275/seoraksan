@@ -1,0 +1,42 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>화면 테스트</title>
+<style>
+html,body{margin:0;padding:0;background:#333;}
+#box{height:100vh;height:100dvh;display:flex;flex-direction:column;background:#08111f;color:#fff;font:14px/1.5 sans-serif;}
+#top{background:#c0392b;padding:calc(10px + env(safe-area-inset-top)) 14px 10px;text-align:center;font-weight:700;}
+#mid{flex:1;display:flex;align-items:center;justify-content:center;background:#0b2238;}
+#info{white-space:pre-line;text-align:center;line-height:1.9;font-size:15px;}
+#bot{background:#27ae60;padding:12px 14px calc(12px + env(safe-area-inset-bottom));text-align:center;font-weight:700;color:#04240f;}
+</style>
+</head>
+<body>
+<div id="box">
+  <div id="top">🔴 꼭대기 — 이 빨간 띠가 화면 맨 위에 보여야 정상</div>
+  <div id="mid"><div id="info">측정 중…</div></div>
+  <div id="bot">🟢 바닥 — 이 초록 띠가 주소창 바로 위에 붙어 보여야 정상</div>
+</div>
+<script>
+function m(){
+  try{
+    var vv=window.visualViewport||{};
+    var box=document.getElementById('box').getBoundingClientRect();
+    document.getElementById('info').textContent=
+      '이 페이지는 앱 코드가 전혀 없는 순수 화면 테스트입니다\n\n'
+      +'inner: '+innerWidth+'×'+innerHeight
+      +'\nvisual: '+Math.round(vv.width||0)+'×'+Math.round(vv.height||0)+' · scale '+((vv.scale||1).toFixed(2))
+      +'\nbox: '+Math.round(box.width)+'×'+Math.round(box.height)+' (top '+Math.round(box.top)+')'
+      +'\ndvh 지원: '+(window.CSS&&CSS.supports&&CSS.supports('height','100dvh')?'예':'아니오')
+      +'\nscreen: '+screen.width+'×'+screen.height+' · dpr '+devicePixelRatio;
+  }catch(e){document.getElementById('info').textContent='측정 실패: '+e;}
+}
+m();
+addEventListener('resize',m);
+if(window.visualViewport)visualViewport.addEventListener('resize',m);
+setInterval(m,1000);
+</script>
+</body>
+</html>
