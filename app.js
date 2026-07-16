@@ -1864,7 +1864,17 @@ function _renderClimbStats(all){
         <input type="date" id="climbCxDate" value="${todayV}" style="flex:1;min-width:120px;background:#0a1626;color:#cfe2f2;border:1px solid rgba(79,168,208,.25);border-radius:8px;padding:8px;font-size:12px;">
         ${cbtn('특보','🌩️','rgba(240,165,0,.14)','#f0c050')}${cbtn('우천','🌧️','rgba(79,168,208,.14)','#7fc4e0')}${cbtn('이용없음','🈳','rgba(120,140,160,.12)','#9fb6c8')}
       </div>
-      ${cxDates.length?`<div style="line-height:2;margin-top:9px;">${cxDates.map(d=>{const cnt=(all||[]).filter(r=>r.useDate===d).length;return `<span style="display:inline-block;background:rgba(240,165,0,.1);border:1px solid rgba(240,165,0,.3);border-radius:12px;padding:2px 4px 2px 9px;margin:2px 3px 2px 0;color:#f0c050;font-size:11px;">${_esc(d)} · ${_esc(cx[d].reason)}${cnt?` <span style="color:#8fb4cc;">${cnt}팀</span>`:''} <span onclick="climbUncancelDate('${d}')" style="cursor:pointer;color:#ff8a80;font-weight:800;padding:0 5px;">×</span></span>`;}).join('')}</div>`:''}
+      ${cxDates.length?(()=>{ // 취소일이 시즌 내내 쌓여도 지저분하지 않게: 평소 한 줄 요약, 펼치면 개별 관리(×)
+        const open=window._climbCxOpen;
+        const byR={};cxDates.forEach(d=>{const r=cx[d].reason||'기타';byR[r]=(byR[r]||0)+1;});
+        const sum=Object.keys(byR).map(r=>r+' '+byR[r]+'일').join(' · ');
+        let h=`<div onclick="window._climbCxOpen=!window._climbCxOpen;_renderClimbActive();" style="display:flex;align-items:center;gap:7px;margin-top:9px;padding:7px 10px;background:rgba(240,165,0,.07);border:1px solid rgba(240,165,0,.2);border-radius:9px;cursor:pointer;user-select:none;">
+          <span style="font-size:11.5px;color:#f0c050;font-weight:800;flex-shrink:0;">🚫 처리 ${cxDates.length}일</span>
+          <span style="font-size:10.5px;color:#c79a4a;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${_esc(sum)}</span>
+          <span style="font-size:10.5px;color:#8fb4cc;flex-shrink:0;">${open?'접기 ⌄':'펼치기 ›'}</span></div>`;
+        if(open)h+=`<div style="line-height:2;margin-top:6px;">${cxDates.map(d=>{const cnt=(all||[]).filter(r=>r.useDate===d).length;return `<span style="display:inline-block;background:rgba(240,165,0,.1);border:1px solid rgba(240,165,0,.3);border-radius:12px;padding:2px 4px 2px 9px;margin:2px 3px 2px 0;color:#f0c050;font-size:11px;">${_esc(d.slice(5))} ${_esc(cx[d].reason)}${cnt?` <span style="color:#8fb4cc;">${cnt}팀</span>`:''} <span onclick="event.stopPropagation();climbUncancelDate('${d}')" style="cursor:pointer;color:#ff8a80;font-weight:800;padding:0 5px;">×</span></span>`;}).join('')}</div>`;
+        return h;
+      })():''}
       <button onclick="climbAddAccident()" style="width:100%;margin-top:10px;background:rgba(255,107,91,.12);color:#ff8a80;border:1px solid rgba(255,107,91,.35);border-radius:8px;padding:9px;font-size:12.5px;font-weight:800;cursor:pointer;">🚨 사고자 등록</button>
     </div>`;
   }
@@ -3586,7 +3596,7 @@ function sosToRescue(id){
 // 앱 자체 업데이트 (OTA · Capgo 자체호스팅) — APK 전용. 웹/PWA는 서비스워커가 자동 갱신.
 // 번들(www)의 새 버전을 ota.json으로 알리면, 설치된 앱이 받아서 그 자리에서 교체(재빌드 불필요).
 // ══════════════════════════════════════════
-const OTA_VER='2026.07.16.167';                         // ← 현재 번들 버전 (릴리스마다 올림 · build-ota.sh가 ota.json에 반영)
+const OTA_VER='2026.07.16.168';                         // ← 현재 번들 버전 (릴리스마다 올림 · build-ota.sh가 ota.json에 반영)
 const OTA_MANIFEST='https://seorak1275.github.io/seoraksan/ota.json';
 // 업데이트 확인 폴백 소스 — 일부 기관망·통신사에서 github.io가 막혀 '확인 실패(네트워크)'가 나는 경우 대비.
 // 순서대로 시도: ① GitHub Pages(원본·즉시 반영) ② jsDelivr CDN(공개저장소 미러·거의 모든 망 통과)
