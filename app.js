@@ -1517,14 +1517,14 @@ function _climbBindDnD(ov){
 let _climbCache=null;
 async function _climbLoadAll(){
   if(_climbCache)return _climbCache;
-  if(!_fdb){return _climbReadOffline();}
+  if(!_fdb){window._climbFromOffline=true;return _climbReadOffline();}
   try{
     const snap=await _fdb.collection('climbUsage').get();
     const all=[];snap.forEach(d=>{const v=d.data()||{};(v.records||[]).forEach(r=>all.push(r));});
-    _climbCache=all;_climbWriteOffline(all);return all;
+    _climbCache=all;_climbWriteOffline(all);window._climbFromOffline=false;return all;
   }catch(e){
     const off=_climbReadOffline(); // 오프라인·통신실패 → 마지막으로 받아둔 명단으로 폴백
-    if(off.length){_climbCache=off;toast('📴 오프라인 — 마지막 저장 명단 표시',2500);return off;}
+    if(off.length){_climbCache=off;window._climbFromOffline=true;toast('📴 오프라인 — '+_climbOfflineTimeStr()+' 저장 명단 표시',3000);return off;}
     throw e;
   }
 }
@@ -1534,6 +1534,31 @@ function _climbWriteOffline(all){
 }
 function _climbReadOffline(){
   try{const v=JSON.parse(localStorage.getItem('_climbOffline')||'null');return (v&&Array.isArray(v.recs))?v.recs:[];}catch(e){return [];}
+}
+function _climbOfflineAt(){try{const v=JSON.parse(localStorage.getItem('_climbOffline')||'null');return (v&&v.at)||0;}catch(e){return 0;}}
+function _climbOfflineTimeStr(){const at=_climbOfflineAt();if(!at)return '';const d=new Date(at);const p=n=>String(n).padStart(2,'0');const sameDay=_ymd(d)===_ymd(new Date());return (sameDay?'오늘 ':p(d.getMonth()+1)+'.'+p(d.getDate())+' ')+p(d.getHours())+':'+p(d.getMinutes());}
+// ── 출동 대비 자동 저장: 앱 실행 때마다 오늘·내일 명단만 조용히 받아 기기에 저장 ──
+// 통신 음영지역(암벽 코스) 진입 전 패널을 안 열어봤어도, 현장에서 당일 명단이 항상 열리게 한다.
+// 문서 2개(오늘·내일)만 읽어 부담 없음. 전체 이력은 기존처럼 패널 열 때 갱신.
+async function _climbPrefetchToday(){
+  try{
+    if(!_fdb||!navigator.onLine)return;
+    if(typeof _authReady!=='undefined'&&!_authReady){ // 인증 전 읽기는 거부됨 → 잠깐 뒤 재시도(최대 5회)
+      window._climbPfN=(window._climbPfN||0)+1;
+      if(window._climbPfN<=5)setTimeout(_climbPrefetchToday,2000);
+      return;
+    }
+    if(!_climbInSeason())return;
+    if(typeof _canClimbView==='function'&&!_canClimbView())return;
+    const t=new Date();const d1=_ymd(t);const t2=new Date(t);t2.setDate(t2.getDate()+1);const d2=_ymd(t2);
+    const snaps=await Promise.all([d1,d2].map(d=>_fdb.collection('climbUsage').doc(d).get().catch(()=>null)));
+    const recs=[];snaps.forEach(s=>{if(s&&s.exists)(((s.data()||{}).records)||[]).forEach(r=>recs.push(r));});
+    if(!recs.length)return;
+    // 저장본에서 오늘·내일분만 최신으로 교체 병합 (과거분은 유지)
+    const cur=_climbReadOffline().filter(r=>r.useDate!==d1&&r.useDate!==d2);
+    _climbWriteOffline(cur.concat(recs));
+    if(_climbCache)_climbCache=_climbCache.filter(r=>r.useDate!==d1&&r.useDate!==d2).concat(recs);
+  }catch(e){}
 }
 // 시즌 내 데이터 없는 이용일자 목록 (업로드 필요일)
 //  · 첫 업로드 전: 어제~내일만(초기 과도 알림 방지)  · 업로드 후: 가장 이른 업로드일 ~ 내일 중 빈 날
@@ -1653,6 +1678,12 @@ function _renderClimbRoster(all){
       <button onclick="climbRosterStep(1)" ${idx>=dates.length-1?'disabled':''} style="background:#0e2436;border:1px solid rgba(79,168,208,.25);color:#7fc4e0;border-radius:9px;padding:8px 11px;font-size:14px;font-weight:800;cursor:pointer;${idx>=dates.length-1?'opacity:.35;':''}">▶</button>
     </div>
     <input type="date" value="${_esc(D)}" onchange="climbRosterPick(this.value)" style="width:100%;background:#0a1626;color:#cfe2f2;border:1px solid rgba(79,168,208,.2);border-radius:8px;padding:8px;font-size:12px;margin-bottom:10px;">`;
+  // 오프라인(통신 음영지역)에서 저장본으로 보는 중이면 명확히 표시 — 언제 받은 명단인지 알 수 있게
+  if(window._climbFromOffline||!navigator.onLine){
+    html+=`<div style="display:flex;align-items:center;gap:7px;background:rgba(240,165,0,.09);border:1px solid rgba(240,165,0,.3);border-radius:9px;padding:8px 11px;margin-bottom:10px;">
+      <span style="font-size:14px;">📴</span><span style="flex:1;font-size:11px;color:#f0c050;line-height:1.5;"><b>오프라인 — 기기 저장 명단</b>${_climbOfflineTimeStr()?`<br><span style="color:#c79a4a;">${_climbOfflineTimeStr()} 기준 (앱 실행 때마다 오늘·내일분 자동 저장됨)</span>`:''}</span>
+    </div>`;
+  }
   // 지구별 검색 칩 — 특정 지구만 빠르게 보기 (현장 이동 중 확인)
   const distF=window._climbRosterDistF||'';
   const distsPresent=DORDER.filter(dist=>byDist[dist]&&byDist[dist].length);
@@ -3498,7 +3529,7 @@ function sosToRescue(id){
 // 앱 자체 업데이트 (OTA · Capgo 자체호스팅) — APK 전용. 웹/PWA는 서비스워커가 자동 갱신.
 // 번들(www)의 새 버전을 ota.json으로 알리면, 설치된 앱이 받아서 그 자리에서 교체(재빌드 불필요).
 // ══════════════════════════════════════════
-const OTA_VER='2026.07.16.153';                         // ← 현재 번들 버전 (릴리스마다 올림 · build-ota.sh가 ota.json에 반영)
+const OTA_VER='2026.07.16.154';                         // ← 현재 번들 버전 (릴리스마다 올림 · build-ota.sh가 ota.json에 반영)
 const OTA_MANIFEST='https://seorak1275.github.io/seoraksan/ota.json';
 // 업데이트 확인 폴백 소스 — 일부 기관망·통신사에서 github.io가 막혀 '확인 실패(네트워크)'가 나는 경우 대비.
 // 순서대로 시도: ① GitHub Pages(원본·즉시 반영) ② jsDelivr CDN(공개저장소 미러·거의 모든 망 통과)
@@ -3859,6 +3890,7 @@ window.onload=function(){
       try{if((DB.g('alertOps')||[]).some(o=>!o.closedAt))_startAlertReminder();}catch(e){}
       try{_startKmaWarnPoll();}catch(e){}
       try{_initSosWatch();}catch(e){} // 🆘 조난·사고자 위치 실시간 구독
+      try{setTimeout(_climbPrefetchToday,8000);}catch(e){} // 🧗 출동 대비: 오늘·내일 암벽 명단 자동 저장(음영지역 진입 대비)
       try{if('Notification' in window&&Notification.permission==='granted') _initFCM();}catch(e){} // FCM 토큰 갱신
       try{_flushFcmToken();}catch(e){} // 네이티브 토큰이 Firebase 준비 전 등록됐으면 지금 저장
       if(/[?&]board=1/.test(location.search))setTimeout(openBoard,300); // ?board=1 → 상황판
