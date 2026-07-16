@@ -2860,28 +2860,77 @@ function admTab(tab,el){
   ({ctrl:renderAdmCtrl,members:renderAdmMembers,cat:renderAdmCat,sheets:renderAdmSheets,sys:renderAdmSys,staff:renderAdmMembers})[tab]?.();
 }
 let _admResLimit=15; // 관리자 구조이력 표시 개수(더보기로 증가)
+// ── 관제: 서브탭(현황/구조/시설물/위험상황)으로 분리 — 한 화면에 전부 쏟아붓지 않고 필터·페이지로 관리
+let _admFacLimit=50;
+function admCtrlTab(t){window._admCtrlTab=t;_admResLimit=15;_admFacLimit=50;renderAdmCtrl();}
 function renderAdmCtrl(){
   const facs=DB.g('facilities')||[];const res=DB.g('rescues')||[];const haz=DB.g('hazards')||[];
-  document.getElementById('admCtrlWrap').innerHTML=`
-    <div class="scard" style="margin-bottom:8px;">
+  const t=window._admCtrlTab||'dash';
+  const ongoing=res.filter(r=>r.status==='ongoing');
+  const warned=facs.filter(f=>_facWarn(f));
+  const hazOpen=haz.filter(h=>!h.hazStatus||h.hazStatus==='미조치'||h.hazStatus==='조치중');
+  const seg=(lbl,k,n,col)=>`<button onclick="admCtrlTab('${k}')" style="flex:1;padding:9px 4px;border:none;border-radius:8px;font-size:11.5px;font-weight:800;cursor:pointer;white-space:nowrap;background:${t===k?'rgba(79,168,208,.18)':'transparent'};color:${t===k?'#7fc4e0':'#6a8296'};">${lbl}${n?` <span style="background:${col||'#e05050'};color:#fff;border-radius:8px;padding:0 5px;font-size:9px;">${n}</span>`:''}</button>`;
+  const chip=(lbl,on,onclick,col)=>`<span onclick="${onclick}" style="cursor:pointer;display:inline-block;padding:5px 11px;margin:0 4px 4px 0;border-radius:13px;font-size:11px;font-weight:700;border:1px solid ${on?(col||'#4fa8d0'):'rgba(255,255,255,.12)'};background:${on?'rgba(79,168,208,.16)':'transparent'};color:${on?(col||'#7fc4e0'):'#6a8296'};">${lbl}</span>`;
+  const inp='background:#060d1a;border:1px solid rgba(255,255,255,.12);color:#cfe2f2;border-radius:8px;padding:7px 9px;font-size:12px;width:100%;box-sizing:border-box;margin-bottom:7px;';
+  let html=`<div style="display:flex;gap:3px;background:#0a1626;border:1px solid rgba(79,168,208,.15);border-radius:10px;padding:3px;margin-bottom:11px;">${seg('📊 현황','dash')}${seg('🚨 구조','res',ongoing.length)}${seg('🛠️ 시설물','fac',warned.length,'#e67e22')}${seg('⚠️ 위험','haz',hazOpen.length,'#e67e22')}</div>`;
+  if(t==='dash'){
+    html+=`<div class="scard" style="margin-bottom:8px;">
       <div class="stitle">📊 전체 현황</div>
       <div class="stat-grid">
-        <div class="stat-box"><div class="stat-num">${facs.length}</div><div class="stat-lbl">시설물</div></div>
-        <div class="stat-box"><div class="stat-num bad">${facs.filter(f=>_facWarn(f)).length}</div><div class="stat-lbl">경고표시</div></div>
-        <div class="stat-box"><div class="stat-num">${res.length}</div><div class="stat-lbl">구조이력</div></div>
-        <div class="stat-box" style="border-color:#c0392b;"><div class="stat-num bad">${res.filter(r=>r.status==='ongoing').length}</div><div class="stat-lbl">진행중</div></div>
+        <div class="stat-box" onclick="admCtrlTab('fac')" style="cursor:pointer;"><div class="stat-num">${facs.length}</div><div class="stat-lbl">시설물</div></div>
+        <div class="stat-box" onclick="window._admFacF='경고';admCtrlTab('fac')" style="cursor:pointer;"><div class="stat-num bad">${warned.length}</div><div class="stat-lbl">경고표시</div></div>
+        <div class="stat-box" onclick="admCtrlTab('res')" style="cursor:pointer;"><div class="stat-num">${res.length}</div><div class="stat-lbl">구조이력</div></div>
+        <div class="stat-box" onclick="window._admResF='진행중';admCtrlTab('res')" style="cursor:pointer;border-color:#c0392b;"><div class="stat-num bad">${ongoing.length}</div><div class="stat-lbl">진행중</div></div>
       </div>
-      <div style="margin-top:8px;font-size:11px;color:#7a9cb8;">위험상황 보고 ${haz.length}건 (완료 ${haz.filter(h=>h.hazStatus&&h.hazStatus!=='미조치'&&h.hazStatus!=='조치중').length}건)</div>
+      <div onclick="admCtrlTab('haz')" style="cursor:pointer;margin-top:8px;font-size:11px;color:#7a9cb8;">위험상황 보고 ${haz.length}건 · <span style="color:${hazOpen.length?'#e67e22':'#5dbf8a'};font-weight:700;">미조치·조치중 ${hazOpen.length}건</span> ›</div>
     </div>
-    <div class="sec-label">⚠️ 위험·요주의 시설물</div>
-    ${facs.filter(f=>_facWarn(f)).map(f=>{const w=_facWarn(f);return `<div class="adm-row"><div class="adm-info"><div class="adm-name">⚠️ ${f.type.split(' ')[0]} ${f.name}</div><div class="adm-meta">${f.loc||'-'}${w.reason?' · '+_esc(w.reason):''}</div></div><div class="adm-btns">${_canManageFac()?`<button class="abtn" onclick="openFacDetail(${f.id})">보기</button><button class="abtn del" onclick="admDelFac(${f.id})">삭제</button>`:''}</div></div>`;}).join('')||'<div class="muted" style="font-size:12px;padding:5px 0;">경고표시된 시설 없음</div>'}
-    <div class="sec-label">🚨 진행중 구조</div>
-    ${res.filter(r=>r.status==='ongoing').map(r=>{const ti=RES_TYPES[r.type]||RES_TYPES['기타'];return`<div class="adm-row"><div class="adm-info"><div class="adm-name">${ti.ico} ${r.title}</div><div class="adm-meta">${r.type} · ${r.date} · ${r.vName||'미상'}</div></div><div class="adm-btns"><button class="abtn" onclick="admEndRes(${r.id})">상황종료</button><button class="abtn del" onclick="admDelRes(${r.id})">삭제</button></div></div>`;}).join('')||'<div class="muted" style="font-size:12px;padding:5px 0;">진행중 없음</div>'}
-    <div class="sec-label">📒 구조 이력 (전체 ${res.length}건 · 삭제 가능)</div>
-    ${res.slice().sort((a,b)=>(b.id||0)-(a.id||0)).slice(0,_admResLimit).map(r=>{const ti=RES_TYPES[r.type]||RES_TYPES['기타'];const og=r.status==='ongoing';return`<div class="adm-row"><div class="adm-info"><div class="adm-name">${ti.ico} ${r.title} ${og?'<span style="font-size:9px;color:#ff6b5e;font-weight:700;">●진행중</span>':'<span style="font-size:9px;color:#3ad17a;">종료</span>'}</div><div class="adm-meta">${r.type} · ${r.date} · ${r.vName||'미상'}</div></div><button class="abtn del" onclick="admDelRes(${r.id})">삭제</button></div>`;}).join('')||'<div class="muted" style="font-size:12px;padding:5px 0;">구조 이력 없음</div>'}
-    ${res.length>_admResLimit?`<button class="abtn" style="width:100%;margin-top:6px;" onclick="_admResLimit+=30;renderAdmCtrl();">▾ 더 보기 (${res.length-_admResLimit}건)</button>`:''}
-    <div class="sec-label">📋 전체 시설물</div>
-    ${facs.map(f=>`<div class="adm-row"><div class="adm-info"><div class="adm-name">${f.type.split(' ')[0]} ${f.name}</div><div class="adm-meta">${_facWarn(f)?'<span style="color:#e05050;">⚠️ 경고</span> · ':''}${f.author||'-'}</div></div>${_canManageFac()?`<button class="abtn del" onclick="admDelFac(${f.id})">삭제</button>`:''}</div>`).join('')}`;
+    <div style="font-size:10px;color:#5a7e98;margin:4px 2px 0;">숫자를 누르면 해당 탭으로 이동합니다. 긴급 항목만 아래에 표시됩니다.</div>
+    <div class="sec-label">⚠️ 경고표시 시설물 (${warned.length})</div>
+    ${warned.slice(0,5).map(f=>{const w=_facWarn(f);return `<div class="adm-row"><div class="adm-info"><div class="adm-name">⚠️ ${f.type.split(' ')[0]} ${_esc(_facDispName(f))}</div><div class="adm-meta">${_esc(_facZoneLbl(f)||'-')}${w.reason?' · '+_esc(w.reason):''}</div></div><button class="abtn" onclick="openFacDetail(${f.id})">보기</button></div>`;}).join('')||'<div class="muted" style="font-size:12px;padding:5px 0;">경고표시된 시설 없음</div>'}
+    ${warned.length>5?`<button class="abtn" style="width:100%;margin-top:4px;" onclick="window._admFacF='경고';admCtrlTab('fac')">전체 ${warned.length}건 보기 →</button>`:''}
+    <div class="sec-label">🚨 진행중 구조 (${ongoing.length})</div>
+    ${ongoing.map(r=>{const ti=RES_TYPES[r.type]||RES_TYPES['기타'];return`<div class="adm-row"><div class="adm-info"><div class="adm-name">${ti.ico} ${_esc(r.title)}</div><div class="adm-meta">${_esc(r.type)} · ${_esc(r.date)} · ${_esc(r.vName||'미상')}</div></div><div class="adm-btns"><button class="abtn" onclick="admEndRes(${r.id})">상황종료</button><button class="abtn del" onclick="admDelRes(${r.id})">삭제</button></div></div>`;}).join('')||'<div class="muted" style="font-size:12px;padding:5px 0;">진행중 없음</div>'}`;
+  } else if(t==='res'){
+    const f=window._admResF||'전체',q=(window._admResQ||'').trim();
+    let list=res.slice().sort((a,b)=>(b.id||0)-(a.id||0));
+    if(f==='진행중')list=list.filter(r=>r.status==='ongoing');
+    else if(f==='종료')list=list.filter(r=>r.status!=='ongoing');
+    if(q)list=list.filter(r=>[r.title,r.vName,r.type,r.location].some(v=>String(v||'').indexOf(q)>=0));
+    html+=`<div style="margin-bottom:4px;">${chip('전체 '+res.length,f==='전체',"window._admResF='전체';renderAdmCtrl();")}${chip('🔴 진행중 '+ongoing.length,f==='진행중',"window._admResF='진행중';renderAdmCtrl();",'#ff8a73')}${chip('종료',f==='종료',"window._admResF='종료';renderAdmCtrl();",'#5dbf8a')}</div>
+    <input type="search" placeholder="🔍 사건명·사고자·장소 검색 (Enter)" value="${_esc(q)}" onchange="window._admResQ=this.value;renderAdmCtrl();" style="${inp}">
+    <div class="sec-label">📒 구조 이력 (${list.length}건)</div>
+    ${list.slice(0,_admResLimit).map(r=>{const ti=RES_TYPES[r.type]||RES_TYPES['기타'];const og=r.status==='ongoing';return`<div class="adm-row"><div class="adm-info"><div class="adm-name">${ti.ico} ${_esc(r.title)} ${og?'<span style="font-size:9px;color:#ff6b5e;font-weight:700;">●진행중</span>':'<span style="font-size:9px;color:#3ad17a;">종료</span>'}</div><div class="adm-meta">${_esc(r.type)} · ${_esc(r.date)} · ${_esc(r.vName||'미상')}</div></div><div class="adm-btns">${og?`<button class="abtn" onclick="admEndRes(${r.id})">종료</button>`:''}<button class="abtn del" onclick="admDelRes(${r.id})">삭제</button></div></div>`;}).join('')||'<div class="muted" style="font-size:12px;padding:5px 0;">해당 조건 없음</div>'}
+    ${list.length>_admResLimit?`<button class="abtn" style="width:100%;margin-top:6px;" onclick="_admResLimit+=30;renderAdmCtrl();">▾ 더 보기 (${list.length-_admResLimit}건)</button>`:''}`;
+  } else if(t==='fac'){
+    const f=window._admFacF||'전체',ty=window._admFacType||'전체',q=(window._admFacQ||'').trim();
+    const types=['전체',...new Set(facs.map(x=>x.type).filter(Boolean))];
+    let list=facs.slice();
+    if(f==='경고')list=list.filter(x=>_facWarn(x));
+    if(ty!=='전체')list=list.filter(x=>x.type===ty);
+    if(q)list=list.filter(x=>[x.name,x.loc,x.mgmt].some(v=>String(v||'').indexOf(q)>=0));
+    html+=`<div style="margin-bottom:4px;">${chip('전체 '+facs.length,f==='전체',"window._admFacF='전체';renderAdmCtrl();")}${chip('⚠️ 경고만 '+warned.length,f==='경고',"window._admFacF='경고';renderAdmCtrl();",'#e67e22')}</div>
+    <select onchange="window._admFacType=this.value;renderAdmCtrl();" style="${inp}">${types.map(x=>`<option${x===ty?' selected':''}>${_esc(x)}</option>`).join('')}</select>
+    <input type="search" placeholder="🔍 명칭·위치·관리번호 검색 (Enter)" value="${_esc(q)}" onchange="window._admFacQ=this.value;renderAdmCtrl();" style="${inp}">
+    <div class="sec-label">📋 시설물 (${list.length}개)</div>
+    ${list.slice(0,_admFacLimit).map(fc=>`<div class="adm-row"><div class="adm-info"><div class="adm-name">${fc.type.split(' ')[0]} ${_esc(_facDispName(fc))}</div><div class="adm-meta">${_facWarn(fc)?'<span style="color:#e05050;">⚠️ 경고</span> · ':''}${_esc(_facZoneLbl(fc)||'-')} · ${_esc(fc.author||'-')}</div></div><div class="adm-btns"><button class="abtn" onclick="openFacDetail(${fc.id})">보기</button>${_canManageFac()?`<button class="abtn del" onclick="admDelFac(${fc.id})">삭제</button>`:''}</div></div>`).join('')||'<div class="muted" style="font-size:12px;padding:5px 0;">해당 조건 없음</div>'}
+    ${list.length>_admFacLimit?`<button class="abtn" style="width:100%;margin-top:6px;" onclick="_admFacLimit+=100;renderAdmCtrl();">▾ 더 보기 (${list.length-_admFacLimit}개)</button>`:''}`;
+  } else {
+    const f=window._admHazF||'전체';
+    let list=haz.slice().sort((a,b)=>(b.id||0)-(a.id||0));
+    const st=h=>h.hazStatus||'미조치';
+    if(f!=='전체')list=f==='완료'?list.filter(h=>st(h)!=='미조치'&&st(h)!=='조치중'):list.filter(h=>st(h)===f);
+    html+=`<div style="margin-bottom:4px;">${chip('전체 '+haz.length,f==='전체',"window._admHazF='전체';renderAdmCtrl();")}${chip('미조치',f==='미조치',"window._admHazF='미조치';renderAdmCtrl();",'#ff8a73')}${chip('조치중',f==='조치중',"window._admHazF='조치중';renderAdmCtrl();",'#e6b800')}${chip('완료',f==='완료',"window._admHazF='완료';renderAdmCtrl();",'#5dbf8a')}</div>
+    <div class="sec-label">⚠️ 위험상황 (${list.length}건)</div>
+    ${list.map(h=>{const s=st(h);const sc=s==='미조치'?'#ff6b5e':s==='조치중'?'#e6b800':'#3ad17a';return`<div class="adm-row"><div class="adm-info"><div class="adm-name">${_esc(h.hazType||'위험상황')} <span style="font-size:9px;color:${sc};font-weight:700;">●${_esc(s)}</span></div><div class="adm-meta">${_esc(h.date||'')} · ${_esc(h.location||h.loc||'-')}</div></div><div class="adm-btns"><button class="abtn" onclick="openHazDetail(${h.id})">보기</button><button class="abtn del" onclick="admDelHaz(${h.id})">삭제</button></div></div>`;}).join('')||'<div class="muted" style="font-size:12px;padding:5px 0;">해당 조건 없음</div>'}`;
+  }
+  document.getElementById('admCtrlWrap').innerHTML=html;
+}
+function admDelHaz(id){
+  if(!isAdminUser()){toast('⚠️ 관리자만 가능');return;}
+  const hz=DB.g('hazards')||[];const h=hz.find(x=>x.id===id);if(!h)return;
+  if(!confirm("'"+(h.hazType||'위험상황')+"' 보고를 삭제하시겠습니까?"))return;
+  DB.s('hazards',hz.filter(x=>x.id!==id));
+  renderAdmCtrl();try{renderRescueMap();}catch(e){}try{renderResList();}catch(e){}toast('🗑️ 삭제');updateSummary();
 }
 function admDelFac(id){
   if(!_canManageFac()){toast('⚠️ 탐방시설과·개발자만 삭제 가능');return;}

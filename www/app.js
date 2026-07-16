@@ -1794,8 +1794,10 @@ function _renderClimbStats(all){
   }
   if(!all.length){b.innerHTML=html+`<div style="text-align:center;color:#5a7e98;font-size:13px;padding:30px 0;">아직 저장된 이용내역이 없습니다.<br>우측 상단 <b>⬆️ 엑셀 업로드</b>로 원본 파일을 올리세요.</div>`;return;}
   // ── 통계 산출 (요약 + 상세) ──
+  // 모드: 'used'=실제 이용(특보·우천취소 제외, 기본) / 'all'=신청 전체(취소 포함)
+  const statMode=window._climbStatMode||'used';
   const cancelled=all.filter(_climbIsCancelled);
-  const used=all.filter(r=>!_climbIsCancelled(r));
+  const used=statMode==='all'?all.slice():all.filter(r=>!_climbIsCancelled(r));
   const usedTeams=used.length;
   const people=used.reduce((s,r)=>s+(r.total||(r.companions?r.companions.length+1:1)),0);
   const gender={'남':0,'여':0};used.forEach(r=>{const g=r.applicant&&r.applicant.gender;if(g==='남')gender['남']++;else if(g==='여')gender['여']++;(r.companions||[]).forEach(c=>{if(c.gender==='남')gender['남']++;else if(c.gender==='여')gender['여']++;});});
@@ -1808,11 +1810,13 @@ function _renderClimbStats(all){
   const bar=(rows,unit,colf)=>{const max=Math.max.apply(null,[1].concat(rows.map(x=>x.v)));return rows.map(x=>`<div style="display:flex;align-items:center;gap:8px;padding:4px 0;"><span style="font-size:11.5px;color:#c0d8ec;min-width:78px;flex-shrink:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${_esc(x.k)}</span><div style="flex:1;height:9px;background:rgba(255,255,255,.05);border-radius:5px;overflow:hidden;"><div style="height:100%;width:${Math.max(3,Math.round(x.v/max*100))}%;background:${colf?colf(x):'#4fa8d0'};border-radius:5px;"></div></div><span style="font-size:11px;color:#e0edf8;font-weight:800;min-width:64px;text-align:right;">${x.v}${unit||'명'}${x.team!=null?` <span style="color:#5a7e98;font-weight:600;font-size:9px;">${x.team}팀</span>`:''}</span></div>`).join('');};
   // 세로 막대(컬럼) 차트 — 월별·요일별처럼 항목 적은 건 한 줄에 세로 막대로(공간 절약)
   const colChart=(rows,colf)=>{const max=Math.max.apply(null,[1].concat(rows.map(x=>x.v)));return `<div style="display:flex;align-items:flex-end;gap:5px;height:78px;">${rows.map(x=>`<div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;min-width:0;"><span style="font-size:10px;color:#e0edf8;font-weight:800;line-height:1;">${x.v}</span><div style="width:66%;max-width:24px;height:${Math.max(3,Math.round(x.v/max*44))}px;background:${colf?colf(x):'#4fa8d0'};border-radius:4px 4px 0 0;margin-top:3px;"></div><span style="font-size:10px;color:#8fb4cc;margin-top:3px;white-space:nowrap;">${_esc(x.k)}</span></div>`).join('')}</div>`;};
-  // ── 총 통계 요약 ──
+  // ── 총 통계 요약 (모드 토글: 실제 이용 / 신청 전체) ──
+  const modeBtn=(lbl,m)=>`<button onclick="climbStatMode('${m}')" style="flex:1;padding:8px 6px;border:none;border-radius:8px;font-size:12px;font-weight:800;cursor:pointer;background:${statMode===m?'rgba(79,168,208,.2)':'transparent'};color:${statMode===m?'#7fc4e0':'#6a8296'};">${lbl}</button>`;
+  html+=`<div style="display:flex;gap:4px;background:#0a1626;border:1px solid rgba(79,168,208,.15);border-radius:10px;padding:3px;margin-bottom:10px;">${modeBtn('✅ 실제 이용 (취소 제외)','used')}${modeBtn('📝 신청 전체 (취소 포함)','all')}</div>`;
   html+=`<div class="scard" style="margin-bottom:10px;">
-    <div class="stitle">📊 총 통계 <span style="font-size:9px;font-weight:400;color:#5a7e98;">취소·이용없음 제외 실이용</span></div>
+    <div class="stitle">📊 총 통계 <span style="font-size:9px;font-weight:400;color:#5a7e98;">${statMode==='all'?'신청 전체(특보·우천취소 포함)':'특보·우천취소 제외 실이용'}</span></div>
     <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:6px;">
-      ${mini('실이용 인원',people.toLocaleString()+'명','#4fa8d0',usedTeams+'팀')}
+      ${mini(statMode==='all'?'신청 인원':'실이용 인원',people.toLocaleString()+'명','#4fa8d0',usedTeams+'팀')}
       ${mini('성별','<span style="font-size:14px;">남 '+gender['남']+' · 여 '+gender['여']+'</span>','#e0edf8','신청자+동반자')}
       ${mini('취소·이용없음',cancelled.length+'팀',cancelled.length?'#f0a44a':'#27ae60','')}
       ${mini('안전사고',accN+'건',accN?'#ff6b5b':'#27ae60',accN?'':'없음')}
@@ -1821,11 +1825,6 @@ function _renderClimbStats(all){
   // ── 안전사고 목록 (항상 표시 — 중요) ──
   if(accN){
     html+=`<div class="scard" style="margin-bottom:10px;"><div class="stitle" style="color:#ff8a80;">🚨 안전사고 (${accN}건)</div>${accList.map(a=>`<div style="display:flex;align-items:center;gap:6px;font-size:11.5px;color:#dceaf6;padding:5px 0;border-bottom:1px solid rgba(255,255,255,.04);"><span style="flex:1;">${_esc(a.date)} (${_wd[Math.max(0,_dow(a.date))]})${a.district?' · '+_esc(a.district):''}${a.course?' '+_esc(a.course):''} · <b>${_esc(a.name)}</b>${a.total?' ('+a.total+'명)':''}${a.note?` <span style="color:#9fb6c8;">— ${_esc(a.note)}</span>`:''}</span>${a.auto?'<span style="font-size:8.5px;color:#5a7e98;flex-shrink:0;">엑셀</span>':(canMng?`<span onclick="climbDelAccident(${a.id})" style="cursor:pointer;color:#ff8a80;font-weight:800;padding:0 5px;flex-shrink:0;">×</span>`:'')}</div>`).join('')}</div>`;
-  }
-  // ── 모든 통계 보기 (접기/펼치기) ──
-  if(!window._climbStatsFull){
-    html+=`<button onclick="climbToggleStatsFull()" style="width:100%;padding:12px;border-radius:10px;border:1px solid rgba(79,168,208,.3);background:rgba(79,168,208,.08);color:#7fc4e0;font-size:13px;font-weight:800;cursor:pointer;">📊 모든 통계 보기 (월별·요일·지구·코스·연령 등) ▾</button>`;
-    b.innerHTML=html;return;
   }
   const byMon={};used.forEach(r=>{const m=(r.useDate||'').slice(0,7);if(!m)return;const o=byMon[m]||(byMon[m]={ppl:0,team:0});o.ppl+=(r.total||1);o.team++;});
   const monRows=Object.keys(byMon).sort().map(m=>({k:m.slice(5)+'월',v:byMon[m].ppl,team:byMon[m].team}));
@@ -1845,13 +1844,12 @@ function _renderClimbStats(all){
   html+=`<div class="scard" style="margin-bottom:10px;"><div class="stitle">📆 요일별 이용 <span style="font-size:9px;font-weight:400;color:#5a7e98;">⭐주말</span></div>${colChart(dowRows,x=>x.k.indexOf('⭐')>=0?'#ff8a73':'#4fa8d0')}</div>`;
   if(topDays.length)html+=`<div class="scard" style="margin-bottom:10px;"><div class="stitle">🔝 최다 이용일 TOP 5</div>${topDays.map((x,i)=>`<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid rgba(255,255,255,.04);"><span style="font-size:11px;font-weight:800;color:${i===0?'#f0c060':'#7a9cb8'};min-width:18px;">${i+1}</span><span style="flex:1;font-size:12px;color:#dceaf6;">${_esc(x.d)} (${_wd[Math.max(0,_dow(x.d))]})</span><b style="font-size:12.5px;color:#4fa8d0;">${x.v}명</b></div>`).join('')}</div>`;
   html+=`<div class="scard" style="margin-bottom:10px;"><div class="stitle">🏔️ 지구별 이용</div>${bar(distRank.map(x=>({k:x.d,v:x.ppl,team:x.team})),'명')}</div>`;
-  html+=`<div class="scard" style="margin-bottom:10px;"><div class="stitle">🧗 코스별 이용 (상위 12 / 총 ${courseRank.length}개)</div>${bar(courseRank.slice(0,12).map(x=>({k:x.c,v:x.ppl,team:x.team})),'명')}</div>`;
+  html+=`<div class="scard" style="margin-bottom:10px;"><div class="stitle">🧗 코스별 이용 (전체 ${courseRank.length}개)</div>${bar(courseRank.map(x=>({k:x.c,v:x.ppl,team:x.team})),'명')}</div>`;
   if(expN)html+=`<div class="scard" style="margin-bottom:10px;"><div class="stitle">🧗 신청자 등반경력 <span style="font-size:9px;font-weight:400;color:#5a7e98;">${expN}명</span></div>${bar(Object.keys(expB).map(k=>({k,v:expB[k]})).filter(x=>x.v),'명',x=>x.k==='1년↓'?'#ff8a73':'#5fcf8f')}</div>`;
   if(ageN)html+=`<div class="scard" style="margin-bottom:10px;"><div class="stitle">👥 연령대 <span style="font-size:9px;font-weight:400;color:#5a7e98;">${ageN}명</span></div>${bar(Object.keys(ageB).map(k=>({k,v:ageB[k]})).filter(x=>x.v),'명',x=>(x.k==='60대'||x.k==='70↑')?'#f0a44a':'#4fa8d0')}</div>`;
-  html+=`<button onclick="climbToggleStatsFull()" style="width:100%;padding:11px;border-radius:10px;border:1px solid rgba(255,255,255,.12);background:none;color:#7a9cb8;font-size:12.5px;font-weight:700;cursor:pointer;">▲ 통계 접기</button>`;
   b.innerHTML=html;
 }
-function climbToggleStatsFull(){window._climbStatsFull=!window._climbStatsFull;_renderClimbActive();}
+function climbStatMode(m){window._climbStatMode=m;_renderClimbActive();}
 // 사고자 수동 등록 (엑셀 상태값은 다운로드 시점따라 갈려 신뢰 불가 → 직접 등록이 정확)
 function climbAddAccident(){
   if(!_canClimbManage()){toast('⚠️ 관리자만 가능');return;}
@@ -3481,7 +3479,7 @@ function sosToRescue(id){
 // 앱 자체 업데이트 (OTA · Capgo 자체호스팅) — APK 전용. 웹/PWA는 서비스워커가 자동 갱신.
 // 번들(www)의 새 버전을 ota.json으로 알리면, 설치된 앱이 받아서 그 자리에서 교체(재빌드 불필요).
 // ══════════════════════════════════════════
-const OTA_VER='2026.07.16.150';                         // ← 현재 번들 버전 (릴리스마다 올림 · build-ota.sh가 ota.json에 반영)
+const OTA_VER='2026.07.16.151';                         // ← 현재 번들 버전 (릴리스마다 올림 · build-ota.sh가 ota.json에 반영)
 const OTA_MANIFEST='https://seorak1275.github.io/seoraksan/ota.json';
 // 업데이트 확인 폴백 소스 — 일부 기관망·통신사에서 github.io가 막혀 '확인 실패(네트워크)'가 나는 경우 대비.
 // 순서대로 시도: ① GitHub Pages(원본·즉시 반영) ② jsDelivr CDN(공개저장소 미러·거의 모든 망 통과)

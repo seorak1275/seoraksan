@@ -953,15 +953,18 @@ function renderRescueStats(){
   // 엑셀 다운로드 카드: 날짜 범위 선택
   if(!window._statExpFrom){const d=new Date();window._statExpFrom=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-01';}
   if(!window._statExpTo)window._statExpTo=today();
+  const _rangeChip=(lbl,f,t)=>`<span onclick="window._statExpFrom='${f}';window._statExpTo='${t}';renderRescueStats();" style="cursor:pointer;padding:4px 10px;border-radius:12px;font-size:10.5px;font-weight:700;background:rgba(39,174,96,.1);border:1px solid rgba(39,174,96,.3);color:#5dbf8a;">${lbl}</span>`;
+  const _y=new Date().getFullYear();
   const expCard=`<div class="scard" style="border-color:rgba(39,174,96,.25);">
-    <div class="stitle" style="color:#27ae60;">📥 엑셀 다운로드</div>
-    <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px;">
-      <input type="date" value="${window._statExpFrom}" onchange="window._statExpFrom=this.value"
+    <div class="stitle" style="color:#27ae60;">📅 기간 · 📥 엑셀 다운로드 <span style="font-size:9px;font-weight:400;color:#5a7e98;">기간은 아래 사고다발구간에도 적용</span></div>
+    <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;">
+      <input type="date" value="${window._statExpFrom}" onchange="window._statExpFrom=this.value;renderRescueStats();"
         style="flex:1;background:#060d1a;border:1px solid rgba(255,255,255,.12);color:#b8d4e8;border-radius:7px;padding:7px 8px;font-size:12px;color-scheme:dark;">
       <span style="font-size:11px;color:#3a6a8a;flex-shrink:0;">~</span>
-      <input type="date" value="${window._statExpTo}" onchange="window._statExpTo=this.value"
+      <input type="date" value="${window._statExpTo}" onchange="window._statExpTo=this.value;renderRescueStats();"
         style="flex:1;background:#060d1a;border:1px solid rgba(255,255,255,.12);color:#b8d4e8;border-radius:7px;padding:7px 8px;font-size:12px;color-scheme:dark;">
     </div>
+    <div style="display:flex;gap:5px;margin-bottom:8px;">${_rangeChip('이번달',mon+'-01',today())}${_rangeChip('올해',_y+'-01-01',today())}${_rangeChip('전체','2020-01-01',today())}</div>
     <button onclick="downloadStatsExcel('${tab}')"
       style="width:100%;padding:9px;border-radius:8px;background:rgba(39,174,96,.13);border:1px solid rgba(39,174,96,.4);color:#27ae60;font-size:12px;font-weight:700;cursor:pointer;">
       📥 ${tab==='rescue'?'구조보고':'위험상황'} 자료 다운로드 (.csv)
@@ -999,7 +1002,7 @@ function renderRescueStats(){
         </div>
       </div>
       <div class="scard">
-        <div class="stitle">🔥 사고 다발 구간 (히트맵)</div>
+        <div class="stitle">🔥 사고 다발 구간 (히트맵) <span style="font-size:9px;font-weight:400;color:#5a7e98;">${window._statExpFrom} ~ ${window._statExpTo}</span></div>
         <div id="heatMapEl" style="width:100%;height:280px;border-radius:9px;overflow:hidden;background:#060d1a;"></div>
         <div id="heatTopList" style="margin-top:8px;"></div>
       </div>
@@ -1037,7 +1040,7 @@ function renderRescueStats(){
         </div>
       </div>
       <div class="scard">
-        <div class="stitle">🔥 사고 다발 구간 (히트맵)</div>
+        <div class="stitle">🔥 사고 다발 구간 (히트맵) <span style="font-size:9px;font-weight:400;color:#5a7e98;">${window._statExpFrom} ~ ${window._statExpTo}</span></div>
         <div id="heatMapEl" style="width:100%;height:280px;border-radius:9px;overflow:hidden;background:#060d1a;"></div>
         <div id="heatTopList" style="margin-top:8px;"></div>
       </div>
@@ -1054,8 +1057,11 @@ function renderRescueStats(){
 function _renderHeatMap(tab){
   const el=document.getElementById('heatMapEl');
   if(!el||!window._KR)return;
-  const allData=(tab==='haz'?(DB.g('hazards')||[]):(DB.g('rescues')||[]));
-  if(!allData.length){el.innerHTML='<div style="display:flex;align-items:center;justify-content:center;height:100%;font-size:11px;color:rgba(255,255,255,.25);">기록 없음</div>';return;}
+  // 통계 기간(엑셀 다운로드 카드의 날짜 범위)과 연동 — 그 기간의 사고만 집계
+  const _hf=window._statExpFrom||'',_ht=window._statExpTo||'';
+  const allData=(tab==='haz'?(DB.g('hazards')||[]):(DB.g('rescues')||[]))
+    .filter(r=>{const d=String(r.date||'').slice(0,10);return d&&(!_hf||d>=_hf)&&(!_ht||d<=_ht);});
+  if(!allData.length){el.innerHTML='<div style="display:flex;align-items:center;justify-content:center;height:100%;font-size:11px;color:rgba(255,255,255,.25);">선택 기간에 기록 없음</div>';const tl=document.getElementById('heatTopList');if(tl)tl.innerHTML='';return;}
 
   // 표지판 코드 맵 구성 (01-05 → {lat,lng,name})
   const facs=DB.g('facilities')||[];
