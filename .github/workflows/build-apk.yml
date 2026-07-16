@@ -24,6 +24,16 @@ jobs:
         id: version
         run: echo "version=$(date +%Y%m%d-%H%M)" >> $GITHUB_OUTPUT
 
+      # 안드로이드 versionCode/versionName을 빌드마다 증가 — 고정(2/"1.1")이면 Capgo OTA가
+      # '네이티브 앱이 교체됐다'를 감지하지 못해, 새 APK를 덮어 설치해도 기기에 저장된
+      # 예전 OTA 번들(예: 2026.06.29.60)을 계속 사용하는 문제의 원인이었음.
+      - name: Stamp Android version
+        run: |
+          VC=$(date +%y%m%d%H)
+          sed -i -E "s/versionCode [0-9]+/versionCode $VC/" android/app/build.gradle
+          sed -i -E "s/versionName \"[^\"]*\"/versionName \"v${{ steps.version.outputs.version }}\"/" android/app/build.gradle
+          grep -nE "versionCode|versionName" android/app/build.gradle || true
+
       - name: Setup Java 21
         uses: actions/setup-java@v4
         with:
