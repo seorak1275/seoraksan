@@ -1,1 +1,1 @@
-{"version":"2026.07.16.193","url":"https://seorak1275.github.io/seoraksan/bundle.zip","notes":"시설물 지도 축소 시 핀 전부 숨김(구조지도와 동일 감각) — 빈 원 자체가 안 생김, ⚠️경고 시설만 항상 표시(최소 크기 보장), 확대하면 아이콘 핀으로 전부 등장"}
+{"version":"2026.07.16.194","url":"https://seorak1275.github.io/seoraksan/bundle.zip","notes":"시설물 지도 축소 시 구간별 숫자 버블(파랑) — 첫 화면에서 어디에 몇 개 있는지 보이고 빈 원 없음, 버블 탭=확대, 경고 시설 항상 개별 표시, 외딴 핀은 최소 크기 보장"}

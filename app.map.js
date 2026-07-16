@@ -136,17 +136,27 @@ var _iClusterOvs=[],_iItems=[];
 function _reclusterInspect(){
   if(!mapI)return;
   _iClusterOvs.forEach(o=>{try{o.setMap(null);}catch(e){}});_iClusterOvs=[];
-  // 축소(레벨 8 이상)에서는 시설물 핀을 전부 숨김(구조지도와 동일 감각) — 아이콘이 안 들어가는
-  // '빈 원' 자체가 생기지 않게 한다. ⚠️경고 표시 시설만 예외로 항상 표시. 확대하면 전부 등장.
-  // 이미 원하는 상태인 핀은 건드리지 않음(재부착 = DOM 재생성 → 깜빡임·프레임 저하)
   let lv=9;try{lv=mapI.getLevel();}catch(e){}
-  const hideAll=lv>=8;
-  iOvs.forEach(o=>{
-    try{
-      const want=(hideAll&&!o._warn)?null:mapI;
-      if(o.getMap()!==want)o.setMap(want);
-    }catch(e){}
-  });
+  if(lv>=8){
+    // 축소(첫 화면 포함): 구조지도처럼 '구간별 숫자 버블'로 뭉침 — 어디에 몇 개 있는지는 보이되
+    // 아이콘 없는 빈 원은 없음. ⚠️경고 시설은 뭉치지 않고 항상 개별 표시. 버블 탭 = 그 지점 확대.
+    const items=[];
+    iOvs.forEach(o=>{
+      if(o._warn){try{if(o.getMap()!==mapI)o.setMap(mapI);}catch(e){}return;}
+      items.push({ov:o,lat:o._lat,lng:o._lng});
+    });
+    _iClusterOvs=_clusterByPixels(mapI,items,56,function(la,ln){_clusterZoom(mapI,la,ln);},'fac-cluster');
+    // 뭉치지 못한 외딴 핀(그룹 1개)은 빈 원 대신 식별 가능한 최소 크기로
+    iOvs.forEach((o,i)=>{
+      if(o._warn)return;
+      try{
+        if(o.getMap()===mapI){const el=iEls[i];if(el){el.style.width='16px';el.style.height='16px';el.style.fontSize='9px';el.style.borderWidth='1.5px';}}
+      }catch(e){}
+    });
+    return;
+  }
+  // 확대: 전부 개별 표시(아이콘 보임). 이미 붙어 있는 핀은 재부착하지 않음(깜빡임·프레임 저하 방지)
+  iOvs.forEach(o=>{try{if(o.getMap()!==mapI)o.setMap(mapI);}catch(e){}});
 }
 // ── 시설물 겹친 핀: 하단 목록 시트로 선택 ──────────────────────────────
 // 핀은 모두 그대로 표시(숫자 뭉치기 없음). 확대해도 겹쳐 못 누르는 지점을 누르면
