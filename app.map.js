@@ -111,30 +111,33 @@ function _customPinch(map,el){
     if(!(navigator.maxTouchPoints>0&&/Android|iPhone|iPad|iPod/i.test(navigator.userAgent||'')))return; // 모바일만(데스크톱 휠 줌 유지)
     map.setZoomable(false);
   }catch(e){return;}
-  let zooming=false,d0=1,cx=0,cy=0,scale=1,rect=null,lastTapAt=0,lastTapX=0,lastTapY=0;
+  let zooming=false,d0=1,cx0=0,cy0=0,cx=0,cy=0,scale=1,rect=null,anchorCoord=null,lastTapAt=0,lastTapX=0,lastTapY=0;
   const dist=t=>Math.hypot(t[0].clientX-t[1].clientX,t[0].clientY-t[1].clientY)||1;
   const finish=()=>{
     if(!zooming)return;zooming=false;
     el.style.transform='';el.style.transformOrigin='';el.style.willChange='';
     const steps=Math.round(Math.log(scale)/Math.LN2);
-    if(steps){
-      try{
+    const tx=cx-cx0,ty=cy-cy0; // 제스처 동안 두 손가락 중심이 이동한 양(팬)
+    try{
+      if(steps){
         const lv=Math.max(1,Math.min(14,map.getLevel()-steps));
-        let opt;
-        try{const proj=map.getProjection();opt={anchor:proj.coordsFromContainerPoint(new kakao.maps.Point(cx-rect.left,cy-rect.top))};}catch(e){}
-        map.setLevel(lv,opt); // 즉시 전환(애니메이션 없음 → 핀 숨김 구간 자체가 없음)
-      }catch(e){}
-    }
-    scale=1;
+        // 앵커는 '제스처 시작 시점'에 그 지점 아래 있던 지도 좌표 — 스케일된 화면에서 재계산하면 어긋나 위치가 튐
+        map.setLevel(lv,anchorCoord?{anchor:anchorCoord}:undefined); // 즉시 전환(핀 숨김 구간 없음)
+      }
+      if(Math.abs(tx)>2||Math.abs(ty)>2)map.panBy(-tx,-ty); // 손가락 이동분 반영(내용이 +tx 이동 = 중심 -tx)
+    }catch(e){}
+    scale=1;anchorCoord=null;
   };
   el.addEventListener('touchstart',e=>{
     if(e.touches.length===2){
       zooming=true;rect=el.getBoundingClientRect();
       d0=dist(e.touches);scale=1;
-      cx=(e.touches[0].clientX+e.touches[1].clientX)/2;
-      cy=(e.touches[0].clientY+e.touches[1].clientY)/2;
+      cx0=cx=(e.touches[0].clientX+e.touches[1].clientX)/2;
+      cy0=cy=(e.touches[0].clientY+e.touches[1].clientY)/2;
+      anchorCoord=null;
+      try{anchorCoord=map.getProjection().coordsFromContainerPoint(new kakao.maps.Point(cx0-rect.left,cy0-rect.top));}catch(err){}
       el.style.willChange='transform';
-      el.style.transformOrigin=(cx-rect.left)+'px '+(cy-rect.top)+'px';
+      el.style.transformOrigin=(cx0-rect.left)+'px '+(cy0-rect.top)+'px';
     }
   },{capture:true,passive:true});
   el.addEventListener('touchmove',e=>{
@@ -143,7 +146,7 @@ function _customPinch(map,el){
     cx=(e.touches[0].clientX+e.touches[1].clientX)/2;
     cy=(e.touches[0].clientY+e.touches[1].clientY)/2;
     scale=Math.max(.25,Math.min(4,dist(e.touches)/d0));
-    el.style.transform='scale('+scale+')';
+    el.style.transform='translate('+(cx-cx0)+'px,'+(cy-cy0)+'px) scale('+scale+')'; // 이동+확대 동시 추적
   },{capture:true,passive:false});
   el.addEventListener('touchend',e=>{
     // 더블탭 확대(SDK 줌을 꺼서 직접 제공): 0.35초 내 같은 지점 두 번 탭 → 한 단계 확대(즉시)
