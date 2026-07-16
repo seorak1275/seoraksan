@@ -255,11 +255,12 @@ if(window.Kakao&&!Kakao.isInitialized()) Kakao.init(KAKAO_KEY);
   <div id="homeActiveStrip" style="flex-shrink:0;"></div>
 
   <!-- 날씨 -->
-  <div id="weatherStrip" class="weather-strip" style="display:none;" onclick="openWeatherDetail()">
-    <span class="weather-ico" id="wIco">☀️</span>
-    <span class="weather-tmp" id="wTmp">--°</span>
-    <span class="weather-info" id="wDesc">속초</span>
-    <span class="weather-wind" id="wWind"></span>
+  <!-- 처음부터 자리 잡고 스켈레톤 표시 — 데이터 도착 시 _wxShow()가 skl 해제, 실패 시 부팅 12초 후 숨김 -->
+  <div id="weatherStrip" class="weather-strip" style="display:flex;" onclick="openWeatherDetail()">
+    <span class="weather-ico skl" id="wIco" style="min-width:22px;">&nbsp;</span>
+    <span class="weather-tmp skl" id="wTmp" style="min-width:36px;">--°</span>
+    <span class="weather-info skl" id="wDesc" style="min-width:74px;">속초</span>
+    <span class="weather-wind skl" id="wWind" style="min-width:48px;">&nbsp;</span>
     <span style="font-size:10px;color:#3a6a8a;margin-left:auto;">▸</span>
   </div>
   <div id="weatherAlertWrap" class="weather-alert-wrap" onclick="openApp('alert')" style="cursor:pointer;touch-action:manipulation;"></div>

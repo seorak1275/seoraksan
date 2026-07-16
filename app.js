@@ -764,7 +764,7 @@ function fetchWeather(){
     document.getElementById('wTmp').textContent=(isNaN(temp)?'--':Math.round(temp))+'°';
     document.getElementById('wDesc').textContent='속초 · '+desc;
     document.getElementById('wWind').textContent='💨 '+Math.round(wspd)+'m/s';
-    var ws=document.getElementById('weatherStrip');if(ws)ws.style.display='flex';
+    _wxShow();
     // 실제 기상특보 — 유효 응답만 공식 처리 (수신 실패를 '특보 없음'으로 오인해 자동해제하지 않도록)
     if(_kmaWrnValid(wrnTxt)){
       _saveKmaLast(wrnTxt);
@@ -856,7 +856,7 @@ function _fetchWeatherFallback(realWrnTxt){
       document.getElementById('wTmp').textContent=(isNaN(temp)?'--':Math.round(temp))+'°';
       document.getElementById('wDesc').textContent='속초 · '+desc;
       document.getElementById('wWind').textContent='💨 '+Math.round(wspd)+'m/s';
-      var ws=document.getElementById('weatherStrip');if(ws)ws.style.display='flex';
+      _wxShow();
       var rNames=_WEATHER_REGIONS.map(function(r){return r.name;});
       var alertMap={};
       results.slice(1).forEach(function(d,i){
@@ -922,6 +922,11 @@ function _renderWeatherAlerts(alertMap,estimated,noSync){
     +'<span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;font-weight:600;">'+regionStr+(extra>0?' <span style="font-weight:800;">외 '+extra+'건</span>':'')+(estimated?' <span style="font-weight:400;opacity:.8;">· 기상청 미연결</span>':'')+'</span>'
     +'<span style="flex-shrink:0;font-size:10px;opacity:.7;">▸</span></div>';
   wrap.style.display='flex';
+}
+// 날씨 스트립 표시 + 스켈레톤 해제 (첫 부팅 자리표시 → 실데이터 교체)
+function _wxShow(){
+  var ws=document.getElementById('weatherStrip');if(ws)ws.style.display='flex';
+  ['wIco','wTmp','wDesc','wWind'].forEach(function(id){var e=document.getElementById(id);if(e){e.classList.remove('skl');e.style.minWidth='';}});
 }
 var _wDetailCache=null;
 var _wDetailFetching=false;
@@ -1262,6 +1267,15 @@ function renderHomeActive(){
   const total=og.length+haz.length+badFac.length;
   try{_updateClimbMenu();}catch(e){}
   if(!total){
+    // 첫 동기화 전(콜드 부팅)엔 '없음'으로 단정하지 않고 스켈레톤 자리표시 — 데이터 도착 시 자동 교체
+    if(!window._dbFirstReady){
+      el.innerHTML=`<div style="display:flex;align-items:center;gap:12px;background:#0c1826;border:1px solid rgba(255,255,255,.05);border-radius:16px;padding:15px 16px;">
+        <div class="skl" style="width:40px;height:40px;border-radius:50%;flex-shrink:0;"></div>
+        <div style="flex:1;min-width:0;"><div class="skl" style="width:55%;height:14px;margin-bottom:7px;"></div>
+        <div class="skl" style="width:82%;height:10px;"></div></div>
+      </div>`;
+      return;
+    }
     el.innerHTML=`<div style="display:flex;align-items:center;gap:12px;background:linear-gradient(135deg,#0e2a20,#0b1c19);border:1px solid rgba(39,174,96,.22);border-radius:16px;padding:15px 16px;">
       <div style="width:40px;height:40px;border-radius:50%;background:rgba(39,174,96,.15);display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;">✅</div>
       <div style="min-width:0;"><div style="font-size:14px;font-weight:800;color:#eaf2fa;">현재 주의 항목 없음</div>
@@ -3662,7 +3676,7 @@ function sosToRescue(id){
 // 앱 자체 업데이트 (OTA · Capgo 자체호스팅) — APK 전용. 웹/PWA는 서비스워커가 자동 갱신.
 // 번들(www)의 새 버전을 ota.json으로 알리면, 설치된 앱이 받아서 그 자리에서 교체(재빌드 불필요).
 // ══════════════════════════════════════════
-const OTA_VER='2026.07.16.197';                         // ← 현재 번들 버전 (릴리스마다 올림 · build-ota.sh가 ota.json에 반영)
+const OTA_VER='2026.07.16.198';                         // ← 현재 번들 버전 (릴리스마다 올림 · build-ota.sh가 ota.json에 반영)
 const OTA_MANIFEST='https://seorak1275.github.io/seoraksan/ota.json';
 // 업데이트 확인 폴백 소스 — 일부 기관망·통신사에서 github.io가 막혀 '확인 실패(네트워크)'가 나는 경우 대비.
 // 순서대로 시도: ① GitHub Pages(원본·즉시 반영) ② jsDelivr CDN(공개저장소 미러·거의 모든 망 통과)
@@ -4034,6 +4048,12 @@ window.onload=function(){
       try{_initSosWatch();}catch(e){} // 🆘 조난·사고자 위치 실시간 구독
       try{setTimeout(_climbPrefetchToday,8000);}catch(e){} // 🧗 출동 대비: 오늘·내일 암벽 명단 자동 저장(음영지역 진입 대비)
       try{setTimeout(_autoPreloadParkTiles,25000);}catch(e){} // 🗺️ 설악산 타일 자동 미리받기(7일마다, 요금 배려) — 깜빡임 없는 지도
+      // 스켈레톤 안전장치: 12초가 지나도 동기화·날씨가 안 오면(오프라인 등) 자리표시를 정리해 영원히 반짝이지 않게
+      try{setTimeout(function(){
+        if(!window._dbFirstReady){window._dbFirstReady=true;try{renderHomeActive();}catch(e){}}
+        var wt=document.getElementById('wTmp');
+        if(wt&&wt.classList.contains('skl')){var ws=document.getElementById('weatherStrip');if(ws)ws.style.display='none';}
+      },12000);}catch(e){}
       try{if('Notification' in window&&Notification.permission==='granted') _initFCM();}catch(e){} // FCM 토큰 갱신
       try{_flushFcmToken();}catch(e){} // 네이티브 토큰이 Firebase 준비 전 등록됐으면 지금 저장
       if(/[?&]board=1/.test(location.search))setTimeout(openBoard,300); // ?board=1 → 상황판

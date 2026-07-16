@@ -374,6 +374,10 @@ img{-webkit-user-drag:none;}
 .tt-actor-pill.on{background:#7a3800 !important;color:#fff !important;border-color:#c05000 !important;}
 .press-fx{transition:transform .1s var(--qt),opacity .1s;}
 .press-fx:active{transform:scale(.95);opacity:.8;}
+/* ─── 스켈레톤 로딩 — 첫 부팅 때 빈 화면 대신 회색 자리표시(shimmer) ─── */
+.skl{position:relative;overflow:hidden;background:rgba(255,255,255,.055) !important;color:transparent !important;border-radius:8px;border-color:transparent !important;text-shadow:none !important;pointer-events:none;}
+.skl::after{content:'';position:absolute;inset:0;background:linear-gradient(90deg,transparent,rgba(255,255,255,.09),transparent);animation:sklShine 1.3s infinite;}
+@keyframes sklShine{from{transform:translateX(-100%);}to{transform:translateX(100%);}}
 /* ─── 기능 색 시스템 — 구조=빨강 · 시설=청록 · 특보=파랑 · 암벽=갈색 (홈 메뉴 mb-* 와 동일 계열) ─── */
 :root{
   --c-rescue:#e05a4e;--c-rescue-bg:rgba(224,90,78,.12);--c-rescue-bd:rgba(224,90,78,.42);

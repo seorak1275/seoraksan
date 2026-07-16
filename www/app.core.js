@@ -543,7 +543,11 @@ function initFirebase(onReady){
     setTimeout(_cleanOldSharedNotis,8000); // 세션당 1회: 24h 지난 브로드캐스트 알림 정리(확률 의존 X)
     const totalKeys=_SHARED.length;
     const loaded=new Set();
-    function _checkReady(){if(loaded.size===totalKeys){onReady&&onReady();onReady=null;}}
+    function _checkReady(){if(loaded.size===totalKeys){
+      window._dbFirstReady=true; // 첫 전체 동기화 완료 — 홈 스켈레톤을 실데이터로 교체
+      onReady&&onReady();onReady=null;
+      try{if(typeof updateSummary==='function')updateSummary();}catch(e){}
+    }}
     function _onRemoteUpdate(){
       _checkDeletedUser();updateSummary();
       // 관리자에서 강등(_acl)되면 즉시 반영 — 옛 플래그 정리 + 관리자 화면이면 홈으로
