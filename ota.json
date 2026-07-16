@@ -1,1 +1,1 @@
-{"version":"2026.07.16.174","url":"https://seorak1275.github.io/seoraksan/bundle.zip","notes":"상황판 깜빡임·비율 해결 — 10초 갱신 때 지도 relayout·핀·목록을 데이터 변경시에만 다시 그림(주기적 깜빡임 종결), 요약카드 한 줄 유지+좁은 화면 자동 축소, 헤더 안전영역(닫기 버튼 접근성)"}
+{"version":"2026.07.16.175","url":"https://seorak1275.github.io/seoraksan/bundle.zip","notes":"상황판 홈 버튼을 PC·와이드 화면 전용으로 — 폰에서는 숨김(?board=1 직접 진입·모니터 북마크는 유지)"}
