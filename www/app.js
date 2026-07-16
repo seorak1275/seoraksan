@@ -3481,7 +3481,7 @@ function sosToRescue(id){
 // 앱 자체 업데이트 (OTA · Capgo 자체호스팅) — APK 전용. 웹/PWA는 서비스워커가 자동 갱신.
 // 번들(www)의 새 버전을 ota.json으로 알리면, 설치된 앱이 받아서 그 자리에서 교체(재빌드 불필요).
 // ══════════════════════════════════════════
-const OTA_VER='2026.07.16.147';                         // ← 현재 번들 버전 (릴리스마다 올림 · build-ota.sh가 ota.json에 반영)
+const OTA_VER='2026.07.16.148';                         // ← 현재 번들 버전 (릴리스마다 올림 · build-ota.sh가 ota.json에 반영)
 const OTA_MANIFEST='https://seorak1275.github.io/seoraksan/ota.json';
 // 업데이트 확인 폴백 소스 — 일부 기관망·통신사에서 github.io가 막혀 '확인 실패(네트워크)'가 나는 경우 대비.
 // 순서대로 시도: ① GitHub Pages(원본·즉시 반영) ② jsDelivr CDN(공개저장소 미러·거의 모든 망 통과)
@@ -3505,10 +3505,16 @@ async function _otaCheck(manual){
       m=await r.json(); src=s; break;
     }catch(e){ lastErr=(e&&e.message)||String(e); }
   }
-  if(!m){ if(manual)toast('⚠️ 업데이트 확인 실패 — 서버 3곳 모두 접근 불가 ('+lastErr+') · 네트워크(Wi-Fi↔LTE)를 바꿔 재시도해 보세요',5000); return; }
+  if(!m){
+    // 최후 폴백: Firestore 미러(웹 방문자들이 자동 갱신) — 이 앱의 동기화가 되는 망이면 무조건 받아짐
+    try{ const fs=DB.g('otaInfo'); if(fs&&fs.version&&fs.url)m=fs; }catch(e){}
+    if(!m){ if(manual)toast('⚠️ 업데이트 확인 실패 — 서버 접근 불가 ('+lastErr+') · 네트워크(Wi-Fi↔LTE)를 바꿔 재시도해 보세요',5000); return; }
+  }
   if(!m.version||!m.url){ if(manual)toast('업데이트 정보 없음'); return; }
   // github.io가 막힌 망: 매니페스트를 받아온 폴백 소스에서 번들도 받도록 URL 재작성
   try{ if(src&&src.base.indexOf('github.io')<0){ const fn=String(m.url).split('/').pop()||'bundle.zip'; m.url=src.base+fn; } }catch(e){}
+  // 확인 성공분을 Firestore에 미러 — github이 막힌 다른 기기들의 폴백 정보로 사용
+  try{ if(typeof _authReady!=='undefined'&&_authReady){ const cur=DB.g('otaInfo'); if(!cur||String(cur.version)!==String(m.version))DB.s('otaInfo',{version:m.version,url:m.url,notes:m.notes||'',at:Date.now()}); } }catch(e){}
   if(String(m.version)===String(OTA_VER)){ _otaInfo=null;_otaBanner(); if(manual)toast('✅ 최신 버전입니다 ('+OTA_VER+')'); return; }
   _otaInfo=m; _otaBanner();
   if(manual)_otaApply();
@@ -3519,7 +3525,14 @@ async function _otaApply(){
   const _m=document.getElementById('otaModal');if(_m)_m.remove();
   try{
     toast('⬇️ 업데이트 받는 중… 잠시만요 (완료되면 자동 재시작)',8000);
-    const b=await plug.download({url:_otaInfo.url,version:String(_otaInfo.version)});
+    let b;
+    try{ b=await plug.download({url:_otaInfo.url,version:String(_otaInfo.version)}); }
+    catch(e1){
+      // 원본(github.io) 다운로드 실패 → jsDelivr CDN 미러로 1회 재시도 (github 계열이 막힌 망 대응)
+      const alt='https://cdn.jsdelivr.net/gh/seorak1275/seoraksan@main/'+(String(_otaInfo.url).split('/').pop()||'bundle.zip');
+      if(alt!==_otaInfo.url)b=await plug.download({url:alt,version:String(_otaInfo.version)});
+      else throw e1;
+    }
     await plug.set(b); // 적용 + 자동 재시작 (새 번들이 notifyAppReady 못하면 다음 실행 시 자동 롤백)
   }catch(e){ toast('⚠️ 업데이트 실패: '+(e&&(e.message||e.code)||e)); }
 }
@@ -3812,6 +3825,17 @@ window.onload=function(){
     setTimeout(function(){
       // 저장소 영속화 요청 — 승인되면 브라우저가 공간 부족 시에도 타일 캐시·데이터를 임의 삭제하지 않음(웹 오프라인 지도 보존)
       try{if(navigator.storage&&navigator.storage.persist)navigator.storage.persist().catch(function(){});}catch(e){}
+      // 웹 방문자: ota.json(같은 서버라 항상 성공)을 Firestore에 미러 — github이 막힌 망의 APK가 이걸로 업데이트 확인
+      try{
+        if(!_isNativeApp())setTimeout(function(){
+          fetch('ota.json?t='+Date.now(),{cache:'no-store'}).then(function(r){return r.json();}).then(function(m){
+            if(!(m&&m.version&&m.url))return;
+            if(typeof _authReady==='undefined'||!_authReady)return; // 인증 전 쓰기 금지(동기화 대기 방지)
+            var cur=DB.g('otaInfo');
+            if(!cur||String(cur.version)!==String(m.version))DB.s('otaInfo',{version:m.version,url:m.url,notes:m.notes||'',at:Date.now()});
+          }).catch(function(){});
+        },6000);
+      }catch(e){}
       try{if(window._KR){initMaps();}else{window._KCB=function(){initMaps();};}}catch(e){}
       try{fetchWeather();}catch(e){}
       try{setTimeout(_autoApplyCoordFix,3500);}catch(e){} // 표지판 좌표 자동 최신화(1회)

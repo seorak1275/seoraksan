@@ -111,7 +111,8 @@ const _FB_CFG={
 // history: 점검이력은 무제한으로 계속 쌓이는 로그성 데이터라 단일문서 그대로 두면 매 점검마다 전체가 전원에게 재전송됨 → 건별 문서로 전환
 const _SHARED_COLL=['rescues','hazards','facilities','history','facIssues'];
 // _SHARED_DOC: 단일 문서에 JSON 배열 저장 (관리자 전용, 동시 쓰기 없음)
-const _SHARED_DOC=['alertOps','alertLog','staff','catFac','catFacMeta','pendingUsers','approvedUsers','deletedKakaoIds','adminOwnerKakaoId','adminApprovalCode','extAgencies','extAgencyCode','extAgencyDisplayName','geminiApiKey','kmaProxyUrl','_acl','loginLog','trailStatus','crisisLevel','weatherBrief','weatherLog','trailLog','sosBlocked','autoApprove','pushLog','devKakaoId','notiPolicy','customResTypes','facManagers','climbDates','climbCancels','homeHidden','climbAccidents'];
+const _SHARED_DOC=['alertOps','alertLog','staff','catFac','catFacMeta','pendingUsers','approvedUsers','deletedKakaoIds','adminOwnerKakaoId','adminApprovalCode','extAgencies','extAgencyCode','extAgencyDisplayName','geminiApiKey','kmaProxyUrl','_acl','loginLog','trailStatus','crisisLevel','weatherBrief','weatherLog','trailLog','sosBlocked','autoApprove','pushLog','devKakaoId','notiPolicy','customResTypes','facManagers','climbDates','climbCancels','homeHidden','climbAccidents','otaInfo'];
+// otaInfo: ota.json의 Firestore 미러 {version,url,notes,at} — 웹 방문자가 자동 갱신. github 계열이 막힌 망의 APK가 업데이트 정보를 받는 최후 폴백 통로
 // homeHidden: 관리자가 홈 화면에서 숨긴 메뉴 키 목록(미완성 기능 감추기용) — 전 직원 동기화 적용
 // climbAccidents: 수동 등록한 암벽 사고자 [{id,date,name,note,by,at}] — 엑셀 상태값은 다운로드 시점따라 달라 신뢰 불가라 사고는 직접 등록
 // climbDates: 암벽 이용현황 업로드된 '이용일자' 목록(날짜만·개인정보 아님) — 홈 업로드알림용. 실제 명단(PII)은 climbUsage 컬렉션에 별도 저장(전체 동기화 X).
