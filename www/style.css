@@ -184,6 +184,9 @@ img{-webkit-user-drag:none;}
 .map-ctrl{position:absolute;top:10px;left:10px;background:rgba(11,28,48,.85);color:#4fa8d0;border:1px solid rgba(79,168,208,.22);border-radius:8px;padding:0 10px;height:34px;display:inline-flex;align-items:center;line-height:1.2;white-space:nowrap;box-sizing:border-box;font-size:11px;font-weight:600;cursor:pointer;z-index:10;}
 /* Android/iOS 시스템 바 안전영역: 전체화면 지도의 상단 컨트롤·하단 FAB가 상태바/뒤로가기 바에 가려 못 눌리는 문제 방지(인라인 top/bottom 값은 그대로 두고 margin으로만 밀어냄) */
 .map-ctrl{margin-top:env(safe-area-inset-top);}
+/* 상단 컨트롤 묶음(#mapTopCtrls)·시설물 지도 버튼은 예외 — 지도가 헤더 아래(안전영역 밖)에 있어
+   이 여백이 이중 보정이 됨: 앱(APK)에서만 버튼들이 통째로 내려가고 둘째 줄(🆘)이 뚝 떨어져 보이던 원인 */
+#mapTopCtrls .map-ctrl,#v-inspect-map .map-ctrl{margin-top:0;}
 .fab,.fab2,.fab-gps{margin-bottom:env(safe-area-inset-bottom);}
 .mpin{position:relative;width:34px;height:34px;border-radius:50%;background:#0b1c30;display:flex;align-items:center;justify-content:center;font-size:15px;cursor:pointer;border:2.5px solid;box-shadow:0 3px 8px rgba(0,0,0,.8);user-select:none;-webkit-user-select:none;}
 .mpin-sm{width:20px;height:20px;border-radius:50%;background:#0b2a3f;display:flex;align-items:center;justify-content:center;font-size:10px;cursor:pointer;border:1.5px solid #4fa8d0;box-shadow:0 2px 5px rgba(0,0,0,.7);opacity:.9;user-select:none;-webkit-user-select:none;}

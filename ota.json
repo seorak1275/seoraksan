@@ -1,1 +1,1 @@
-{"version":"2026.07.16.148","url":"https://seorak1275.github.io/seoraksan/bundle.zip","notes":"OTA 최후 폴백 — 웹 방문자가 ota.json을 Firestore(otaInfo)에 자동 미러, github 계열이 전부 막힌 폰도 Firebase 동기화만 되면 업데이트 확인 가능. 번들 다운로드도 실패 시 jsDelivr CDN으로 1회 재시도"}
+{"version":"2026.07.16.149","url":"https://seorak1275.github.io/seoraksan/bundle.zip","notes":"앱(APK)에서 지도 상단 버튼(위성/진행중/시설물/구조·🆘위치요청)이 웹과 다르게 내려앉고 🆘줄이 뚝 떨어져 보이던 것 수정 — 헤더가 이미 상태바를 처리하는데 .map-ctrl에 safe-area margin이 이중 적용되던 것을 상단 컨트롤·시설물 지도에서 제거"}
