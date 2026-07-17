@@ -1812,7 +1812,7 @@ async function aiScanDispatch(input){
   "reception": "최초 신고 내용 — 요약하지 말고 문서의 신고내용 원문에 최대한 가깝게",
   "repName": "신고자 이름 (사고자와 다른 사람일 때만)",
   "repTel": "신고자 연락처 (사고자 연락처와 다를 때만)",
-  "repRel": "신고자와 사고자의 관계 (본인/일행/가족/목격자 등, 있으면)",
+  "repRel": "신고자와 사고자의 관계 (동반자/일행/가족/목격자 등, 있으면. 신고자가 곧 사고자면 비움)",
   "lat": "위도 숫자 (문서에 좌표가 있으면, 예: 38.1234)",
   "lng": "경도 숫자 (문서에 좌표가 있으면, 예: 128.4567)",
   "weather": "기상 정보 (있으면)",
@@ -2651,6 +2651,7 @@ function render1BoForm(prefill=null){
         <button onclick="addVictim2()" style="width:100%;padding:9px;background:rgba(231,76,60,.08);border:1px dashed rgba(231,76,60,.3);color:#e9897e;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;margin-top:4px;">＋ 사고자 추가</button>
       </div>
       <div class="rsec"><div class="rsec-t">📞 신고자</div>
+        <button type="button" onclick="swapVictimReporter()" style="width:100%;margin-bottom:9px;padding:9px;border-radius:8px;border:1px dashed rgba(232,179,74,.45);background:rgba(232,179,74,.08);color:#e8b34a;font-size:11.5px;font-weight:700;cursor:pointer;">🔄 사고자 ↔ 신고자 인적사항 맞바꾸기 <span style="font-size:9px;font-weight:400;color:#a5905a;">(역할 반대로 적었을 때)</span></button>
         <div class="fg">
           <div style="display:flex;gap:6px;" id="hasRepBtns">
             <button class="tog-btn${p.hasRep==='y'?'':' on'}" data-val="n" onclick="selHasRep('n')">없음</button>
@@ -2661,7 +2662,7 @@ function render1BoForm(prefill=null){
         <div id="reporterWrap" style="display:${p.hasRep==='y'?'block':'none'};">
           <div class="fg"><span class="fl">사고자와의 관계 <span style="font-size:9px;color:#8b95a1;font-weight:400;">(동반자 선택 시 동반자1 정보 자동 입력)</span></span>
             <div style="display:flex;gap:5px;flex-wrap:wrap;" id="repRelBtns">
-              ${['동반자','가족','일행','목격자','본인','기타'].map(o=>`<button class="tog-btn${p.repRel===o?' on':''}" data-val="${o}" onclick="selRepRel('${o}')" style="padding:7px 12px;min-height:34px;font-size:11px;">${o}</button>`).join('')}
+              ${['동반자','가족','일행','목격자','기타'].map(o=>`<button class="tog-btn${p.repRel===o?' on':''}" data-val="${o}" onclick="selRepRel('${o}')" style="padding:7px 12px;min-height:34px;font-size:11px;">${o}</button>`).join('')}
             </div>
             <input type="hidden" id="r_repRel" value="${p.repRel||''}">
           </div>

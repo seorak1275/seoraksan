@@ -1855,6 +1855,18 @@ function selHasRep(val){
   document.querySelectorAll('#hasRepBtns .tog-btn').forEach(b=>b.classList.toggle('on',b.dataset.val===val));
   document.getElementById('reporterWrap').style.display=val==='y'?'block':'none';
 }
+// 🔄 사고자 ↔ 신고자 인적사항 맞바꾸기 — 역할을 착각해 반대로 적었을 때 한 번에 이동(공통 필드: 성명·연락처·생년월일·성별)
+function swapVictimReporter(){
+  const g=id=>document.getElementById(id);
+  const hr=g('r_hasRep');if(hr&&hr.value!=='y'){selHasRep('y');}
+  const sw=(a,b)=>{const ea=g(a),eb=g(b);if(ea&&eb){const t=ea.value;ea.value=eb.value;eb.value=t;}};
+  sw('r_vName','r_repName');sw('r_vTel','r_repTel');sw('r_vBirth','r_repBirth');sw('r_vGender','r_repGender');
+  // 성별 버튼 시각 동기화
+  [['genderBtns','r_vGender'],['repGenderBtns','r_repGender']].forEach(([bid,hid])=>{const w=g(bid),h=g(hid);if(w&&h)w.querySelectorAll('.tog-btn').forEach(b=>b.classList.toggle('on',b.dataset.val===h.value));});
+  try{if(typeof autoGenTitle==='function')autoGenTitle();}catch(e){}
+  if(typeof _hapt==='function')_hapt(15);
+  toast('🔄 사고자 ↔ 신고자 정보를 맞바꿨습니다');
+}
 // 동반자 토글 — '있음' 선택 즉시 첫 입력칸이 열리고 포커스(추가 버튼 누를 필요 없음)
 function selHasComp(val){
   document.getElementById('r_hasComp').value=val;
