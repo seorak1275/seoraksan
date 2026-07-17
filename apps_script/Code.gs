@@ -1,37 +1,98 @@
 // ══════════════════════════════════════════════════════════════
-// 설악산 현장관리 — FCM 푸시 발송기 (Google Apps Script)
+// 설악산 현장관리 — FCM 푸시 발송기 + 보안 게이트 (Google Apps Script)
 //
-// 역할: 앱(클라이언트)이 보낸 토큰 목록으로 FCM HTTP v1 푸시를 발송.
-//       서비스 계정/비밀키 불필요 — 이 스크립트를 실행하는 구글 계정의
-//       권한(ScriptApp.getOAuthToken)으로 발송한다.
+// ★ 2026-07 보안 강화판 — 적용 방법 (기존 배포 스크립트 기준):
+//   1) 이 파일의 doPost / _getSecrets / _verifyIdToken / _rateLimited 를
+//      기존 스크립트에 덮어쓰기(또는 추가). ⚠️ 기존 스크립트에 mintToken(로그인
+//      토큰 발급) 코드가 있으면 그 함수는 절대 지우지 말 것 — 아래 doPost가
+//      handleMintToken(req) 이름으로 위임 호출한다. 기존 mintToken 처리 블록을
+//      function handleMintToken(req){...} 로 감싸 이름만 맞춰주면 된다.
+//   2) 프로젝트 설정 > 스크립트 속성에 아래 키 추가:
+//        SECRET          = 새 공유 시크릿(길고 랜덤하게)  ← 앱 관리자 설정의 '공유 비밀번호'와 동일하게
+//        SECRET_OLD      = (로테이션 중에만) 직전 시크릿 — 전 기기 업데이트 후 삭제
+//        REQUIRE_AUTH    = 0   ← 전 기기가 새 앱(ID토큰 동봉)으로 업데이트된 뒤 1로 변경
+//        FIREBASE_API_KEY= Firebase 웹 API 키 (ID토큰 검증용)
+//   3) 배포 > 배포 관리 > 기존 배포 '수정' > 새 버전 → URL 유지된 채 코드만 교체됨
 //
-// 사전 조건:
-//   · 이 스크립트는 Firebase 프로젝트(seoraksan)에 접근 권한이 있는
-//     구글 계정(소유자/편집자)으로 만들고 배포해야 한다.
-//   · appsscript.json 의 oauthScopes 가 포함돼 있어야 한다(같이 첨부).
-//
-// 배포: 배포 > 새 배포 > 웹 앱
-//   · 실행 주체: "나(스크립트 소유자)"
-//   · 액세스 권한: "모든 사용자"
-//   그 후 나오는 /exec URL 을 앱 관리자 설정의 "Apps Script 발송 URL"에 입력.
+// 보안 계층:
+//   · 시크릿: 코드 하드코딩 금지 — 스크립트 속성에서 읽음(로테이션 가능, 구/신 동시 허용)
+//   · ID토큰: 앱이 Firebase 로그인 ID토큰을 동봉 → 서버가 검증. REQUIRE_AUTH=1이면
+//     검증 실패 요청은 시크릿이 맞아도 거부(시크릿 유출 대비 2중 잠금)
+//   · 레이트리밋: 분당 전체 60회·사용자당 20회 초과 시 거부(스팸·마비 공격 차단)
 // ══════════════════════════════════════════════════════════════
 
 // Firebase 프로젝트 ID
 var PROJECT_ID = 'seoraksan';
 
-// 공유 비밀번호 — 앱 관리자 설정의 "공유 비밀번호"와 반드시 동일하게.
-// 아무나 푸시를 쏘지 못하게 막는 간단한 차단막.
+// (레거시 폴백) 스크립트 속성 SECRET 미설정 시에만 사용 — 설정 후엔 무시됨
 var SHARED_SECRET = 'CHANGE-ME-설악산-비밀번호';
+
+// ── 시크릿: 스크립트 속성 우선(로테이션: SECRET_OLD 병행 허용) ──
+function _getSecrets() {
+  var p = PropertiesService.getScriptProperties();
+  var s = [];
+  var cur = p.getProperty('SECRET');
+  var old = p.getProperty('SECRET_OLD');
+  if (cur) s.push(cur);
+  if (old) s.push(old);
+  if (!s.length && SHARED_SECRET) s.push(SHARED_SECRET);
+  return s;
+}
+
+// ── Firebase ID토큰 검증 — 유효하면 uid, 아니면 '' ──
+function _verifyIdToken(idToken) {
+  if (!idToken) return '';
+  var key = PropertiesService.getScriptProperties().getProperty('FIREBASE_API_KEY');
+  if (!key) return '';
+  try {
+    var res = UrlFetchApp.fetch(
+      'https://identitytoolkit.googleapis.com/v1/accounts:lookup?key=' + key,
+      { method: 'post', contentType: 'application/json',
+        payload: JSON.stringify({ idToken: idToken }), muteHttpExceptions: true });
+    if (res.getResponseCode() !== 200) return '';
+    var users = (JSON.parse(res.getContentText()).users) || [];
+    if (!users.length || users[0].disabled) return '';
+    return users[0].localId || '';
+  } catch (e) { return ''; }
+}
+
+// ── 레이트리밋: 분당 전체 60회 · 사용자(uid 또는 익명)당 20회 ──
+function _rateLimited(uid) {
+  try {
+    var c = CacheService.getScriptCache();
+    var m = Math.floor(Date.now() / 60000);
+    var gk = 'rl_g_' + m, uk = 'rl_u_' + (uid || 'anon') + '_' + m;
+    var g = parseInt(c.get(gk) || '0', 10) + 1;
+    var u = parseInt(c.get(uk) || '0', 10) + 1;
+    c.put(gk, String(g), 120); c.put(uk, String(u), 120);
+    return g > 60 || u > 20;
+  } catch (e) { return false; }
+}
 
 function doPost(e) {
   try {
     var req = JSON.parse(e.postData.contents);
 
-    if (SHARED_SECRET && req.secret !== SHARED_SECRET) {
+    // ① 시크릿(구/신 허용) — 1차 차단막
+    var secrets = _getSecrets();
+    if (secrets.length && secrets.indexOf(req.secret) < 0) {
       return _json({ error: 'unauthorized' });
     }
 
+    // ② 로그인(mintToken)은 기존 로직에 위임 — 카카오 토큰을 자체 검증하므로 여기서 종료
+    if (req.action === 'mintToken') {
+      if (typeof handleMintToken === 'function') return handleMintToken(req);
+      return _json({ error: 'mintToken_not_installed' }); // 기존 mintToken 블록을 handleMintToken으로 감싸주세요
+    }
+
+    // ③ 푸시 발송 — ID토큰 검증(REQUIRE_AUTH=1이면 필수) + 레이트리밋
+    var uid = _verifyIdToken(req.idToken);
+    var requireAuth = PropertiesService.getScriptProperties().getProperty('REQUIRE_AUTH') === '1';
+    if (requireAuth && !uid) return _json({ error: 'auth_required' });
+    if (_rateLimited(uid)) return _json({ error: 'rate_limited' });
+
     var tokens = req.tokens || [];
+    if (tokens.length > 500) tokens = tokens.slice(0, 500); // 폭주 방지 상한
     var title  = req.title  || '설악산 현장관리';
     var body   = req.body   || '';
     var rawData = req.data  || {};

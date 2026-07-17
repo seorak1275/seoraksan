@@ -407,7 +407,7 @@ async function sendCustomPush(){
     const tokens=[];snap.forEach(d=>{const v=d.data()||{};if(!v.token)return;if(filterTok(v))tokens.push(v.token);});
     if(!tokens.length){toast('⚠️ 대상 기기가 없습니다 (해당 직원이 아직 앱에서 알림을 켜지 않았을 수 있음)');return;}
     const res=await fetch(url,{method:'POST',headers:{'content-type':'text/plain;charset=utf-8'},
-      body:JSON.stringify({secret:_FCM_PUSH_SECRET||(DB.g('fcmPushSecret')||''),title,body,data:{app:'home'},tokens})});
+      body:JSON.stringify(Object.assign(await _gasAuth(),{title,body,data:{app:'home'},tokens}))});
     const out=await res.json().catch(()=>({}));
     if(out.error){toast('❌ 발송기 오류: '+out.error);}
     else{

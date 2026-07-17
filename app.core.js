@@ -1715,6 +1715,13 @@ function _updateFcmTokenSettings(){
     {notiSetting:_effectiveNotiSettings(),updatedAt:Date.now()},{merge:true}
   ).catch(()=>{});
 }
+// GAS 요청 인증 필드 — 공유 시크릿 + (로그인 상태면) Firebase ID토큰 동봉.
+// 서버(Apps Script)가 REQUIRE_AUTH=1로 전환하면 ID토큰 검증을 통과한 요청만 발송 허용(시크릿 유출 대비 2중 잠금).
+async function _gasAuth(){
+  const a={secret:_FCM_PUSH_SECRET||(DB.g('fcmPushSecret')||'')};
+  try{const u=(typeof firebase!=='undefined'&&firebase.auth)?firebase.auth().currentUser:null;if(u)a.idToken=await u.getIdToken();}catch(e){}
+  return a;
+}
 // 중요 알림을 꺼진 폰까지 발송 (Apps Script 경유). cat=알림설정 키, 'info'면 발송 안 함.
 async function _sendFcmPush(title,body,cat,link){
   if(!_fdb)return;
@@ -1733,11 +1740,11 @@ async function _sendFcmPush(title,body,cat,link){
     const res=await fetch(url,{
       method:'POST',
       headers:{'content-type':'text/plain;charset=utf-8'}, // Apps Script preflight 회피
-      body:JSON.stringify({
-        secret:_FCM_PUSH_SECRET||(DB.g('fcmPushSecret')||''),title,body,
+      body:JSON.stringify(Object.assign(await _gasAuth(),{
+        title,body,
         data:link?{app:link.app||'',tab:String(link.tab||''),id:String(link.id||'')}:{},
         tokens:targets.map(t=>t.token)
-      })
+      }))
     });
     const out=await res.json().catch(()=>({}));
     if(out&&Array.isArray(out.invalid)){                // 무효 토큰 정리
@@ -1763,11 +1770,11 @@ async function _sendFcmPushToKakao(kakaoId,title,body,link){
     await fetch(url,{
       method:'POST',
       headers:{'content-type':'text/plain;charset=utf-8'}, // Apps Script preflight 회피
-      body:JSON.stringify({
-        secret:_FCM_PUSH_SECRET||(DB.g('fcmPushSecret')||''),title,body,
+      body:JSON.stringify(Object.assign(await _gasAuth(),{
+        title,body,
         data:link?{app:link.app||'',tab:String(link.tab||''),id:String(link.id||'')}:{},
         tokens
-      })
+      }))
     });
   }catch(e){}
 }
