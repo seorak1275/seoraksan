@@ -1404,7 +1404,6 @@ function openRescueOverlay(id){
     ${_resPopMetaHtml(data)}
     <div style="display:flex;gap:8px;margin-top:12px;">
       <button onclick="var e=document.getElementById('resOverlay');if(e)e.remove();selResId=${id};curResId=${id};viewReport();" style="flex:1;padding:12px;border-radius:9px;border:1px solid rgba(49,130,246,.45);background:rgba(49,130,246,.14);color:#3182f6;font-size:13px;font-weight:800;cursor:pointer;">📋 보고서 · 타임라인 보기</button>
-      <button onclick="event.stopPropagation();openEmergencyContacts()" style="flex:none;padding:12px 14px;border-radius:9px;border:1px solid rgba(39,174,96,.35);background:rgba(39,174,96,.12);color:#5dbf8a;font-size:13px;font-weight:700;cursor:pointer;">📞</button>
       ${data.lat&&data.lng?`<button onclick="var e=document.getElementById('resOverlay');if(e)e.remove();viewOnMap(${data.lat},${data.lng})" style="flex:none;padding:12px 14px;border-radius:9px;border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.04);color:#c4c8ce;font-size:13px;font-weight:700;cursor:pointer;">🗺️</button>`:''}
     </div>
   </div>`;
