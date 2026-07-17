@@ -1,6 +1,17 @@
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
-html,body{height:100%;height:100dvh;max-height:100%;background:#0f0f11;font-family:-apple-system,'Noto Sans KR',sans-serif;overflow:hidden;}
+html,body{height:100%;height:100dvh;max-height:100%;background:#0f0f11;font-family:-apple-system,'Noto Sans KR',sans-serif;overflow:hidden;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;text-rendering:optimizeLegibility;}
 button{-webkit-tap-highlight-color:transparent;touch-action:manipulation;}
+/* ── 전역 디자인 품질 레이어 (CSS만·마크업 무변경, 모든 화면 공통) ── */
+/* 얇고 은은한 스크롤바 — 두꺼운 기본 스크롤바로 지저분해 보이던 것 정리 */
+*{scrollbar-width:thin;scrollbar-color:rgba(255,255,255,.16) transparent;}
+::-webkit-scrollbar{width:6px;height:6px;}
+::-webkit-scrollbar-thumb{background:rgba(255,255,255,.15);border-radius:3px;}
+::-webkit-scrollbar-thumb:active{background:rgba(255,255,255,.3);}
+::-webkit-scrollbar-track{background:transparent;}
+/* 모달·시트·목록 스크롤이 배경으로 번지지 않게(스크롤 체이닝 차단) — 바텀시트 조작감 향상 */
+.view,.modal .mbox,.dbcard .dbmeta,.rep-sec,#facPopup .dbmeta,.bpad{overscroll-behavior:contain;}
+/* 이미지·아이콘 픽셀 선명하게 */
+img{image-rendering:auto;}
 /* ── 터치 개선 ──
    1) 지도 화면(지도 위 팝업·컨트롤·상황판·위치선택 포함)만 길게 눌러도 글자 선택(복사 핸들)이
       안 뜨게 — 선택이 떠 있는 동안 다음 탭이 먹혀 터치가 씹히던 주원인.

@@ -1,1 +1,1 @@
-{"version":"2026.07.17.261","url":"https://seorak1275.github.io/seoraksan/bundle.zip","notes":"카카오맵 성능·체감속도 개선 — 모든 지도 tileAnimation:false로 타일 페이드 제거(즉시 렌더·팬줌 경량) + center_changed rAF 스로틀(팬 중 강제 레이아웃 완화). 점검결과 앱은 이미 클러스터링·인메모리데이터·지연연산으로 최적화됨, 안전개선만 적용"}
+{"version":"2026.07.17.262","url":"https://seorak1275.github.io/seoraksan/bundle.zip","notes":"전역 디자인 품질 레이어(CSS만) — 글자 안티앨리어싱(선명한 텍스트) · 얇고 은은한 스크롤바 · 모달/시트 스크롤 체이닝 차단(배경 안 밀림). 앱은 이미 프레스피드백·트랜지션·성능 최적화가 잘 돼 있어 안전한 보강만 적용"}
