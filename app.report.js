@@ -560,8 +560,10 @@ function _collectLogEntries(r){
   // 출동·도착·완료 시각(대장 임포트·N보 입력분) — 그동안 상황일지에 안 그려지던 필드
   {
     const _hm=v=>{const s=String(v||'').trim();return /^\d{1,2}:\d{2}/.test(s)?(s.length>5&&/^\d{4}-/.test(s)?s.slice(11,16):s.slice(0,5)):'';};
+    // '현장 도착'(r.arrival)과 '요구조자 조우'(상황일지)는 사실상 같은 순간 → 조우를 기록했으면 도착 줄은 생략(같은 시각 두 줄 방지)
+    const _hasEncounter=(r.timetable||[]).some(e=>e.stage==='요구조자 조우'&&e.time);
     if(_hm(r.dispatch))logEntries.push({k:_tKey(_hm(r.dispatch)),t:_hm(r.dispatch),ico:'🚗',label:'출동',sub:r.distance?('출동거리 '+r.distance+'km'):'',type:'team'});
-    if(_hm(r.arrival))logEntries.push({k:_tKey(_hm(r.arrival)),t:_hm(r.arrival),ico:'🏁',label:'현장 도착',sub:'',type:'team'});
+    if(_hm(r.arrival)&&!_hasEncounter)logEntries.push({k:_tKey(_hm(r.arrival)),t:_hm(r.arrival),ico:'🏁',label:'현장 도착',sub:'',type:'team'});
     if(_hm(r.completion))logEntries.push({k:_tKey(_hm(r.completion)),t:_hm(r.completion),ico:'✅',label:'상황 완료',sub:'',type:'nps'});
   }
   (r.timetable||[]).forEach(e=>{
@@ -937,7 +939,8 @@ async function govReport(rid,kind,noPass){
   const rrChk=[['119','119'],['사무소 전화','사무소전화접수'],['현장 접수','현장접수']].map(([k,l])=>((nb(r.recvRoute)||'119')===k?'■':'□')+l).join(' ');
   Object.assign(dataMap,{
     '접수경로':rrChk,                                   // 서식 칸엔 체크박스 문자열로
-    '조우시간':nb(r.arrival),                            // 도착(조우)시간
+    // 조우시간: 상황일지에 '요구조자 조우'가 기록됐으면 그 실제 시각, 없으면 현장 도착(r.arrival)
+    '조우시간':(()=>{const e=(r.timetable||[]).find(x=>x.stage==='요구조자 조우'&&x.time);return e?String(e.time).slice(11,16):nb(r.arrival);})(),
     '신고자 이름':nb(r.repName),'신고자 연락처':nb(r.repTel),
     '신고자 생년월일, 성별':[nb(r.repBirth),(nb(r.repGender)&&r.repGender!=='알수없음')?r.repGender:''].filter(Boolean).join('/'),
     '사고자 이름':nb(r.vName),'사고자 연락처':nb(r.vTel),
