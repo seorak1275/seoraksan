@@ -531,7 +531,7 @@ function _tlRecSave(rid){
   const timeRaw=document.getElementById('tlRecTime')?.value||'';
   const time=timeRaw?timeRaw.replace('T',' '):now();
   // seq=입력 순서(생성 ms) — 같은 분(초 없음) 기록의 정렬 안정화용
-  const entry={stage,time,note:(document.getElementById('tlRecNote')?.value||'').trim(),by:getAuthor(),team:_tlRecTeam&&_tlRecTeam!=='본부'?_tlRecTeam:(_tlRecTeam==='본부'?'본부':''),seq:Date.now()};
+  const entry={stage,time,note:(document.getElementById('tlRecNote')?.value||'').trim(),by:getAuthor(),team:_tlRecTeam==='본소'?'본소':(_tlRecTeam||''),seq:Date.now()};
   if(_tlRecStage==='심정지'){
     const cs=document.getElementById('tlRecCprStart')?.value||'';
     const ce=document.getElementById('tlRecCprEnd')?.value||'';
@@ -1348,7 +1348,7 @@ function renderTimeline(r,viewMode,outId){
           <span onclick="_toggleRecCard(${_tglArg})" style="margin-left:auto;font-size:10.5px;color:#6b7684;font-weight:700;cursor:pointer;padding:2px 6px;">▲ 접기</span>
         </div>
         ${_teamNames.length?`<div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:7px;" id="tlRecTeams">
-          ${['본부',..._teamNames].map(n=>`<div class="pill" data-v="${_esc(n)}" onclick="_tlRecSelTeam(this)" style="font-size:11px;cursor:pointer;">${_esc(n)}</div>`).join('')}
+          ${['본소',..._teamNames].map(n=>`<div class="pill" data-v="${_esc(n)}" onclick="_tlRecSelTeam(this)" style="font-size:11px;cursor:pointer;">${_esc(n)}</div>`).join('')}
         </div>`:''}
         <div id="tlRecStages" style="margin-bottom:7px;">
           ${(()=>{
@@ -1725,12 +1725,24 @@ function openLightbox(url){
   if(!lb){
     lb=document.createElement('div');lb.id='photoLightbox';
     lb.style.cssText='position:fixed;inset:0;z-index:99850;background:rgba(0,0,0,.93);display:flex;align-items:center;justify-content:center;padding:18px;';
-    lb.onclick=()=>{lb.style.display='none';};
-    lb.innerHTML='<img id="lightboxImg" style="max-width:100%;max-height:100%;border-radius:10px;object-fit:contain;">';
+    lb.onclick=(e)=>{if(e.target===lb)lb.style.display='none';}; // 배경 탭에서만 닫힘(버튼·이미지 탭은 유지)
+    lb.innerHTML='<img id="lightboxImg" style="max-width:100%;max-height:100%;border-radius:10px;object-fit:contain;">'
+      +'<button onclick="_downloadLightbox()" style="position:absolute;bottom:calc(22px + env(safe-area-inset-bottom));left:50%;transform:translateX(-50%);background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.4);color:#fff;border-radius:11px;padding:11px 22px;font-size:14px;font-weight:800;cursor:pointer;">⬇ 다운로드</button>'
+      +'<button onclick="document.getElementById(\'photoLightbox\').style.display=\'none\'" style="position:absolute;top:calc(14px + env(safe-area-inset-top));right:16px;background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.4);color:#fff;border-radius:50%;width:40px;height:40px;font-size:22px;line-height:1;cursor:pointer;">×</button>';
     document.body.appendChild(lb);
   }
   document.getElementById('lightboxImg').src=url;
+  lb.dataset.url=url;
   lb.style.display='flex';
+}
+// 라이트박스 현재 사진 다운로드 (데이터URL·http 모두)
+function _downloadLightbox(){
+  const lb=document.getElementById('photoLightbox');const url=lb&&lb.dataset.url;if(!url){toast('사진 없음');return;}
+  try{
+    const a=document.createElement('a');a.href=url;a.download='설악산_현장사진_'+Date.now()+'.jpg';
+    document.body.appendChild(a);a.click();setTimeout(()=>a.remove(),1200);
+    toast('⬇ 사진 저장 — 다운로드/사진 앱에서 확인');
+  }catch(e){toast('⚠️ 저장 실패 — 이미지를 길게 눌러 저장하세요');}
 }
 function submitComment(resId,variant){
   const prefix=variant==='adv'?'cmtInput_adv_':'cmtInput_';
