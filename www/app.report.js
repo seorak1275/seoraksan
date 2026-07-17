@@ -890,7 +890,7 @@ async function govReport(rid,kind,noPass){
   const injStr=(Array.isArray(r.injuries)&&r.injuries.length)
     ? r.injuries.map(i=>(typeof _injLabel==='function')?_injLabel(i):((i.part||'')+(i.type||''))).filter(Boolean).join(', ')
     : [(r.injuryParts||[]).join(','),(r.injuryTypes||[]).join(',')].filter(Boolean).join(' / ');
-  // 공식 보고서(hwpx) — 'N보 보고' 같은 내부 진행 표시(type:report)는 제외하고 실제 현장 대응 흐름만 수록
+  // 한글용 보고서(hwpx) — 'N보 보고' 같은 내부 진행 표시(type:report)는 제외하고 실제 현장 대응 흐름만 수록
   let _logSrc=_collectLogEntries(r).filter(e=>e.type!=='report');
   if(noPass)_logSrc=_logSrc.filter(e=>!e.pass); // 통과 기록 제외본
   const logs=_logSrc.map(e=>({t:e.t,txt:e.label.replace(/^[^\w가-힣0-9]+\s?/,'')+(e.sub?' ('+e.sub+')':'')}));
@@ -1138,7 +1138,7 @@ async function _safetyHwpxGen(rid){
   try{const mm=String(r.date||'').match(/(\d{4})-(\d{2})-(\d{2})[ T]?(\d{2}:\d{2})?/);
     if(mm){const wd=['일','월','화','수','목','금','토'][new Date(+mm[1],+mm[2]-1,+mm[3]).getDay()];
       dtStr=mm[1]+'년 '+(+mm[2])+'월 '+(+mm[3])+'일('+wd+')'+(mm[4]?' '+mm[4]:'');}}catch(e){}
-  // 공식 보고서 — 최종 경위·특이사항만. N보 변경요약(update)은 내부 수정 이력이라 제외
+  // 한글용 보고서 — 최종 경위·특이사항만. N보 변경요약(update)은 내부 수정 이력이라 제외
   const lines=[];
   if(r.situation)lines.push('- '+r.situation);
   if(r.extra&&!['','-','없음','해당없음','미상'].includes(String(r.extra).trim()))lines.push('- '+r.extra);
@@ -1185,7 +1185,7 @@ function _safetyReportHtml(rid){
     if(age===''||isNaN(age))aSel.add('모름');
     else aSel.add(age<20?'10대 이하':age<30?'20대':age<40?'30대':age<50?'40대':age<60?'50대':'60대 이상');}
   // 내용: 사고경위 + 경과보고 요약 (시간 앞머리 붙여 양식 예시와 같은 흐름)
-  // 공식 보고서 — 최종 경위·특이사항만. N보 변경요약(update)은 내부 수정 이력이라 제외
+  // 한글용 보고서 — 최종 경위·특이사항만. N보 변경요약(update)은 내부 수정 이력이라 제외
   const lines=[];
   if(r.situation)lines.push('- '+r.situation);
   if(r.extra&&!['','-','없음','해당없음','미상'].includes(String(r.extra).trim()))lines.push('- '+r.extra);
