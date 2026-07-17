@@ -2434,16 +2434,9 @@ function render1BoForm(prefill=null){
         </div>
       </div>
 
-      <!-- 2. 현장 사진 (사진은 필요 없다 하셨으나 구조 첨부는 유지 — 사용자 요청으로 삭제 원할 시 별도 요청) -->
+      <!-- 현장 사진: 부상/이송 고정칸 폐지 — 등록 후 상세의 '📷 현장 사진'에서 여러 장 통합 첨부(보고서·타임라인 공용) -->
       <div class="rsec"><div class="rsec-t">📸 현장 사진</div>
-        <div class="frow">
-          <div class="fg"><span class="fl">부상 사진</span>
-            <div class="photo-slot" onclick="document.getElementById('fileInj').click()"><input type="file" id="fileInj" accept="image/*" style="display:none;" onchange="prevImg(this,'prevInj')"><div id="prevInj">📸</div></div>
-          </div>
-          <div class="fg"><span class="fl">이송 사진</span>
-            <div class="photo-slot" onclick="document.getElementById('fileTrans').click()"><input type="file" id="fileTrans" accept="image/*" style="display:none;" onchange="prevImg(this,'prevTrans')"><div id="prevTrans">📸</div></div>
-          </div>
-        </div>
+        <div style="font-size:11px;color:rgba(255,255,255,.4);line-height:1.6;padding:2px 2px;">사진은 <b style="color:#3182f6;">등록 후 상세 화면의 '📷 현장 사진'</b>에서 여러 장 한 번에 추가할 수 있어요. (보고서·타임라인에 함께 반영)</div>
       </div>
 
       <!-- 4. 활력징후 (음주여부 + 중증도 포함) -->
