@@ -371,7 +371,7 @@ function _stripTags(v){
   if(v&&typeof v==='object'){const o={};for(const k in v)o[k]=_stripTags(v[k]);return o;}
   return v;
 }
-const _SANITIZE_KEYS=['rescues','hazards','pendingUsers'];
+const _SANITIZE_KEYS=['rescues','hazards','pendingUsers','facilities','facIssues','history']; // 사용자 자유입력이 담기는 전 컬렉션 — 저장 시 <> 전각 치환(스크립트 주입 차단)
 // 정규화(키 순서 무관) 문자열 키 — Firestore 왕복 시 객체 키 순서가 바뀌어 JSON.stringify가 달라지면
 // 같은 항목(타임라인 기록 등)이 병합 시 서로 다른 키로 취급돼 중복 누적되던 버그 방지. 키를 정렬해 안정화.
 function _canonKey(o){

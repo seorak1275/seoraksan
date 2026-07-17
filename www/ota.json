@@ -1,1 +1,1 @@
-{"version":"2026.07.17.262","url":"https://seorak1275.github.io/seoraksan/bundle.zip","notes":"전역 디자인 품질 레이어(CSS만) — 글자 안티앨리어싱(선명한 텍스트) · 얇고 은은한 스크롤바 · 모달/시트 스크롤 체이닝 차단(배경 안 밀림). 앱은 이미 프레스피드백·트랜지션·성능 최적화가 잘 돼 있어 안전한 보강만 적용"}
+{"version":"2026.07.17.263","url":"https://seorak1275.github.io/seoraksan/bundle.zip","notes":"보안 보강 — 입력 새니타이즈(_SANITIZE_KEYS)를 사용자 자유입력이 담기는 전 컬렉션(facilities·facIssues·history)으로 확대: 저장 시점에 <> 전각 치환으로 스크립트 주입 원천 차단"}
