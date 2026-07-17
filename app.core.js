@@ -961,6 +961,17 @@ function toast(m,dur){const t=document.getElementById('toast');t.textContent=m;t
   _toastTimer=setTimeout(()=>t.classList.remove('on'),dur);}
 // 햅틱(진동) 피드백 — 제출·발령 등 핵심 액션에서 짧게. 미지원 기기는 조용히 무시(iOS 웹 등)
 function _hapt(p){try{if(navigator.vibrate)navigator.vibrate(p||8);}catch(e){}}
+// 전화번호 하이픈 포맷(표시용) — 01093608848 → 010-9360-8848. 매칭 안 되면 원본 유지(국제번호·이미 포맷·비전화 안전)
+function _fmtTel(s){
+  if(s==null)return s;
+  var raw=String(s).trim();if(!raw||raw[0]==='+')return raw; // 빈값·국제번호 그대로
+  var d=raw.replace(/[^0-9]/g,'');if(!d)return raw;
+  if(/^01[016789]\d{7,8}$/.test(d))return d.length===11?d.replace(/^(\d{3})(\d{4})(\d{4})$/,'$1-$2-$3'):d.replace(/^(\d{3})(\d{3})(\d{4})$/,'$1-$2-$3');
+  if(/^02\d{7,8}$/.test(d))return d.length===10?d.replace(/^(02)(\d{4})(\d{4})$/,'$1-$2-$3'):d.replace(/^(02)(\d{3})(\d{4})$/,'$1-$2-$3');
+  if(/^0\d{9,10}$/.test(d))return d.length===11?d.replace(/^(\d{3})(\d{4})(\d{4})$/,'$1-$2-$3'):d.replace(/^(\d{3})(\d{3})(\d{4})$/,'$1-$2-$3');
+  if(/^1[568]\d{6}$/.test(d))return d.replace(/^(\d{4})(\d{4})$/,'$1-$2'); // 15XX/16XX/18XX 대표번호
+  return raw;
+}
 // 숫자 카운트업 — 홈 요약 등에서 값이 바뀔 때 촤르륵 올라가는 연출(숫자 아님/첫 표시면 즉시)
 function _countTo(el,v){
   if(!el)return;

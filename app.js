@@ -1779,7 +1779,7 @@ function _renderClimbRoster(all){
   // 지구 순서 고정
   const DORDER=['천화대지구','비선대지구','울산바위지구','소토왕골지구','토왕골지구','한계산성지구','오색지구','기타'];
   const byDist={};day.forEach(r=>{(byDist[r.district||'기타']=byDist[r.district||'기타']||[]).push(r);});
-  const callBtn=(ph,nm)=>ph?`<a href="tel:${_esc(String(ph).replace(/[^0-9+]/g,''))}" onclick="event.stopPropagation();" style="color:#aab4c0;text-decoration:none;font-size:10.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">📞 ${_esc(ph)}</a>`:'';
+  const callBtn=(ph,nm)=>ph?`<a href="tel:${_esc(String(ph).replace(/[^0-9+]/g,''))}" onclick="event.stopPropagation();" style="color:#aab4c0;text-decoration:none;font-size:10.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">📞 ${_esc(_fmtTel(ph))}</a>`:'';
   // 경력: 숫자만 뽑아 'N년' 표기 / 성별: 연한 색 칩(남=하늘·여=분홍)으로 우측 표시
   const expStr=e=>{const n=parseInt(String(e==null?'':e).replace(/[^\d]/g,''));return isNaN(n)?'':(n+'년');};
   const gChip=g=>g==='남'?'<span style="flex-shrink:0;background:rgba(255,255,255,.16);color:#a5abb3;border-radius:6px;padding:1px 7px;font-size:10px;font-weight:800;">남</span>'
@@ -3720,7 +3720,7 @@ function sosToRescue(id){
 // 앱 자체 업데이트 (OTA · Capgo 자체호스팅) — APK 전용. 웹/PWA는 서비스워커가 자동 갱신.
 // 번들(www)의 새 버전을 ota.json으로 알리면, 설치된 앱이 받아서 그 자리에서 교체(재빌드 불필요).
 // ══════════════════════════════════════════
-const OTA_VER='2026.07.17.234';                         // ← 현재 번들 버전 (릴리스마다 올림 · build-ota.sh가 ota.json에 반영)
+const OTA_VER='2026.07.17.235';                         // ← 현재 번들 버전 (릴리스마다 올림 · build-ota.sh가 ota.json에 반영)
 const OTA_MANIFEST='https://seorak1275.github.io/seoraksan/ota.json';
 // 업데이트 확인 폴백 소스 — 일부 기관망·통신사에서 github.io가 막혀 '확인 실패(네트워크)'가 나는 경우 대비.
 // 순서대로 시도: ① GitHub Pages(원본·즉시 반영) ② jsDelivr CDN(공개저장소 미러·거의 모든 망 통과)

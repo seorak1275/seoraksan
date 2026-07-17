@@ -933,7 +933,7 @@ async function govReport(rid,kind,noPass){
   const coordStr=(r.lat&&r.lng)?(+r.lat).toFixed(6)+', '+(+r.lng).toFixed(6):'';
   const elevS=(typeof _elevStr==='function'&&r.lat&&r.lng)?_elevStr(r.lat,r.lng,r.alt,true).replace('⛰',''):''; // plain=true: 문서용 순수 문자열
   const vAgeStr=nb(r.vBirth)?(r.vBirth+(nb(r.vGender)?'/'+r.vGender:'')):(nb(r.vGender)?r.vGender:'');
-  const compStr=(r.companions||[]).map(c=>(c.name||'미상')+(c.tel?'('+c.tel+')':'')).join(', ');
+  const compStr=(r.companions||[]).map(c=>(c.name||'미상')+(c.tel?'('+_fmtTel(c.tel)+')':'')).join(', ');
   const v2Str=(r.victims2||[]).map(v=>[(v.name||'미상'),v.age?v.age+'세':'',(v.gender&&v.gender!=='알수없음')?v.gender:'',v.note||''].filter(Boolean).join(' ')).join(' / ');
   const vitalS=(r.vitals&&typeof _vitalsStr==='function')?(_vitalsStr(r.vitals)||''):'';
   const wxStr=[nb(r.weather),(r.initTemp!=null&&r.initTemp!=='')?r.initTemp+'°C':'',nb(r.weatherAlert)].filter(Boolean).join(' · ');
@@ -949,9 +949,9 @@ async function govReport(rid,kind,noPass){
     '사건명':nb(r.title),'사고일시':r.date||'','접수경로':nb(r.recvRoute)||'119',
     '출동시간':nb(r.dispatch),'도착시간':nb(r.arrival),'완료시간':nb(r.completion),'출동거리':nb(r.distance),
     '사고장소':nb(r.location),'좌표':coordStr,'고도':elevS,'장소구분':nb(r.loctype),'위치표지판':signCode,
-    '신고자성명':nb(r.repName),'신고자연락처':nb(r.repTel),'신고자관계':nb(r.repRel),
+    '신고자성명':nb(r.repName),'신고자연락처':_fmtTel(nb(r.repTel)),'신고자관계':nb(r.repRel),
     '사고자성명':nb(r.vName),'사고자생년월일':nb(r.vBirth),'사고자성별':nb(r.vGender),
-    '사고자연락처':nb(r.vTel),'사고자거주지':nb(r.vAddr),
+    '사고자연락처':_fmtTel(nb(r.vTel)),'사고자거주지':nb(r.vAddr),
     '사고원인':nb(r.cause),'부상유형':injStr,'사고경위':nb(r.situation),
     '조치내용':logLines.join('\n'),
     '동원인원':'[총 '+totalCnt+'명]\n- 국립공원 '+allNps.length+'명'+(allNps.length?'('+allNps.join(', ')+')':'')+(agStr?'\n- 유관기관: '+agStr:''),
@@ -966,9 +966,9 @@ async function govReport(rid,kind,noPass){
     '접수경로':rrChk,                                   // 서식 칸엔 체크박스 문자열로
     // 조우시간: 상황일지에 '요구조자 조우'가 기록됐으면 그 실제 시각, 없으면 현장 도착(r.arrival)
     '조우시간':(()=>{const e=(r.timetable||[]).find(x=>x.stage==='요구조자 조우'&&x.time);return e?String(e.time).slice(11,16):nb(r.arrival);})(),
-    '신고자 이름':nb(r.repName),'신고자 연락처':nb(r.repTel),
+    '신고자 이름':nb(r.repName),'신고자 연락처':_fmtTel(nb(r.repTel)),
     '신고자 생년월일, 성별':[nb(r.repBirth),(nb(r.repGender)&&r.repGender!=='알수없음')?r.repGender:''].filter(Boolean).join('/'),
-    '사고자 이름':nb(r.vName),'사고자 연락처':nb(r.vTel),
+    '사고자 이름':nb(r.vName),'사고자 연락처':_fmtTel(nb(r.vTel)),
     '사고자 생년월일, 성별':vAgeStr,
     '사고자 관계':nb(r.repRel),
     '사고자 거주지, 국가':(nb(r.vNation)==='외국인'?'[외국인] ':'')+nb(r.vAddr), // 외국인이면 거주지 칸=국가
@@ -983,7 +983,7 @@ async function govReport(rid,kind,noPass){
     // 동향보고 전용
     '사고유형':nb(r.type)||'안전사고',
     '개요':'본 건은 '+(r.date||'')+'경 '+(nb(r.location)||'설악산 일원')+'에서 발생한 '+(nb(r.cause)||r.type||'안전사고')+' 관련, 119와 설악산사무소에서 공동대응한 사항임',
-    '인적사항':['- 사고자: '+(nb(r.vName)||'미상')+(vAgeStr?'('+vAgeStr+')':'')+(nb(r.vTel)?' · '+r.vTel:''),v2Str?'- 추가 사고자: '+v2Str:'',compStr?'- 동반자: '+compStr:''].filter(Boolean).join('\n'),
+    '인적사항':['- 사고자: '+(nb(r.vName)||'미상')+(vAgeStr?'('+vAgeStr+')':'')+(nb(r.vTel)?' · '+_fmtTel(r.vTel):''),v2Str?'- 추가 사고자: '+v2Str:'',compStr?'- 동반자: '+compStr:''].filter(Boolean).join('\n'),
     '사고원인분석':['- '+(nb(r.cause)||'-')+(injStr?' / '+injStr:'')+(nb(r.severity)?' ('+r.severity+')':''),nb(r.situation)?'- '+r.situation:''].filter(Boolean).join('\n'),
   });
   const _fname=(kind==='status'?'안전사고처리현황'+(noPass?'(통과제외)':'(통과포함)'):'동향보고')+'_'+((r.date||'').slice(0,10)||'문서')+'.hwpx';
@@ -1051,12 +1051,12 @@ async function govReport(rid,kind,noPass){
       <tr><td rowspan="2" style="${th}">신고자<br>인적사항</td>
           <td style="${th}">성  명</td><td style="${td}text-align:center;">${esc(nb(r.repName))}</td>
           <td colspan="2" style="${th}">성  별</td><td colspan="3" style="${td}text-align:center;"></td></tr>
-      <tr><td style="${th}">연락처</td><td style="${td}text-align:center;">${esc(nb(r.repTel))}</td>
+      <tr><td style="${th}">연락처</td><td style="${td}text-align:center;">${esc(_fmtTel(nb(r.repTel)))}</td>
           <td colspan="2" style="${th}">사고자와 관계</td><td colspan="3" style="${td}text-align:center;">${esc(nb(r.repRel))}</td></tr>
       <tr><td rowspan="2" style="${th}">사고자<br>인적사항</td>
           <td style="${th}">성  명</td><td style="${td}text-align:center;">${esc(nb(r.vName))}</td>
           <td colspan="2" style="${th}">생년월일</td><td colspan="3" style="${td}text-align:center;">${esc(vAgeStr)}</td></tr>
-      <tr><td style="${th}">연락처</td><td style="${td}text-align:center;">${esc(nb(r.vTel))}</td>
+      <tr><td style="${th}">연락처</td><td style="${td}text-align:center;">${esc(_fmtTel(nb(r.vTel)))}</td>
           <td colspan="2" style="${th}">거 주 지</td><td colspan="3" style="${td}text-align:center;">${esc(nb(r.vAddr))}</td></tr>
       <tr><td style="${th}">사고원인</td><td colspan="7" style="${td}text-align:center;">${esc(nb(r.cause))}</td></tr>
       <tr><td style="${th}">부상유형</td><td colspan="7" style="${td}text-align:center;">${esc(injStr)}</td></tr>
@@ -1081,7 +1081,7 @@ async function govReport(rid,kind,noPass){
     <p style="margin:5px 0;font-size:13.5px;">□ (사 건 명) ${esc(nb(r.title)||'-')}</p>
     <p style="margin:5px 0;font-size:13.5px;">□ (일    시) ${esc(r.date||'')} <span style="color:#666;">(접수: ${esc(nb(r.recvRoute)||'119')})</span></p>
     <p style="margin:5px 0;font-size:13.5px;">□ (장    소) ${esc(nb(r.location))}${signCode?' (표지판 '+esc(signCode)+')':''}${coordStr?'<br>&nbsp;&nbsp;&nbsp;- 좌표: '+coordStr+(elevS?' · 고도 '+esc(elevS):''):''}</p>
-    <p style="margin:5px 0;font-size:13.5px;">□ (인적사항)<br>&nbsp;&nbsp;- 사고자: ${esc(nb(r.vName)||'미상')}${vAgeStr?'('+esc(vAgeStr)+')':''}${nb(r.vTel)?' · '+esc(r.vTel):''}${v2Str?'<br>&nbsp;&nbsp;- 추가 사고자: '+esc(v2Str):''}${compStr?'<br>&nbsp;&nbsp;- 동반자: '+esc(compStr):''}</p>
+    <p style="margin:5px 0;font-size:13.5px;">□ (인적사항)<br>&nbsp;&nbsp;- 사고자: ${esc(nb(r.vName)||'미상')}${vAgeStr?'('+esc(vAgeStr)+')':''}${nb(r.vTel)?' · '+esc(_fmtTel(r.vTel)):''}${v2Str?'<br>&nbsp;&nbsp;- 추가 사고자: '+esc(v2Str):''}${compStr?'<br>&nbsp;&nbsp;- 동반자: '+esc(compStr):''}</p>
     <p style="margin:5px 0;font-size:13.5px;">□ (사고원인·부상)<br>&nbsp;&nbsp;- ${esc(nb(r.cause)||'-')}${injStr?' / '+esc(injStr):''}${nb(r.severity)?' / '+esc(r.severity):''}<br>&nbsp;&nbsp;- ${esc(nb(r.situation))}</p>
     <p style="margin:8px 0 3px;font-size:13.5px;">□ (조치사항)</p>
     <div style="font-size:13px;line-height:1.7;padding-left:10px;">${logLines.map(esc).join('<br>')}</div>
@@ -1397,11 +1397,11 @@ function renderTimeline(r,viewMode,outId){
     const _div='<div style="height:1px;background:rgba(255,255,255,.06);margin:9px 0;"></div>';
     const locSect=_ok(r.location)?`<div style="font-size:12px;color:#d5d8dc;line-height:1.5;">📍 ${_esc(r.location)}${(typeof _elevStr==='function'&&r.lat&&r.lng)?` <span style="color:#a7f3e4;font-size:10px;">${_elevStr(r.lat,r.lng,r.alt)}</span>`:''}${_ok(r.loctype)?` <span style="color:#8b95a1;font-size:10px;">· ${_esc(r.loctype)}</span>`:''}</div>${(r.loctype==='암벽'||r.loctype==='빙벽')?`<button onclick="event.stopPropagation();openClimbRosterForRescue(${r.id})" style="margin-top:7px;padding:6px 11px;border-radius:8px;border:1px solid rgba(49,130,246,.4);background:rgba(49,130,246,.12);color:#3182f6;font-size:11px;font-weight:700;cursor:pointer;">🧗 그날(${_esc((r.date||'').slice(0,10))}) 암벽 이용명단 조회</button>`:''}`:'';
     const _vAge=_ok(r.vBirth)?_ageFromBirth(r.vBirth)+'세':(_ok(r.vAge)?_esc(r.vAge)+'세':'');
-    const _vLine=[_ok(r.vName)?_esc(r.vName):'미상',_vAge,_ok(r.vGender)&&r.vGender!=='알수없음'?_esc(r.vGender):'',_ok(r.vNation)&&r.vNation==='외국인'?('외국인'+(_ok(r.vNationality)?'('+_esc(r.vNationality)+')':'')):'',_ok(r.vTel)?_esc(r.vTel):''].filter(Boolean).join(' · ');
+    const _vLine=[_ok(r.vName)?_esc(r.vName):'미상',_vAge,_ok(r.vGender)&&r.vGender!=='알수없음'?_esc(r.vGender):'',_ok(r.vNation)&&r.vNation==='외국인'?('외국인'+(_ok(r.vNationality)?'('+_esc(r.vNationality)+')':'')):'',_ok(r.vTel)?_esc(_fmtTel(r.vTel)):''].filter(Boolean).join(' · ');
     let personSect=`<div style="display:flex;align-items:center;flex-wrap:wrap;gap:5px;"><span style="font-size:10px;color:#565f6b;font-weight:700;min-width:40px;">사고자</span><span style="font-size:12px;color:#eaecef;font-weight:600;">${_vLine}</span>${_ok(r.vTel)?_telBtnsHtml(r.vTel,r.id,'사고자',r.vName):''}</div>`;
-    if(r.victims2&&r.victims2.length)personSect+=r.victims2.map((v,vi)=>`<div style="display:flex;align-items:center;flex-wrap:wrap;gap:5px;margin-top:6px;"><span style="font-size:10px;color:#e9897e;font-weight:700;min-width:40px;">추가${r.victims2.length>1?vi+1:''}</span><span style="font-size:12px;color:#f0d9d4;">${_esc([v.name||'미상',v.age?v.age+'세':'',(v.gender&&v.gender!=='알수없음')?v.gender:'',v.tel||''].filter(Boolean).join(' · '))}</span>${v.tel?_telBtnsHtml(v.tel,r.id,'추가 사고자',v.name):''}</div>`).join('');
-    if(_ok(r.repName)||_ok(r.repTel))personSect+=`<div style="display:flex;align-items:center;flex-wrap:wrap;gap:5px;margin-top:6px;"><span style="font-size:10px;color:#565f6b;font-weight:700;min-width:40px;">신고자</span><span style="font-size:12px;color:#d5d8dc;">${[_ok(r.repName)?_esc(r.repName):'',_ok(r.repTel)?_esc(r.repTel):''].filter(Boolean).join(' · ')}</span>${_ok(r.repRel)?`<span style="font-size:10px;color:#e8b34a;background:rgba(232,179,74,.1);border:1px solid rgba(232,179,74,.3);border-radius:5px;padding:1px 6px;font-weight:700;">${_esc(r.repRel)}</span>`:''}${_ok(r.repTel)?_telBtnsHtml(r.repTel,r.id,'신고자',r.repName):''}</div>`;
-    if(r.companions&&r.companions.length)personSect+=r.companions.map((c,ci)=>`<div style="display:flex;align-items:center;flex-wrap:wrap;gap:5px;margin-top:6px;"><span style="font-size:10px;color:#565f6b;font-weight:700;min-width:40px;">동반자${r.companions.length>1?ci+1:''}</span><span style="font-size:12px;color:#d5d8dc;">${_esc((c.name||'미상')+(c.tel?' '+c.tel:''))}</span>${c.tel?_telBtnsHtml(c.tel,r.id,'동반자',c.name):''}</div>`).join('');
+    if(r.victims2&&r.victims2.length)personSect+=r.victims2.map((v,vi)=>`<div style="display:flex;align-items:center;flex-wrap:wrap;gap:5px;margin-top:6px;"><span style="font-size:10px;color:#e9897e;font-weight:700;min-width:40px;">추가${r.victims2.length>1?vi+1:''}</span><span style="font-size:12px;color:#f0d9d4;">${_esc([v.name||'미상',v.age?v.age+'세':'',(v.gender&&v.gender!=='알수없음')?v.gender:'',v.tel?_fmtTel(v.tel):''].filter(Boolean).join(' · '))}</span>${v.tel?_telBtnsHtml(v.tel,r.id,'추가 사고자',v.name):''}</div>`).join('');
+    if(_ok(r.repName)||_ok(r.repTel))personSect+=`<div style="display:flex;align-items:center;flex-wrap:wrap;gap:5px;margin-top:6px;"><span style="font-size:10px;color:#565f6b;font-weight:700;min-width:40px;">신고자</span><span style="font-size:12px;color:#d5d8dc;">${[_ok(r.repName)?_esc(r.repName):'',_ok(r.repTel)?_esc(_fmtTel(r.repTel)):''].filter(Boolean).join(' · ')}</span>${_ok(r.repRel)?`<span style="font-size:10px;color:#e8b34a;background:rgba(232,179,74,.1);border:1px solid rgba(232,179,74,.3);border-radius:5px;padding:1px 6px;font-weight:700;">${_esc(r.repRel)}</span>`:''}${_ok(r.repTel)?_telBtnsHtml(r.repTel,r.id,'신고자',r.repName):''}</div>`;
+    if(r.companions&&r.companions.length)personSect+=r.companions.map((c,ci)=>`<div style="display:flex;align-items:center;flex-wrap:wrap;gap:5px;margin-top:6px;"><span style="font-size:10px;color:#565f6b;font-weight:700;min-width:40px;">동반자${r.companions.length>1?ci+1:''}</span><span style="font-size:12px;color:#d5d8dc;">${_esc((c.name||'미상')+(c.tel?' '+_fmtTel(c.tel):''))}</span>${c.tel?_telBtnsHtml(c.tel,r.id,'동반자',c.name):''}</div>`).join('');
     if(typeof _sosLiveLineHtml==='function'){const _sl=_sosLiveLineHtml(r);if(_sl)personSect+='<div style="margin-top:6px;">'+_sl+'</div>';}
     const recvSect=_ok(r.reception)?`<div><span style="font-size:10px;color:#565f6b;font-weight:700;">📝 접수내용</span><div style="font-size:12px;color:#d5d8dc;line-height:1.55;margin-top:2px;">${_esc(r.reception)}</div></div>`:'';
     // 나머지(컴팩트)
@@ -1945,7 +1945,7 @@ function _buildReportText(r){
   const vp=[_ok(r.vName)?r.vName:'',_ok(r.vBirth)?_ageFromBirth(r.vBirth)+'세':(_ok(r.vAge)?r.vAge+'세':''),_ok(r.vGender)&&r.vGender!=='알수없음'?r.vGender:'',_ok(r.vNation)&&r.vNation!=='알수없음'?r.vNation:''].filter(Boolean);
   if(vp.length)L.push('사고자: '+vp.join(' · ')+((r.victims2&&r.victims2.length)?' 외 '+r.victims2.length+'명':''));
   if(r.victims2&&r.victims2.length){r.victims2.forEach((v,i)=>L.push('  추가자'+(i+1)+': '+[v.name||'미상',v.gender&&v.gender!=='알수없음'?v.gender:'',v.age?v.age+'세':'',v.severity,v.note].filter(Boolean).join(' · ')));}
-  if(_ok(r.vTel))L.push('연락처: '+r.vTel);
+  if(_ok(r.vTel))L.push('연락처: '+_fmtTel(r.vTel));
   if(_ok(r.severity))L.push('중증도: '+r.severity);
   {const vseq=[];if(r.vitals&&_vitalsStr(r.vitals))vseq.push(r.vitals);(r.reports||[]).forEach(p=>{if(p.vitals&&_vitalsStr(p.vitals))vseq.push(p.vitals);});
    if(vseq.length){L.push('활력징후:');vseq.forEach(v=>L.push('  · '+((v.at||'').slice(11)||'-')+' '+_vitalsStr(v)));}}
@@ -2050,7 +2050,7 @@ function _build119Text(r){
   if(r.severity)L.push('■중증도: '+r.severity);
   {const inj=(r.injuryParts||[]).filter(Boolean);if(inj.length)L.push('■부상: '+inj.join(', '));}
   {const v=r.vitals&&_vitalsStr(r.vitals);if(v)L.push('■활력징후: '+v);}
-  if(r.vTel)L.push('■연락처: '+r.vTel);
+  if(r.vTel)L.push('■연락처: '+_fmtTel(r.vTel));
   if(r.situation)L.push('■경위: '+String(r.situation).replace(/\s+/g,' ').slice(0,90));
   if(r.hospital&&r.hospital!=='미정')L.push('■이송: '+r.hospital);
   L.push('■발신: 설악산국립공원사무소 '+(r.author||getAuthor()));
