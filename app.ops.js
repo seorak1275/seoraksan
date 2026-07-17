@@ -207,21 +207,28 @@ function renderInspectMap(){
   // 시설물 클러스터링 (밀집 시 개수 버블로 묶음)
   _iItems=iOvs.map(ov=>({ov,lat:ov._lat,lng:ov._lng}));
   try{_reclusterInspect();}catch(e){}
-  // 지도 팝업 이전/다음 순서: 서쪽 끝에서 시작해 가장 가까운 시설로 이어지는 체인(탐방로 연속 이동용)
+  // 지도 팝업 이전/다음 순서: 대상 좌표만 가볍게 보관하고, O(n²) 체인 계산은 팝업 열 때로 미룸(_facMapOrderCompute).
+  // (예전엔 매 렌더마다 전체 시설 대상으로 최근접 체인을 계산 → 필터·줌·핀수정 때마다 재실행되며 지도가 느려짐)
+  try{window._facMapPts=filtered.filter(f=>f.lat&&f.lng).map(f=>({id:String(f.id),lat:f.lat,lng:f.lng}));window._facMapOrder=null;}
+  catch(e){window._facMapPts=[];window._facMapOrder=[];}
+}
+// 탐방로 연속 체인(서쪽 끝→가까운 시설 순) — 팝업 이전/다음용. 렌더마다가 아니라 팝업 열 때 1회 계산 후 캐시(다음 렌더에서 무효화).
+function _facMapOrderCompute(){
+  if(window._facMapOrder)return window._facMapOrder;
+  const pts=window._facMapPts||[];
+  if(pts.length<=1){window._facMapOrder=pts.map(p=>p.id);return window._facMapOrder;}
   try{
-    const pts=filtered.filter(f=>f.lat&&f.lng);
-    if(pts.length>1){
-      let cur=pts.reduce((m,f)=>f.lng<m.lng?f:m,pts[0]);
-      const left=new Set(pts.map(f=>f.id)),chain=[];
-      while(cur){
-        chain.push(String(cur.id));left.delete(cur.id);
-        let best=null,bd=Infinity;
-        pts.forEach(f=>{if(!left.has(f.id))return;const d=(f.lat-cur.lat)*(f.lat-cur.lat)+(f.lng-cur.lng)*(f.lng-cur.lng);if(d<bd){bd=d;best=f;}});
-        cur=best;
-      }
-      window._facMapOrder=chain;
-    }else window._facMapOrder=pts.map(f=>String(f.id));
-  }catch(e){window._facMapOrder=[];}
+    let cur=pts.reduce((m,f)=>f.lng<m.lng?f:m,pts[0]);
+    const left=new Set(pts.map(f=>f.id)),chain=[];
+    while(cur){
+      chain.push(cur.id);left.delete(cur.id);
+      let best=null,bd=Infinity;
+      pts.forEach(f=>{if(!left.has(f.id))return;const d=(f.lat-cur.lat)*(f.lat-cur.lat)+(f.lng-cur.lng)*(f.lng-cur.lng);if(d<bd){bd=d;best=f;}});
+      cur=best;
+    }
+    window._facMapOrder=chain;
+  }catch(e){window._facMapOrder=pts.map(p=>p.id);}
+  return window._facMapOrder;
 }
 // ── 내 주변 시설물: GPS 기준 가까운 순 목록 + 바로 점검 (점검 나갈 때 한 번에) ──
 function openNearFacs(){
@@ -621,7 +628,7 @@ function openFacFromMap(id){
   const _bw=document.getElementById('facPopBtns');
   const mng=_canManageFac();
   // 이전/다음: 탐방로 연속 체인(가까운 시설 순) — 누르면 지도가 그 시설로 이동
-  const _ord=window._facMapOrder||[];const _oi=_ord.indexOf(String(id));
+  const _ord=(typeof _facMapOrderCompute==='function'?_facMapOrderCompute():window._facMapOrder)||[];const _oi=_ord.indexOf(String(id));
   const _pv=_oi>0?_ord[_oi-1]:'',_nx=(_oi>=0&&_oi<_ord.length-1)?_ord[_oi+1]:'';
   const _navRow=(_ord.length>1&&_oi>=0)?`<div style="display:flex;align-items:center;gap:8px;">
       <button class="navbtn" ${_pv?`onclick="_facMapNav(${_pv})"`:'disabled'} style="padding:7px 4px;font-size:11.5px;">◀ 이전</button>

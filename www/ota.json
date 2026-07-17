@@ -1,1 +1,1 @@
-{"version":"2026.07.17.219","url":"https://seorak1275.github.io/seoraksan/bundle.zip","notes":"타임라인 반복 누적 버그 수정 — 병합 키를 정규화(키순서 무관)해 Firestore 왕복 시 같은 기록이 중복 쌓이던 원인 제거, 기존 중복은 1회 자동 청소(timetable·wpLog·npsLog)"}
+{"version":"2026.07.17.220","url":"https://seorak1275.github.io/seoraksan/bundle.zip","notes":"시설물 지도 성능 — 팝업 이전/다음용 O(n²) 체인 계산을 매 렌더에서 제거하고 팝업 열 때 1회만 계산·캐시(줌·필터·핀수정 시 지도 반응성 개선)"}
