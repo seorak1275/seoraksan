@@ -556,8 +556,13 @@ function initFirebase(onReady){
       });
     }catch(e){_authErrCode='auth/init-failed';}
     _fdb=firebase.firestore();
+    // 기기 캐시 상한 해제 — 기본 40MB LRU라 사진 든 기록이 쌓이면 오래된 것부터 몰래 버리고
+    // 나중에 그 기록을 볼 때 서버에서 다시 읽어옴(쿼터 재소모). 원칙: 한 번 받은 데이터는 기기에 남기고 변경분만 동기화.
+    try{_fdb.settings({cacheSizeBytes:firebase.firestore.CACHE_SIZE_UNLIMITED,merge:true});}catch(e){}
     // synchronizeTabs: 웹에서 탭을 여러 개 열어도 IndexedDB 캐시 유지(없으면 두 번째 탭부터 캐시 꺼져 매번 전체 재다운로드)
     _fdb.enablePersistence({synchronizeTabs:true}).catch(()=>{});
+    // 저장공간 부족 시 브라우저가 사이트 데이터(기록·타일 캐시)를 통째로 비우지 못하게 영구 저장 요청
+    try{if(navigator.storage&&navigator.storage.persist)navigator.storage.persist().catch(()=>{});}catch(e){}
     _fst=firebase.storage();
     try{_fmsg=firebase.messaging();}catch(e){}
     setTimeout(_flushSyncQueue,3000); // 부팅 직후 대기 큐 재전송

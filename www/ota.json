@@ -1,1 +1,1 @@
-{"version":"2026.07.17.200","url":"https://seorak1275.github.io/seoraksan/bundle.zip","notes":"동기화 쿼터 대응 — 읽기쿼터 소진 시 컬렉션 기록은 병합쓰기로 즉시 저장, 일시 실패 데드레터 제외, 원인 표시 칩, 아카이브 캐시 우선(재조회 쿼터 절약)"}
+{"version":"2026.07.17.201","url":"https://seorak1275.github.io/seoraksan/bundle.zip","notes":"기기 캐시 상한 해제(무제한)+영구 저장 요청 — 한 번 받은 기록은 폰에 남기고 변경분만 동기화 원칙 완성"}
