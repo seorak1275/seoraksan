@@ -450,8 +450,10 @@ img{-webkit-user-drag:none;}
 @keyframes spin{to{transform:rotate(360deg);}}
 .lg-spin{width:16px;height:16px;border:2px solid rgba(254,229,0,.3);border-top-color:#f0d900;border-radius:50%;display:inline-block;flex-shrink:0;animation:spin .7s linear infinite;}
 
-/* ── 본부 상황판: 모니터 전체 화면 사용 (430px 제약 탈출) ── */
-#v-board.on{position:fixed;inset:0;width:100vw;height:100vh;max-width:none;z-index:60;flex-direction:column;}
+/* ── 본부 상황판: 모니터 전체 화면 사용 (430px 제약 탈출) ──
+   width는 inset:0으로 결정(100vw 금지 — 스크롤바 포함 폭이라 실제 표시영역과 어긋나 지도 우측 미렌더 띠 유발).
+   viewFadeIn(transform) 애니메이션도 제외 — 지도 생성 시점 크기 계산 변수 제거 */
+#v-board.on{position:fixed;inset:0;width:auto;height:auto;max-width:none;z-index:60;flex-direction:column;animation:none;}
 @media(min-width:1000px){
   #v-board .board-title{font-size:26px;}
   #v-board .board-clock{font-size:20px;}

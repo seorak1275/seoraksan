@@ -507,12 +507,17 @@ function openBoard(){
   clearInterval(_boardTimer);
   _boardTimer=setInterval(()=>{
     if(!document.getElementById('v-board').classList.contains('on')){clearInterval(_boardTimer);return;}
-    try{_boardEnsureSize();}catch(e){} // 폭 불일치(우측 띠) 최후 자가치유 — 늦어도 10초 안에 복구
     renderBoard();
   },10000);
+  // 크기·배율·내부폭 감시는 2초 주기로 따로(가벼운 DOM 읽기 몇 개) — 세로선이 생겨도 2초 안에 자가복구
+  clearInterval(window._boardSizeTimer);
+  window._boardSizeTimer=setInterval(()=>{
+    if(!document.getElementById('v-board').classList.contains('on')){clearInterval(window._boardSizeTimer);return;}
+    try{_boardEnsureSize();}catch(e){}
+  },2000);
   history.pushState({view:'board'},'','');
 }
-function closeBoard(){clearInterval(_boardTimer);goHome();}
+function closeBoard(){clearInterval(_boardTimer);clearInterval(window._boardSizeTimer);goHome();}
 
 // 상황판 지도: 진행중 구조/위험 핀 표시
 let _boardMap=null,_boardOvs=[],_boardResizeBound=false,_boardCreateW=0;
@@ -528,6 +533,8 @@ function _createBoardMap(el){
     _boardMap=new kakao.maps.Map(el,{center:new kakao.maps.LatLng(DC.lat,DC.lng),level:9,tileAnimation:false});
     _boardMap.setMapTypeId(_boardMapType==='hybrid'?kakao.maps.MapTypeId.HYBRID:kakao.maps.MapTypeId.ROADMAP);
     _boardCreateW=el.clientWidth||0;
+    _boardCreateDpr=window.devicePixelRatio||1;
+    el._fixTried=0;
     try{_drawParkBoundary(_boardMap);}catch(e){}
     _renderBoardPins(true);
     // 레이아웃 커밋 후 한 번 더 relayout (생성 직후 폭 계산 오차 보정)
@@ -538,15 +545,39 @@ function _createBoardMap(el){
     },350);
   }catch(e){console.warn('boardMap',e);}
 }
-// 현재 컨테이너 폭과 지도 생성 폭이 다르면 재생성 (같으면 relayout만) — 우측 미렌더 띠 자가복구
+// 우측 미렌더 띠(세로선) 자가복구 — 3중 검증:
+// ①컨테이너 폭이 생성 때와 다름 ②모니터 배율/브라우저 확대(devicePixelRatio) 변경 ③카카오 내부 뷰포트 폭 ≠ 컨테이너 폭
+// ③이 핵심: 카카오가 내부적으로 알고 있는 폭이 어긋나면(=선 그어짐) relayout으로 1차 보정, 그래도 어긋나면 재생성
+var _boardCreateDpr=0;
 function _boardEnsureSize(){
   var el=document.getElementById('boardMap');
   if(!el||!_boardMap)return;
   var vb=document.getElementById('v-board');
   if(!vb||!vb.classList.contains('on'))return;
   var w=el.clientWidth||0;
-  if(w&&Math.abs(w-_boardCreateW)>4)_createBoardMap(el);
-  // 폭이 같으면 아무것도 하지 않음 — 예전엔 여기서 relayout()을 호출해 10초마다 지도가 깜빡였음
+  var dpr=window.devicePixelRatio||1;
+  if((w&&Math.abs(w-_boardCreateW)>4)||(_boardCreateDpr&&Math.abs(dpr-_boardCreateDpr)>0.01)){_createBoardMap(el);return;}
+  // 카카오 내부 노드 폭 검증 — 컨테이너와 4px 이상 다르면 미렌더 띠 상태
+  try{
+    var inner=el.firstElementChild;
+    var iw=inner?(inner.clientWidth||0):0;
+    if(iw&&w&&Math.abs(iw-w)>4){
+      if(el._fixTried){el._fixTried=0;_createBoardMap(el);} // relayout으로도 안 잡히면 재생성(최후)
+      else{el._fixTried=1;var c=_boardMap.getCenter();_boardMap.relayout();_boardMap.setCenter(c);}
+      return;
+    }
+    el._fixTried=0;
+  }catch(e){}
+}
+// 모니터 배율·브라우저 확대(Ctrl +/-) 변경 감지 → 즉시 크기 재검증 (변경 때마다 리스너 재장전)
+function _armDprWatch(){
+  try{
+    if(window._dprWatchOff)window._dprWatchOff();
+    var mql=matchMedia('(resolution: '+(window.devicePixelRatio||1)+'dppx)');
+    var h=function(){setTimeout(function(){_boardEnsureSize();_armDprWatch();},120);};
+    if(mql.addEventListener)mql.addEventListener('change',h);else if(mql.addListener)mql.addListener(h);
+    window._dprWatchOff=function(){try{if(mql.removeEventListener)mql.removeEventListener('change',h);else if(mql.removeListener)mql.removeListener(h);}catch(e){}};
+  }catch(e){}
 }
 // 컨테이너가 전체화면 최종 너비에 도달하고 '안정'될 때까지 기다렸다 지도 생성
 // (예전엔 300px만 넘으면 바로 생성 → 열림 전환 중 좁은 폭으로 만들어져 오른쪽 띠 발생)
@@ -569,6 +600,7 @@ function _initBoardMap(){
   const el=document.getElementById('boardMap');
   if(!el||!window._KR)return;
   _createBoardMap(el); // 열 때마다 현재 크기로 새로 생성
+  _armDprWatch(); // 모니터 배율·브라우저 확대 변경 즉시 감지
   var b=document.getElementById('boardMapTypeBtn');if(b)b.textContent=_boardMapType==='hybrid'?'🛰 위성':'🗺 일반';
   // 컨테이너 크기가 바뀌면(전체화면 확정·모니터 회전 등) 그 즉시 감지 → 너비가 달라졌으면 새로 생성
   if(window.ResizeObserver&&!el._ro){
