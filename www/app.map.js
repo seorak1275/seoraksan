@@ -1837,8 +1837,8 @@ let _injType='',_injPart='',_injSide='',_injCat='외상';
 const _BILATERAL_PARTS=['어깨','팔꿈치','손목','손','무릎','발목','발'];
 // 외상(부위 필요) / 내상·질환(전신 — 부위 불필요) 유형 목록. '기타'는 직접 입력
 const _INJ_TYPES={
-  '외상':['골절','탈구','염좌','열상','타박상','두부손상','절단','화상','기타'],
-  '내상':['저혈당','심정지','저체온증','열사병','탈진/탈수','호흡곤란','흉통','복통','경련','의식저하','익수','기타'],
+  '외상':['골절','탈구','염좌','열상','타박상','두부손상','절단','화상','직접입력'],
+  '내상':['근육경련','저혈당','심정지','저체온증','열사병','탈진/탈수','호흡곤란','흉통','복통','경련','의식저하','익수','직접입력'],
 };
 // ⚡ 자주 발생 부상 원터치 목록 [유형, 부위, 라벨] — 설악산 실사고 다발 조합(실족→발목·무릎·두부 / 탈진 / 심질환) 순.
 // 여기 없는 사고는 아래 기존 유형·부위 선택으로 — 목록은 지름길일 뿐 제한이 아님
@@ -1847,8 +1847,7 @@ const _QUICK_INJ=[
   ['골절','발목','🦶 발목 골절'],
   ['타박상','무릎','🦵 무릎 타박'],
   ['골절','무릎','🦵 무릎 골절'],
-  ['열상','머리','🩹 머리 열상'],
-  ['골절','손목','✋ 손목 골절'],
+  ['근육경련','','💥 근육경련'],
   ['탈진/탈수','','💦 탈진·탈수'],
   ['저체온증','','🥶 저체온증'],
   ['심정지','','💔 심정지'],
@@ -1895,7 +1894,7 @@ function selInjType(el,type){
   const isSys=_injCat==='내상';
   if(partWrap) partWrap.style.display=isSys?'none':'block';
   if(sw) sw.style.display='none';
-  if(cw){cw.style.display=type==='기타'?'block':'none';if(type==='기타')setTimeout(()=>{try{document.getElementById('injTypeCustom').focus();}catch(e){}},50);}
+  if(cw){cw.style.display=type==='직접입력'?'block':'none';if(type==='직접입력')setTimeout(()=>{try{document.getElementById('injTypeCustom').focus();}catch(e){}},50);}
   if(isSys){_injPart='전신';_injSide='';}
   else{_injPart='';_injSide='';document.querySelectorAll('#injPartPills .pill').forEach(p=>p.classList.remove('on'));}
 }
@@ -1919,9 +1918,9 @@ function selInjSide(el,side){
 function addInjury(){
   if(!_injType){toast('부상 유형을 선택하세요');return;}
   let type=_injType;
-  if(type==='기타'){
+  if(type==='직접입력'){
     const c=(document.getElementById('injTypeCustom')?.value||'').trim();
-    if(!c){toast('기타 부상 내용을 입력하세요');return;}
+    if(!c){toast('부상·질환 내용을 직접 입력하세요');return;}
     type=c;
   }
   if(_injCat!=='내상'&&!_injPart){toast('부상 부위를 선택하세요');return;}

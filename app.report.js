@@ -229,6 +229,13 @@ function viewTimeline(){
   showV('v-report');closeDB();
   renderTimeline(r,'advanced');
 }
+// GPS 좌표 수동 입력칸 — '✍️ 직접' 누르기 전엔 숨김(실수 편집 방지). GPS·지도 버튼은 숨김 상태에서도 r_gps 값 갱신됨
+function _toggleGpsManual(){
+  const row=document.getElementById('gpsManualRow');if(!row)return;
+  const show=(row.style.display==='none'||!row.style.display);
+  row.style.display=show?'block':'none';
+  if(show){const i=document.getElementById('r_gps');if(i)setTimeout(()=>{try{i.focus();}catch(e){}},50);}
+}
 function renderPhaseBar(active,total){
   document.getElementById('phaseBar').innerHTML=Array.from({length:total},(_,i)=>
     `<div class="ph ${i<active?'done':i===active?'active':''}"><div class="ph-dot"></div>${i+1}보</div>`).join('');
@@ -2346,9 +2353,6 @@ function render1BoForm(prefill=null){
           </div>
           <input type="hidden" id="r_recvRoute" value="${p.recvRoute||'119'}">
         </div>
-        <div class="fg"><span class="fl">접수 내용 <span style="font-size:9px;color:#8b95a1;font-weight:400;">(신고 원문 — 파악된 사고 전개는 환자·부상 탭 '사고 경위'에)</span></span>
-          <textarea id="r_recv" class="fta" rows="3" placeholder="예) 119 이첩 — 천불동계곡 하산 중 발목 부상, 자력 이동 불가, 일행 1명">${p.reception||''}</textarea>
-        </div>
         <div class="fg"><span class="fl">🚨 사고 유형</span>
           <div class="pills" id="typePills">
             ${(()=>{const base=['안전사고','조난','고립','실종','기타'];const cur=p.type||'안전사고';const isCustom=!base.includes(cur);return base.map(o=>`<div class="pill${(isCustom?o==='기타':cur===o)?' on':''}" onclick="selAccType('${o}')">${o}</div>`).join('');})()}
@@ -2362,6 +2366,9 @@ function render1BoForm(prefill=null){
           </div>
           <input type="hidden" id="r_loctype" value="${p.loctype||'법정탐방로'}">
         </div>
+        <div class="fg"><span class="fl">접수 내용 <span style="font-size:9px;color:#8b95a1;font-weight:400;">(신고 원문 — 파악된 사고 전개는 환자·부상 탭 '사고 경위'에)</span></span>
+          <textarea id="r_recv" class="fta" rows="3" placeholder="예) 119 이첩 — 천불동계곡 하산 중 발목 부상, 자력 이동 불가, 일행 1명">${p.reception||''}</textarea>
+        </div>
       </div>
       <div class="rsec"><div class="rsec-t">📍 사고 위치</div>
         <div class="fg"><span class="fl">사고 장소</span>
@@ -2374,12 +2381,13 @@ function render1BoForm(prefill=null){
               <div id="r_minimap_coords" style="flex:1;font-family:monospace;font-size:11px;color:#3182f6;font-weight:600;">${p.lat&&p.lng?(+p.lat).toFixed(5)+', '+(+p.lng).toFixed(5):'📡 수신 중...'}</div>
               <button id="gpsFormBtn" onclick="gpsToFormMap()" style="background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.35);color:#3182f6;border-radius:7px;padding:5px 11px;font-size:11px;font-weight:600;cursor:pointer;white-space:nowrap;flex-shrink:0;">📡 GPS</button>
               <button onclick="openMapPicker()" style="background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.12);color:rgba(255,255,255,.5);border-radius:7px;padding:5px 11px;font-size:11px;font-weight:600;cursor:pointer;white-space:nowrap;flex-shrink:0;">🗺 지도</button>
+              <button onclick="_toggleGpsManual()" style="background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.12);color:rgba(255,255,255,.5);border-radius:7px;padding:5px 11px;font-size:11px;font-weight:600;cursor:pointer;white-space:nowrap;flex-shrink:0;">✍️ 직접</button>
             </div>
             <div id="r_gps_status" style="font-size:10px;color:rgba(255,255,255,.3);line-height:1.4;">${p.lat&&p.lng?'✅ 위치 확인':'GPS 버튼을 눌러 현재 위치를 자동으로 받거나, 🗺 지도에서 직접 선택하세요'}</div>
           </div>
           <!-- 위치 미니맵 -->
           <div id="r_loc_mini_map" style="display:${p.lat&&p.lng?'block':'none'};height:180px;border-radius:10px;overflow:hidden;margin-bottom:8px;border:1px solid rgba(255,255,255,.2);"></div>
-          <div class="gps-row">
+          <div class="gps-row" id="gpsManualRow" style="display:none;">
             <input type="text" id="r_gps" class="fi" placeholder="위도, 경도 직접 입력" value="${p.lat&&p.lng?(+p.lat).toFixed(5)+', '+(+p.lng).toFixed(5):''}" oninput="syncFormMapFromInput()">
           </div>
         </div>
@@ -2479,10 +2487,7 @@ function render1BoForm(prefill=null){
         </div>
       </div>
 
-      <!-- 현장 사진: 부상/이송 고정칸 폐지 — 등록 후 상세의 '📷 현장 사진'에서 여러 장 통합 첨부(보고서·타임라인 공용) -->
-      <div class="rsec"><div class="rsec-t">📸 현장 사진</div>
-        <div style="font-size:11px;color:rgba(255,255,255,.4);line-height:1.6;padding:2px 2px;">사진은 <b style="color:#3182f6;">등록 후 상세 화면의 '📷 현장 사진'</b>에서 여러 장 한 번에 추가할 수 있어요. (보고서·타임라인에 함께 반영)</div>
-      </div>
+      <!-- 현장 사진 섹션 폐지 — 등록 후 상세의 '📷 현장 사진'에서 여러 장 통합 첨부(보고서·타임라인 공용) -->
 
       <!-- 4. 활력징후 (음주여부 + 중증도 포함) -->
       <div class="rsec"><div class="rsec-t">💓 활력징후 <span style="font-size:9px;color:#8b95a1;font-weight:400;">(보고마다 기록 → 추이 확인)</span></div>

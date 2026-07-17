@@ -2934,14 +2934,15 @@ function autoGenTitle(returnOnly=false){
     injStr=(typeof _injLabel==='function')?_injLabel(_injuries[0]):((_injuries[0].part||'')+(_injuries[0].type||''));
     if(_injuries.length>1)injStr+=' 외 '+(_injuries.length-1);
   }
-  // 제목 형식: 부상이 있으면 「왼쪽 팔목 골절 NN-NN 인근」, 없으면 사고유형이 제목(조난·고립…). 원인(부주의 등)은 안 씀
-  const _m=loc.match(/\d{1,2}-\d{1,3}/);
-  const locShort=_m?_m[0]+' 인근':(loc?loc.slice(0,8):'');
+  // 제목 형식: 「구역명 부상」 (예: 울산바위 근육경련). 위치칸(04-04)은 그대로, 제목엔 코드 앞자리→구역명 사용
+  const _m=loc.match(/(\d{1,2})-\d{1,3}/);
+  const _zone=(_m&&typeof ZONE_NAMES!=='undefined')?(ZONE_NAMES[String(_m[1]).padStart(2,'0')]||''):'';
+  const locLabel=_zone||(_m?_m[0]+' 인근':(loc?loc.slice(0,8):''));               // 04 → 울산바위, 매핑 없으면 코드/장소명
   const parts=[];
-  if(injStr)parts.push(injStr);                                                   // ① 다친 곳·정도
+  if(locLabel)parts.push(locLabel);                                               // ① 위치(구역명 우선)
+  if(injStr)parts.push(injStr);                                                   // ② 다친 곳·정도
   else if(type)parts.push(type);                                                  // 부상 없음 → 사고유형(조난·고립 등)
   if(nation==='외국인') parts.push('외국인'+((gender&&gender!=='알수없음')?'('+gender+')':'')); // 외국인 표기
-  if(locShort)parts.push(locShort);                                               // ② 위치(NN-NN 인근)
   const title=parts.join(' ')||today()+' '+type;
   if(returnOnly) return title;
   const el=document.getElementById('r_title');
@@ -3681,7 +3682,7 @@ function sosToRescue(id){
 // 앱 자체 업데이트 (OTA · Capgo 자체호스팅) — APK 전용. 웹/PWA는 서비스워커가 자동 갱신.
 // 번들(www)의 새 버전을 ota.json으로 알리면, 설치된 앱이 받아서 그 자리에서 교체(재빌드 불필요).
 // ══════════════════════════════════════════
-const OTA_VER='2026.07.17.231';                         // ← 현재 번들 버전 (릴리스마다 올림 · build-ota.sh가 ota.json에 반영)
+const OTA_VER='2026.07.17.232';                         // ← 현재 번들 버전 (릴리스마다 올림 · build-ota.sh가 ota.json에 반영)
 const OTA_MANIFEST='https://seorak1275.github.io/seoraksan/ota.json';
 // 업데이트 확인 폴백 소스 — 일부 기관망·통신사에서 github.io가 막혀 '확인 실패(네트워크)'가 나는 경우 대비.
 // 순서대로 시도: ① GitHub Pages(원본·즉시 반영) ② jsDelivr CDN(공개저장소 미러·거의 모든 망 통과)
