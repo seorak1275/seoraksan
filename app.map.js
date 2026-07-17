@@ -1282,6 +1282,37 @@ function _elevStr(lat,lng,gpsAlt,plain){
   return '<span class="elev-ph" data-ek="'+k+'"></span>';
 }
 
+// ── 일출·일몰 계산 (Sunrise equation) — 산악구조 '어두워지기 전 완료' 판단용. 순수 JS, API 불필요 ──
+function _sunTimes(lat,lng,date){
+  const rad=Math.PI/180,d=date||new Date();
+  const n=Math.round((d.getTime()/86400000)+2440587.5-2451545.0+0.0008);
+  const Jstar=n-lng/360;
+  const M=(357.5291+0.98560028*Jstar)%360;
+  const C=1.9148*Math.sin(M*rad)+0.02*Math.sin(2*M*rad)+0.0003*Math.sin(3*M*rad);
+  const lambda=(M+C+180+102.9372)%360;
+  const Jt=2451545.0+Jstar+0.0053*Math.sin(M*rad)-0.0069*Math.sin(2*lambda*rad);
+  const delta=Math.asin(Math.sin(lambda*rad)*Math.sin(23.44*rad))/rad;
+  const cosH=(Math.sin(-0.83*rad)-Math.sin(lat*rad)*Math.sin(delta*rad))/(Math.cos(lat*rad)*Math.cos(delta*rad));
+  if(cosH>1||cosH<-1)return null;
+  const H=Math.acos(cosH)/rad;
+  const toDate=J=>new Date((J-2440587.5)*86400000);
+  return {sunrise:toDate(Jt-H/360),sunset:toDate(Jt+H/360)};
+}
+// 진행 중 구조의 일몰 카운트다운 배지 (좌표 필요). 종료 건·좌표 없으면 '' — 밤이 다가올수록 주황→빨강 경고
+function _sunsetBadge(r){
+  if(!r||r.status!=='ongoing'||!(r.lat&&r.lng))return '';
+  const t=_sunTimes(+r.lat,+r.lng);if(!t)return '';
+  const hhmm=d=>('0'+d.getHours()).slice(-2)+':'+('0'+d.getMinutes()).slice(-2);
+  const remMin=Math.round((t.sunset.getTime()-Date.now())/60000);
+  let col,txt;
+  if(remMin<=0){col='#c0392b';txt=`🌙 일몰 지남 ${hhmm(t.sunset)} · 야간구조`;}
+  else{
+    const h=Math.floor(remMin/60),m=remMin%60,rem=(h?h+'시간 ':'')+(m?m+'분 ':'')+'남음';
+    col=remMin<=60?'#c0392b':remMin<=120?'#e67e22':'#5fa86f';
+    txt=(remMin<=60?'🌅 일몰 임박 ':'🌅 일몰 ')+hhmm(t.sunset)+' · '+rem;
+  }
+  return `<div style="display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:800;color:${col};background:${col}1a;border:1px solid ${col}55;border-radius:7px;padding:3px 9px;margin-top:6px;">${txt}</div>`;
+}
 
 // Zone 뱃지: "ZZ-NN → 거점명 (Xm)" 표지판 코드 최우선
 function _updateZoneBadge(lat,lng,elId){
