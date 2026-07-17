@@ -1096,23 +1096,26 @@ function renderTimeline(r,viewMode,outId){
       </div>
       <button onclick="openReportShare(${r.id})" style="flex-shrink:0;background:rgba(79,168,208,.12);color:#4fa8d0;border:1px solid rgba(79,168,208,.32);border-radius:7px;padding:5px 9px;font-size:10px;font-weight:800;cursor:pointer;white-space:nowrap;">📄 보고서</button>
     </div>
-    <div style="display:flex;gap:5px;margin-top:9px;">
-      <button onclick="${_isBoard?`_boardOpenDetail(${r.id},'advanced')`:`renderTimeline(getRes(${r.id}),'advanced')`}" style="flex:1;padding:6px;border-radius:7px;border:1px solid;font-size:11px;font-weight:600;cursor:pointer;background:${'advanced'===mode?'rgba(79,168,208,.15)':'transparent'};color:${'advanced'===mode?'#4fa8d0':'rgba(255,255,255,.35)'};border-color:${'advanced'===mode?'rgba(79,168,208,.5)':'rgba(255,255,255,.1)'};">📍 타임라인</button>
-      ${isExternal()?'':`<button onclick="${_isBoard?`_boardOpenDetail(${r.id},'write')`:`renderTimeline(getRes(${r.id}),'write')`}" style="flex:1;padding:6px;border-radius:7px;border:1px solid;font-size:11px;font-weight:600;cursor:pointer;background:${'write'===mode?'rgba(79,168,208,.15)':'transparent'};color:${'write'===mode?'#4fa8d0':'rgba(255,255,255,.35)'};border-color:${'write'===mode?'rgba(79,168,208,.5)':'rgba(255,255,255,.1)'};">📄 보고서</button>`}
-    </div>
-  </div>`;
+  </div>`; // 탭(타임라인/보고서) 제거 — 아래 한 화면에 보고서·기록·타임라인 통합
 
-  if(mode==='advanced'){
-    _initTlTeams(r);
-    _tlRecTeam='';_tlRecStage='';
-    // 기록 단계 버튼(조우·특이사항) — 자주 쓰는 순. '직접입력'으로 자유 작성
-    const REC_STAGES=['요구조자 조우','응급처치','심정지','하산 시작','헬기 요청','헬기 도착','휴식','기상 악화','구조 중단','구조 재개','대피소 숙박'];
+  // ── 통합 화면: 탭 없이 보고서(접이식)+기록 입력+상황일지+출동팀+댓글을 한 번에 ──
+  _initTlTeams(r);
+  _tlRecTeam='';_tlRecStage='';
+  const _canWriteTl=!isExternal();
+  // 기록 단계 버튼(조우·특이사항) — 자주 쓰는 순. '직접입력'으로 자유 작성
+  const REC_STAGES=['요구조자 조우','응급처치','심정지','하산 시작','헬기 요청','헬기 도착','휴식','기상 악화','구조 중단','구조 재개','대피소 숙박'];
+  if(window._tlRecOpen===undefined)window._tlRecOpen=(r.status==='ongoing'); // 진행중=기록 입력 펼침 / 종료 건=접힘
+  const _mkRecCard=()=>{
+    if(!_canWriteTl)return '';
+    const _tglArg=`${r.id},'${_isBoard?_esc(outId):''}'`;
+    if(!window._tlRecOpen)return `<button onclick="_toggleRecCard(${_tglArg})" style="width:100%;margin-bottom:8px;padding:11px;border-radius:11px;border:1px dashed rgba(79,168,208,.35);background:rgba(79,168,208,.06);color:#4fa8d0;font-size:12.5px;font-weight:800;cursor:pointer;">📌 기록 추가 — 조우·처치·헬기·직접입력 ▾</button>`;
     const _teamNames=(r.teams||[]).map(t=>t.name).filter(Boolean);
-    w.innerHTML=tabHdr+`
-      <!-- 📌 기록 (메인): 누가 · 무엇을 · 언제 — 과거 시간 입력 가능, 일지는 시간순 자동 정렬 -->
+    return `
+      <!-- 📌 기록: 누가 · 무엇을 · 언제 — 과거 시간 입력 가능, 일지는 시간순 자동 정렬 -->
       <div style="background:#0b1c30;border:1px solid rgba(79,168,208,.3);border-radius:12px;padding:12px 13px;margin-bottom:10px;">
-        <div style="margin-bottom:8px;">
+        <div style="margin-bottom:8px;display:flex;align-items:center;">
           <span style="font-size:12px;font-weight:800;color:#4fa8d0;">📌 기록 <span style="font-size:9px;color:#5a7e98;font-weight:400;">누가 · 무엇을 · 언제</span></span>
+          <span onclick="_toggleRecCard(${_tglArg})" style="margin-left:auto;font-size:10.5px;color:#5a7e98;font-weight:700;cursor:pointer;padding:2px 6px;">▲ 접기</span>
         </div>
         ${_teamNames.length?`<div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:7px;" id="tlRecTeams">
           ${['본부',..._teamNames].map(n=>`<div class="pill" data-v="${_esc(n)}" onclick="_tlRecSelTeam(this)" style="font-size:11px;cursor:pointer;">${_esc(n)}</div>`).join('')}
@@ -1139,18 +1142,17 @@ function renderTimeline(r,viewMode,outId){
         </div>
         <button onclick="_tlRecSave(${r.id})" style="width:100%;padding:10px;background:#1a4a6e;color:#fff;border:none;border-radius:9px;font-size:12px;font-weight:700;cursor:pointer;">＋ 기록 저장</button>
         <div style="font-size:9px;color:#3a5a7a;margin-top:5px;">시간을 과거로 바꿔 늦은 입력 가능 — 상황일지는 시간순으로 자동 정렬됩니다</div>
-      </div>
-      <!-- 📜 상황일지 (기록 바로 아래) -->
-      ${_buildLogHtml(r)}
-      <!-- 🚑 출동팀: 한 카드에 팀별 한 줄 + 팀 출동 버튼 -->
-      <div style="background:#0b1c30;border:.5px solid rgba(79,168,208,.14);border-radius:12px;padding:11px 13px;margin-top:10px;">
+      </div>`;
+  };
+  // 🚑 출동팀: 한 카드에 팀별 한 줄 + 팀 출동 버튼
+  const _mkTeamCard=()=>_canWriteTl?`
+      <div style="background:#0b1c30;border:.5px solid rgba(79,168,208,.14);border-radius:12px;padding:11px 13px;margin-top:8px;">
         <div id="tlTeamHdr" style="font-size:11px;color:#4fa8d0;font-weight:800;margin-bottom:4px;">${_tlTeamsHdrHtml()}</div>
         <div id="tlAllTeams">${_tlTeamRowsHtml()}</div>
         <div id="tlBuildArea" style="margin-top:9px;">${_tlBuilding?_renderBuildPanelHtml():_renderCreateBtnsHtml()}</div>
-      </div>
-      `;
-  } else {
-    // 통합 보고서 mode — 추가보고(N보)의 최신 정보를 병합해 '다 뜨게'(reports·date·작성자 등 메타는 보존)
+      </div>`:'';
+  {
+    // 통합 보고서 — 추가보고(N보)의 최신 정보를 병합해 '다 뜨게'(reports·date·작성자 등 메타는 보존)
     r=_mergedRescue(r);
     const _ok=v=>{if(!v&&v!==0)return false;const s=String(v).trim();return s&&s!=='-'&&!['미상','없음','모르겠음','알수없음','미정','해당없음','기타'].includes(s);};
     const _okA=v=>(Array.isArray(v)?v:[]).filter(x=>_ok(x));
@@ -1249,13 +1251,15 @@ function renderTimeline(r,viewMode,outId){
           if(ag.agenciesNote)parts.push(`(${_esc(ag.agenciesNote)})`);
           return parts.length?`<div style="font-size:11px;color:#b8d4e8;margin-top:2px;"><span style="color:#4a7090;">유관기관:</span> ${parts.join(' · ')}</div>`:'';
         })():''}`;}
-    // 조립: 요약(항상) → [펼친 상세] → 응소 현황(응답 버튼이라 항상) → 🕘 타임라인(승격) → 💬 댓글
+    // 조립(한 화면): 요약(항상) → [펼친 상세] → 응소 현황 → 📌 기록 입력(접이식) → 🕘 타임라인 → 🚑 출동팀 → 💬 댓글
     w.innerHTML=tabHdr
       +reportSheet
       +_mkReportDetail()
       +_mobilizeBlockHtml('rescues',r)
+      +_mkRecCard()
       +(logHtml?`<div style="margin:2px 0 8px;"><div style="font-size:11px;color:#7fb4d4;font-weight:800;margin:6px 2px 5px;">🕘 상황일지 <span style="font-size:9px;color:#4a6a84;font-weight:600;">시간순 타임라인</span></div>${logHtml}</div>`
-               :'<div style="text-align:center;font-size:11px;color:#456a85;padding:12px 0 8px;">🕘 상황일지 기록 없음 — 기록/일지 화면에서 추가</div>')
+               :'<div style="text-align:center;font-size:11px;color:#456a85;padding:12px 0 8px;">🕘 상황일지 기록 없음 — 위 📌 기록 추가로 입력하세요</div>')
+      +_mkTeamCard()
       +`<div style="background:#0b1c30;border-radius:10px;padding:12px;border:.5px solid rgba(255,255,255,.07);margin-top:8px;">
         <div style="font-size:11px;color:#4fa8d0;font-weight:700;margin-bottom:8px;">💬 댓글</div>
         <div id="commentList_${r.id}">${renderComments(r.id)}</div>
@@ -1270,7 +1274,7 @@ function renderTimeline(r,viewMode,outId){
   if(_ftEl){
     if(r.status==='ongoing'){
       _ftEl.style.display='block';
-      if(mode==='write'&&!isExternal()){
+      if(!isExternal()){ // 통합 화면 — 작성 권한 있으면 항상 전체 푸터(내용 추가·종료·공단 응소)
         const _histBtn=all.length>1?`<button onclick="showPrevHistModal(${r.id})" style="display:block;width:100%;padding:6px 10px;border-radius:7px;border:.5px solid rgba(79,168,208,.25);background:rgba(79,168,208,.07);color:#4a8aaa;font-size:11px;font-weight:600;cursor:pointer;margin-bottom:6px;text-align:left;">📋 이전 이력 보기 (${all.length-1}건)</button>`:'';
         _ftEl.innerHTML=_histBtn+`<div style="display:flex;gap:7px;"><button class="btn-submit" style="flex:2;background:#1a4a6e;color:#fff;" onclick="selResId=${r.id};curResId=${r.id};addPhase();">📝 내용 추가</button><button class="btn-submit" style="flex:1;background:#0d5040;color:#fff;" onclick="selResId=${r.id};curResId=${r.id};endSit();">✅ 상황 종료</button></div>`
           +`<button onclick="openNpsResponse(${r.id})" style="margin-top:6px;width:100%;background:rgba(0,120,60,.18);color:#7ec8a0;border:1px solid rgba(0,120,60,.3);border-radius:9px;padding:9px;font-size:12px;font-weight:600;cursor:pointer;">🏕️ 공단 응소 기록</button>`;
@@ -1282,13 +1286,19 @@ function renderTimeline(r,viewMode,outId){
       _ftEl.style.display='block';
       // 종료된 사고도 보고서 내용·사고일시 수정 가능 — 추가 보고 폼(사고일시 칸 포함)으로 진입. status는 종료 유지
       _ftEl.innerHTML='<div style="text-align:center;font-size:12px;color:#27ae60;padding:6px 0 6px;">✅ 상황 종료됨</div>'
-        +((mode==='write'&&!isExternal())?`<button class="btn-submit" style="width:100%;background:#1a4a6e;color:#fff;" onclick="selResId=${r.id};curResId=${r.id};addPhase();">📝 기록 수정·추가 보고 <span style="font-size:10px;font-weight:400;opacity:.75;">(사고일시·내용 수정)</span></button>`:'');
+        +((!isExternal())?`<button class="btn-submit" style="width:100%;background:#1a4a6e;color:#fff;" onclick="selResId=${r.id};curResId=${r.id};addPhase();">📝 기록 수정·추가 보고 <span style="font-size:10px;font-weight:400;opacity:.75;">(사고일시·내용 수정)</span></button>`:'');
     }
   }
 }
 // 보고서 상세 접기/펼치기 — 요약·타임라인은 그대로 두고 상세 묶음만 토글 (상황판 상세에서도 동작)
 function _toggleRepSheet(rid,outId){
   window._repSheetOpen=!window._repSheetOpen;
+  const r=getRes(rid);if(!r)return;
+  renderTimeline(r,'advanced',outId||undefined);
+}
+// 📌 기록 입력 카드 접기/펼치기
+function _toggleRecCard(rid,outId){
+  window._tlRecOpen=!window._tlRecOpen;
   const r=getRes(rid);if(!r)return;
   renderTimeline(r,'advanced',outId||undefined);
 }

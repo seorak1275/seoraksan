@@ -892,8 +892,7 @@ function renderBoard(){
         </div>
       </div>
       <div style="display:flex;gap:7px;margin-top:11px;padding-top:10px;border-top:1px solid rgba(255,255,255,.07);">
-        <button onclick="_boardOpenDetail(${r.id},'advanced')" style="flex:1;padding:8px 0;border-radius:9px;border:1px solid rgba(79,168,208,.35);background:rgba(79,168,208,.1);color:#4fa8d0;font-size:12px;font-weight:700;cursor:pointer;">📍 타임라인</button>
-        <button onclick="_boardOpenDetail(${r.id},'write')" style="flex:1;padding:8px 0;border-radius:9px;border:1px solid rgba(79,168,208,.2);background:rgba(79,168,208,.06);color:#7abcd4;font-size:12px;font-weight:700;cursor:pointer;">📄 보고서</button>
+        <button onclick="_boardOpenDetail(${r.id},'advanced')" style="flex:1;padding:8px 0;border-radius:9px;border:1px solid rgba(79,168,208,.35);background:rgba(79,168,208,.1);color:#4fa8d0;font-size:12px;font-weight:700;cursor:pointer;">📋 상세 보기 — 보고서·타임라인</button>
       </div>
     </div>`;
   });
