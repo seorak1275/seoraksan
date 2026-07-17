@@ -1864,6 +1864,49 @@ async function aiScanDispatch(input){
     input.value='';
   }
 }
+// 유관기관 전용 — 현장 사진 업로드 → 해당 구조에 사진 첨부 + AI가 사진 내용 요약해 타임라인 메모로 첨부
+async function aiScanToRescue(input,resId){
+  const file=input&&input.files&&input.files[0];if(input)input.value='';
+  if(!file)return;
+  let res=DB.g('rescues')||[];let ri=res.findIndex(x=>String(x.id)===String(resId));
+  if(ri<0){toast('⚠️ 구조 정보 없음');return;}
+  toast('🖼️ 사진 업로드 중…');
+  const _by=()=>(typeof isExternal==='function'&&isExternal()&&typeof _extAuthorStr==='function')?_extAuthorStr():(typeof getAuthor==='function'?getAuthor():'');
+  // 1) 사진 압축 후 첨부
+  try{
+    const dataUrl=await _compressToDataUrl(file,900,300000);
+    if(dataUrl){
+      res=DB.g('rescues')||[];ri=res.findIndex(x=>String(x.id)===String(resId));if(ri<0)return;
+      if(!res[ri].photos)res[ri].photos=[];
+      if(JSON.stringify(res[ri]).length+dataUrl.length>950000){toast('⚠️ 기록 용량 한계 — 사진 첨부 불가');}
+      else{res[ri].photos.push({url:dataUrl,time:now(),by:_by()});DB.s('rescues',res);}
+    }
+  }catch(e){}
+  // 2) AI 스캔 — Gemini 키 있으면 사진 내용을 요약해 메모로
+  const apiKey=(DB.g('geminiApiKey')||'').trim();
+  if(apiKey){
+    toast('🤖 AI가 사진을 분석중…');
+    try{
+      const b64=await new Promise(r=>{const fr=new FileReader();fr.onload=e=>r(String(e.target.result||'').split(',')[1]||'');fr.onerror=()=>r('');fr.readAsDataURL(file);});
+      const prompt='이 산악 구조 현장 사진에서 구조·이송에 도움 될 내용을 한국어 2~3문장으로 요약하세요. 부상 상태·환자 자세·주변 지형·위험요소·접근/이송 관련 위주. 사람 얼굴·개인정보는 묘사하지 마세요. 텍스트만 출력.';
+      const models=['gemini-2.5-flash','gemini-2.0-flash'];let memo='';
+      for(const mdl of models){
+        try{
+          const resp=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${mdl}:generateContent?key=${encodeURIComponent(apiKey)}`,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({contents:[{parts:[{inline_data:{mime_type:file.type,data:b64}},{text:prompt}]}]})});
+          if(!resp.ok){if(resp.status===404)continue;throw new Error(String(resp.status));}
+          const d=await resp.json();memo=((d.candidates&&d.candidates[0]&&d.candidates[0].content&&d.candidates[0].content.parts&&d.candidates[0].content.parts[0]&&d.candidates[0].content.parts[0].text)||'').trim();break;
+        }catch(e){}
+      }
+      if(memo){
+        res=DB.g('rescues')||[];ri=res.findIndex(x=>String(x.id)===String(resId));
+        if(ri>=0){if(!res[ri].timetable)res[ri].timetable=[];res[ri].timetable.push({stage:'유관기관 현장사진',time:now(),note:'🤖 '+memo,by:_by(),team:'',seq:Date.now()});DB.s('rescues',res);}
+      }
+    }catch(e){}
+  }
+  toast('✅ 사진'+(apiKey?' · AI 메모':'')+' 첨부 완료');
+  try{const r=getRes(resId);if(r&&r.id&&document.getElementById('v-report')?.classList.contains('on'))renderTimeline(r,'advanced');}catch(e){}
+  try{renderRescueMap();}catch(e){}
+}
 function _applyAiScanResult(d){
   // ※ 현재 폼의 실제 요소에 매핑 (r_sit/r_recv/r_arr, 성별·유형·중증도는 버튼/필 클릭)
   const _set=(id,v)=>{if(v===null||v===undefined)return;const el=document.getElementById(id);if(el){el.value=v;el.dispatchEvent(new Event('input'));}};

@@ -570,6 +570,15 @@ function _resDateOk(dateStr){
   if(resDateTo&&d>resDateTo)return false;
   return true;
 }
+// 외부기관 열람 범위 — 진행중이거나 최근 3시간 내 접수·종료 건만(보안: 오래된 과거 구조는 미노출)
+function _extRescueVisible(r){
+  if(!r)return false;
+  if(r.status==='ongoing')return true;
+  const m=String(r.date||'').match(/(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})/);
+  const base=m?new Date(+m[1],+m[2]-1,+m[3],+m[4],+m[5]).getTime():0;
+  const ref=Math.max(base,r.closedAtMs||0,r.createdAtMs||0);
+  return ref>0&&(Date.now()-ref)<=3*3600*1000;
+}
 function renderRescueMap(){
   if(!mapR)return;
   try{if(typeof _mergeCustomResTypes==='function')_mergeCustomResTypes();}catch(e){} // 커스텀 유형 아이콘 반영
@@ -592,6 +601,7 @@ function renderRescueMap(){
     if(!r.lat||!r.lng)return;
     if(!_stOkRes(r.status))return;
     if(!_resDateOk(r.date))return;
+    if(typeof isExternal==='function'&&isExternal()&&!_extRescueVisible(r))return; // 외부기관: 진행중·최근3시간만
     const isOg=r.status==='ongoing';const ti=RES_TYPES[r.type]||RES_TYPES['기타'];
     const el=document.createElement('div');
     if(isOg){
@@ -1417,6 +1427,7 @@ function openResPopup(id,type='rescue'){
     document.getElementById('resPopTitle').textContent=ti.ico+' '+data.title;
     document.getElementById('resPopMeta').innerHTML=_resPopMetaHtml(data);
     document.getElementById('btnViewRep').style.display='block';
+    {const _ai=document.getElementById('btnExtAiScan');if(_ai)_ai.style.display=(typeof isExternal==='function'&&isExternal())?'flex':'none';} // 유관기관: 사진+AI 스캔 첨부
     {const _tl=document.getElementById('btnViewTl');if(_tl)_tl.style.display='none';} // 보고서·타임라인 버튼 통합 — 타임라인 단독버튼 폐지
     const _bt=document.getElementById('btnViewTeams');if(_bt)_bt.style.display=(data.teams&&data.teams.length)?'block':'none';
     // 출동 거점·좌표복사(라우트) 블록 제거 — 팝업에 불필요

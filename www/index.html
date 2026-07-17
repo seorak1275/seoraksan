@@ -356,6 +356,7 @@ if(window.Kakao&&!Kakao.isInitialized()) Kakao.init(KAKAO_KEY);
       <div id="resPopRoutes" style="display:none;margin-bottom:6px;padding:0 2px;"></div>
       <div class="dbbtns" style="display:flex;flex-direction:row;gap:8px;">
         <button class="btn btn-ghost" id="btnViewTeams" onclick="viewTeamsSheet()" style="display:none;flex:1;">👥 인원</button>
+        <label class="btn btn-ghost" id="btnExtAiScan" style="display:none;flex:1;cursor:pointer;text-align:center;">📷 사진+AI<input type="file" accept="image/*" style="display:none;" onchange="aiScanToRescue(this,selResId)"></label>
         <button class="btn btn-blue" id="btnViewRep" onclick="viewReport()" style="display:none;flex:2;">📋 보고서 · 타임라인</button>
       </div>
     </div>
