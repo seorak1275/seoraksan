@@ -2312,6 +2312,12 @@ function render1BoForm(prefill=null){
         <input type="text" id="r_typeCustom" class="fi" placeholder="사고 유형 직접 입력 (예: 낙석, 화재)" style="display:${(p.type&&!['안전사고','조난','고립','실종','기타'].includes(p.type))?'block':'none'};margin-top:6px;" value="${(p.type&&!['안전사고','조난','고립','실종','기타'].includes(p.type))?_esc(p.type):''}" oninput="autoGenTitle()">
         <input type="hidden" id="r_type" value="${(p.type&&!['안전사고','조난','고립','실종','기타'].includes(p.type))?'기타':(p.type||'안전사고')}">
       </div>
+      <div class="rsec"><div class="rsec-t">🧭 장소 구분</div>
+        <div style="display:flex;gap:5px;flex-wrap:wrap;" id="loctypeBtns">
+          ${['법정탐방로','비법정탐방로','암벽','빙벽'].map(o=>`<button class="tog-btn${(p.loctype||'법정탐방로')===o?' on':''}" data-val="${o}" onclick="selLoctype('${o}')">${o}</button>`).join('')}
+        </div>
+        <input type="hidden" id="r_loctype" value="${p.loctype||'법정탐방로'}">
+      </div>
       <div class="rsec"><div class="rsec-t">📍 사고 위치</div>
         <div class="fg">
           <span class="fl">GPS 좌표</span>
@@ -2331,12 +2337,6 @@ function render1BoForm(prefill=null){
         </div>
         <div class="fg"><span class="fl">사고 장소</span>
           <input type="text" id="r_loc" class="fi" placeholder="예: 비선대 직상부 암릉 구간" value="${p.location||''}" oninput="autoGenTitle();this.dataset.userEdited='1'">
-        </div>
-        <div class="fg"><span class="fl">장소구분</span>
-          <div style="display:flex;gap:5px;flex-wrap:wrap;" id="loctypeBtns">
-            ${['법정탐방로','비법정탐방로','암벽','빙벽'].map(o=>`<button class="tog-btn${(p.loctype||'법정탐방로')===o?' on':''}" data-val="${o}" onclick="selLoctype('${o}')">${o}</button>`).join('')}
-          </div>
-          <input type="hidden" id="r_loctype" value="${p.loctype||'법정탐방로'}">
         </div>
         <div id="fineWrap" style="display:${p.loctype&&p.loctype.includes('비법정')?'block':'none'};" class="fg">
           <span class="fl" style="color:#e67e22;">⚠️ 과태료 여부</span>
