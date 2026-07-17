@@ -1,1 +1,1 @@
-{"version":"2026.07.17.223","url":"https://seorak1275.github.io/seoraksan/bundle.zip","notes":"타임라인 중복 근본해결 — 데이터손실 위험 3-way 병합 철회(합집합=유실0), 화면·삭제·병합 모두 의미키로 중복 자동 정리, 삭제는 툼스톤(_del)으로 확실히 유지+부활 차단, 'N보 보고' 마커 타임라인 제외, 같은분 입력순 정렬, 시설물 핀 축소시 이모지 유지, 안전지원 담당자 공란"}
+{"version":"2026.07.17.224","url":"https://seorak1275.github.io/seoraksan/bundle.zip","notes":"처리현황 사진 첨부 안정화(MIME image/jpeg 정정·크기값 가드) + 이번 세션에 넣었다 되돌린 미사용 코드 정리(_mergeArr3·base 인자 제거)"}

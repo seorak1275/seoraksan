@@ -267,7 +267,7 @@ function _flushSyncQueue(force){
       try{
         if(it.doc!==undefined)await _txMergeDoc(it.doc,it.base!==undefined?JSON.parse(it.base):undefined,JSON.parse(it.json)); // 트랜잭션 병합(오프라인 큐도 통째 덮어쓰기 방지)
         else if(it.op==='del')await _fdb.collection(it.coll).doc(it.id).delete();
-        else await _txMergeSet(it.coll,it.id,JSON.parse(it.json),(it.base!==undefined&&it.base!==null)?JSON.parse(it.base):null); // 트랜잭션 병합(오프라인 변경분 재접속 시 서버 최신본과 합침, base로 삭제 반영)
+        else await _txMergeSet(it.coll,it.id,JSON.parse(it.json)); // 트랜잭션 병합(오프라인 변경분 재접속 시 서버 최신본과 합침)
         _removeSyncItem(it);ok++;
       }catch(e){
         const code=(e&&e.code)||'';
@@ -406,21 +406,8 @@ function _unionBy(server,local,keyFn){
   (local||[]).forEach(x=>{try{map.set(keyFn(x),x);}catch{map.set('_l'+(n++),x);}});
   return [...map.values()];
 }
-// 3-way(base/local/server) 배열 병합 — base엔 있었는데 local에 없으면 '의도적 삭제'로 보고 server본도 제외.
-// keyFn 동일 항목은 1개만(중복 자동 제거). 삭제·중복 둘 다 안전하게 반영(기존 _unionBy는 삭제를 무시해 항목 부활).
-function _mergeArr3(base,local,server,keyFn){
-  const _k=x=>{try{return keyFn(x);}catch(e){return '_'+Math.random();}};
-  const lArr=local||[],sArr=server||[];
-  const lK=new Set(lArr.map(_k));
-  const removed=new Set((base||[]).map(_k).filter(k=>!lK.has(k))); // base엔 있고 local엔 없음 → 삭제됨
-  const lMap=new Map();lArr.forEach(x=>lMap.set(_k(x),x));
-  const out=[];const seen=new Set();
-  sArr.forEach(x=>{const k=_k(x);if(removed.has(k)||seen.has(k))return;seen.add(k);out.push(lMap.has(k)?lMap.get(k):x);}); // 로컬 수정분 우선
-  lArr.forEach(x=>{const k=_k(x);if(seen.has(k))return;seen.add(k);out.push(x);}); // 로컬에서 새로 추가된 항목
-  return out;
-}
-// 로컬 레코드를 서버 최신본과 병합. 누적 배열은 3-way(삭제·중복 반영), 나머지 필드는 로컬 유지.
-function _mergeRecord(local,server,base){
+// 로컬 레코드를 서버 최신본과 병합. 누적 배열은 합집합(의미키로 중복 자동 제거) + 삭제 툼스톤(_del)으로 삭제 반영.
+function _mergeRecord(local,server){
   if(!server||typeof server!=='object')return local;
   const out=Object.assign({},local);
   const fields=[
@@ -464,10 +451,10 @@ function _mergeRecord(local,server,base){
   return out;
 }
 // 건별 문서 1건을 트랜잭션으로 병합 저장(서버 최신본과 누적데이터 합침). 실패 시 reject → 호출부가 큐 보존.
-function _txMergeSet(coll,id,localObj,baseObj){
+function _txMergeSet(coll,id,localObj){
   const ref=_fdb.collection(coll).doc(id);
   return _fdb.runTransaction(t=>t.get(ref).then(snap=>{
-    const merged=_mergeRecord(localObj,snap.exists?snap.data():null,baseObj);
+    const merged=_mergeRecord(localObj,snap.exists?snap.data():null);
     t.set(ref,merged);
     return merged;
   }));
@@ -544,9 +531,8 @@ const DB={
       // 새로 추가되거나 변경된 항목만 개별 문서에 저장 (실패 시 재시도 큐)
       newJson.forEach((json,id)=>{
         if(prevJson.get(id)===json)return;
-        const baseJson=prevJson.get(id); // 직전 동기화본 = 3-way 병합 기준(삭제 반영). 신규면 undefined
-        if(_fdb)_txMergeSet(k,id,JSON.parse(json),baseJson?JSON.parse(baseJson):null).catch(()=>_syncWriteFailed({key:k+'/'+id,op:'set',coll:k,id,json,base:baseJson}));
-        else _syncWriteFailed({key:k+'/'+id,op:'set',coll:k,id,json,base:baseJson});
+        if(_fdb)_txMergeSet(k,id,JSON.parse(json)).catch(()=>_syncWriteFailed({key:k+'/'+id,op:'set',coll:k,id,json}));
+        else _syncWriteFailed({key:k+'/'+id,op:'set',coll:k,id,json});
       });
       // 삭제된 항목 제거
       prevJson.forEach((_,id)=>{

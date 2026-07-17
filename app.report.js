@@ -856,7 +856,7 @@ function _hwpxEmbedPhotos(entries,photos){
       +'<hp:outMargin left="0" right="0" top="0" bottom="0"/><hp:shapeComment/></hp:pic>';
   };
   const b64ToU8=u=>{const b=atob(u.split(',')[1]);const a=new Uint8Array(b.length);for(let i=0;i<b.length;i++)a[i]=b.charCodeAt(i);return a;};
-  const scale=(p,maxW)=>{const w=Math.min((p.w||800)*75,maxW);return {W:Math.round(w),H:Math.round(w*(p.h||600)/(p.w||800))};};
+  const scale=(p,maxW)=>{const pw=(+p.w>0?+p.w:800),ph=(+p.h>0?+p.h:600);const w=Math.min(pw*75,maxW);const W=Math.max(1,Math.round(w));const H=Math.max(1,Math.round(w*ph/pw));return {W,H};};
   const added=[];
   photos.forEach((p,i)=>{p._bid='appimg'+(i+1);added.push({name:'BinData/'+p._bid+'.jpg',data:b64ToU8(p.u)});});
   // ① 서식에 슬롯 자리표시자가 있으면 그 자리에 (없으면 ②로)
@@ -883,7 +883,7 @@ function _hwpxEmbedPhotos(entries,photos){
   }
   // ③ 패키지 매니페스트(content.hpf) 등록
   added.forEach((f,i)=>{
-    hpf=hpf.replace('</opf:manifest>','<opf:item id="appimg'+(i+1)+'" href="'+f.name+'" media-type="image/jpg" isEmbeded="1"/></opf:manifest>');
+    hpf=hpf.replace('</opf:manifest>','<opf:item id="appimg'+(i+1)+'" href="'+f.name+'" media-type="image/jpeg" isEmbeded="1"/></opf:manifest>');
   });
   entries[si]={name:entries[si].name,data:enc.encode(sec)};
   entries[hi]={name:entries[hi].name,data:enc.encode(hpf)};
