@@ -1320,22 +1320,9 @@ function _elapsedBadge(r){
   const col=min<60?'#5fa86f':min<180?'#3182f6':min<360?'#e67e22':'#c0392b';
   return _opChip(col,`⏱️ 신고 후 ${txt} 경과`);
 }
-// 사고지점 접근 안내 — 가장 가까운 거점·직선거리·방위·추정 도보시간 (좌표 있으면 종료건도 표시)
-function _accessBadge(r){
-  if(!r||!(r.lat&&r.lng)||typeof SEORAK_BASES==='undefined'||typeof _haversineKm!=='function')return '';
-  let best=null,bd=1e9;
-  for(const k in SEORAK_BASES){const b=SEORAK_BASES[k];const d=_haversineKm(+r.lat,+r.lng,b.lat,b.lng);if(d<bd){bd=d;best=b;}}
-  if(!best)return '';
-  const dirs=['북','북동','동','남동','남','남서','서','북서'];
-  const ang=(Math.atan2(+r.lng-best.lng,+r.lat-best.lat)*180/Math.PI+360)%360;
-  const dir=dirs[Math.round(ang/45)%8];
-  const wm=Math.round(bd*1.4/2.5*60); // 직선×1.4 사행보정 · 산악 2.5km/h
-  const walk=wm>=60?Math.floor(wm/60)+'시간'+(wm%60?' '+(wm%60)+'분':''):wm+'분';
-  return _opChip('#6b8299',`🚶 ${_esc(best.name)} 기준 직선 ${bd.toFixed(1)}km ${dir}쪽 · 도보 약 ${walk}`);
-}
-// 진행중 구조 운영 배지 묶음(경과·일몰·접근) — 한 줄 flex
+// 진행중 구조 운영 배지 묶음(경과·일몰) — 한 줄 flex
 function _opBadges(r){
-  const b=[_elapsedBadge(r),_sunsetBadge(r),_accessBadge(r)].filter(Boolean);
+  const b=[_elapsedBadge(r),_sunsetBadge(r)].filter(Boolean);
   return b.length?`<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:6px;">${b.join('')}</div>`:'';
 }
 // ── 좌표 공유 (119·타 기관 전달용) — 십진수·도분초·카카오맵 링크 ──
