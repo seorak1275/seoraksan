@@ -525,9 +525,24 @@ function _tlRecSave(rid){
   const res=DB.g('rescues')||[];const idx=res.findIndex(x=>x.id===rid);if(idx===-1)return;
   if(!res[idx].timetable)res[idx].timetable=[];
   res[idx].timetable.push(entry);
+  // ── 기록 ↔ 보고서 연동: 타임라인 기록이 보고서 정형 필드에도 자동 반영 (이미 있으면 건드리지 않음) ──
+  const _synced=[];
+  try{
+    const rec=res[idx];
+    if(stage==='심정지'){
+      rec.injuries=Array.isArray(rec.injuries)?rec.injuries:[];
+      if(!rec.injuries.some(i=>i&&i.type==='심정지')){rec.injuries.push({type:'심정지',part:'전신',side:'',cat:'내상'});_synced.push('부상에 심정지');}
+      if(!rec.severity){rec.severity='KTAS 1 (소생)';_synced.push('중증도 KTAS 1');}
+    }
+    if(stage==='헬기 요청'||stage==='헬기 도착'){
+      rec.rescueMethod=Array.isArray(rec.rescueMethod)?rec.rescueMethod:[];
+      if(!rec.rescueMethod.includes('헬기')){rec.rescueMethod.push('헬기');_synced.push('구조방법에 헬기');}
+    }
+  }catch(e){}
   DB.s('rescues',res);
   _tlRecTeam='';_tlRecStage='';
-  toast('📌 기록됨: '+stage);
+  if(typeof _hapt==='function')_hapt(8);
+  toast('📌 기록됨: '+stage+(_synced.length?' — 📄 보고서에 자동 반영: '+_synced.join(', '):''));
   renderTimeline(res[idx],'advanced');
 }
 // 상황일지 엔트리 수집(공용) — 화면(_buildLogHtml)과 한글 보고서 생성이 함께 사용
@@ -1121,7 +1136,15 @@ function renderTimeline(r,viewMode,outId){
           ${['본부',..._teamNames].map(n=>`<div class="pill" data-v="${_esc(n)}" onclick="_tlRecSelTeam(this)" style="font-size:11px;cursor:pointer;">${_esc(n)}</div>`).join('')}
         </div>`:''}
         <div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:7px;" id="tlRecStages">
-          ${REC_STAGES.map(s=>`<div class="pill" data-v="${s}" onclick="_tlRecSelStage(this)" style="font-size:11px;cursor:pointer;${(s==='요구조자 조우'||s==='심정지')?'border-color:rgba(231,76,60,.4);color:#e74c3c;':''}">${s}</div>`).join('')}
+          ${(()=>{ // 진행 단계 기반 추천을 맨 앞에 초록으로 — 나머지 선택지는 그대로 전부 표시
+            const sug=(r.status==='ongoing'&&typeof _recSuggest==='function')?_recSuggest(r):[];
+            const ordered=[...sug,...REC_STAGES.filter(s=>!sug.includes(s))];
+            return ordered.map(s=>{
+              const isSug=sug.includes(s);
+              const danger=(s==='요구조자 조우'||s==='심정지');
+              return `<div class="pill" data-v="${s}" onclick="_tlRecSelStage(this)" style="font-size:11px;cursor:pointer;${isSug?'border-color:rgba(61,220,132,.55);color:#7ee0a8;font-weight:800;':(danger?'border-color:rgba(231,76,60,.4);color:#e74c3c;':'')}">${isSug?'▸ ':''}${s}</div>`;
+            }).join('');
+          })()}
           <div class="pill" data-v="__custom" onclick="_tlRecSelStage(this)" style="font-size:11px;cursor:pointer;border-style:dashed;">✏️ 직접입력</div>
         </div>
         <div id="tlRecCustomWrap" style="display:none;margin-bottom:7px;"><input type="text" id="tlRecCustom" class="fi" placeholder="무엇을 했는지 직접 입력 (예: 장비 보급, 대피소 직원 합류)"></div>
@@ -1251,8 +1274,9 @@ function renderTimeline(r,viewMode,outId){
           if(ag.agenciesNote)parts.push(`(${_esc(ag.agenciesNote)})`);
           return parts.length?`<div style="font-size:11px;color:#b8d4e8;margin-top:2px;"><span style="color:#4a7090;">유관기관:</span> ${parts.join(' · ')}</div>`:'';
         })():''}`;}
-    // 조립(한 화면): 요약(항상) → [펼친 상세] → 응소 현황 → 📌 기록 입력(접이식) → 🕘 타임라인 → 🚑 출동팀 → 💬 댓글
+    // 조립(한 화면): 진행 스테퍼(진행중) → 요약 → [펼친 상세] → 응소 → 📌 기록(접이식) → 🕘 타임라인 → 🚑 출동팀 → 💬 댓글
     w.innerHTML=tabHdr
+      +(r.status==='ongoing'?_rescueStepperHtml(r):'')
       +reportSheet
       +_mkReportDetail()
       +_mobilizeBlockHtml('rescues',r)
@@ -1301,6 +1325,47 @@ function _toggleRecCard(rid,outId){
   window._tlRecOpen=!window._tlRecOpen;
   const r=getRes(rid);if(!r)return;
   renderTimeline(r,'advanced',outId||undefined);
+}
+// ── 구조 진행 단계 판정 — 타임테이블·팀·인계 기록에서 마일스톤 도출 ──
+function _rescueMilestones(r){
+  const st=(r.timetable||[]).map(e=>e.stage||'');
+  const tOf=s=>{const e=(r.timetable||[]).find(x=>x.stage===s&&x.time);return e?String(e.time).slice(11,16):'';};
+  const firstTeamAt=(r.teams||[]).map(t=>t.requestedAt||t.createdAt).filter(Boolean).sort()[0]||'';
+  return [
+    {l:'접수',done:!!r.date,t:String(r.date||'').slice(11,16)},
+    {l:'출동',done:!!(firstTeamAt||(r.members&&r.members.length)),t:firstTeamAt?String(firstTeamAt).slice(11,16):''},
+    {l:'조우',done:st.includes('요구조자 조우'),t:tOf('요구조자 조우')},
+    {l:'처치',done:st.includes('응급처치')||st.includes('심정지'),t:tOf('응급처치')||tOf('심정지')},
+    {l:'이송',done:st.includes('하산 시작')||st.includes('헬기 도착')||(r.teams||[]).some(t=>t.boardedAt),t:tOf('하산 시작')||tOf('헬기 도착')},
+    {l:'인계',done:!!(r.handover&&r.handover.to),t:(r.handover&&r.handover.time)?String(r.handover.time).slice(11,16):''},
+  ];
+}
+// 진행 스테퍼(진행중 전용) — 접수→출동→조우→처치→이송→인계 어디까지 왔는지 한 줄로
+function _rescueStepperHtml(r){
+  const ms=_rescueMilestones(r);
+  let cur=ms.findIndex(m=>!m.done);if(cur<0)cur=ms.length;
+  return `<div style="display:flex;background:#0b1c30;border:1px solid rgba(79,168,208,.18);border-radius:12px;padding:10px 8px 7px;margin-bottom:8px;">
+    ${ms.map((m,i)=>{
+      const done=m.done,isCur=i===cur;
+      const col=done?'#3ddc84':isCur?'#4fa8d0':'rgba(255,255,255,.16)';
+      return `<div style="flex:1;min-width:0;text-align:center;position:relative;">
+        ${i>0?`<div style="position:absolute;right:50%;margin-right:9px;top:8px;left:-50%;margin-left:9px;height:2px;background:${done?'rgba(61,220,132,.35)':'rgba(255,255,255,.06)'};"></div>`:''}
+        <div style="position:relative;width:18px;height:18px;line-height:15px;border-radius:50%;margin:0 auto;background:${done?'rgba(61,220,132,.14)':isCur?'rgba(79,168,208,.16)':'transparent'};border:2px solid ${col};color:${col};font-size:10px;font-weight:900;">${done?'✓':(isCur?'·':'')}</div>
+        <div style="font-size:9.5px;font-weight:${isCur?'800':'600'};color:${done?'#7ee0a8':isCur?'#4fa8d0':'rgba(255,255,255,.3)'};margin-top:3px;white-space:nowrap;">${m.l}</div>
+        <div style="font-size:8.5px;color:#5a7e98;height:11px;">${m.t||''}</div>
+      </div>`;
+    }).join('')}
+  </div>`;
+}
+// 지금 단계에 맞는 기록 추천 — 몇 개만, 확신 있는 경우에만 (제한이 아니라 지름길)
+function _recSuggest(r){
+  const st=(r.timetable||[]).map(e=>e.stage||'');
+  const has=s=>st.includes(s);
+  if(!has('요구조자 조우'))return['요구조자 조우'];
+  if(has('헬기 요청')&&!has('헬기 도착'))return['헬기 도착'];
+  if(!has('응급처치')&&!has('심정지')&&!has('하산 시작'))return['응급처치','하산 시작'];
+  if(!has('하산 시작')&&!has('헬기 요청'))return['하산 시작','헬기 요청'];
+  return[];
 }
 function showPrevHistModal(id){
   const res=DB.g('rescues')||[];
