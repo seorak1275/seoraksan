@@ -996,16 +996,17 @@ async function govReport(rid,kind,noPass){
   });
   const _fname=(kind==='status'?'안전사고처리현황'+(noPass?'(통과제외)':'(통과포함)'):'동향보고')+'_'+((r.date||'').slice(0,10)||'문서')+'.hwpx';
   // ── 올라간 사진 수집 (처리현황 전용) — 부상·이송·현장첨부를 hwpx에 실제 삽입 ──
-  // ⚠️ 사진 삽입(OWPML hp:pic)이 일부 한글 버전에서 '문서 열림 오류'를 유발 → 안정 검증 전까지 비활성.
-  //    문서는 항상 열리게 하고, 사진은 한글에서 수동 붙여넣기(부상사진/이송 사진 자리 비움).
-  const _HWPX_EMBED_PHOTOS=false;
+  // 사진 자동삽입(OWPML hp:pic) — 구조검증 통과: 삽입 후 section0/content.hpf XML well-formed,
+  //   zip 유효·mimetype 선두 stored·매니페스트 opf:item↔BinData↔binaryItemIDRef 일치 확인.
+  //   서식에 {{부상사진}}/{{이송 사진}} 자리표시자가 있으면 그 자리, 없으면 문서 끝 '[현장 사진]' 블록에 라벨과 함께.
+  const _HWPX_EMBED_PHOTOS=true;
   let _photos=[];
   if(_HWPX_EMBED_PHOTOS&&kind==='status'){
     const list=[];
     const add=(u,slot,label)=>{if(u&&/^data:image\//.test(String(u)))list.push({u:String(u),slot,label});};
-    add(r.injuryPhoto,'부상사진','부상 부위');
-    add(r.transPhoto,'이송 사진','이송');
-    (r.photos||[]).slice(0,4).forEach((p,i)=>add(p&&p.url,'','현장 '+(i+1)+((p&&p.time)?' · '+String(p.time).slice(5,16):'')));
+    add(r.injuryPhoto,'부상사진','[부상사진]');
+    add(r.transPhoto,'이송 사진','[이송사진]');
+    (r.photos||[]).slice(0,4).forEach((p,i)=>add(p&&p.url,'','[현장사진 '+(i+1)+']'+((p&&p.time)?' '+String(p.time).slice(5,16):'')));
     if(list.length){
       _photos=(await Promise.all(list.map(async p=>{try{const d=await _imgDataDims(p.u);return Object.assign(p,{w:d.w,h:d.h});}catch(e){return null;}}))).filter(Boolean);
     }
