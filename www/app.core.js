@@ -946,7 +946,7 @@ function _busy(msg){
   var el=document.getElementById('_busyOv');
   if(!el){el=document.createElement('div');el.id='_busyOv';
     el.style.cssText='position:fixed;inset:0;z-index:99995;background:rgba(4,10,20,.55);display:flex;align-items:center;justify-content:center;backdrop-filter:blur(1px);';
-    el.innerHTML='<div style="background:#1c1c1e;border:1px solid rgba(255,255,255,.3);border-radius:14px;padding:20px 26px;display:flex;flex-direction:column;align-items:center;gap:13px;box-shadow:0 10px 34px rgba(0,0,0,.6);max-width:78vw;"><div style="width:30px;height:30px;border:3px solid rgba(255,255,255,.2);border-top-color:#3182f6;border-radius:50%;animation:spin .8s linear infinite;"></div><div id="_busyMsg" style="font-size:13px;color:#cfe2f2;font-weight:600;text-align:center;line-height:1.5;"></div></div>';
+    el.innerHTML='<div style="background:#1c1c1e;border:1px solid rgba(255,255,255,.3);border-radius:14px;padding:20px 26px;display:flex;flex-direction:column;align-items:center;gap:13px;box-shadow:0 10px 34px rgba(0,0,0,.6);max-width:78vw;"><div style="width:30px;height:30px;border:3px solid rgba(255,255,255,.2);border-top-color:#3182f6;border-radius:50%;animation:spin .8s linear infinite;"></div><div id="_busyMsg" style="font-size:13px;color:#d5d8dc;font-weight:600;text-align:center;line-height:1.5;"></div></div>';
     document.body.appendChild(el);}
   var m=el.querySelector('#_busyMsg');if(m)m.textContent=msg||'처리 중…';
   el.style.display='flex';
@@ -1345,7 +1345,7 @@ function _navBtns(type,curId,fn){
   // 배경·색은 style.css .navbtn(!important)이 강제 — 일부 웹뷰가 인라인 스타일을 무시하고 기본(흰) 배경으로 그리던 문제 차단
   return '<div style="display:flex;align-items:center;gap:8px;margin-bottom:11px;">'
     +'<button class="navbtn" '+(prev?'onclick="'+fn+'('+prev+')"':'disabled')+'>◀ 이전</button>'
-    +'<span style="font-size:11px;color:#7a9cb8;font-weight:800;white-space:nowrap;">'+(i+1)+' / '+a.length+'</span>'
+    +'<span style="font-size:11px;color:#8b95a1;font-weight:800;white-space:nowrap;">'+(i+1)+' / '+a.length+'</span>'
     +'<button class="navbtn" '+(next?'onclick="'+fn+'('+next+')"':'disabled')+'>다음 ▶</button></div>';
 }
 function getSelPills(id){return [...document.querySelectorAll(`#${id} .pill.on`)].map(p=>p.textContent);}
@@ -1361,7 +1361,7 @@ function _climbLocBtnsHtml(kind,cur){
   cur=String(cur||'').trim();
   const btn=l=>`<button class="tog-btn${cur===l?' on':''}" onclick="selClimbLoc('${l.replace(/'/g,"\\'")}',this)">${l}</button>`;
   if(kind==='암벽'&&typeof CLIMB_DISTRICTS!=='undefined'){
-    return Object.keys(CLIMB_DISTRICTS).map(d=>`<div style="margin-top:7px;"><div style="font-size:10px;color:#7fc4e0;font-weight:800;margin-bottom:4px;">🏔️ ${d.replace('지구','')}</div><div style="display:flex;flex-wrap:wrap;gap:5px;">${CLIMB_DISTRICTS[d].map(btn).join('')}</div></div>`).join('');
+    return Object.keys(CLIMB_DISTRICTS).map(d=>`<div style="margin-top:7px;"><div style="font-size:10px;color:#a5abb3;font-weight:800;margin-bottom:4px;">🏔️ ${d.replace('지구','')}</div><div style="display:flex;flex-wrap:wrap;gap:5px;">${CLIMB_DISTRICTS[d].map(btn).join('')}</div></div>`).join('');
   }
   const locs=kind==='빙벽'?_ICE_LOCS:_ROCK_LOCS;
   return `<div style="display:flex;flex-wrap:wrap;gap:5px;margin-top:6px;" id="climbLocBtns">${locs.map(btn).join('')}</div>`;
@@ -1379,7 +1379,7 @@ function chkIllegal(sel){
     clw.style.display=isClimb?'block':'none';
     if(isClimb){
       const curVal=(document.getElementById('r_loc')?.value||'').trim();
-      clw.innerHTML=`<span class="fl">📍 ${sel.value} 위치 선택 <span style="font-size:9px;color:#7a9cb8;font-weight:400;">${sel.value==='암벽'?'지구별':''}</span></span>${_climbLocBtnsHtml(sel.value,curVal)}`;
+      clw.innerHTML=`<span class="fl">📍 ${sel.value} 위치 선택 <span style="font-size:9px;color:#8b95a1;font-weight:400;">${sel.value==='암벽'?'지구별':''}</span></span>${_climbLocBtnsHtml(sel.value,curVal)}`;
     }
   }
 }

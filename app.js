@@ -17,7 +17,7 @@ function renderSettings(){
     document.getElementById('settingsInfoWrap').innerHTML=`
       <div class="scard" style="margin-bottom:8px;">
         <div class="stitle">👤 내 계정</div>
-        <div style="font-size:12px;color:#b8d4e8;line-height:2.0;">이름: <b>${_esc(u.realName||u.name||'미설정')}</b><br>소속: <b>${_esc(u.dept||'미설정')}</b><br>직위: <b>${_esc(u.rank||'미설정')}</b>${u.kakaoId?`<br><span style="color:#4a7090;font-size:10px;">카카오ID: ${_esc(u.kakaoId)}</span>`:''}</div>
+        <div style="font-size:12px;color:#c4c8ce;line-height:2.0;">이름: <b>${_esc(u.realName||u.name||'미설정')}</b><br>소속: <b>${_esc(u.dept||'미설정')}</b><br>직위: <b>${_esc(u.rank||'미설정')}</b>${u.kakaoId?`<br><span style="color:#565f6b;font-size:10px;">카카오ID: ${_esc(u.kakaoId)}</span>`:''}</div>
         <div style="display:flex;align-items:center;gap:6px;margin-top:6px;margin-bottom:8px;">
           <div style="font-size:11px;color:${u.approvalStatus==='approved'?'#7ec8a0':'#e67e22'};">● ${u.approvalStatus==='approved'?'승인됨':'승인 대기'}</div>
         </div>
@@ -25,26 +25,26 @@ function renderSettings(){
       </div>
       <div class="scard" style="margin-bottom:8px;">
         <div class="stitle">💬 카카오 로그인</div>
-        ${(()=>{if(u.kakaoImg||u.kakaoId){return`<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;"><img src="${_esc(_imgHttps(u.kakaoImg||''))}" style="width:36px;height:36px;border-radius:50%;object-fit:cover;background:#1a3a5a;" onerror="this.style.display='none'"><div style="font-size:12px;color:#b8d4e8;"><b style="color:#e0edf8;">${_esc(u.name||'')}</b> 님으로 연결됨</div></div><button onclick="kakaoLogout()" style="width:100%;background:rgba(255,80,80,.12);color:#ff8a80;border:1px solid rgba(255,80,80,.25);padding:9px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;margin-bottom:6px;">🚪 카카오 로그아웃</button><button onclick="withdrawAccount()" style="width:100%;background:rgba(180,20,20,.12);color:#cc4444;border:1px solid rgba(180,20,20,.25);padding:8px;border-radius:8px;font-size:11px;font-weight:600;cursor:pointer;">🗑️ 회원탈퇴</button>`;}return`<div style="font-size:11px;color:#7a9cb8;margin-bottom:8px;">카카오 계정으로 로그인하면 작성자 정보가 자동 설정됩니다.</div><button onclick="kakaoLogin()" style="width:100%;background:rgba(254,229,0,.18);color:#f0d900;border:1px solid rgba(254,229,0,.3);padding:9px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;">💬 카카오로 로그인</button>`;})()}
+        ${(()=>{if(u.kakaoImg||u.kakaoId){return`<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;"><img src="${_esc(_imgHttps(u.kakaoImg||''))}" style="width:36px;height:36px;border-radius:50%;object-fit:cover;background:#1a3a5a;" onerror="this.style.display='none'"><div style="font-size:12px;color:#c4c8ce;"><b style="color:#eaecef;">${_esc(u.name||'')}</b> 님으로 연결됨</div></div><button onclick="kakaoLogout()" style="width:100%;background:rgba(255,80,80,.12);color:#ff8a80;border:1px solid rgba(255,80,80,.25);padding:9px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;margin-bottom:6px;">🚪 카카오 로그아웃</button><button onclick="withdrawAccount()" style="width:100%;background:rgba(180,20,20,.12);color:#cc4444;border:1px solid rgba(180,20,20,.25);padding:8px;border-radius:8px;font-size:11px;font-weight:600;cursor:pointer;">🗑️ 회원탈퇴</button>`;}return`<div style="font-size:11px;color:#8b95a1;margin-bottom:8px;">카카오 계정으로 로그인하면 작성자 정보가 자동 설정됩니다.</div><button onclick="kakaoLogin()" style="width:100%;background:rgba(254,229,0,.18);color:#f0d900;border:1px solid rgba(254,229,0,.3);padding:9px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;">💬 카카오로 로그인</button>`;})()}
       </div>
       <div class="scard" style="margin-bottom:8px;">
         <div class="stitle">🔄 앱 업데이트</div>
-        <div style="font-size:11px;color:#7a9cb8;margin-bottom:8px;">현재 버전 <b style="color:#cfe2f2;">${OTA_VER}</b> · 앱은 재설치 없이 최신으로 자체 업데이트됩니다. (웹은 새로고침 시 자동)</div>
+        <div style="font-size:11px;color:#8b95a1;margin-bottom:8px;">현재 버전 <b style="color:#d5d8dc;">${OTA_VER}</b> · 앱은 재설치 없이 최신으로 자체 업데이트됩니다. (웹은 새로고침 시 자동)</div>
         <button onclick="_otaCheck(true)" style="width:100%;padding:11px;border-radius:8px;border:1px solid rgba(255,255,255,.4);background:rgba(255,255,255,.12);color:#3182f6;font-size:13px;font-weight:700;cursor:pointer;">🔄 업데이트 확인 / 적용</button>
       </div>
       <div class="scard" style="margin-bottom:8px;">
         <div class="stitle">📴 오프라인 대비 (무통신 산악지역)</div>
-        <div style="font-size:11px;color:#7a9cb8;line-height:1.6;margin-bottom:8px;">통신이 끊기는 산악지역 진입에 대비해 미리 받아두세요. 아래 버튼으로 <b style="color:#cfe2f2;">설악산 인근 지도 전체를 미리 저장</b>하면 무통신 구역에서도 지도가 바로 뜹니다. (Wi-Fi에서 실행 권장 · 1~2분)<br><span style="color:#5a7e98;">※ 구조·시설물·특보 등 앱 데이터와 최근 조회한 암벽 명단은 접속 중 자동으로 기기에 저장되어, 통신이 끊겨도 마지막 상태를 볼 수 있습니다. 미리받기는 설악산 인근만 저장하며 다른 지역 열람분은 최근 1,500장(약 25MB)까지만 임시 보관됩니다.</span></div>
-        <div id="tileCacheInfo" style="font-size:10px;color:#3a6a8a;margin-bottom:8px;">저장 현황 확인 중...</div>
+        <div style="font-size:11px;color:#8b95a1;line-height:1.6;margin-bottom:8px;">통신이 끊기는 산악지역 진입에 대비해 미리 받아두세요. 아래 버튼으로 <b style="color:#d5d8dc;">설악산 인근 지도 전체를 미리 저장</b>하면 무통신 구역에서도 지도가 바로 뜹니다. (Wi-Fi에서 실행 권장 · 1~2분)<br><span style="color:#6b7684;">※ 구조·시설물·특보 등 앱 데이터와 최근 조회한 암벽 명단은 접속 중 자동으로 기기에 저장되어, 통신이 끊겨도 마지막 상태를 볼 수 있습니다. 미리받기는 설악산 인근만 저장하며 다른 지역 열람분은 최근 1,500장(약 25MB)까지만 임시 보관됩니다.</span></div>
+        <div id="tileCacheInfo" style="font-size:10px;color:#454e5a;margin-bottom:8px;">저장 현황 확인 중...</div>
         ${(()=>{const m=(function(){try{return localStorage.getItem('_tileAutoMode')||'wifi';}catch(e){return 'wifi';}})();
-          const chip=(v,l)=>`<button onclick="_setTileAutoMode('${v}')" style="flex:1;padding:7px 4px;border-radius:8px;border:1px solid ${m===v?'rgba(94,207,143,.5)':'rgba(255,255,255,.12)'};background:${m===v?'rgba(94,207,143,.14)':'none'};color:${m===v?'#5fcf8f':'#7a9cb8'};font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap;">${l}</button>`;
-          return `<div style="display:flex;gap:5px;margin-bottom:8px;align-items:center;"><span style="font-size:10.5px;color:#7a9cb8;flex-shrink:0;">🔁 자동 저장</span>${chip('wifi','📶 와이파이만')}${chip('always','항상')}${chip('off','끄기')}</div>`;})()}
+          const chip=(v,l)=>`<button onclick="_setTileAutoMode('${v}')" style="flex:1;padding:7px 4px;border-radius:8px;border:1px solid ${m===v?'rgba(94,207,143,.5)':'rgba(255,255,255,.12)'};background:${m===v?'rgba(94,207,143,.14)':'none'};color:${m===v?'#5fcf8f':'#8b95a1'};font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap;">${l}</button>`;
+          return `<div style="display:flex;gap:5px;margin-bottom:8px;align-items:center;"><span style="font-size:10.5px;color:#8b95a1;flex-shrink:0;">🔁 자동 저장</span>${chip('wifi','📶 와이파이만')}${chip('always','항상')}${chip('off','끄기')}</div>`;})()}
         <button onclick="preloadParkTiles()" style="width:100%;padding:11px;border-radius:8px;border:1px solid rgba(94,207,143,.35);background:rgba(94,207,143,.1);color:#5fcf8f;font-size:13px;font-weight:700;cursor:pointer;margin-bottom:6px;">⬇️ 설악산 인근 지도 미리받기</button>
-        <button onclick="clearTileCache()" style="width:100%;padding:8px;border-radius:8px;border:1px solid rgba(255,255,255,.1);background:none;color:#5a7e98;font-size:11px;font-weight:600;cursor:pointer;">🗑️ 지도 캐시 비우기</button>
+        <button onclick="clearTileCache()" style="width:100%;padding:8px;border-radius:8px;border:1px solid rgba(255,255,255,.1);background:none;color:#6b7684;font-size:11px;font-weight:600;cursor:pointer;">🗑️ 지도 캐시 비우기</button>
       </div>
       <a href="https://github.com/seorak1275/seoraksan/releases/latest" target="_blank" style="display:flex;align-items:center;gap:10px;background:#1c1c1e;border:1px solid rgba(255,255,255,.18);border-radius:10px;padding:11px 13px;text-decoration:none;flex-shrink:0;">
         <span style="font-size:18px;">📱</span>
-        <div style="flex:1;"><div style="font-size:12px;font-weight:700;color:#e0edf8;">안드로이드 APK 다운로드</div><div style="font-size:10px;color:#3a6a8a;margin-top:1px;">최신 빌드 받기 (GitHub Releases)</div></div>
+        <div style="flex:1;"><div style="font-size:12px;font-weight:700;color:#eaecef;">안드로이드 APK 다운로드</div><div style="font-size:10px;color:#454e5a;margin-top:1px;">최신 빌드 받기 (GitHub Releases)</div></div>
         <span style="font-size:11px;color:#3182f6;">↗</span>
       </a>`;
     setTimeout(function(){try{_updateTileCacheInfo();}catch(e){}},0);
@@ -64,10 +64,10 @@ function renderSettings(){
         <div class="stitle" style="display:flex;align-items:center;justify-content:space-between;">🔔 알림 설정
           <button onclick="togNotiAll(${allOn?'false':'true'})" style="font-size:10px;font-weight:700;background:rgba(255,255,255,.12);color:#3182f6;border:1px solid rgba(255,255,255,.3);border-radius:7px;padding:4px 9px;cursor:pointer;">${allOn?'전체 끄기':'전체 켜기'}</button>
         </div>
-        <div class="tog-sub" style="margin:-4px 0 8px;color:#5a7e98;">기본은 <b style="color:#5dbf8a;">모두에게</b> 옵니다. 아래에서 내가 받을 알림을 직접 켜고 끄세요. ('(앱 내만)'은 OS 푸시 없이 앱 벨로만)</div>
+        <div class="tog-sub" style="margin:-4px 0 8px;color:#6b7684;">기본은 <b style="color:#5dbf8a;">모두에게</b> 옵니다. 아래에서 내가 받을 알림을 직접 켜고 끄세요. ('(앱 내만)'은 OS 푸시 없이 앱 벨로만)</div>
         ${NOTI_GROUPS.map(g=>`
-          <div style="font-size:11px;font-weight:800;color:#6a94b0;letter-spacing:.4px;margin:14px 0 4px;border-top:1px solid rgba(255,255,255,.05);padding-top:10px;">${g.title}</div>
-          ${g.items.map(it=>`<div class="tog-row"><div><div class="tog-lbl">${it.l}${it.push===false?' <span style="font-size:9px;color:#4a7090;font-weight:600;">(앱 내만)</span>':''}</div><div class="tog-sub">${it.sub}</div></div><div class="toggle ${_notiOn(it.k)?'on':'off'}" onclick="togNotiSet('${it.k}',this)"></div></div>`).join('')}
+          <div style="font-size:11px;font-weight:800;color:#78828e;letter-spacing:.4px;margin:14px 0 4px;border-top:1px solid rgba(255,255,255,.05);padding-top:10px;">${g.title}</div>
+          ${g.items.map(it=>`<div class="tog-row"><div><div class="tog-lbl">${it.l}${it.push===false?' <span style="font-size:9px;color:#565f6b;font-weight:600;">(앱 내만)</span>':''}</div><div class="tog-sub">${it.sub}</div></div><div class="toggle ${_notiOn(it.k)?'on':'off'}" onclick="togNotiSet('${it.k}',this)"></div></div>`).join('')}
         `).join('')}
       </div>`;
   }
@@ -621,7 +621,7 @@ function kmaWarnDiag(){
     var parsed=firstTxt!==null?_parseKmaWarnings(firstTxt):{};
     var live=_kmaLiveList(parsed);
     if(firstTxt!==null){_renderWeatherAlerts(parsed,false,!!fromCache);} // 실시간 수신만 자동 발령 동기화 — 캐시 폴백은 표시만(옛 데이터로 발령/해제 방지)
-    var srcHtml=rows.map(function(r){return '<div style="display:flex;gap:8px;align-items:center;padding:5px 0;border-bottom:1px solid rgba(255,255,255,.05);"><span style="flex:1;font-size:12px;color:#cfe2f2;">'+r.name+'</span><span style="font-size:10px;color:#5a7e98;">'+r.ms+'ms</span><span style="font-size:11px;font-weight:800;color:'+(r.ok?'#5fcf8f':'#ff8a73')+';">'+(r.ok?'✅ 성공':'❌ 실패')+'</span><span style="font-size:9px;color:#5a7e98;">'+r.info+'</span></div>';}).join('');
+    var srcHtml=rows.map(function(r){return '<div style="display:flex;gap:8px;align-items:center;padding:5px 0;border-bottom:1px solid rgba(255,255,255,.05);"><span style="flex:1;font-size:12px;color:#d5d8dc;">'+r.name+'</span><span style="font-size:10px;color:#6b7684;">'+r.ms+'ms</span><span style="font-size:11px;font-weight:800;color:'+(r.ok?'#5fcf8f':'#ff8a73')+';">'+(r.ok?'✅ 성공':'❌ 실패')+'</span><span style="font-size:9px;color:#6b7684;">'+r.info+'</span></div>';}).join('');
     var _lines=firstTxt!==null?String(firstTxt).split('\n').map(function(x){return x.trim();}).filter(function(x){return x&&x.charAt(0)!=='#';}):[];
     var _gw=_lines.filter(function(x){return /강원|속초|양양|고성|인제|설악|산지|영동|강풍/.test(x);});
     var _cacheNote=fromCache?('⚠️ 실시간 수신 실패 → 최근 캐시 사용'+(typeof fromCache==='number'?' ('+Math.round((Date.now()-fromCache)/60000)+'분 전)':'')+'\n'):'';
@@ -634,20 +634,20 @@ function kmaWarnDiag(){
         var ts=[];
         if(a.announcedAtMs)ts.push('발표 '+_alertMsShort(a.announcedAtMs));
         if(a.issuedAtMs)ts.push(a.issuedAtMs>Date.now()?_alertMsShort(a.issuedAtMs)+' 발효 예정':'발효 '+_alertMsShort(a.issuedAtMs));
-        return '<div style="font-size:12px;color:#7ee0a8;padding:2px 0;">✅ '+a.type+_stageShort(a.stage)+(a.regions&&a.regions.length?' — '+a.regions.join('·'):'')+(ts.length?' <span style="color:#8fb4cc;">('+ts.join(' · ')+')</span>':'')+'</div>';
+        return '<div style="font-size:12px;color:#7ee0a8;padding:2px 0;">✅ '+a.type+_stageShort(a.stage)+(a.regions&&a.regions.length?' — '+a.regions.join('·'):'')+(ts.length?' <span style="color:#949aa2;">('+ts.join(' · ')+')</span>':'')+'</div>';
       }).join('')
       :'<div style="font-size:12px;color:'+(firstTxt!==null?'#ffb04d':'#ff8a73')+';">'+(firstTxt!==null?'⚠️ 데이터는 수신됐지만 강원 영동 특보를 못 찾음 — 아래 원문을 확인하세요':'❌ 수신 실패 — 파싱 불가')+'</div>';
     var ov=document.getElementById('kmaDiagOv');if(ov)ov.remove();
     ov=document.createElement('div');ov.id='kmaDiagOv';
     ov.style.cssText='position:fixed;inset:0;z-index:9800;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;padding:16px;';
-    ov.innerHTML='<div style="background:#0a1828;border:1px solid rgba(255,255,255,.3);border-radius:14px;max-width:420px;width:100%;max-height:82vh;overflow-y:auto;padding:15px;">'
-      +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;"><b style="font-size:14px;color:#e0edf8;">📡 기상청 특보 수신 진단</b><button onclick="document.getElementById(\'kmaDiagOv\').remove()" style="background:none;border:none;color:rgba(255,255,255,.5);font-size:20px;cursor:pointer;">×</button></div>'
-      +'<div style="font-size:10px;color:#5d92bc;font-weight:800;margin-bottom:4px;">연결 경로</div>'+srcHtml
+    ov.innerHTML='<div style="background:#16161a;border:1px solid rgba(255,255,255,.3);border-radius:14px;max-width:420px;width:100%;max-height:82vh;overflow-y:auto;padding:15px;">'
+      +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;"><b style="font-size:14px;color:#eaecef;">📡 기상청 특보 수신 진단</b><button onclick="document.getElementById(\'kmaDiagOv\').remove()" style="background:none;border:none;color:rgba(255,255,255,.5);font-size:20px;cursor:pointer;">×</button></div>'
+      +'<div style="font-size:10px;color:#6b7684;font-weight:800;margin-bottom:4px;">연결 경로</div>'+srcHtml
       +((rows[0]&&!rows[0].ok&&rows.some(function(r){return r&&r.ok;}))?'<div style="margin-top:8px;font-size:11px;color:#ffb04d;background:rgba(240,165,0,.08);border:1px solid rgba(240,165,0,.3);border-radius:8px;padding:8px;line-height:1.6;">⚠️ 전용 프록시(Cloudflare)가 응답하지 않습니다. 지금은 공개 프록시로 수신되어 동작엔 문제없지만, 공개 프록시는 언제든 막힐 수 있으니 Cloudflare 대시보드에서 워커(seoraksan-kma) 상태를 확인하세요.</div>':'')
       +(keyBad?'<div style="margin-top:8px;font-size:11px;color:#ff8a73;background:rgba(231,76,60,.08);border:1px solid rgba(231,76,60,.3);border-radius:8px;padding:8px;">🔑 인증키(authKey) 문제로 보입니다 — 기상청 API허브에서 키 상태를 확인하세요</div>':'')
-      +'<div style="font-size:10px;color:#5d92bc;font-weight:800;margin:12px 0 4px;">파싱 결과 (강원 영동 필터)</div>'+parseHtml
-      +'<div style="font-size:10px;color:#5d92bc;font-weight:800;margin:12px 0 4px;">응답 원문 (앞 600자)</div>'
-      +'<pre style="font-size:9px;color:#8fb4cc;background:rgba(255,255,255,.03);border-radius:8px;padding:8px;white-space:pre-wrap;word-break:break-all;max-height:180px;overflow-y:auto;">'+String(prev).replace(/</g,'&lt;')+'</pre>'
+      +'<div style="font-size:10px;color:#6b7684;font-weight:800;margin:12px 0 4px;">파싱 결과 (강원 영동 필터)</div>'+parseHtml
+      +'<div style="font-size:10px;color:#6b7684;font-weight:800;margin:12px 0 4px;">응답 원문 (앞 600자)</div>'
+      +'<pre style="font-size:9px;color:#949aa2;background:rgba(255,255,255,.03);border-radius:8px;padding:8px;white-space:pre-wrap;word-break:break-all;max-height:180px;overflow-y:auto;">'+String(prev).replace(/</g,'&lt;')+'</pre>'
       +'<button onclick="document.getElementById(\'kmaDiagOv\').remove();_kmaWrnCache=null;_kmaWrnCacheAt=0;kmaWarnDiag();" style="margin-top:10px;width:100%;padding:9px;border-radius:9px;border:1px solid rgba(255,255,255,.35);background:rgba(255,255,255,.1);color:#3182f6;font-size:12px;font-weight:700;cursor:pointer;">🔄 다시 진단</button></div>';
     ov.onclick=function(e){if(e.target===ov)ov.remove();};
     document.body.appendChild(ov);
@@ -1005,7 +1005,7 @@ function _renderWeatherDetail(cache){
   var fcst7=cache.fcst7||null;
   var wrnMap=cache.wrnMap||{};
   var src=results.some(function(x){return x&&x.ncst&&x.ncst.response;})?'기상청':'Open-Meteo';
-  var html='<div style="font-size:10px;color:#3a6a8a;margin-bottom:8px;text-align:right;">'+new Date().toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'})+' 기준 ('+src+')</div>';
+  var html='<div style="font-size:10px;color:#454e5a;margin-bottom:8px;text-align:right;">'+new Date().toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'})+' 기준 ('+src+')</div>';
   // ── 기상특보 (기상청 실제 발효 특보) ──────────────
   var wrnEntries=Object.entries(wrnMap);
   if(wrnEntries.length){
@@ -1095,7 +1095,7 @@ function _renderWeatherDetailOM(cache){
   var realWrn=cache.realWrnMap||null;
   var hasRealWrn=(realWrn!==null&&realWrn!==undefined);
   var srcLabel=hasRealWrn?'특보: 기상청 · 기온: Open-Meteo':'Open-Meteo';
-  var html='<div style="font-size:10px;color:#3a6a8a;margin-bottom:8px;text-align:right;">'+new Date().toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'})+' 기준 ('+srcLabel+')</div>';
+  var html='<div style="font-size:10px;color:#454e5a;margin-bottom:8px;text-align:right;">'+new Date().toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'})+' 기준 ('+srcLabel+')</div>';
   html+='<div class="wfc-sec"><div class="wfc-title">🌡️ 권역별 현재 날씨</div><div class="wdetail-now-grid">';
   var anyAlert=false,alertsAll=[];
   results.forEach(function(item,idx){
@@ -1283,7 +1283,7 @@ function renderHomeActive(){
     }
     el.innerHTML=`<div style="display:flex;align-items:center;gap:12px;background:linear-gradient(135deg,#0e2a20,#0b1c19);border:1px solid rgba(39,174,96,.22);border-radius:16px;padding:15px 16px;">
       <div style="width:40px;height:40px;border-radius:50%;background:rgba(39,174,96,.15);display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;">✅</div>
-      <div style="min-width:0;"><div style="font-size:14px;font-weight:800;color:#eaf2fa;">현재 주의 항목 없음</div>
+      <div style="min-width:0;"><div style="font-size:14px;font-weight:800;color:#eef0f2;">현재 주의 항목 없음</div>
       <div style="font-size:11.5px;color:#7fb89c;margin-top:2px;">진행 중인 구조·위험 상황이 없습니다</div></div>
     </div>`;
     return;
@@ -1301,8 +1301,8 @@ function renderHomeActive(){
         <span style="font-size:10px;font-weight:800;color:${badgeCol};background:${badgeBg};border-radius:6px;padding:2px 6px;letter-spacing:.2px;">${badgeTxt}</span>
         ${mobHtml||''}
       </div>
-      <div style="font-size:11.5px;font-weight:700;color:#eaf2fa;line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${title}</div>
-      <div style="font-size:9.5px;color:#8ab4cc;margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${meta}</div>
+      <div style="font-size:11.5px;font-weight:700;color:#eef0f2;line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${title}</div>
+      <div style="font-size:9.5px;color:#949aa2;margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${meta}</div>
       ${foot||''}
     </div>`;
   const cards=[];
@@ -1328,7 +1328,7 @@ function renderHomeActive(){
       _esc(f.type.split(' ').slice(1).join(' ')||'시설')+(f.loc?' · '+_esc(f.loc):'')));
   });
   el.innerHTML=`<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
-      <span style="font-size:12.5px;font-weight:800;color:#eaf2fa;">⚡ 주의 현황</span>
+      <span style="font-size:12.5px;font-weight:800;color:#eef0f2;">⚡ 주의 현황</span>
       <span style="font-size:10.5px;color:#9bb8cc;">${sum.join(' <span style=\"color:#3a5a74;\">·</span> ')}</span>
     </div>
     <div style="display:flex;gap:8px;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch;padding-bottom:2px;">${cards.join('')}</div>`;
@@ -1590,8 +1590,8 @@ function _renderClimbStageBar(){
   bar.style.display='flex';
   bar.innerHTML=`<span style="font-size:16px;">📄</span>
     <div style="flex:1;min-width:0;">
-      <div style="font-size:12px;font-weight:700;color:#eaf2fa;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${_esc(_climbStaged.name||'파일')}</div>
-      <div style="font-size:10px;color:#7a9cb8;">${kb.toLocaleString()} KB · 준비됨</div>
+      <div style="font-size:12px;font-weight:700;color:#eef0f2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${_esc(_climbStaged.name||'파일')}</div>
+      <div style="font-size:10px;color:#8b95a1;">${kb.toLocaleString()} KB · 준비됨</div>
     </div>
     <button onclick="_climbUploadStaged()" style="background:rgba(94,207,143,.16);color:#5fcf8f;border:1px solid rgba(94,207,143,.4);border-radius:8px;padding:8px 14px;font-size:12.5px;font-weight:800;cursor:pointer;white-space:nowrap;">⬆️ 업로드</button>
     <button onclick="_climbClearStaged()" style="background:none;border:none;color:rgba(255,255,255,.45);font-size:20px;cursor:pointer;line-height:1;padding:0 4px;">×</button>`;
@@ -1709,15 +1709,15 @@ function openClimb(){
   const canMng=_canClimbManage();
   ov.innerHTML=`<div style="display:flex;align-items:center;gap:8px;padding:calc(6px + env(safe-area-inset-top)) 10px 8px;border-bottom:1px solid rgba(255,255,255,.15);flex-shrink:0;">
       <button class="back-btn" onclick="history.back()">← 뒤로</button>
-      <span style="font-size:16px;font-weight:800;color:#eaf2fa;">🧗 암벽 이용관리</span>
+      <span style="font-size:16px;font-weight:800;color:#eef0f2;">🧗 암벽 이용관리</span>
       ${canMng?`<label title="파일 선택 또는 화면으로 끌어다 놓기" style="margin-left:auto;background:rgba(94,207,143,.14);color:#5fcf8f;border:1px solid rgba(94,207,143,.35);border-radius:9px;padding:7px 12px;font-size:12px;font-weight:800;cursor:pointer;white-space:nowrap;">⬆️ 업로드<input type="file" accept=".xlsx,.xlsm,.xls" onchange="climbUpload(this)" style="display:none;"></label>`:''}
     </div>
     ${canMng?`<div id="climbStageBar" style="display:none;align-items:center;gap:10px;margin:10px 14px 0;padding:10px 12px;background:rgba(94,207,143,.08);border:1px solid rgba(94,207,143,.28);border-radius:11px;flex-shrink:0;"></div>`:''}
-    <div id="climbBody" style="flex:1;overflow-y:auto;padding:14px;"><div style="text-align:center;color:#5a7e98;font-size:13px;padding:40px 0;">불러오는 중…</div></div>
+    <div id="climbBody" style="flex:1;overflow-y:auto;padding:14px;"><div style="text-align:center;color:#6b7684;font-size:13px;padding:40px 0;">불러오는 중…</div></div>
     ${canMng?`<div id="climbDropHint" style="position:absolute;inset:0;background:rgba(6,13,26,.9);display:flex;flex-direction:column;align-items:center;justify-content:center;opacity:0;transition:opacity .15s;pointer-events:none;z-index:5;border:3px dashed rgba(94,207,143,.6);border-radius:16px;">
         <div style="font-size:52px;margin-bottom:10px;">📥</div>
         <div style="font-size:16px;font-weight:800;color:#5fcf8f;">여기에 엑셀 파일을 놓으세요</div>
-        <div style="font-size:12px;color:#7a9cb8;margin-top:6px;">놓은 뒤 업로드 버튼을 누르면 저장됩니다</div>
+        <div style="font-size:12px;color:#8b95a1;margin-top:6px;">놓은 뒤 업로드 버튼을 누르면 저장됩니다</div>
       </div>`:''}`;
   (document.getElementById('app')||document.body).appendChild(ov);
   try{_climbBindDnD(ov);}catch(e){}
@@ -1732,8 +1732,8 @@ function openClimb(){
 function climbTab(t){_climbTab=t;_renderClimbActive();}
 function _renderClimbActive(){
   const b=document.getElementById('climbBody');if(!b)return;
-  const tb=(lbl,t)=>`<button onclick="climbTab('${t}')" style="flex:1;padding:9px 6px;border:none;border-radius:8px;font-size:12.5px;font-weight:800;cursor:pointer;background:${_climbTab===t?'rgba(255,255,255,.18)':'transparent'};color:${_climbTab===t?'#7fc4e0':'#6a8296'};">${lbl}</button>`;
-  b.innerHTML=`<div style="display:flex;gap:4px;background:#0a1626;border:1px solid rgba(255,255,255,.15);border-radius:10px;padding:3px;margin-bottom:12px;">${tb('📋 당일 명단','roster')}${tb('📊 통계·관리','stats')}</div><div id="climbInner"></div>`;
+  const tb=(lbl,t)=>`<button onclick="climbTab('${t}')" style="flex:1;padding:9px 6px;border:none;border-radius:8px;font-size:12.5px;font-weight:800;cursor:pointer;background:${_climbTab===t?'rgba(255,255,255,.18)':'transparent'};color:${_climbTab===t?'#a5abb3':'#6a8296'};">${lbl}</button>`;
+  b.innerHTML=`<div style="display:flex;gap:4px;background:#131316;border:1px solid rgba(255,255,255,.15);border-radius:10px;padding:3px;margin-bottom:12px;">${tb('📋 당일 명단','roster')}${tb('📊 통계·관리','stats')}</div><div id="climbInner"></div>`;
   const all=_climbCache||[];
   if(_climbTab==='stats')_renderClimbStats(all);else _renderClimbRoster(all);
 }
@@ -1761,25 +1761,25 @@ function _renderClimbRoster(all){
   // 지구 순서 고정
   const DORDER=['천화대지구','비선대지구','울산바위지구','소토왕골지구','토왕골지구','한계산성지구','오색지구','기타'];
   const byDist={};day.forEach(r=>{(byDist[r.district||'기타']=byDist[r.district||'기타']||[]).push(r);});
-  const callBtn=(ph,nm)=>ph?`<a href="tel:${_esc(String(ph).replace(/[^0-9+]/g,''))}" onclick="event.stopPropagation();" style="color:#7dd3fa;text-decoration:none;font-size:10.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">📞 ${_esc(ph)}</a>`:'';
+  const callBtn=(ph,nm)=>ph?`<a href="tel:${_esc(String(ph).replace(/[^0-9+]/g,''))}" onclick="event.stopPropagation();" style="color:#aab4c0;text-decoration:none;font-size:10.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">📞 ${_esc(ph)}</a>`:'';
   // 경력: 숫자만 뽑아 'N년' 표기 / 성별: 연한 색 칩(남=하늘·여=분홍)으로 우측 표시
   const expStr=e=>{const n=parseInt(String(e==null?'':e).replace(/[^\d]/g,''));return isNaN(n)?'':(n+'년');};
-  const gChip=g=>g==='남'?'<span style="flex-shrink:0;background:rgba(255,255,255,.16);color:#7fc4e0;border-radius:6px;padding:1px 7px;font-size:10px;font-weight:800;">남</span>'
+  const gChip=g=>g==='남'?'<span style="flex-shrink:0;background:rgba(255,255,255,.16);color:#a5abb3;border-radius:6px;padding:1px 7px;font-size:10px;font-weight:800;">남</span>'
     :g==='여'?'<span style="flex-shrink:0;background:rgba(232,120,150,.16);color:#e8a0ba;border-radius:6px;padding:1px 7px;font-size:10px;font-weight:800;">여</span>':'';
   const person=(nm,gender,age,exp,ph,lead,acc)=>`<div style="display:flex;align-items:center;gap:7px;padding:3.5px 0;">
-      <span style="font-size:12.5px;font-weight:${lead?'800':'600'};color:${acc?'#ff9a90':(lead?'#eaf2fa':'#cfe2f2')};flex-shrink:0;">${lead?'👤 ':'└ '}${_esc(nm||'-')}${acc?' <span style="font-size:9.5px;background:rgba(255,107,91,.16);color:#ff8a80;border-radius:5px;padding:1px 5px;font-weight:800;">🚨사고자</span>':''}</span>
+      <span style="font-size:12.5px;font-weight:${lead?'800':'600'};color:${acc?'#ff9a90':(lead?'#eef0f2':'#d5d8dc')};flex-shrink:0;">${lead?'👤 ':'└ '}${_esc(nm||'-')}${acc?' <span style="font-size:9.5px;background:rgba(255,107,91,.16);color:#ff8a80;border-radius:5px;padding:1px 5px;font-weight:800;">🚨사고자</span>':''}</span>
       ${callBtn(ph)}
-      <span style="margin-left:auto;font-size:10px;color:#8fb4cc;flex-shrink:0;">${[age!=null?age+'세':'',expStr(exp)].filter(Boolean).join(' · ')}</span>
+      <span style="margin-left:auto;font-size:10px;color:#949aa2;flex-shrink:0;">${[age!=null?age+'세':'',expStr(exp)].filter(Boolean).join(' · ')}</span>
       ${gChip(gender)}</div>`;
   let html=`<div style="display:flex;align-items:center;gap:6px;margin-bottom:10px;">
-      <button onclick="climbRosterStep(-1)" ${idx<=0?'disabled':''} style="background:#0e2436;border:1px solid rgba(255,255,255,.25);color:#7fc4e0;border-radius:9px;padding:8px 11px;font-size:14px;font-weight:800;cursor:pointer;${idx<=0?'opacity:.35;':''}">◀</button>
+      <button onclick="climbRosterStep(-1)" ${idx<=0?'disabled':''} style="background:#0e2436;border:1px solid rgba(255,255,255,.25);color:#a5abb3;border-radius:9px;padding:8px 11px;font-size:14px;font-weight:800;cursor:pointer;${idx<=0?'opacity:.35;':''}">◀</button>
       <div style="flex:1;text-align:center;">
-        <div style="font-size:15px;font-weight:800;color:#eaf2fa;">${_esc(D)} <span style="font-size:12px;color:#7fc4e0;">(${wd})</span></div>
-        <div style="font-size:11px;color:#8ab4cc;margin-top:1px;">${cancel?`<span style="color:#f0a44a;font-weight:800;">🚫 ${_esc(cancel.reason)} 취소</span>`:(day.length?`${day.length}팀 · ${people}명`:'예약 없음')}</div>
+        <div style="font-size:15px;font-weight:800;color:#eef0f2;">${_esc(D)} <span style="font-size:12px;color:#a5abb3;">(${wd})</span></div>
+        <div style="font-size:11px;color:#949aa2;margin-top:1px;">${cancel?`<span style="color:#f0a44a;font-weight:800;">🚫 ${_esc(cancel.reason)} 취소</span>`:(day.length?`${day.length}팀 · ${people}명`:'예약 없음')}</div>
       </div>
-      <button onclick="climbRosterStep(1)" ${idx>=dates.length-1?'disabled':''} style="background:#0e2436;border:1px solid rgba(255,255,255,.25);color:#7fc4e0;border-radius:9px;padding:8px 11px;font-size:14px;font-weight:800;cursor:pointer;${idx>=dates.length-1?'opacity:.35;':''}">▶</button>
+      <button onclick="climbRosterStep(1)" ${idx>=dates.length-1?'disabled':''} style="background:#0e2436;border:1px solid rgba(255,255,255,.25);color:#a5abb3;border-radius:9px;padding:8px 11px;font-size:14px;font-weight:800;cursor:pointer;${idx>=dates.length-1?'opacity:.35;':''}">▶</button>
     </div>
-    <input type="date" value="${_esc(D)}" onchange="climbRosterPick(this.value)" style="width:100%;background:#0a1626;color:#cfe2f2;border:1px solid rgba(255,255,255,.2);border-radius:8px;padding:8px;font-size:12px;margin-bottom:10px;">`;
+    <input type="date" value="${_esc(D)}" onchange="climbRosterPick(this.value)" style="width:100%;background:#131316;color:#d5d8dc;border:1px solid rgba(255,255,255,.2);border-radius:8px;padding:8px;font-size:12px;margin-bottom:10px;">`;
   // 오프라인(통신 음영지역)에서 저장본으로 보는 중이면 명확히 표시 — 언제 받은 명단인지 알 수 있게
   if(window._climbFromOffline||!navigator.onLine){
     html+=`<div style="display:flex;align-items:center;gap:7px;background:rgba(240,165,0,.09);border:1px solid rgba(240,165,0,.3);border-radius:9px;padding:8px 11px;margin-bottom:10px;">
@@ -1790,11 +1790,11 @@ function _renderClimbRoster(all){
   const distF=window._climbRosterDistF||'';
   const distsPresent=DORDER.filter(dist=>byDist[dist]&&byDist[dist].length);
   if(day.length&&distsPresent.length>1){
-    const chip=(lbl,val)=>`<span onclick="climbRosterDist('${val}')" style="display:inline-block;padding:6px 12px;margin:0 5px 5px 0;border-radius:15px;font-size:11.5px;font-weight:700;cursor:pointer;border:1px solid ${distF===val?'#7fc4e0':'rgba(255,255,255,.25)'};background:${distF===val?'rgba(255,255,255,.22)':'#0a1626'};color:${distF===val?'#aed8ee':'#8ab4cc'};white-space:nowrap;">${_esc(lbl)}</span>`;
+    const chip=(lbl,val)=>`<span onclick="climbRosterDist('${val}')" style="display:inline-block;padding:6px 12px;margin:0 5px 5px 0;border-radius:15px;font-size:11.5px;font-weight:700;cursor:pointer;border:1px solid ${distF===val?'#a5abb3':'rgba(255,255,255,.25)'};background:${distF===val?'rgba(255,255,255,.22)':'#131316'};color:${distF===val?'#aed8ee':'#949aa2'};white-space:nowrap;">${_esc(lbl)}</span>`;
     html+=`<div style="display:flex;flex-wrap:wrap;margin-bottom:12px;">${chip('전체 '+people+'명','')}${distsPresent.map(dist=>chip(dist.replace('지구','')+' '+byDist[dist].reduce((s,r)=>s+(r.total||1),0),dist)).join('')}</div>`;
   }
   if(!day.length){
-    b.innerHTML=html+`<div style="text-align:center;color:#5a7e98;font-size:13px;padding:26px 0;">이 날짜의 저장된 이용내역이 없습니다.${dates.length?'<br>◀▶ 로 데이터 있는 날짜로 이동하세요.':''}</div>`;
+    b.innerHTML=html+`<div style="text-align:center;color:#6b7684;font-size:13px;padding:26px 0;">이 날짜의 저장된 이용내역이 없습니다.${dates.length?'<br>◀▶ 로 데이터 있는 날짜로 이동하세요.':''}</div>`;
     return;
   }
   DORDER.forEach(dist=>{
@@ -1802,16 +1802,16 @@ function _renderClimbRoster(all){
     const teams=byDist[dist];if(!teams||!teams.length)return;
     const byCourse={};teams.forEach(r=>{(byCourse[r.course||'-']=byCourse[r.course||'-']||[]).push(r);});
     const dPpl=teams.reduce((s,r)=>s+(r.total||1),0);
-    html+=`<div style="margin-bottom:12px;"><div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;"><span style="font-size:13.5px;font-weight:800;color:#7fc4e0;">🏔️ ${_esc(dist)}</span><span style="font-size:10px;color:#5a7e98;">${teams.length}팀 · ${dPpl}명</span><span style="flex:1;height:1px;background:rgba(255,255,255,.18);"></span></div>`;
+    html+=`<div style="margin-bottom:12px;"><div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;"><span style="font-size:13.5px;font-weight:800;color:#a5abb3;">🏔️ ${_esc(dist)}</span><span style="font-size:10px;color:#6b7684;">${teams.length}팀 · ${dPpl}명</span><span style="flex:1;height:1px;background:rgba(255,255,255,.18);"></span></div>`;
     Object.keys(byCourse).forEach(course=>{
       const cts=byCourse[course];const cPpl=cts.reduce((s,r)=>s+(r.total||1),0);
       html+=`<div class="scard" style="margin-bottom:7px;padding:9px 11px;">
-        <div style="font-size:12.5px;font-weight:800;color:#eaf2fa;margin-bottom:5px;">🧗 ${_esc(course)} <span style="font-size:10px;font-weight:600;color:#8fb4cc;">${cts.length}팀 · ${cPpl}명</span></div>`;
+        <div style="font-size:12.5px;font-weight:800;color:#eef0f2;margin-bottom:5px;">🧗 ${_esc(course)} <span style="font-size:10px;font-weight:600;color:#949aa2;">${cts.length}팀 · ${cPpl}명</span></div>`;
       cts.forEach(r=>{
         const a=r.applicant||{};
         const accMark=r.accident?(r.rescueId?` <span onclick="_climbOpenRescue(${r.rescueId})" style="color:#ff6b5b;font-weight:800;cursor:pointer;text-decoration:underline;text-underline-offset:2px;">🚨사고 · 구조기록 ›</span>`:' <span style="color:#ff6b5b;font-weight:800;">🚨사고</span>'):'';
         html+=`<div style="border-top:1px solid rgba(255,255,255,.05);padding:6px 0 4px;">
-          <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:2px;"><span style="font-size:9.5px;color:#6a94b0;background:rgba(255,255,255,.1);border-radius:5px;padding:1px 6px;">${r.total||'-'}명</span>${accMark}</div>
+          <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:2px;"><span style="font-size:9.5px;color:#78828e;background:rgba(255,255,255,.1);border-radius:5px;padding:1px 6px;">${r.total||'-'}명</span>${accMark}</div>
           ${person(a.name,a.gender,_climbAge(a.dob),a.exp,a.phone,true,a.acc)}
           ${(r.companions||[]).map(c=>person(c.name,c.gender,_climbAge(c.dob),c.exp,c.phone,false,c.acc)).join('')}
         </div>`;
@@ -1820,7 +1820,7 @@ function _renderClimbRoster(all){
     });
     html+=`</div>`;
   });
-  html+=`<div style="font-size:9.5px;color:#46708f;text-align:center;padding:4px 0 10px;">현장 점검용 — 지구·코스별 인원·인적사항 대조. 📞 눌러 전화</div>`;
+  html+=`<div style="font-size:9.5px;color:#565f6b;text-align:center;padding:4px 0 10px;">현장 점검용 — 지구·코스별 인원·인적사항 대조. 📞 눌러 전화</div>`;
   b.innerHTML=html;
 }
 // ── 재난/구조 사고자 입력 → 암벽 당일명단에서 인적사항 자동 불러오기 ──
@@ -1843,14 +1843,14 @@ function openClimbVictimPick(){
   }catch(e){}
   ov=document.createElement('div');ov.id='climbVictimPick';
   ov.style.cssText='position:fixed;inset:0;z-index:9800;background:rgba(4,8,14,.78);display:flex;padding:14px;';
-  ov.innerHTML='<div style="background:#0a1626;max-width:460px;width:100%;margin:auto;border-radius:14px;display:flex;flex-direction:column;max-height:86vh;overflow:hidden;border:1px solid rgba(240,200,138,.2);">'
+  ov.innerHTML='<div style="background:#131316;max-width:460px;width:100%;margin:auto;border-radius:14px;display:flex;flex-direction:column;max-height:86vh;overflow:hidden;border:1px solid rgba(240,200,138,.2);">'
     +'<div style="display:flex;align-items:center;gap:8px;padding:12px 14px;border-bottom:1px solid rgba(255,255,255,.15);flex-shrink:0;">'
     +'<span style="font-size:14px;font-weight:800;color:#f0c88a;">🧗 암벽 명단에서 사고자 선택</span>'
     +'<button onclick="var e=document.getElementById(\'climbVictimPick\');if(e)e.remove();" style="margin-left:auto;background:none;border:none;color:rgba(255,255,255,.5);font-size:22px;cursor:pointer;line-height:1;">×</button></div>'
     +'<div style="padding:10px 14px;display:flex;gap:6px;flex-wrap:wrap;border-bottom:1px solid rgba(255,255,255,.05);flex-shrink:0;">'
-    +'<input type="date" value="'+window._climbVicDate+'" onchange="window._climbVicDate=this.value;_renderClimbVicPick();" style="flex:1;min-width:130px;background:#0e1c2e;color:#cfe2f2;border:1px solid rgba(255,255,255,.25);border-radius:8px;padding:8px;font-size:12px;">'
-    +'<input type="text" placeholder="🔍 이름 검색" oninput="window._climbVicQ=this.value;_renderClimbVicPick();" style="flex:2;min-width:110px;background:#0e1c2e;color:#cfe2f2;border:1px solid rgba(255,255,255,.25);border-radius:8px;padding:8px;font-size:12px;"></div>'
-    +'<div id="cvpBody" style="flex:1;overflow-y:auto;padding:10px 14px;"><div style="text-align:center;color:#5a7e98;padding:30px;">불러오는 중…</div></div></div>';
+    +'<input type="date" value="'+window._climbVicDate+'" onchange="window._climbVicDate=this.value;_renderClimbVicPick();" style="flex:1;min-width:130px;background:#0e1c2e;color:#d5d8dc;border:1px solid rgba(255,255,255,.25);border-radius:8px;padding:8px;font-size:12px;">'
+    +'<input type="text" placeholder="🔍 이름 검색" oninput="window._climbVicQ=this.value;_renderClimbVicPick();" style="flex:2;min-width:110px;background:#0e1c2e;color:#d5d8dc;border:1px solid rgba(255,255,255,.25);border-radius:8px;padding:8px;font-size:12px;"></div>'
+    +'<div id="cvpBody" style="flex:1;overflow-y:auto;padding:10px 14px;"><div style="text-align:center;color:#6b7684;padding:30px;">불러오는 중…</div></div></div>';
   document.body.appendChild(ov);
   _climbLoadAll().then(function(){_renderClimbVicPick();}).catch(function(){var b=document.getElementById('cvpBody');if(b)b.innerHTML='<div style="text-align:center;color:#ff8a73;padding:30px;">명단 불러오기 실패(오프라인?)</div>';});
 }
@@ -1865,23 +1865,23 @@ function _renderClimbVicPick(){
   if(Q)day=day.filter(function(r){var ns=[(r.applicant&&r.applicant.name)||''].concat((r.companions||[]).map(function(c){return c.name;}));return ns.some(function(n){return String(n).indexOf(Q)>=0;});});
   window._climbVicDay=day;
   if(!day.length){
-    b.innerHTML='<div style="text-align:center;color:#5a7e98;padding:30px 14px;font-size:13px;line-height:2;">'
+    b.innerHTML='<div style="text-align:center;color:#6b7684;padding:30px 14px;font-size:13px;line-height:2;">'
       +(C&&dayTotal?('📍 <b style="color:#f0c88a;">'+esc(C)+'</b> 코스 신청 명단이 없습니다<br><span style="font-size:11px;">이 날 다른 코스 '+dayTotal+'팀 있음</span><br><button onclick="window._climbVicCourse=\'\';_renderClimbVicPick();" style="margin-top:8px;background:rgba(240,200,138,.14);color:#f0c88a;border:1px solid rgba(240,200,138,.35);border-radius:8px;padding:8px 16px;font-size:12px;font-weight:800;cursor:pointer;">그날 전체 명단 보기</button>')
       :(Q?'검색 결과 없음':'이 날짜의 명단이 없습니다'))+'</div>';
     return;
   }
   var pline=function(nm,g,dob,ph,lead,onclk){var age=_climbAge(dob);return '<div onclick="'+onclk+'" style="display:flex;align-items:center;gap:6px;padding:8px 4px;border-bottom:1px solid rgba(255,255,255,.05);cursor:pointer;">'
-    +'<span style="font-size:12.5px;font-weight:'+(lead?'800':'600')+';color:'+(lead?'#eaf2fa':'#cfe2f2')+';">'+(lead?'👤 ':'└ ')+esc(nm||'-')+'</span>'
-    +'<span style="font-size:10px;color:#8fb4cc;">'+[g,age!=null?age+'세':'',ph||''].filter(Boolean).join(' · ')+'</span>'
+    +'<span style="font-size:12.5px;font-weight:'+(lead?'800':'600')+';color:'+(lead?'#eef0f2':'#d5d8dc')+';">'+(lead?'👤 ':'└ ')+esc(nm||'-')+'</span>'
+    +'<span style="font-size:10px;color:#949aa2;">'+[g,age!=null?age+'세':'',ph||''].filter(Boolean).join(' · ')+'</span>'
     +'<span style="margin-left:auto;font-size:10.5px;color:#5fcf8f;font-weight:800;flex-shrink:0;">사고자로 ›</span></div>';};
   var html='';
   if(C)html+='<div style="display:flex;align-items:center;gap:8px;margin-bottom:9px;">'
     +'<span style="font-size:11px;font-weight:800;color:#f0c88a;background:rgba(240,200,138,.12);border:1px solid rgba(240,200,138,.3);border-radius:14px;padding:3px 11px;">📍 '+esc(C)+' 코스만 · '+day.length+'팀</span>'
-    +'<button onclick="window._climbVicCourse=\'\';_renderClimbVicPick();" style="background:none;border:none;color:#8fb4cc;font-size:11px;font-weight:700;cursor:pointer;text-decoration:underline;">전체 보기'+(dayTotal>day.length?' ('+dayTotal+'팀)':'')+'</button></div>';
+    +'<button onclick="window._climbVicCourse=\'\';_renderClimbVicPick();" style="background:none;border:none;color:#949aa2;font-size:11px;font-weight:700;cursor:pointer;text-decoration:underline;">전체 보기'+(dayTotal>day.length?' ('+dayTotal+'팀)':'')+'</button></div>';
   day.forEach(function(r,ri){
     var a=r.applicant||{};
     html+='<div class="scard" style="margin-bottom:8px;padding:8px 10px;">'
-      +'<div style="display:flex;align-items:center;gap:6px;margin-bottom:3px;flex-wrap:wrap;"><span style="font-size:11.5px;font-weight:800;color:#7fc4e0;">'+esc(r.district||'-')+' · '+esc(r.course||'-')+'</span><span style="font-size:9.5px;color:#5a7e98;">'+(r.total||'-')+'명</span>'
+      +'<div style="display:flex;align-items:center;gap:6px;margin-bottom:3px;flex-wrap:wrap;"><span style="font-size:11.5px;font-weight:800;color:#a5abb3;">'+esc(r.district||'-')+' · '+esc(r.course||'-')+'</span><span style="font-size:9.5px;color:#6b7684;">'+(r.total||'-')+'명</span>'
       +((r.companions&&r.companions.length)?'<button onclick="_climbVicFillTeam('+ri+')" style="margin-left:auto;background:rgba(240,200,138,.14);color:#f0c88a;border:1px solid rgba(240,200,138,.35);border-radius:7px;padding:4px 9px;font-size:10.5px;font-weight:800;cursor:pointer;">팀 전체 ↧</button>':'')+'</div>'
       +pline(a.name,a.gender,a.dob,a.phone,true,'_climbVicFill('+ri+',-1)')
       +(r.companions||[]).map(function(c,ci){return pline(c.name,c.gender,c.dob,c.phone,false,'_climbVicFill('+ri+','+ci+')');}).join('')
@@ -1934,9 +1934,9 @@ function _renderClimbStats(all){
   const _num=v=>{const n=parseInt(String(v==null?'':v).replace(/[^\d]/g,''));return isNaN(n)?null:n;};
   // ── 업로드 현황 ──
   let html=`<div class="scard" style="margin-bottom:10px;">
-    <div class="stitle">📅 업로드 확인 <span style="font-size:9px;font-weight:400;color:#5a7e98;">시즌 5.16~11.14 · 데이터 없는 날만 표시</span></div>
-    <div style="font-size:12px;color:#cfe2f2;line-height:1.9;">
-    ${miss.length?`<span style="color:#f0a500;font-weight:800;">⚠️ 데이터 없는 날 ${miss.length}일</span>: <span style="font-size:10.5px;color:#c79a4a;">${miss.slice(0,14).map(_esc).join(', ')}${miss.length>14?' …':''}</span>${canMng?`<br><span style="font-size:10px;color:#5a7e98;">예약이 없던 날은 아래 🈳이용없음으로 처리하면 목록에서 빠집니다.</span>`:''}`:'<span style="color:#5fcf8f;font-weight:700;">✅ 오늘까지 빠진 날 없음</span>'}</div>
+    <div class="stitle">📅 업로드 확인 <span style="font-size:9px;font-weight:400;color:#6b7684;">시즌 5.16~11.14 · 데이터 없는 날만 표시</span></div>
+    <div style="font-size:12px;color:#d5d8dc;line-height:1.9;">
+    ${miss.length?`<span style="color:#f0a500;font-weight:800;">⚠️ 데이터 없는 날 ${miss.length}일</span>: <span style="font-size:10.5px;color:#c79a4a;">${miss.slice(0,14).map(_esc).join(', ')}${miss.length>14?' …':''}</span>${canMng?`<br><span style="font-size:10px;color:#6b7684;">예약이 없던 날은 아래 🈳이용없음으로 처리하면 목록에서 빠집니다.</span>`:''}`:'<span style="color:#5fcf8f;font-weight:700;">✅ 오늘까지 빠진 날 없음</span>'}</div>
   </div>`;
   // ── 이용 처리(관리자): 특보·우천·이용없음 + 사고자 등록 ──
   if(canMng){
@@ -1944,10 +1944,10 @@ function _renderClimbStats(all){
     const todayV=_ymd(new Date());
     const cbtn=(reason,ico,bg,col)=>`<button onclick="climbCancelDate(document.getElementById('climbCxDate').value,'${reason}')" style="background:${bg};color:${col};border:1px solid ${col}66;border-radius:8px;padding:8px 10px;font-size:12px;font-weight:800;cursor:pointer;white-space:nowrap;">${ico} ${reason}</button>`;
     html+=`<div class="scard" style="margin-bottom:10px;">
-      <div class="stitle">🛠️ 이용 처리 <span style="font-size:9px;font-weight:400;color:#5a7e98;">해당 날짜를 통계·미업로드에서 제외</span></div>
+      <div class="stitle">🛠️ 이용 처리 <span style="font-size:9px;font-weight:400;color:#6b7684;">해당 날짜를 통계·미업로드에서 제외</span></div>
       <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
-        <input type="date" id="climbCxDate" value="${todayV}" style="flex:1;min-width:120px;background:#0a1626;color:#cfe2f2;border:1px solid rgba(255,255,255,.25);border-radius:8px;padding:8px;font-size:12px;">
-        ${cbtn('특보','🌩️','rgba(240,165,0,.14)','#f0c050')}${cbtn('우천','🌧️','rgba(255,255,255,.14)','#7fc4e0')}${cbtn('이용없음','🈳','rgba(120,140,160,.12)','#9fb6c8')}
+        <input type="date" id="climbCxDate" value="${todayV}" style="flex:1;min-width:120px;background:#131316;color:#d5d8dc;border:1px solid rgba(255,255,255,.25);border-radius:8px;padding:8px;font-size:12px;">
+        ${cbtn('특보','🌩️','rgba(240,165,0,.14)','#f0c050')}${cbtn('우천','🌧️','rgba(255,255,255,.14)','#a5abb3')}${cbtn('이용없음','🈳','rgba(120,140,160,.12)','#9fb6c8')}
       </div>
       ${cxDates.length?(()=>{ // 취소일이 시즌 내내 쌓여도 지저분하지 않게: 평소 한 줄 요약, 펼치면 개별 관리(×)
         const open=window._climbCxOpen;
@@ -1956,14 +1956,14 @@ function _renderClimbStats(all){
         let h=`<div onclick="window._climbCxOpen=!window._climbCxOpen;_renderClimbActive();" style="display:flex;align-items:center;gap:7px;margin-top:9px;padding:7px 10px;background:rgba(240,165,0,.07);border:1px solid rgba(240,165,0,.2);border-radius:9px;cursor:pointer;user-select:none;">
           <span style="font-size:11.5px;color:#f0c050;font-weight:800;flex-shrink:0;">🚫 처리 ${cxDates.length}일</span>
           <span style="font-size:10.5px;color:#c79a4a;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${_esc(sum)}</span>
-          <span style="font-size:10.5px;color:#8fb4cc;flex-shrink:0;">${open?'접기 ⌄':'펼치기 ›'}</span></div>`;
-        if(open)h+=`<div style="line-height:2;margin-top:6px;">${cxDates.map(d=>{const cnt=(all||[]).filter(r=>r.useDate===d).length;return `<span style="display:inline-block;background:rgba(240,165,0,.1);border:1px solid rgba(240,165,0,.3);border-radius:12px;padding:2px 4px 2px 9px;margin:2px 3px 2px 0;color:#f0c050;font-size:11px;">${_esc(d.slice(5))} ${_esc(cx[d].reason)}${cnt?` <span style="color:#8fb4cc;">${cnt}팀</span>`:''} <span onclick="event.stopPropagation();climbUncancelDate('${d}')" style="cursor:pointer;color:#ff8a80;font-weight:800;padding:0 5px;">×</span></span>`;}).join('')}</div>`;
+          <span style="font-size:10.5px;color:#949aa2;flex-shrink:0;">${open?'접기 ⌄':'펼치기 ›'}</span></div>`;
+        if(open)h+=`<div style="line-height:2;margin-top:6px;">${cxDates.map(d=>{const cnt=(all||[]).filter(r=>r.useDate===d).length;return `<span style="display:inline-block;background:rgba(240,165,0,.1);border:1px solid rgba(240,165,0,.3);border-radius:12px;padding:2px 4px 2px 9px;margin:2px 3px 2px 0;color:#f0c050;font-size:11px;">${_esc(d.slice(5))} ${_esc(cx[d].reason)}${cnt?` <span style="color:#949aa2;">${cnt}팀</span>`:''} <span onclick="event.stopPropagation();climbUncancelDate('${d}')" style="cursor:pointer;color:#ff8a80;font-weight:800;padding:0 5px;">×</span></span>`;}).join('')}</div>`;
         return h;
       })():''}
       <button onclick="climbAddAccident()" style="width:100%;margin-top:10px;background:rgba(255,107,91,.12);color:#ff8a80;border:1px solid rgba(255,107,91,.35);border-radius:8px;padding:9px;font-size:12.5px;font-weight:800;cursor:pointer;">🚨 사고자 등록</button>
     </div>`;
   }
-  if(!all.length){b.innerHTML=html+`<div style="text-align:center;color:#5a7e98;font-size:13px;padding:30px 0;">아직 저장된 이용내역이 없습니다.<br>우측 상단 <b>⬆️ 엑셀 업로드</b>로 원본 파일을 올리세요.</div>`;return;}
+  if(!all.length){b.innerHTML=html+`<div style="text-align:center;color:#6b7684;font-size:13px;padding:30px 0;">아직 저장된 이용내역이 없습니다.<br>우측 상단 <b>⬆️ 엑셀 업로드</b>로 원본 파일을 올리세요.</div>`;return;}
   // ── 통계 산출 (요약 + 상세) ──
   // 모드: 'used'=실제 이용(특보·우천취소 제외, 기본) / 'all'=신청 전체(취소 포함)
   const statMode=window._climbStatMode||'used';
@@ -1984,25 +1984,25 @@ function _renderClimbStats(all){
     .concat(autoAcc.filter(a=>!manualAcc.some(m=>m.date===a.date&&(m.name===a.name||m.name===a.team))))
     .sort((a,b)=>String(b.date).localeCompare(String(a.date)));
   const accN=accList.length;
-  const mini=(lbl,val,col,sub)=>`<div style="background:#0f0f11;border-radius:10px;padding:11px 8px;text-align:center;"><div style="font-size:18px;font-weight:800;color:${col||'#e0edf8'};line-height:1.15;">${val}</div><div style="font-size:9.5px;color:#7a9cb8;margin-top:3px;">${lbl}</div>${sub?`<div style="font-size:8.5px;color:#4a7090;margin-top:1px;">${sub}</div>`:''}</div>`;
-  const bar=(rows,unit,colf)=>{const max=Math.max.apply(null,[1].concat(rows.map(x=>x.v)));return rows.map(x=>`<div style="display:flex;align-items:center;gap:8px;padding:4px 0;"><span style="font-size:11px;color:#c0d8ec;width:92px;flex-shrink:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${_esc(x.k)}</span><div style="flex:1;height:9px;background:rgba(255,255,255,.05);border-radius:5px;overflow:hidden;"><div style="height:100%;width:${Math.max(3,Math.round(x.v/max*100))}%;background:${colf?colf(x):'#3182f6'};border-radius:5px;"></div></div><span style="font-size:11px;color:#e0edf8;font-weight:800;min-width:64px;text-align:right;">${x.v}${unit||'명'}${x.team!=null?` <span style="color:#5a7e98;font-weight:600;font-size:9px;">${x.team}팀</span>`:''}</span></div>`).join('');};
+  const mini=(lbl,val,col,sub)=>`<div style="background:#0f0f11;border-radius:10px;padding:11px 8px;text-align:center;"><div style="font-size:18px;font-weight:800;color:${col||'#eaecef'};line-height:1.15;">${val}</div><div style="font-size:9.5px;color:#8b95a1;margin-top:3px;">${lbl}</div>${sub?`<div style="font-size:8.5px;color:#565f6b;margin-top:1px;">${sub}</div>`:''}</div>`;
+  const bar=(rows,unit,colf)=>{const max=Math.max.apply(null,[1].concat(rows.map(x=>x.v)));return rows.map(x=>`<div style="display:flex;align-items:center;gap:8px;padding:4px 0;"><span style="font-size:11px;color:#cdd1d6;width:92px;flex-shrink:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${_esc(x.k)}</span><div style="flex:1;height:9px;background:rgba(255,255,255,.05);border-radius:5px;overflow:hidden;"><div style="height:100%;width:${Math.max(3,Math.round(x.v/max*100))}%;background:${colf?colf(x):'#3182f6'};border-radius:5px;"></div></div><span style="font-size:11px;color:#eaecef;font-weight:800;min-width:64px;text-align:right;">${x.v}${unit||'명'}${x.team!=null?` <span style="color:#6b7684;font-weight:600;font-size:9px;">${x.team}팀</span>`:''}</span></div>`).join('');};
   // 세로 막대(컬럼) 차트 — 월별·요일별처럼 항목 적은 건 한 줄에 세로 막대로(공간 절약)
-  const colChart=(rows,colf)=>{const max=Math.max.apply(null,[1].concat(rows.map(x=>x.v)));return `<div style="display:flex;align-items:flex-end;gap:5px;height:78px;">${rows.map(x=>`<div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;min-width:0;"><span style="font-size:10px;color:#e0edf8;font-weight:800;line-height:1;">${x.v}</span><div style="width:66%;max-width:24px;height:${Math.max(3,Math.round(x.v/max*44))}px;background:${colf?colf(x):'#3182f6'};border-radius:4px 4px 0 0;margin-top:3px;"></div><span style="font-size:10px;color:#8fb4cc;margin-top:3px;white-space:nowrap;">${_esc(x.k)}</span></div>`).join('')}</div>`;};
+  const colChart=(rows,colf)=>{const max=Math.max.apply(null,[1].concat(rows.map(x=>x.v)));return `<div style="display:flex;align-items:flex-end;gap:5px;height:78px;">${rows.map(x=>`<div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;min-width:0;"><span style="font-size:10px;color:#eaecef;font-weight:800;line-height:1;">${x.v}</span><div style="width:66%;max-width:24px;height:${Math.max(3,Math.round(x.v/max*44))}px;background:${colf?colf(x):'#3182f6'};border-radius:4px 4px 0 0;margin-top:3px;"></div><span style="font-size:10px;color:#949aa2;margin-top:3px;white-space:nowrap;">${_esc(x.k)}</span></div>`).join('')}</div>`;};
   // ── 총 통계 요약 (모드 토글: 실제 이용 / 신청 전체) ──
-  const modeBtn=(lbl,m)=>`<button onclick="climbStatMode('${m}')" style="flex:1;padding:8px 6px;border:none;border-radius:8px;font-size:12px;font-weight:800;cursor:pointer;background:${statMode===m?'rgba(255,255,255,.2)':'transparent'};color:${statMode===m?'#7fc4e0':'#6a8296'};">${lbl}</button>`;
-  html+=`<div style="display:flex;gap:4px;background:#0a1626;border:1px solid rgba(255,255,255,.15);border-radius:10px;padding:3px;margin-bottom:10px;">${modeBtn('✅ 실제 이용 (취소 제외)','used')}${modeBtn('📝 신청 전체 (취소 포함)','all')}</div>`;
+  const modeBtn=(lbl,m)=>`<button onclick="climbStatMode('${m}')" style="flex:1;padding:8px 6px;border:none;border-radius:8px;font-size:12px;font-weight:800;cursor:pointer;background:${statMode===m?'rgba(255,255,255,.2)':'transparent'};color:${statMode===m?'#a5abb3':'#6a8296'};">${lbl}</button>`;
+  html+=`<div style="display:flex;gap:4px;background:#131316;border:1px solid rgba(255,255,255,.15);border-radius:10px;padding:3px;margin-bottom:10px;">${modeBtn('✅ 실제 이용 (취소 제외)','used')}${modeBtn('📝 신청 전체 (취소 포함)','all')}</div>`;
   html+=`<div class="scard" style="margin-bottom:10px;">
-    <div class="stitle">📊 총 통계 <span style="font-size:9px;font-weight:400;color:#5a7e98;">${statMode==='all'?'신청 전체(특보·우천취소 포함)':'특보·우천취소 제외 실이용'}</span></div>
+    <div class="stitle">📊 총 통계 <span style="font-size:9px;font-weight:400;color:#6b7684;">${statMode==='all'?'신청 전체(특보·우천취소 포함)':'특보·우천취소 제외 실이용'}</span></div>
     <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:6px;">
       ${mini(statMode==='all'?'신청 인원':'실이용 인원',people.toLocaleString()+'명','#3182f6',usedTeams+'팀')}
-      ${mini('성별','<span style="font-size:14px;">남 '+gender['남']+' · 여 '+gender['여']+'</span>','#e0edf8','신청자+동반자')}
+      ${mini('성별','<span style="font-size:14px;">남 '+gender['남']+' · 여 '+gender['여']+'</span>','#eaecef','신청자+동반자')}
       ${mini('취소·이용없음',cancelled.length+'팀',cancelled.length?'#f0a44a':'#27ae60','')}
       ${mini('안전사고',accN+'건',accN?'#ff6b5b':'#27ae60',accN?'':'없음')}
     </div>
   </div>`;
   // ── 안전사고 목록 (항상 표시 — 중요) ──
   if(accN){
-    html+=`<div class="scard" style="margin-bottom:10px;"><div class="stitle" style="color:#ff8a80;">🚨 안전사고 (${accN}건)</div>${accList.map(a=>`<div style="display:flex;align-items:center;gap:6px;font-size:11.5px;color:#dceaf6;padding:5px 0;border-bottom:1px solid rgba(255,255,255,.04);"><span style="flex:1;">${_esc(a.date)} (${_wd[Math.max(0,_dow(a.date))]})${a.district?' · '+_esc(a.district):''}${a.course?' '+_esc(a.course):''} · <b style="color:#ffb3ab;">${_esc(a.name)}</b>${a.team&&a.team!==a.name?` <span style="color:#8fb4cc;font-size:10px;">(${_esc(a.team)} 팀${a.total?' '+a.total+'명':''})</span>`:(a.total?' ('+a.total+'명)':'')}${a.note?` <span style="color:#9fb6c8;">— ${_esc(a.note)}</span>`:''}</span>${a.rescueId?`<span onclick="_climbOpenRescue(${a.rescueId})" style="cursor:pointer;color:#7fc4e0;font-size:10px;font-weight:800;flex-shrink:0;">📋 구조기록 ›</span>`:''}${a.auto?'<span style="font-size:8.5px;color:#5a7e98;flex-shrink:0;">명단</span>':(canMng?`<span onclick="climbDelAccident(${a.id})" style="cursor:pointer;color:#ff8a80;font-weight:800;padding:0 5px;flex-shrink:0;">×</span>`:'')}</div>`).join('')}</div>`;
+    html+=`<div class="scard" style="margin-bottom:10px;"><div class="stitle" style="color:#ff8a80;">🚨 안전사고 (${accN}건)</div>${accList.map(a=>`<div style="display:flex;align-items:center;gap:6px;font-size:11.5px;color:#dceaf6;padding:5px 0;border-bottom:1px solid rgba(255,255,255,.04);"><span style="flex:1;">${_esc(a.date)} (${_wd[Math.max(0,_dow(a.date))]})${a.district?' · '+_esc(a.district):''}${a.course?' '+_esc(a.course):''} · <b style="color:#ffb3ab;">${_esc(a.name)}</b>${a.team&&a.team!==a.name?` <span style="color:#949aa2;font-size:10px;">(${_esc(a.team)} 팀${a.total?' '+a.total+'명':''})</span>`:(a.total?' ('+a.total+'명)':'')}${a.note?` <span style="color:#9fb6c8;">— ${_esc(a.note)}</span>`:''}</span>${a.rescueId?`<span onclick="_climbOpenRescue(${a.rescueId})" style="cursor:pointer;color:#a5abb3;font-size:10px;font-weight:800;flex-shrink:0;">📋 구조기록 ›</span>`:''}${a.auto?'<span style="font-size:8.5px;color:#6b7684;flex-shrink:0;">명단</span>':(canMng?`<span onclick="climbDelAccident(${a.id})" style="cursor:pointer;color:#ff8a80;font-weight:800;padding:0 5px;flex-shrink:0;">×</span>`:'')}</div>`).join('')}</div>`;
   }
   const byMon={};used.forEach(r=>{const m=(r.useDate||'').slice(0,7);if(!m)return;const o=byMon[m]||(byMon[m]={ppl:0,team:0});o.ppl+=(r.total||1);o.team++;});
   const monRows=Object.keys(byMon).sort().map(m=>({k:m.slice(5)+'월',v:byMon[m].ppl,team:byMon[m].team}));
@@ -2019,12 +2019,12 @@ function _renderClimbStats(all){
   const expB={'1년↓':0,'2-5년':0,'6-10년':0,'11-20년':0,'20년↑':0};let expN=0;
   used.forEach(r=>{const e=_num(r.applicant&&r.applicant.exp);if(e==null||e>80)return;expN++;expB[e<=1?'1년↓':e<=5?'2-5년':e<=10?'6-10년':e<=20?'11-20년':'20년↑']++;});
   if(monRows.length)html+=`<div class="scard" style="margin-bottom:10px;"><div class="stitle">🗓️ 월별 이용</div>${colChart(monRows)}</div>`;
-  html+=`<div class="scard" style="margin-bottom:10px;"><div class="stitle">📆 요일별 이용 <span style="font-size:9px;font-weight:400;color:#5a7e98;">⭐주말</span></div>${colChart(dowRows,x=>x.k.indexOf('⭐')>=0?'#ff8a73':'#3182f6')}</div>`;
-  if(topDays.length)html+=`<div class="scard" style="margin-bottom:10px;"><div class="stitle">🔝 최다 이용일 TOP 5</div>${topDays.map((x,i)=>`<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid rgba(255,255,255,.04);"><span style="font-size:11px;font-weight:800;color:${i===0?'#f0c060':'#7a9cb8'};min-width:18px;">${i+1}</span><span style="flex:1;font-size:12px;color:#dceaf6;">${_esc(x.d)} (${_wd[Math.max(0,_dow(x.d))]})</span><b style="font-size:12.5px;color:#3182f6;">${x.v}명</b></div>`).join('')}</div>`;
+  html+=`<div class="scard" style="margin-bottom:10px;"><div class="stitle">📆 요일별 이용 <span style="font-size:9px;font-weight:400;color:#6b7684;">⭐주말</span></div>${colChart(dowRows,x=>x.k.indexOf('⭐')>=0?'#ff8a73':'#3182f6')}</div>`;
+  if(topDays.length)html+=`<div class="scard" style="margin-bottom:10px;"><div class="stitle">🔝 최다 이용일 TOP 5</div>${topDays.map((x,i)=>`<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid rgba(255,255,255,.04);"><span style="font-size:11px;font-weight:800;color:${i===0?'#f0c060':'#8b95a1'};min-width:18px;">${i+1}</span><span style="flex:1;font-size:12px;color:#dceaf6;">${_esc(x.d)} (${_wd[Math.max(0,_dow(x.d))]})</span><b style="font-size:12.5px;color:#3182f6;">${x.v}명</b></div>`).join('')}</div>`;
   html+=`<div class="scard" style="margin-bottom:10px;"><div class="stitle">🏔️ 지구별 이용</div>${bar(distRank.map(x=>({k:x.d,v:x.ppl,team:x.team})),'명')}</div>`;
   html+=`<div class="scard" style="margin-bottom:10px;"><div class="stitle">🧗 코스별 이용 (전체 ${courseRank.length}개)</div>${bar(courseRank.map(x=>({k:x.c,v:x.ppl,team:x.team})),'명')}</div>`;
-  if(expN)html+=`<div class="scard" style="margin-bottom:10px;"><div class="stitle">🧗 신청자 등반경력 <span style="font-size:9px;font-weight:400;color:#5a7e98;">${expN}명</span></div>${bar(Object.keys(expB).map(k=>({k,v:expB[k]})).filter(x=>x.v),'명',x=>x.k==='1년↓'?'#ff8a73':'#5fcf8f')}</div>`;
-  if(ageN)html+=`<div class="scard" style="margin-bottom:10px;"><div class="stitle">👥 연령대 <span style="font-size:9px;font-weight:400;color:#5a7e98;">${ageN}명</span></div>${bar(Object.keys(ageB).map(k=>({k,v:ageB[k]})).filter(x=>x.v),'명',x=>(x.k==='60대'||x.k==='70↑')?'#f0a44a':'#3182f6')}</div>`;
+  if(expN)html+=`<div class="scard" style="margin-bottom:10px;"><div class="stitle">🧗 신청자 등반경력 <span style="font-size:9px;font-weight:400;color:#6b7684;">${expN}명</span></div>${bar(Object.keys(expB).map(k=>({k,v:expB[k]})).filter(x=>x.v),'명',x=>x.k==='1년↓'?'#ff8a73':'#5fcf8f')}</div>`;
+  if(ageN)html+=`<div class="scard" style="margin-bottom:10px;"><div class="stitle">👥 연령대 <span style="font-size:9px;font-weight:400;color:#6b7684;">${ageN}명</span></div>${bar(Object.keys(ageB).map(k=>({k,v:ageB[k]})).filter(x=>x.v),'명',x=>(x.k==='60대'||x.k==='70↑')?'#f0a44a':'#3182f6')}</div>`;
   b.innerHTML=html;
 }
 function climbStatMode(m){window._climbStatMode=m;_renderClimbActive();}
@@ -2085,7 +2085,7 @@ function renderFullStats(){
   const prevY=res.filter(r=>fy_prev(getDate(r))).length;
   const diff=thisY-prevY;
   const diffStr=diff>0?`▲${diff}`:diff<0?`▼${Math.abs(diff)}`:'±0';
-  const diffCol=diff>0?'#c0392b':diff<0?'#27ae60':'#4a7090';
+  const diffCol=diff>0?'#c0392b':diff<0?'#27ae60':'#565f6b';
   // 유형별
   const typeMap={};pRes.forEach(r=>{typeMap[r.type]=(typeMap[r.type]||0)+1;});
   // 안전사고 세부
@@ -2100,9 +2100,9 @@ function renderFullStats(){
   });
   const topN=(obj,n=5)=>Object.entries(obj).sort((a,b)=>b[1]-a[1]).slice(0,n);
   const safe_max=obj=>Math.max(...Object.values(obj),1);
-  const barRow=(k,v,max,col)=>`<div style="margin-bottom:4px;"><div style="display:flex;justify-content:space-between;font-size:10px;margin-bottom:1px;"><span style="color:#c0d8ec;">${_esc(k)}</span><span style="color:${col};font-weight:700;">${v}</span></div><div style="height:3px;background:rgba(255,255,255,.06);border-radius:2px;overflow:hidden;"><div style="height:100%;width:${Math.round(v/max*100)}%;background:${col};border-radius:2px;"></div></div></div>`;
-  const mini=(label,val,col='#e0edf8')=>`<div style="background:#0f0f11;border-radius:7px;padding:5px 4px;text-align:center;"><div style="font-size:14px;font-weight:800;color:${col};line-height:1.2;">${val}</div><div style="font-size:8px;color:#7a9cb8;margin-top:1px;">${label}</div></div>`;
-  const pill_tab=p=>`<div onclick="window._statPeriod='${p}';renderFullStats();" style="flex:1;padding:5px 2px;text-align:center;font-size:11px;font-weight:600;border-radius:7px;cursor:pointer;${p===period?'background:#1a4a6e;color:#e0edf8;':'color:rgba(255,255,255,.6);'}">${p}</div>`;
+  const barRow=(k,v,max,col)=>`<div style="margin-bottom:4px;"><div style="display:flex;justify-content:space-between;font-size:10px;margin-bottom:1px;"><span style="color:#cdd1d6;">${_esc(k)}</span><span style="color:${col};font-weight:700;">${v}</span></div><div style="height:3px;background:rgba(255,255,255,.06);border-radius:2px;overflow:hidden;"><div style="height:100%;width:${Math.round(v/max*100)}%;background:${col};border-radius:2px;"></div></div></div>`;
+  const mini=(label,val,col='#eaecef')=>`<div style="background:#0f0f11;border-radius:7px;padding:5px 4px;text-align:center;"><div style="font-size:14px;font-weight:800;color:${col};line-height:1.2;">${val}</div><div style="font-size:8px;color:#8b95a1;margin-top:1px;">${label}</div></div>`;
+  const pill_tab=p=>`<div onclick="window._statPeriod='${p}';renderFullStats();" style="flex:1;padding:5px 2px;text-align:center;font-size:11px;font-weight:600;border-radius:7px;cursor:pointer;${p===period?'background:#1a4a6e;color:#eaecef;':'color:rgba(255,255,255,.6);'}">${p}</div>`;
   const row2=(a,b)=>`<div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;">${a}${b}</div>`;
   const w=document.getElementById('statsWrap');
   w.innerHTML=`
@@ -2125,7 +2125,7 @@ function renderFullStats(){
           ${mini('위험수목',pHaz.filter(h=>h.hazType?.includes('위험수목')).length,'#ca6f1e')}
           ${mini('산불',pHaz.filter(h=>h.hazType?.includes('산불')).length,'#a93226')}
         </div>
-        <div style="font-size:9px;color:#5a8aaa;">미조치 ${pHaz.filter(h=>h.hazStatus==='미조치').length} · 완료 ${pHaz.filter(h=>h.hazStatus&&h.hazStatus!=='미조치'&&h.hazStatus!=='조치중').length}</div>
+        <div style="font-size:9px;color:#6b7684;">미조치 ${pHaz.filter(h=>h.hazStatus==='미조치').length} · 완료 ${pHaz.filter(h=>h.hazStatus&&h.hazStatus!=='미조치'&&h.hazStatus!=='조치중').length}</div>
       </div>`
     )}
     <div class="scard">
@@ -2146,11 +2146,11 @@ function renderFullStats(){
         // 사고: 명단 연동분(집계 a) + 수동 등록(연동일자와 겹치지 않는 것만)
         const ac=acAuto+(DB.g('climbAccidents')||[]).filter(m=>!(agg[m.date]&&agg[m.date].a)).length;
         return `<div class="scard">
-          <div class="stitle">🧗 암벽 이용 <span style="font-size:9px;font-weight:400;color:#5a7e98;">시즌 5.16~11.14 · 상세는 홈→암벽 이용관리</span></div>
+          <div class="stitle">🧗 암벽 이용 <span style="font-size:9px;font-weight:400;color:#6b7684;">시즌 5.16~11.14 · 상세는 홈→암벽 이용관리</span></div>
           <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:3px;">
             ${mini('실이용 인원',up?up.toLocaleString()+'명':'—','#3182f6')}${mini('특보·우천 취소',cx+'일',cx?'#e67e22':'#27ae60')}${mini('안전사고',ac+'건',ac?'#c0392b':'#27ae60')}
           </div>
-          ${ut?`<div style="font-size:9px;color:#5a8aaa;margin-top:4px;">${ut.toLocaleString()}팀 · 취소일 제외</div>`:''}
+          ${ut?`<div style="font-size:9px;color:#6b7684;margin-top:4px;">${ut.toLocaleString()}팀 · 취소일 제외</div>`:''}
         </div>`;
       }catch(e){return '';}
     })()}
@@ -2174,10 +2174,10 @@ function renderFullStats(){
           ${mini('응소인원',totResponders,'#e67e22')}${mini('관측보고',totReports,'#27ae60')}
         </div>
         ${pAlertOps.length?`<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
-          <div>${lvlRows?`<div style="font-size:9px;color:#7a9cb8;margin-bottom:3px;">단계별</div>${lvlRows}`:''}</div>
-          <div>${typeRows?`<div style="font-size:9px;color:#7a9cb8;margin-bottom:3px;">특보 종류</div>${typeRows}`:''}</div>
-        </div>${avgHrs?`<div style="font-size:9px;color:#5a8aaa;margin-top:4px;">평균 운영 ${avgHrs}시간</div>`:''}`:
-        `<div style="font-size:10px;color:#5a8aaa;">현재 운영중 ${activeAlertOps.length}건</div>`}
+          <div>${lvlRows?`<div style="font-size:9px;color:#8b95a1;margin-bottom:3px;">단계별</div>${lvlRows}`:''}</div>
+          <div>${typeRows?`<div style="font-size:9px;color:#8b95a1;margin-bottom:3px;">특보 종류</div>${typeRows}`:''}</div>
+        </div>${avgHrs?`<div style="font-size:9px;color:#6b7684;margin-top:4px;">평균 운영 ${avgHrs}시간</div>`:''}`:
+        `<div style="font-size:10px;color:#6b7684;">현재 운영중 ${activeAlertOps.length}건</div>`}
       </div>`;
     })()}
     ${accRes.length?`
@@ -2217,7 +2217,7 @@ function viewSinglePhase(resId,phaseIdx){
   const w=document.getElementById('repContent');
   const content=isFirst?`
     <div class="rsec"><div class="rsec-t">📋 1보 — 초기 접수</div>
-      <div style="font-size:12px;color:#7a9cb8;line-height:2.0;">
+      <div style="font-size:12px;color:#8b95a1;line-height:2.0;">
         <b>유형:</b> ${r.type}<br><b>발생:</b> ${r.date}<br><b>위치:</b> ${r.location||'-'} (${r.loctype||'-'})<br>
         <b>사고자:</b> ${r.vName||'미상'} / ${(r.vGender&&r.vGender!=='알수없음')?r.vGender:'성별미상'} / ${(r.vNation&&r.vNation!=='알수없음')?r.vNation:'국적미상'}<br>
         <b>연락처:</b> ${r.vTel||'-'}<br><b>중증도:</b> ${r.severity||'-'}<br>
@@ -2228,7 +2228,7 @@ function viewSinglePhase(resId,phaseIdx){
       </div>
     </div>`:
     `<div class="rsec"><div class="rsec-t">📋 ${phaseIdx+1}보 — 상황 업데이트</div>
-      <div style="font-size:12px;color:#7a9cb8;line-height:2.0;">
+      <div style="font-size:12px;color:#8b95a1;line-height:2.0;">
         <b>보고 시간:</b> ${p.repTime||'-'}<br>
         <b>상황 내용:</b> ${p.update||'-'}<br>
         <b>부상자 상태:</b> ${p.victimChange||'-'}<br>
@@ -2284,7 +2284,7 @@ function _mobilizeCompactBadge(r){
   const respMap={};(r.mobilizeResp||[]).forEach(x=>{respMap[x.name]=x;});
   const okCnt=roster.filter(s=>(respMap[s.name]||{}).status==='eta').length;
   const noCnt=roster.filter(s=>(respMap[s.name]||{}).status==='unable').length;
-  return ` <span style="font-size:9px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.15);border-radius:9px;padding:1px 6px;font-weight:700;vertical-align:middle;color:#9bbdd4;">🟢${okCnt} 🔴${noCnt} ⚪${roster.length-okCnt-noCnt}</span>`;
+  return ` <span style="font-size:9px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.15);border-radius:9px;padding:1px 6px;font-weight:700;vertical-align:middle;color:#a5abb3;">🟢${okCnt} 🔴${noCnt} ⚪${roster.length-okCnt-noCnt}</span>`;
 }
 function _mobilizeRoster(mobilize){
   if(!mobilize||!mobilize.length)return [];
@@ -2316,20 +2316,20 @@ function _mobilizeBlockHtml(coll,r){
     else if(rr&&rr.status==='unable')stat=`<span style="color:#e74c3c;">🔴 응소불가</span>`;
     else stat=`<span style="color:rgba(255,255,255,.35);">⚪ 미응답</span>`;
     return `<div style="display:flex;justify-content:space-between;align-items:center;padding:3px 0;font-size:11px;">
-      <span style="color:#b8d4e8;">${_esc(s.name)}${s.rank?` <span style="color:#4a7090;font-size:9px;">${_esc(s.rank)}</span>`:''}</span>${stat}
+      <span style="color:#c4c8ce;">${_esc(s.name)}${s.rank?` <span style="color:#565f6b;font-size:9px;">${_esc(s.rank)}</span>`:''}</span>${stat}
     </div>`;
   };
   const rows=deptKeys.map(dk=>{
     const members=deptGroups[dk];
     const dOk=members.filter(s=>(respMap[s.name]||{}).status==='eta').length;
     const dNo=members.filter(s=>(respMap[s.name]||{}).status==='unable').length;
-    return (multiDept?`<div style="font-size:10px;font-weight:700;color:#7ec8a0;margin:6px 0 2px;padding-top:6px;border-top:.5px solid rgba(255,255,255,.05);display:flex;justify-content:space-between;"><span>${_esc(dk)}</span><span style="color:#4a7090;">🟢${dOk} 🔴${dNo} / ${members.length}명</span></div>`:'')
+    return (multiDept?`<div style="font-size:10px;font-weight:700;color:#7ec8a0;margin:6px 0 2px;padding-top:6px;border-top:.5px solid rgba(255,255,255,.05);display:flex;justify-content:space-between;"><span>${_esc(dk)}</span><span style="color:#565f6b;">🟢${dOk} 🔴${dNo} / ${members.length}명</span></div>`:'')
       +members.map(personRow).join('');
   }).join('');
   return `<div id="mobBlk_${coll}_${r.id}" style="background:#1c1c1e;border-radius:10px;padding:11px 12px;border:.5px solid rgba(231,76,60,.25);margin-top:8px;">
     <div style="font-size:11px;color:#e74c3c;font-weight:700;margin-bottom:7px;">🚨 응소 현황 (${_esc(r.mobilize.join('·'))})</div>
     ${roster.length>1?`<div style="display:flex;gap:10px;font-size:10.5px;font-weight:700;margin-bottom:7px;padding-bottom:7px;border-bottom:.5px solid rgba(255,255,255,.07);">
-      <span style="color:#3ad17a;">🟢 ${okCnt}명</span><span style="color:#e74c3c;">🔴 ${noCnt}명</span><span style="color:rgba(255,255,255,.4);">⚪ ${pendCnt}명</span><span style="color:#4a7090;margin-left:auto;">총 ${roster.length}명</span>
+      <span style="color:#3ad17a;">🟢 ${okCnt}명</span><span style="color:#e74c3c;">🔴 ${noCnt}명</span><span style="color:rgba(255,255,255,.4);">⚪ ${pendCnt}명</span><span style="color:#565f6b;margin-left:auto;">총 ${roster.length}명</span>
     </div>`:''}
     ${rows||'<div style="font-size:11px;color:rgba(255,255,255,.3);">대상 인원 없음</div>'}
     ${iAmTarget?`<div>
@@ -2344,7 +2344,7 @@ function _mobilizeBlockHtml(coll,r){
         <div style="display:flex;gap:6px;">
           <input type="text" id="mobEtaInp_${coll}_${r.id}" class="fi" placeholder="직접 입력 (예: 14:30)" value="${_esc((myResp&&myResp.eta)||'')}" onkeydown="if(event.key==='Enter')_confirmMobEta('${coll}',${r.id})" style="flex:1;">
           <button onclick="_confirmMobEta('${coll}',${r.id})" style="background:rgba(39,174,96,.18);color:#3ad17a;border:1px solid rgba(39,174,96,.4);border-radius:8px;padding:0 12px;font-size:11px;font-weight:700;cursor:pointer;">확인</button>
-          <button onclick="_cancelMobEtaInput('${coll}',${r.id})" style="background:rgba(255,255,255,.06);color:#b8d4e8;border:1px solid rgba(255,255,255,.14);border-radius:8px;padding:0 12px;font-size:11px;font-weight:700;cursor:pointer;">취소</button>
+          <button onclick="_cancelMobEtaInput('${coll}',${r.id})" style="background:rgba(255,255,255,.06);color:#c4c8ce;border:1px solid rgba(255,255,255,.14);border-radius:8px;padding:0 12px;font-size:11px;font-weight:700;cursor:pointer;">취소</button>
         </div>
       </div>
     </div>`:''}
@@ -2479,7 +2479,7 @@ let _ttFoundVictim=false;
 
 function selectPhaseChoice(choice,el){
   _phaseChoice=choice;
-  document.querySelectorAll('#phaseChoiceWrap button').forEach(b=>{b.style.background='transparent';b.style.color='#c0d8ec';b.style.borderColor='rgba(255,255,255,.1)';});
+  document.querySelectorAll('#phaseChoiceWrap button').forEach(b=>{b.style.background='transparent';b.style.color='#cdd1d6';b.style.borderColor='rgba(255,255,255,.1)';});
   el.style.background='rgba(255,255,255,.12)';el.style.color='#3182f6';el.style.borderColor='rgba(255,255,255,.5)';
   document.getElementById('phaseChoiceWrap').style.display='none';
   document.getElementById('phaseFormWrap').style.display='block';
@@ -2496,7 +2496,7 @@ function selectPhaseChoice(choice,el){
       prevWrap.style.display='block';
       prevWrap.innerHTML=`<div style="background:#0f0f11;border-radius:9px;padding:10px 12px;margin-bottom:8px;border:1px solid rgba(255,255,255,.15);">
         <div style="font-size:10px;color:#3182f6;font-weight:700;margin-bottom:6px;">📋 전보 (${phaseIdx}보) 내용</div>
-        <div style="font-size:11px;color:#7a9cb8;line-height:1.8;">
+        <div style="font-size:11px;color:#8b95a1;line-height:1.8;">
           <b>시간:</b> ${prev.repTime||'-'}<br>
           <b>상황:</b> ${prev.update||'-'}<br>
           <b>부상자:</b> ${prev.victimChange||'-'}
@@ -2533,9 +2533,9 @@ function renderTimetableList(){
           <div style="display:flex;align-items:center;gap:8px;">
             <div style="width:8px;height:8px;border-radius:50%;background:${e.stage==='요구조자 조우'?'#c0392b':'#3182f6'};flex-shrink:0;"></div>
             <div style="flex:1;">
-              <div style="font-size:12px;font-weight:700;color:#e0edf8;">${e.stage}</div>
-              <div style="font-size:10px;color:#4a7090;">${e.time||'-'}</div>
-              ${e.note?`<div style="font-size:11px;color:#7a9cb8;margin-top:2px;">${e.note}</div>`:''}
+              <div style="font-size:12px;font-weight:700;color:#eaecef;">${e.stage}</div>
+              <div style="font-size:10px;color:#565f6b;">${e.time||'-'}</div>
+              ${e.note?`<div style="font-size:11px;color:#8b95a1;margin-top:2px;">${e.note}</div>`:''}
             </div>
             <button onclick="removeTTEntry(${i})" style="background:rgba(192,57,43,.12);border:1px solid rgba(192,57,43,.3);border-radius:8px;color:#e05050;font-size:13px;font-weight:700;cursor:pointer;width:38px;height:38px;flex-shrink:0;display:flex;align-items:center;justify-content:center;">✕</button>
           </div>
@@ -2651,8 +2651,8 @@ function renderExtraDispatch(){
     ${_extraDispatch.map((d,i)=>`
       <div style="display:flex;align-items:center;gap:8px;background:#0f0f11;border-radius:7px;padding:7px 10px;margin-bottom:4px;border:1px solid rgba(255,255,255,.12);">
         <div style="flex:1;">
-          <div style="font-size:12px;color:#e0edf8;font-weight:600;">${d.name}</div>
-          <div style="font-size:10px;color:#4a7090;">${d.type}${d.note?' · '+d.note:''}</div>
+          <div style="font-size:12px;color:#eaecef;font-weight:600;">${d.name}</div>
+          <div style="font-size:10px;color:#565f6b;">${d.type}${d.note?' · '+d.note:''}</div>
         </div>
         <button onclick="removeExtraDispatch(${i})" style="background:none;border:none;color:#c0392b;font-size:14px;cursor:pointer;padding:2px 5px;">×</button>
       </div>`).join('')}`;
@@ -2704,11 +2704,11 @@ function renderTTInline(){
         <div style="width:8px;height:8px;border-radius:50%;background:${
           e.stage==='요구조자 조우'?'#c0392b':
           e.stage==='처치완료'?'#27ae60':
-          e.stage==='하산시작'?'#3182f6':'#4a7090'
+          e.stage==='하산시작'?'#3182f6':'#565f6b'
         };flex-shrink:0;margin-top:2px;"></div>
         <div style="flex:1;min-width:0;">
-          <div style="font-size:12px;font-weight:700;color:#e0edf8;">${e.actor?`<span style="font-size:10px;color:#7ec8e3;font-weight:600;margin-right:5px;">[${e.actor}]</span>`:''}${e.stage}</div>
-          <div style="font-size:10px;color:#4a7090;">${e.time||'시간미기재'}${e.note?' · '+e.note:''}</div>
+          <div style="font-size:12px;font-weight:700;color:#eaecef;">${e.actor?`<span style="font-size:10px;color:#7ec8e3;font-weight:600;margin-right:5px;">[${e.actor}]</span>`:''}${e.stage}</div>
+          <div style="font-size:10px;color:#565f6b;">${e.time||'시간미기재'}${e.note?' · '+e.note:''}</div>
         </div>
         <div style="display:flex;gap:4px;flex-shrink:0;">
           <button onclick="editTTInline(${i})" style="background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.2);color:#3182f6;font-size:10px;padding:3px 8px;border-radius:5px;cursor:pointer;">✏️</button>
@@ -2788,7 +2788,7 @@ function selectTTInline(stage, pillEl){
   if(rw) rw.style.display=stage==='상황전파'?'block':'none';
   if(actorWrap) actorWrap.style.display=stage==='상황전파'?'none':'';
   if(stage==='직접입력'){
-    if(label) label.innerHTML='✏️ 내용 직접 입력 <span style="font-size:10px;color:#7a9cb8;">(메모란에 입력)</span>';
+    if(label) label.innerHTML='✏️ 내용 직접 입력 <span style="font-size:10px;color:#8b95a1;">(메모란에 입력)</span>';
     if(noteIn){noteIn.placeholder='예: 헬기구조완료, 주민신고접수 등';noteIn.focus();}
   } else {
     if(label) label.textContent='📍 '+stage+' 시간 입력';
@@ -2874,7 +2874,7 @@ function _addPickerSigns(){
     const m=(f.name||'').match(/^\d{1,2}-\d{1,3}/);
     const code=m?m[0]:(f.name||'').slice(0,5);
     const el=document.createElement('div');
-    el.style.cssText='background:rgba(8,18,36,.82);border:1px solid rgba(125,211,250,.4);border-radius:5px;padding:1px 4px;font-size:9px;font-weight:700;color:#7dd3fa;font-family:monospace;pointer-events:none;white-space:nowrap;';
+    el.style.cssText='background:rgba(8,18,36,.82);border:1px solid rgba(125,211,250,.4);border-radius:5px;padding:1px 4px;font-size:9px;font-weight:700;color:#aab4c0;font-family:monospace;pointer-events:none;white-space:nowrap;';
     el.textContent=code;
     new kakao.maps.CustomOverlay({position:new kakao.maps.LatLng(f.lat,f.lng),content:el,zIndex:2}).setMap(mapPicker);
   });
@@ -3002,22 +3002,22 @@ function _sosBuildUI(){
     <div style="display:flex;flex-wrap:wrap;justify-content:center;gap:6px;width:100%;max-width:440px;padding-bottom:5px;margin-bottom:2px;">${langBtns}</div>
     <div style="font-size:34px;margin-top:2px;">🆘</div>
     <div style="font-size:19px;font-weight:800;margin-top:6px;text-align:center;">${_st('org')}</div>
-    <div style="font-size:13px;color:#8ab4cc;margin-top:3px;text-align:center;line-height:1.6;">${_st('sub')}</div>
+    <div style="font-size:13px;color:#949aa2;margin-top:3px;text-align:center;line-height:1.6;">${_st('sub')}</div>
     <div id="sosStatus" style="margin-top:16px;width:100%;max-width:420px;background:#11233a;border:1.5px solid rgba(231,76,60,.5);border-radius:14px;padding:16px;text-align:center;">
       <div id="sosStatusIco" style="font-size:30px;">📡</div>
       <div id="sosStatusTxt" style="font-size:15px;font-weight:700;margin-top:6px;color:#ffd9d0;">${_st('perm')}</div>
-      <div id="sosCoords" style="font-size:12px;color:#9bbdd4;margin-top:8px;font-family:monospace;line-height:1.7;"></div>
+      <div id="sosCoords" style="font-size:12px;color:#a5abb3;margin-top:8px;font-family:monospace;line-height:1.7;"></div>
     </div>
     <button id="sosStartBtn" onclick="_sosRequest()" style="margin-top:14px;width:100%;max-width:420px;padding:18px;border:none;border-radius:14px;background:linear-gradient(180deg,#e74c3c,#c0392b);color:#fff;font-size:18px;font-weight:800;cursor:pointer;box-shadow:0 4px 14px rgba(192,57,43,.5);">${_st('start')}</button>
     <div style="margin-top:16px;width:100%;max-width:420px;">
-      <div style="font-size:12px;color:#8ab4cc;font-weight:700;margin-bottom:6px;">${_st('info')}</div>
+      <div style="font-size:12px;color:#949aa2;font-weight:700;margin-bottom:6px;">${_st('info')}</div>
       <input id="sosName" placeholder="${_st('name')}" value="${_esc(_nm)}" oninput="_sosPushInfo()" style="width:100%;box-sizing:border-box;background:#1c1c1e;border:1px solid rgba(255,255,255,.15);color:#fff;border-radius:9px;padding:12px;font-size:15px;margin-bottom:7px;">
       ${_sosLang!=='ko'?`<input id="sosCountry" placeholder="${_st('country')}" value="${_esc(_ct)}" oninput="_sosPushInfo()" style="width:100%;box-sizing:border-box;background:#1c1c1e;border:1px solid rgba(255,255,255,.15);color:#fff;border-radius:9px;padding:12px;font-size:15px;margin-bottom:7px;">`:''}
       <textarea id="sosMsg" placeholder="${_st('msg')}" oninput="_sosPushInfo()" rows="3" style="width:100%;box-sizing:border-box;background:#1c1c1e;border:1px solid rgba(255,255,255,.15);color:#fff;border-radius:9px;padding:12px;font-size:15px;resize:vertical;">${_esc(_mg)}</textarea>
     </div>
-    <div id="sosTip" style="margin-top:16px;font-size:12px;color:#5a7e98;text-align:center;line-height:1.6;max-width:420px;">${_st('tip')}</div>
+    <div id="sosTip" style="margin-top:16px;font-size:12px;color:#6b7684;text-align:center;line-height:1.6;max-width:420px;">${_st('tip')}</div>
     <div style="width:100%;max-width:420px;margin-top:18px;">
-      <div style="font-size:12px;color:#8ab4cc;font-weight:700;margin-bottom:6px;">💬 ${_sct('chat')}</div>
+      <div style="font-size:12px;color:#949aa2;font-weight:700;margin-bottom:6px;">💬 ${_sct('chat')}</div>
       <div id="sosChat" style="background:#1c1c1e;border:1px solid rgba(255,255,255,.1);border-radius:12px;padding:10px;min-height:60px;max-height:260px;overflow-y:auto;"></div>
       <div style="display:flex;gap:6px;margin-top:7px;">
         <input id="sosChatIn" placeholder="${_sct('chatPh')}" style="flex:1;min-width:0;box-sizing:border-box;background:#1c1c1e;border:1px solid rgba(255,255,255,.15);color:#fff;border-radius:9px;padding:11px;font-size:15px;" onkeydown="if(event.key==='Enter')_sosVictimSend()">
@@ -3039,7 +3039,7 @@ function _sct(k){return (_SOS_CHAT[_sosLang]||_SOS_CHAT.en)[k]||_SOS_CHAT.en[k]|
 function _sosMsgTime(ts){try{const d=new Date(ts);const p=n=>String(n).padStart(2,'0');return p(d.getMonth()+1)+'/'+p(d.getDate())+' '+p(d.getHours())+':'+p(d.getMinutes());}catch(e){return '';}}
 // 채팅 말풍선: mySide 기준 내 메시지는 오른쪽, 상대는 왼쪽(라벨 표시). 팀 말풍선은 조난자에겐 소속, 팀에겐 보낸 사람 이름.
 function _sosChatBubbles(msgs,mySide){
-  if(!msgs||!msgs.length)return '<div style="text-align:center;font-size:11px;color:#5a7e98;padding:12px 0;">아직 주고받은 메시지가 없습니다</div>';
+  if(!msgs||!msgs.length)return '<div style="text-align:center;font-size:11px;color:#6b7684;padding:12px 0;">아직 주고받은 메시지가 없습니다</div>';
   return msgs.slice().sort((a,b)=>(a.ts||0)-(b.ts||0)).map(m=>{
     const mine=(m.f===mySide);
     let label='';
@@ -3049,9 +3049,9 @@ function _sosChatBubbles(msgs,mySide){
     }
     const bg=mine?'#1a6e9e':'#22384e',align=mine?'flex-end':'flex-start';
     return '<div style="display:flex;flex-direction:column;align-items:'+align+';margin-bottom:8px;">'
-      +(label?'<div style="font-size:10px;color:#7dd3fa;font-weight:700;margin-bottom:2px;padding:0 4px;">'+_esc(label)+'</div>':'')
+      +(label?'<div style="font-size:10px;color:#aab4c0;font-weight:700;margin-bottom:2px;padding:0 4px;">'+_esc(label)+'</div>':'')
       +'<div style="max-width:80%;background:'+bg+';color:#eaf4fb;border-radius:13px;padding:8px 11px;font-size:14px;line-height:1.45;word-break:break-word;">'+_esc(m.x||'')+'</div>'
-      +'<div style="font-size:9px;color:#5a7e98;margin-top:2px;padding:0 4px;">'+_sosMsgTime(m.ts)+'</div></div>';
+      +'<div style="font-size:9px;color:#6b7684;margin-top:2px;padding:0 4px;">'+_sosMsgTime(m.ts)+'</div></div>';
   }).join('');
 }
 // sos 문서 msgs 배열에 메시지 추가(arrayUnion → 동시 추가에도 누락 없음). 인증 사용자(팀·익명 조난자) 모두 허용.
@@ -3095,7 +3095,7 @@ function _bootSos(){
   try{var sv=localStorage.getItem('_sosLang');if(sv&&_SOS_T[sv])_sosLang=sv;else{var nl=(navigator.language||'ko').slice(0,2).toLowerCase();if(_SOS_T[nl])_sosLang=nl;}}catch(e){}
   const wrap=document.createElement('div');
   wrap.id='sosVictim';
-  wrap.style.cssText='position:fixed;inset:0;z-index:99999;background:#0a1320;color:#e0edf8;display:flex;flex-direction:column;align-items:center;padding:calc(18px + env(safe-area-inset-top)) 18px calc(18px + env(safe-area-inset-bottom));overflow-y:auto;font-family:inherit;-webkit-text-size-adjust:100%;';
+  wrap.style.cssText='position:fixed;inset:0;z-index:99999;background:#0a1320;color:#eaecef;display:flex;flex-direction:column;align-items:center;padding:calc(18px + env(safe-area-inset-top)) 18px calc(18px + env(safe-area-inset-bottom));overflow-y:auto;font-family:inherit;-webkit-text-size-adjust:100%;';
   document.body.innerHTML='';document.body.appendChild(wrap);
   _sosBuildUI();
   document.title='🆘 SOS — 설악산 구조대';
@@ -3226,8 +3226,8 @@ function _sosShowClosed(){
   wrap.innerHTML='<div style="margin:auto;text-align:center;max-width:380px;padding:34px 18px;">'
     +'<div style="font-size:48px;">✅</div>'
     +'<div style="font-size:20px;font-weight:800;margin-top:14px;color:#7ee0a0;">'+_st('closedT')+'</div>'
-    +'<div style="font-size:14px;color:#9bbdd4;margin-top:12px;line-height:1.7;">'+_st('closed')+'</div>'
-    +(_sosTeamMsgSeen?'<div style="margin-top:18px;background:#11233a;border:1px solid rgba(125,211,250,.3);border-radius:12px;padding:14px;text-align:left;"><div style="font-size:11px;color:#7dd3fa;font-weight:700;margin-bottom:4px;">📢 '+_st('teamLabel')+'</div><div style="font-size:15px;color:#e0edf8;line-height:1.5;">'+_esc(_sosTeamMsgSeen)+'</div></div>':'')
+    +'<div style="font-size:14px;color:#a5abb3;margin-top:12px;line-height:1.7;">'+_st('closed')+'</div>'
+    +(_sosTeamMsgSeen?'<div style="margin-top:18px;background:#11233a;border:1px solid rgba(125,211,250,.3);border-radius:12px;padding:14px;text-align:left;"><div style="font-size:11px;color:#aab4c0;font-weight:700;margin-bottom:4px;">📢 '+_st('teamLabel')+'</div><div style="font-size:15px;color:#eaecef;line-height:1.5;">'+_esc(_sosTeamMsgSeen)+'</div></div>':'')
     +'</div>';
   if(e)e.remove();
 }
@@ -3236,7 +3236,7 @@ function _sosShowTeamMsg(m){
   let el=document.getElementById('sosTeamMsg');
   if(!el){el=document.createElement('div');el.id='sosTeamMsg';el.style.cssText='position:fixed;left:0;right:0;bottom:0;z-index:100001;background:linear-gradient(180deg,#1a4a6e,#0d3350);color:#fff;padding:14px 16px calc(14px + env(safe-area-inset-bottom));box-shadow:0 -3px 14px rgba(0,0,0,.55);';document.body.appendChild(el);}
   el.innerHTML='<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;">'
-    +'<div style="flex:1;min-width:0;"><div style="font-size:11px;color:#7dd3fa;font-weight:700;margin-bottom:3px;">📢 '+_st('teamLabel')+'</div>'
+    +'<div style="flex:1;min-width:0;"><div style="font-size:11px;color:#aab4c0;font-weight:700;margin-bottom:3px;">📢 '+_st('teamLabel')+'</div>'
     +'<div style="font-size:15px;font-weight:600;line-height:1.5;word-break:break-word;">'+_esc(m)+'</div></div>'
     +'<button onclick="this.closest(\'#sosTeamMsg\').remove()" style="background:none;border:none;color:rgba(255,255,255,.6);font-size:22px;line-height:1;cursor:pointer;flex-shrink:0;">×</button></div>';
 }
@@ -3355,7 +3355,7 @@ function openSosRequest(){
     const has=p.lat&&p.lng;
     const mm=p.ts?Math.round((Date.now()-(p.ts||0))/60000):null;
     const status=has
-      ? `<span style="color:#3ad17a;font-weight:800;">🟢 위치 수신 ±${p.acc||'?'}m</span> <span style="color:#8ab4cc;font-size:10px;">${mm}분 전</span>`
+      ? `<span style="color:#3ad17a;font-weight:800;">🟢 위치 수신 ±${p.acc||'?'}m</span> <span style="color:#949aa2;font-size:10px;">${mm}분 전</span>`
       : `<span style="color:#ffd24d;font-weight:700;">⚪ 전송 대기 중</span>`;
     // 48시간 자동만료까지 남은 시간
     const _iss=p.issuedAt||p.ts||0;
@@ -3366,7 +3366,7 @@ function openSosRequest(){
     return `<div style="background:#1c1c1e;border:1px solid ${has?'rgba(231,76,60,.4)':'rgba(255,255,255,.12)'};border-radius:11px;padding:11px 12px;margin-bottom:8px;">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;gap:6px;flex-wrap:wrap;">
         <span style="font-size:12px;">${status}</span>
-        <span style="font-size:9px;color:#5a7e98;font-family:monospace;">🔗 1회용 · ${p.id}</span>
+        <span style="font-size:9px;color:#6b7684;font-family:monospace;">🔗 1회용 · ${p.id}</span>
       </div>
       <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:7px;flex-wrap:wrap;">
         <span style="font-size:11px;color:${_remCol};font-weight:700;">⏱ 자동만료까지 ${_remStr}</span>
@@ -3375,16 +3375,16 @@ function openSosRequest(){
       ${has?`<div onclick="_sosFocus('${p.id}')" style="cursor:pointer;margin-bottom:7px;">
         <div style="font-size:13px;font-weight:800;color:#ff8a73;">🆘 ${_esc(p.name||'익명')}</div>
         ${_sosForeignBadge(p)?`<div style="margin-top:3px;">${_sosForeignBadge(p)}</div>`:''}
-        ${p.msg?`<div style="font-size:12px;color:#cfe2f2;margin-top:2px;">${_esc(p.msg)}</div>`:''}
-        <div style="font-size:10px;color:#5a7e98;font-family:monospace;margin-top:2px;">${(+p.lat).toFixed(5)}, ${(+p.lng).toFixed(5)} · 탭하면 지도 이동</div>
+        ${p.msg?`<div style="font-size:12px;color:#d5d8dc;margin-top:2px;">${_esc(p.msg)}</div>`:''}
+        <div style="font-size:10px;color:#6b7684;font-family:monospace;margin-top:2px;">${(+p.lat).toFixed(5)}, ${(+p.lng).toFixed(5)} · 탭하면 지도 이동</div>
       </div>`:''}
       <div style="display:flex;gap:5px;margin-bottom:6px;">
-        <input readonly value="${url}" onclick="this.select()" style="flex:1;min-width:0;background:#0f0f11;border:1px solid rgba(255,255,255,.3);color:#7dd3fa;border-radius:7px;padding:8px;font-size:11px;font-family:monospace;">
+        <input readonly value="${url}" onclick="this.select()" style="flex:1;min-width:0;background:#0f0f11;border:1px solid rgba(255,255,255,.3);color:#aab4c0;border-radius:7px;padding:8px;font-size:11px;font-family:monospace;">
         <button onclick="_sosCopyUrl('${p.id}',this)" style="flex-shrink:0;background:#1a4a6e;color:#fff;border:none;border-radius:7px;padding:0 13px;font-size:12px;font-weight:700;cursor:pointer;transition:background .15s;">복사</button>
       </div>
       <div style="display:flex;gap:5px;">
         ${navigator.share?`<button onclick="_sosShareUrl('${p.id}')" style="flex:1;background:rgba(39,174,96,.12);color:#27ae60;border:1px solid rgba(39,174,96,.35);border-radius:7px;padding:8px;font-size:12px;font-weight:700;cursor:pointer;">📤 보내기</button>`:`<button onclick="_sosSms('${p.id}')" style="flex:1;background:rgba(255,255,255,.1);color:#3182f6;border:1px solid rgba(255,255,255,.3);border-radius:7px;padding:8px;font-size:12px;font-weight:700;cursor:pointer;">✉️ 문자</button>`}
-        <button onclick="_sosPinPopup('${p.id}')" style="flex:1;background:rgba(125,211,250,.1);color:#7dd3fa;border:1px solid rgba(125,211,250,.3);border-radius:7px;padding:8px;font-size:12px;font-weight:700;cursor:pointer;">💬 대화${(p.msgs&&p.msgs.length)?' '+p.msgs.length:''}</button>
+        <button onclick="_sosPinPopup('${p.id}')" style="flex:1;background:rgba(125,211,250,.1);color:#aab4c0;border:1px solid rgba(125,211,250,.3);border-radius:7px;padding:8px;font-size:12px;font-weight:700;cursor:pointer;">💬 대화${(p.msgs&&p.msgs.length)?' '+p.msgs.length:''}</button>
         ${has?`<button onclick="sosToRescue('${p.id}')" style="flex:1;background:rgba(231,76,60,.15);color:#ff6b5e;border:1px solid rgba(231,76,60,.4);border-radius:7px;padding:8px;font-size:12px;font-weight:700;cursor:pointer;">🚨 구조등록</button>`:''}
         <button onclick="_sosCloseToken('${p.id}')" style="flex-shrink:0;background:rgba(192,57,43,.1);color:#c0392b;border:1px solid rgba(192,57,43,.3);border-radius:7px;padding:8px 11px;font-size:12px;font-weight:700;cursor:pointer;">종료</button>
       </div>
@@ -3393,7 +3393,7 @@ function openSosRequest(){
   const html=`
     <div style="background:rgba(241,196,15,.08);border:1px solid rgba(241,196,15,.25);border-radius:9px;padding:9px 11px;margin-bottom:10px;font-size:12px;color:#e8c84a;line-height:1.5;">
       🔗 <b>1회용 링크</b>입니다. 조난·사고자마다 새로 발급해 보내세요.<br>
-      <span style="color:#9bbdd4;">구조가 끝나면 <b style="color:#ff8a73;">접수 종료</b>를 누르면 그 링크는 비활성화됩니다. (보내지 않아도 48시간 후 자동 만료)</span>
+      <span style="color:#a5abb3;">구조가 끝나면 <b style="color:#ff8a73;">접수 종료</b>를 누르면 그 링크는 비활성화됩니다. (보내지 않아도 48시간 후 자동 만료)</span>
     </div>
     <button onclick="_sosNewLink()" style="width:100%;padding:14px;border-radius:11px;border:none;background:linear-gradient(180deg,#e74c3c,#c0392b);color:#fff;font-size:15px;font-weight:800;cursor:pointer;box-shadow:0 3px 10px rgba(192,57,43,.4);margin-bottom:12px;">➕ 새 1회용 링크 만들기</button>
     ${toks.length?cards:'<div style="font-size:12px;color:rgba(255,255,255,.35);padding:6px 0;text-align:center;">발급된 링크가 없습니다. 위 버튼으로 새 링크를 만드세요.</div>'}`;
@@ -3411,8 +3411,8 @@ function _sosModal(title,html){
   let m=document.getElementById('sosModal');
   if(!m){m=document.createElement('div');m.id='sosModal';document.body.appendChild(m);}
   m.style.cssText='position:fixed;inset:0;z-index:9000;background:rgba(0,0,0,.6);display:flex;align-items:flex-end;justify-content:center;';
-  m.innerHTML=`<div style="background:#0a1828;width:100%;max-width:480px;max-height:85vh;overflow-y:auto;border-radius:14px 14px 0 0;padding:16px 16px 28px;box-shadow:0 -4px 20px rgba(0,0,0,.7);">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;"><span style="font-size:15px;font-weight:800;color:#e0edf8;">${title}</span><button onclick="_sosCloseModal()" style="background:none;border:none;color:rgba(255,255,255,.5);font-size:24px;cursor:pointer;line-height:1;">×</button></div>
+  m.innerHTML=`<div style="background:#16161a;width:100%;max-width:480px;max-height:85vh;overflow-y:auto;border-radius:14px 14px 0 0;padding:16px 16px 28px;box-shadow:0 -4px 20px rgba(0,0,0,.7);">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;"><span style="font-size:15px;font-weight:800;color:#eaecef;">${title}</span><button onclick="_sosCloseModal()" style="background:none;border:none;color:rgba(255,255,255,.5);font-size:24px;cursor:pointer;line-height:1;">×</button></div>
     ${html}</div>`;
   m.onclick=function(e){if(e.target===m)_sosCloseModal();};
 }
@@ -3503,15 +3503,15 @@ function _sosPinPopup(id){
     <div style="background:#1c1c1e;border:1px solid rgba(231,76,60,.4);border-radius:11px;padding:13px 15px;margin-bottom:10px;">
       <div style="font-size:16px;font-weight:800;color:#ff8a73;">🆘 ${_esc(p.name||'익명 조난자')}</div>
       ${_sosForeignBadge(p)?`<div style="margin-top:5px;">${_sosForeignBadge(p)}</div>`:''}
-      ${p.msg?`<div style="font-size:13px;color:#e0edf8;margin-top:6px;line-height:1.5;">${_esc(p.msg)}</div>`:''}
-      ${has?`<div style="font-size:11px;color:#8ab4cc;margin-top:8px;font-family:monospace;">📍 ${(+p.lat).toFixed(6)}, ${(+p.lng).toFixed(6)}${(typeof _elevStr==='function')?' <span style="color:#a7f3e4;">'+_elevStr(p.lat,p.lng,p.alt)+'</span>':''}<br>정확도 ±${p.acc||'?'}m · ${mm}분 전 수신 · ${_sosAtStr(p)}</div>`:`<div style="font-size:11px;color:#ffd24d;margin-top:8px;">⚪ 아직 위치 미수신 — 대화는 가능합니다</div>`}
+      ${p.msg?`<div style="font-size:13px;color:#eaecef;margin-top:6px;line-height:1.5;">${_esc(p.msg)}</div>`:''}
+      ${has?`<div style="font-size:11px;color:#949aa2;margin-top:8px;font-family:monospace;">📍 ${(+p.lat).toFixed(6)}, ${(+p.lng).toFixed(6)}${(typeof _elevStr==='function')?' <span style="color:#a7f3e4;">'+_elevStr(p.lat,p.lng,p.alt)+'</span>':''}<br>정확도 ±${p.acc||'?'}m · ${mm}분 전 수신 · ${_sosAtStr(p)}</div>`:`<div style="font-size:11px;color:#ffd24d;margin-top:8px;">⚪ 아직 위치 미수신 — 대화는 가능합니다</div>`}
     </div>
     ${has?`<div style="display:flex;gap:6px;">
       <button onclick="_sosFocus('${p.id}')" style="flex:1;background:rgba(255,255,255,.12);color:#3182f6;border:1px solid rgba(255,255,255,.35);border-radius:8px;padding:11px;font-size:13px;font-weight:700;cursor:pointer;">🗺️ 위치로 이동</button>
       <button onclick="sosToRescue('${p.id}')" style="flex:1;background:linear-gradient(180deg,#e74c3c,#c0392b);color:#fff;border:none;border-radius:8px;padding:11px;font-size:13px;font-weight:800;cursor:pointer;">🚨 구조 사고로 등록</button>
     </div>`:''}
     <div style="margin-top:10px;background:#1c1c1e;border:1px solid rgba(255,255,255,.08);border-radius:11px;padding:10px;">
-      <div style="font-size:12px;font-weight:700;color:#7dd3fa;margin-bottom:7px;">💬 조난자와 대화 <span style="font-size:10px;color:#5a7e98;font-weight:400;">상대 화면에 실시간 표시</span></div>
+      <div style="font-size:12px;font-weight:700;color:#aab4c0;margin-bottom:7px;">💬 조난자와 대화 <span style="font-size:10px;color:#6b7684;font-weight:400;">상대 화면에 실시간 표시</span></div>
       <div id="sosTeamChat" style="max-height:230px;overflow-y:auto;margin-bottom:8px;">${_sosChatBubbles(p.msgs||[],'t')}</div>
       <div style="display:flex;gap:6px;">
         <input id="sosTeamChatIn" placeholder="메시지 입력" style="flex:1;min-width:0;box-sizing:border-box;background:#0f0f11;border:1px solid rgba(255,255,255,.15);color:#fff;border-radius:8px;padding:10px;font-size:14px;" onkeydown="if(event.key==='Enter')_sosTeamSend('${p.id}')">
@@ -3543,7 +3543,7 @@ function _telBtnsHtml(tel,resId,role,name){
   const t=String(tel||'').replace(/[^0-9+]/g,'');if(!t)return '';
   const _q=s=>String(s||'').replace(/[\\']/g,'').slice(0,20);
   const _r=(resId!==undefined&&resId!==null&&resId!=='')?","+resId+",'"+_q(role||'사고자')+"','"+_q(name)+"'":'';
-  return ` <span style="display:inline-flex;gap:4px;"><button onclick="_callTel('${t}')" style="background:rgba(39,174,96,.15);color:#5dbf8a;border:1px solid rgba(39,174,96,.35);border-radius:6px;padding:2px 8px;font-size:11px;font-weight:700;cursor:pointer;">📞 전화</button><button onclick="_smsSosTo('${t}'${_r})" style="background:rgba(255,255,255,.15);color:#7dd3fa;border:1px solid rgba(255,255,255,.35);border-radius:6px;padding:2px 8px;font-size:11px;font-weight:700;cursor:pointer;">🆘 위치요청</button></span>`;}
+  return ` <span style="display:inline-flex;gap:4px;"><button onclick="_callTel('${t}')" style="background:rgba(39,174,96,.15);color:#5dbf8a;border:1px solid rgba(39,174,96,.35);border-radius:6px;padding:2px 8px;font-size:11px;font-weight:700;cursor:pointer;">📞 전화</button><button onclick="_smsSosTo('${t}'${_r})" style="background:rgba(255,255,255,.15);color:#aab4c0;border:1px solid rgba(255,255,255,.35);border-radius:6px;padding:2px 8px;font-size:11px;font-weight:700;cursor:pointer;">🆘 위치요청</button></span>`;}
 // 보고서 상세: 전화번호 탭 → 전화 / 위치요청(1회용 SOS 링크 만들어 그 번호로 문자)
 function _callTel(tel){tel=String(tel||'').replace(/[^0-9+]/g,'');if(!tel){toast('전화번호 없음');return;}if(confirm(tel+' 로 전화하겠습니까?'))location.href='tel:'+tel;}
 // resId 를 함께 주면: 발급 토큰을 그 사고에 역할(사고자/동반자/신고자/추가 사고자)과 함께 연결(r.sosLinks)
@@ -3681,7 +3681,7 @@ function sosToRescue(id){
 // 앱 자체 업데이트 (OTA · Capgo 자체호스팅) — APK 전용. 웹/PWA는 서비스워커가 자동 갱신.
 // 번들(www)의 새 버전을 ota.json으로 알리면, 설치된 앱이 받아서 그 자리에서 교체(재빌드 불필요).
 // ══════════════════════════════════════════
-const OTA_VER='2026.07.17.229';                         // ← 현재 번들 버전 (릴리스마다 올림 · build-ota.sh가 ota.json에 반영)
+const OTA_VER='2026.07.17.230';                         // ← 현재 번들 버전 (릴리스마다 올림 · build-ota.sh가 ota.json에 반영)
 const OTA_MANIFEST='https://seorak1275.github.io/seoraksan/ota.json';
 // 업데이트 확인 폴백 소스 — 일부 기관망·통신사에서 github.io가 막혀 '확인 실패(네트워크)'가 나는 경우 대비.
 // 순서대로 시도: ① GitHub Pages(원본·즉시 반영) ② jsDelivr CDN(공개저장소 미러·거의 모든 망 통과)
@@ -3750,11 +3750,11 @@ function _otaBanner(){
   el.style.cssText='position:fixed;inset:0;z-index:100002;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;padding:24px;';
   el.innerHTML='<div style="background:#0f2034;border:1px solid rgba(255,255,255,.3);border-radius:18px;max-width:340px;width:100%;padding:24px 20px;text-align:center;box-shadow:0 12px 40px rgba(0,0,0,.6);">'
     +'<div style="font-size:40px;">🔄</div>'
-    +'<div style="font-size:18px;font-weight:800;color:#e0edf8;margin-top:8px;">새 버전이 있습니다</div>'
-    +(_otaInfo.notes?'<div style="font-size:12px;color:#9bbdd4;margin-top:8px;line-height:1.6;">'+_esc(_otaInfo.notes)+'</div>':'')
-    +'<div id="otaCountTxt" style="font-size:11px;color:#5a8aaa;margin-top:12px;"><b style="color:#7dd3fa;">5초</b> 후 자동으로 업데이트됩니다</div>'
+    +'<div style="font-size:18px;font-weight:800;color:#eaecef;margin-top:8px;">새 버전이 있습니다</div>'
+    +(_otaInfo.notes?'<div style="font-size:12px;color:#a5abb3;margin-top:8px;line-height:1.6;">'+_esc(_otaInfo.notes)+'</div>':'')
+    +'<div id="otaCountTxt" style="font-size:11px;color:#6b7684;margin-top:12px;"><b style="color:#aab4c0;">5초</b> 후 자동으로 업데이트됩니다</div>'
     +'<button onclick="_otaApply()" style="width:100%;margin-top:16px;padding:14px;border:none;border-radius:12px;background:linear-gradient(180deg,#3182f6,#1a6e9e);color:#fff;font-size:15px;font-weight:800;cursor:pointer;">지금 업데이트</button>'
-    +'<button onclick="_otaDismiss()" style="width:100%;margin-top:8px;padding:12px;border:1px solid rgba(255,255,255,.14);border-radius:12px;background:none;color:#9bbdd4;font-size:13px;font-weight:600;cursor:pointer;">나중에 하기</button>'
+    +'<button onclick="_otaDismiss()" style="width:100%;margin-top:8px;padding:12px;border:1px solid rgba(255,255,255,.14);border-radius:12px;background:none;color:#a5abb3;font-size:13px;font-weight:600;cursor:pointer;">나중에 하기</button>'
     +'</div>';
   document.body.appendChild(el);
   // 5초 카운트다운 → 자동 업데이트
@@ -3763,7 +3763,7 @@ function _otaBanner(){
   _otaCountTimer=setInterval(function(){
     left--;
     var t=document.getElementById('otaCountTxt');
-    if(left>0){ if(t)t.innerHTML='<b style="color:#7dd3fa;">'+left+'초</b> 후 자동으로 업데이트됩니다'; }
+    if(left>0){ if(t)t.innerHTML='<b style="color:#aab4c0;">'+left+'초</b> 후 자동으로 업데이트됩니다'; }
     else{ _otaClearCountdown(); if(document.getElementById('otaModal'))_otaApply(); }
   },1000);
 }
@@ -3958,7 +3958,7 @@ window.onload=function(){
     div.innerHTML='<span style="font-size:15px;">'+cfg.ico+'</span>'
       +'<div style="flex:1;min-width:0;">'
         +'<div style="font-size:11px;font-weight:700;color:#3182f6;">'+cfg.title+'</div>'
-        +'<div style="font-size:10px;color:#3a6a8a;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+cfg.desc+'</div>'
+        +'<div style="font-size:10px;color:#454e5a;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+cfg.desc+'</div>'
       +'</div>'
       +(state!=='denied'?'<button onclick="_reqPerm(\''+type+'\')" style="flex-shrink:0;background:#1a3d5c;color:#3182f6;border:1px solid rgba(255,255,255,.3);border-radius:6px;padding:5px 11px;font-size:10px;font-weight:700;cursor:pointer;">허용</button>':'')
       +'<button onclick="document.getElementById(\'pb-'+type+'\').remove()" style="flex-shrink:0;background:none;border:none;color:rgba(255,255,255,.2);font-size:16px;line-height:1;cursor:pointer;padding:0 2px;">×</button>';

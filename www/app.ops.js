@@ -37,7 +37,7 @@ function renderHazFireTL(){
   if(!el)return;
   el.innerHTML=_hazFireTL.length?_hazFireTL.map((t,i)=>`<div style="display:flex;align-items:center;gap:7px;padding:5px 0;border-bottom:1px solid rgba(255,255,255,.05);">
     <span style="font-size:10px;color:#3182f6;flex-shrink:0;">${t.time.slice(11)||t.time}</span>
-    <span style="font-size:11px;color:#e0edf8;flex:1;">${_esc(t.note)}</span>
+    <span style="font-size:11px;color:#eaecef;flex:1;">${_esc(t.note)}</span>
     <button onclick="_hazFireTL.splice(${i},1);renderHazFireTL()" style="background:none;border:none;color:#c0392b;font-size:13px;cursor:pointer;">✕</button>
   </div>`).join(''):'<div style="font-size:11px;color:rgba(255,255,255,.25);padding:4px 0;">타임라인 항목 없음</div>';
 }
@@ -51,7 +51,7 @@ function _hazFireTLHtml(h){
     <div style="margin-bottom:6px;">
       ${tl.length?tl.map((t,i)=>`<div style="display:flex;align-items:center;gap:7px;padding:5px 0;border-bottom:1px solid rgba(255,255,255,.05);">
         <span style="font-size:10px;color:#3182f6;flex-shrink:0;">${_esc((t.time||'').slice(11)||t.time||'-')}</span>
-        <span style="font-size:11px;color:#e0edf8;flex:1;">${_esc(t.note)}</span>
+        <span style="font-size:11px;color:#eaecef;flex:1;">${_esc(t.note)}</span>
         <button onclick="delHazFireTL(${h.id},${i})" style="background:none;border:none;color:#c0392b;font-size:13px;cursor:pointer;">✕</button>
       </div>`).join(''):'<div style="font-size:11px;color:rgba(255,255,255,.25);padding:4px 0;">타임라인 항목 없음</div>'}
     </div>
@@ -261,14 +261,14 @@ function _showNearFacs(la,ln){
       <span onclick="_nearFacGo(${n.f.id})" style="width:26px;height:26px;border-radius:50%;background:${col}30;border:1.5px solid ${col};display:inline-flex;align-items:center;justify-content:center;font-size:12px;flex-shrink:0;cursor:pointer;">${_esc(n.f.type.split(' ')[0])}</span>
       <span onclick="_nearFacGo(${n.f.id})" style="flex:1;min-width:0;cursor:pointer;">
         <span style="display:block;font-size:12px;font-weight:700;color:#dceaf6;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${_esc(n.f.name)} ${cg?`<span style="color:${_gColor(cg.g)};font-size:10.5px;font-weight:900;">${_esc(cg.g)}</span>`:''}</span>
-        <span style="display:block;font-size:9.5px;color:#5d86a3;">${_esc(n.f.type.split(' ').slice(1).join(' ')||'')} · <b style="color:#7fc4e0;">${dist}</b>${n.chk?` · <span style="color:#5fcf8f;">✓ ${new Date(n.chk).toLocaleDateString('ko-KR',{month:'2-digit',day:'2-digit'})} 점검</span>`:''}</span>
+        <span style="display:block;font-size:9.5px;color:#5d86a3;">${_esc(n.f.type.split(' ').slice(1).join(' ')||'')} · <b style="color:#a5abb3;">${dist}</b>${n.chk?` · <span style="color:#5fcf8f;">✓ ${new Date(n.chk).toLocaleDateString('ko-KR',{month:'2-digit',day:'2-digit'})} 점검</span>`:''}</span>
       </span>
       <button onclick="document.getElementById('nearFacOv').remove();openFacIssueReport(${n.f.id})" style="flex-shrink:0;padding:6px 11px;border-radius:8px;border:1px solid rgba(255,255,255,.35);background:rgba(255,255,255,.12);color:#3182f6;font-size:11px;font-weight:800;cursor:pointer;-webkit-appearance:none;appearance:none;">🔧 점검</button>
     </div>`;
   }).join('');
   ov.innerHTML=`
     <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 13px 7px;flex-shrink:0;">
-      <span style="font-size:12px;font-weight:800;color:#7fc4e0;">📍 내 주변 시설물 <span style="font-size:9px;color:#46708f;font-weight:600;">1km 이내 ${near.length}개 · 가까운 순</span></span>
+      <span style="font-size:12px;font-weight:800;color:#a5abb3;">📍 내 주변 시설물 <span style="font-size:9px;color:#565f6b;font-weight:600;">1km 이내 ${near.length}개 · 가까운 순</span></span>
       <button onclick="document.getElementById('nearFacOv').remove()" style="background:none;border:none;color:rgba(255,255,255,.45);font-size:18px;cursor:pointer;padding:0 2px;line-height:1;">×</button>
     </div>
     <div style="overflow-y:auto;padding:0 13px 10px;">${rows}</div>`;
@@ -331,8 +331,8 @@ function _filterSec(id,title,html,set,extraCnt){
   el.innerHTML=`
     <div onclick="_toggleFPSec('${id}')"
       style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid rgba(255,255,255,.05);cursor:pointer;user-select:none;">
-      <span style="font-size:11px;font-weight:700;color:#9bbdd4;">${title}${cnt?` <span style="color:#e05050;font-size:10px;">(${cnt})</span>`:''}</span>
-      <b style="font-size:13px;color:#3a6a8a;font-weight:400;">${open?'⌄':'›'}</b>
+      <span style="font-size:11px;font-weight:700;color:#a5abb3;">${title}${cnt?` <span style="color:#e05050;font-size:10px;">(${cnt})</span>`:''}</span>
+      <b style="font-size:13px;color:#454e5a;font-weight:400;">${open?'⌄':'›'}</b>
     </div>
     <div style="display:${open?'block':'none'};padding:4px 0 2px;">${html}</div>`;
 }
@@ -433,7 +433,7 @@ function _updateResFilterPanels(){
   {const el=document.getElementById('resMapFilterCount');if(el)el.textContent=totalMap?`(${totalMap})`:'';}
   {const el=document.getElementById('resListFilterBadge');if(el){el.style.display=dateActive?'inline-flex':'none';if(dateActive)el.textContent=dateActive;}}
   {const el=document.getElementById('resListFilterCount');if(el)el.textContent=dateActive?`(${dateActive})`:'';}
-  const inpSt='background:#0a1828;color:#3182f6;border:1px solid rgba(255,255,255,.3);border-radius:6px;padding:5px 6px;font-size:11px;width:100%;box-sizing:border-box;';
+  const inpSt='background:#16161a;color:#3182f6;border:1px solid rgba(255,255,255,.3);border-radius:6px;padding:5px 6px;font-size:11px;width:100%;box-sizing:border-box;';
   const dateHtml=`<div style="display:flex;gap:6px;align-items:center;margin-top:4px;">
     <input type="date" value="${resDateFrom}" style="${inpSt}" onchange="setResDate('from',this.value)">
     <span style="color:rgba(255,255,255,.3);font-size:11px;flex-shrink:0;">~</span>
@@ -491,16 +491,16 @@ function _updateResCatFilterPanel(){
     const col=active?'#3182f6':'rgba(255,255,255,.25)';
     return `<div onclick="toggleResFacCat('${c.replace(/'/g,"\\'")}',${isDefault})" style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid rgba(255,255,255,.04);cursor:pointer;">
       <div style="width:22px;height:22px;border-radius:50%;border:2px solid ${col};display:flex;align-items:center;justify-content:center;font-size:10px;color:${col};flex-shrink:0;">${active?'✓':''}</div>
-      <span style="font-size:12px;color:${active?'#e0edf8':'rgba(255,255,255,.35)'};">${c}</span>
-      ${isDefault?'<span style="font-size:9px;color:#3a6a8a;margin-left:auto;">기본</span>':''}
+      <span style="font-size:12px;color:${active?'#eaecef':'rgba(255,255,255,.35)'};">${c}</span>
+      ${isDefault?'<span style="font-size:9px;color:#454e5a;margin-left:auto;">기본</span>':''}
     </div>`;
   };
   const defCats=rescueCats.filter(c=>defSet.has(c));
   const otherCats=rescueCats.filter(c=>!defSet.has(c));
   const wrap=document.getElementById('resCFPContent');
   if(!wrap)return;
-  wrap.innerHTML=(defCats.length?`<div style="font-size:10px;color:#3a6a8a;padding:6px 0 2px;font-weight:600;">기본 표시</div>${defCats.map(c=>mkRow(c,true)).join('')}`:'')
-    +(otherCats.length?`<div style="font-size:10px;color:#3a6a8a;padding:8px 0 2px;font-weight:600;">추가 표시 (기본 OFF)</div>${otherCats.map(c=>mkRow(c,false)).join('')}`:'')
+  wrap.innerHTML=(defCats.length?`<div style="font-size:10px;color:#454e5a;padding:6px 0 2px;font-weight:600;">기본 표시</div>${defCats.map(c=>mkRow(c,true)).join('')}`:'')
+    +(otherCats.length?`<div style="font-size:10px;color:#454e5a;padding:8px 0 2px;font-weight:600;">추가 표시 (기본 OFF)</div>${otherCats.map(c=>mkRow(c,false)).join('')}`:'')
     +(rescueCats.length===0?'<div style="font-size:12px;color:rgba(255,255,255,.2);padding:12px 0;">재난지도 표시 카테고리 없음</div>':'');
 }
 function toggleResFacCat(type,isDefault){
@@ -543,7 +543,7 @@ function _closeResListFilter(){
   setTimeout(()=>{p.style.display='none';p.style.transform='translateY(0)';},220);
 }
 // ── 시설물 종류별 고정 색 (핀·목록·팝업 공통 — 종류를 색으로 즉시 구분) ──
-const FAC_TYPE_COLORS={'다목적위치표지판':'#5a7e98','교량':'#3182f6','데크/계단':'#e67e22','안전난간':'#46ad5f','대피소':'#7ec8a0','탐방지원센터':'#f0c060','사찰':'#c8845a','건축물':'#d4699b','목재계단':'#a5912c','계곡시설':'#2fa3c4','장소':'#b055c9'};
+const FAC_TYPE_COLORS={'다목적위치표지판':'#6b7684','교량':'#3182f6','데크/계단':'#e67e22','안전난간':'#46ad5f','대피소':'#7ec8a0','탐방지원센터':'#f0c060','사찰':'#c8845a','건축물':'#d4699b','목재계단':'#a5912c','계곡시설':'#2fa3c4','장소':'#b055c9'};
 function _facTypeColor(t){
   const label=(String(t||'').split(' ').slice(1).join(' ')||t||'').trim();
   if(FAC_TYPE_COLORS[label])return FAC_TYPE_COLORS[label];
@@ -602,8 +602,8 @@ function _facInfoHtml(f){
   const iss=(DB.g('facIssues')||[]).filter(i=>i.facId===f.id).sort((a,b)=>(b.id||0)-(a.id||0)).slice(0,2);
   const issHtml=iss.map(i=>`<div onclick="event.stopPropagation();openFacIssueDetail(${i.id})" style="display:flex;align-items:center;gap:7px;background:rgba(255,255,255,.03);border-radius:8px;padding:6px 9px;margin-top:5px;cursor:pointer;">
       <span style="background:${_gColor(i.grade)}26;color:${_gColor(i.grade)};font-weight:900;border-radius:6px;padding:1px 7px;font-size:11px;flex-shrink:0;">${_esc(i.grade||'-')}</span>
-      <span style="flex:1;font-size:10.5px;color:#9fc0da;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${_esc(i.desc||(i.tags&&i.tags.join(', '))||'점검')}</span>
-      <span style="font-size:9px;color:#5a7e98;flex-shrink:0;">${i.id?new Date(i.id).toLocaleDateString('ko-KR',{month:'2-digit',day:'2-digit'}):''}</span>
+      <span style="flex:1;font-size:10.5px;color:#a5abb3;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${_esc(i.desc||(i.tags&&i.tags.join(', '))||'점검')}</span>
+      <span style="font-size:9px;color:#6b7684;flex-shrink:0;">${i.id?new Date(i.id).toLocaleDateString('ko-KR',{month:'2-digit',day:'2-digit'}):''}</span>
     </div>`).join('');
   return `
     ${w?`<div style="background:rgba(224,80,80,.1);border:1px solid rgba(224,80,80,.4);border-radius:9px;padding:7px 10px;margin-bottom:8px;font-size:11px;color:#ffb0a5;line-height:1.6;"><b style="color:#ff5a45;">⚠️ 경고표시</b>${w.reason?' — '+_esc(w.reason):''} <span style="color:#c98;font-size:10px;">${_esc(_warnPeriodStr(w))}</span></div>`:''}
@@ -639,8 +639,8 @@ function openFacFromMap(id){
     +`<button class="btn" style="width:100%;padding:11px;background:rgba(255,255,255,.16);color:#3182f6;border:1px solid rgba(255,255,255,.4);font-weight:800;" onclick="openFacIssueReport(${f.id})">🔧 점검 등록</button>`
     +(mng?`<div style="display:flex;gap:5px;">
       <button onclick="openFacWarn(${f.id})" style="${_mBtnS('#f0a500')}">⚠️ 경고</button>
-      <button onclick="toggleFacHide(${f.id})" style="${_mBtnS(f.hidden?'#f0a500':'#8aa6bc')}">${f.hidden?'👁️ 표시':'🙈 숨김'}</button>
-      <button onclick="openEditFac(${f.id})" style="${_mBtnS('#8aa6bc')}">✏️ 수정</button>
+      <button onclick="toggleFacHide(${f.id})" style="${_mBtnS(f.hidden?'#f0a500':'#949aa2')}">${f.hidden?'👁️ 표시':'🙈 숨김'}</button>
+      <button onclick="openEditFac(${f.id})" style="${_mBtnS('#949aa2')}">✏️ 수정</button>
       <button onclick="deleteFac(${f.id})" style="${_mBtnS('#ff8a73')}">🗑 삭제</button>
     </div>`:'');
   document.getElementById('resPopup').classList.remove('on');
@@ -741,22 +741,22 @@ function renderInspectStats(){
         return `<div onclick="facMapGradeF=new Set(['${g}']);_persistFilters();switchTab(2,document.getElementById('nv2'));" style="display:flex;align-items:center;gap:8px;padding:4px 0;cursor:pointer;">
           <span style="min-width:70px;font-size:11px;color:${c};font-weight:800;">${g} ${_gLabel(g)}</span>
           <div style="flex:1;height:8px;background:rgba(255,255,255,.05);border-radius:4px;overflow:hidden;"><div style="height:100%;width:${v?Math.max(3,Math.round(v/gmax*100)):0}%;background:${c};border-radius:4px;"></div></div>
-          <span style="font-size:11px;color:#e0edf8;font-weight:800;min-width:34px;text-align:right;">${v}개</span>
+          <span style="font-size:11px;color:#eaecef;font-weight:800;min-width:34px;text-align:right;">${v}개</span>
         </div>`;
-      }).join('')+(none?`<div style="font-size:9.5px;color:#46708f;margin-top:4px;">등급 미지정 ${none}개 (다목적위치표지판 등)</div>`:'');
+      }).join('')+(none?`<div style="font-size:9.5px;color:#565f6b;margin-top:4px;">등급 미지정 ${none}개 (다목적위치표지판 등)</div>`:'');
     }
   }
   const tm={};facs.forEach(f=>{tm[f.type]=(tm[f.type]||0)+1;});
   {// 종류별 분포 — 안전등급 분포와 같은 색 막대 스타일. 탭하면 그 종류만 지도에서 필터
     const rows=Object.entries(tm).sort((a,b)=>b[1]-a[1]);
     const tmax=Math.max(...rows.map(r=>r[1]),1);
-    const PAL=['#3182f6','#5fcf8f','#f0c050','#e8879c','#b08ae8','#f0965a','#7dd3fa','#9fb6c8'];
+    const PAL=['#3182f6','#5fcf8f','#f0c050','#e8879c','#b08ae8','#f0965a','#aab4c0','#9fb6c8'];
     document.getElementById('facTypeStatWrap').innerHTML=rows.map(([k,v],i)=>{
       const c=PAL[i%PAL.length];const lbl=k.split(' ').slice(1).join(' ')||k;
       return `<div class="type-row" onclick="facMapTypeF=new Set(['${_escq(lbl)}']);_persistFilters();switchTab(2,document.getElementById('nv2'));">
         <span class="t-ico">${_esc(k.split(' ')[0])}</span><span class="t-lbl" style="flex:none;width:104px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${_esc(lbl)}</span>
         <div style="flex:1;height:8px;background:rgba(255,255,255,.05);border-radius:4px;overflow:hidden;"><div style="height:100%;width:${Math.max(4,Math.round(v/tmax*100))}%;background:${c};border-radius:4px;"></div></div>
-        <span class="t-cnt" style="color:${c};min-width:40px;text-align:right;">${v}<span style="font-size:10px;color:#8fb4cc;font-weight:600;">개</span></span></div>`;
+        <span class="t-cnt" style="color:${c};min-width:40px;text-align:right;">${v}<span style="font-size:10px;color:#949aa2;font-weight:600;">개</span></span></div>`;
     }).join('');
   }
   try{renderFacIssues();}catch(e){}
@@ -788,11 +788,11 @@ function openFacDetail(id){
       const z=_facZoneCode(f);if(!z)return '';
       const same=(_navOrder.fac||[]).map(s=>facs.find(x=>String(x.id)===s)).filter(x=>x&&_facZoneCode(x)===z);
       const zi=same.findIndex(x=>String(x.id)===String(id));
-      return zi<0?'':`<div style="text-align:center;font-size:10px;color:#5a8aaa;margin:-4px 0 8px;">🗺 ${_esc(_zoneLbl(z))} 구간 · ${zi+1}/${same.length}</div>`;
+      return zi<0?'':`<div style="text-align:center;font-size:10px;color:#6b7684;margin:-4px 0 8px;">🗺 ${_esc(_zoneLbl(z))} 구간 · ${zi+1}/${same.length}</div>`;
     }catch(e){return '';}})()}
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
       <div style="width:38px;height:38px;border-radius:50%;background:${_dcol}33;border:2px solid ${_dcol};display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;">${_esc(f.type.split(' ')[0])}</div>
-      <div style="flex:1;min-width:0;"><div style="font-size:14px;font-weight:700;color:#e0edf8;">${_esc(_facDispName(f))} ${_facGradeBadge(f)}</div>
+      <div style="flex:1;min-width:0;"><div style="font-size:14px;font-weight:700;color:#eaecef;">${_esc(_facDispName(f))} ${_facGradeBadge(f)}</div>
         <div style="font-size:11px;color:${_dcol};margin-top:2px;">${_esc(f.type.split(' ').slice(1).join(' ')||f.type)}${f.hidden?' <span style="color:#8a6d3b;">· 🙈 숨김중</span>':''}</div>
       </div>
     </div>
@@ -800,7 +800,7 @@ function openFacDetail(id){
     <button class="btn" style="width:100%;margin-top:10px;background:rgba(255,255,255,.16);color:#3182f6;border:1px solid rgba(255,255,255,.4);font-weight:800;" onclick="openFacIssueReport(${f.id})">🔧 점검 등록 (사진·등급·점검내용)</button>
     ${canMng?`<div style="display:flex;gap:5px;margin-top:7px;">
       <button onclick="openFacWarn(${f.id})" style="${_mBtnS('#f0a500')}">⚠️ 경고 ${w?'수정/해제':''}</button>
-      <button onclick="toggleFacHide(${f.id})" style="${_mBtnS(f.hidden?'#f0a500':'#8aa6bc')}">${f.hidden?'👁️ 표시':'🙈 숨김'}</button>
+      <button onclick="toggleFacHide(${f.id})" style="${_mBtnS(f.hidden?'#f0a500':'#949aa2')}">${f.hidden?'👁️ 표시':'🙈 숨김'}</button>
     </div>`:''}`;
   const mapBtn=document.getElementById('facDetailMapBtn');
   if(mapBtn)mapBtn.style.display=(f.lat&&f.lng)?'block':'none';
@@ -819,24 +819,24 @@ function openFacWarn(id){
   const old=document.getElementById('facWarnOv');if(old)old.remove();
   const ov=document.createElement('div');ov.id='facWarnOv';
   ov.style.cssText='position:fixed;inset:0;z-index:9850;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;padding:18px;';
-  ov.innerHTML=`<div style="background:#0a1828;border:1px solid rgba(224,80,80,.35);border-radius:14px;max-width:340px;width:100%;padding:16px;">
+  ov.innerHTML=`<div style="background:#16161a;border:1px solid rgba(224,80,80,.35);border-radius:14px;max-width:340px;width:100%;padding:16px;">
     <div style="font-size:14px;font-weight:800;color:#ff7a6e;margin-bottom:3px;">⚠️ 경고표시 설정</div>
-    <div style="font-size:11px;color:#7a9cb8;margin-bottom:12px;">${_esc(f.type.split(' ')[0])} ${_esc(f.name)} — 켜면 지도에 빨간색으로 깜빡입니다</div>
-    <div style="font-size:11px;color:#9bbdd4;font-weight:700;margin-bottom:4px;">사유 <span style="color:#5a7e98;font-weight:400;">(선택 — 안 써도 됨)</span></div>
+    <div style="font-size:11px;color:#8b95a1;margin-bottom:12px;">${_esc(f.type.split(' ')[0])} ${_esc(f.name)} — 켜면 지도에 빨간색으로 깜빡입니다</div>
+    <div style="font-size:11px;color:#a5abb3;font-weight:700;margin-bottom:4px;">사유 <span style="color:#6b7684;font-weight:400;">(선택 — 안 써도 됨)</span></div>
     <input type="text" id="fwReason" class="fi" placeholder="예: 데크 파손 통제, 낙석 위험" value="${_esc(w.reason||'')}" style="width:100%;box-sizing:border-box;margin-bottom:11px;">
-    <div style="font-size:11px;color:#9bbdd4;font-weight:700;margin-bottom:4px;">기간</div>
-    <label style="display:flex;align-items:center;gap:7px;font-size:12px;color:#cfe2f2;margin-bottom:8px;cursor:pointer;">
+    <div style="font-size:11px;color:#a5abb3;font-weight:700;margin-bottom:4px;">기간</div>
+    <label style="display:flex;align-items:center;gap:7px;font-size:12px;color:#d5d8dc;margin-bottom:8px;cursor:pointer;">
       <input type="checkbox" id="fwUnlimited" ${unlimited?'checked':''} onchange="var d=document.getElementById('fwUntilWrap');if(d)d.style.display=this.checked?'none':'block';"> 무제한
     </label>
     <div id="fwUntilWrap" style="display:${unlimited?'none':'block'};margin-bottom:12px;">
-      <div style="font-size:10px;color:#5a7e98;margin-bottom:3px;">종료일 (이 날짜가 지나면 자동 해제)</div>
+      <div style="font-size:10px;color:#6b7684;margin-bottom:3px;">종료일 (이 날짜가 지나면 자동 해제)</div>
       <input type="date" id="fwUntil" class="fi" value="${untilVal}" style="width:100%;box-sizing:border-box;">
     </div>
     <div style="display:flex;gap:7px;">
-      ${active?`<button onclick="clearFacWarn(${id})" style="flex:1;padding:11px;border-radius:9px;border:1px solid rgba(255,255,255,.15);background:rgba(255,255,255,.05);color:#b8d4e8;font-size:13px;font-weight:700;cursor:pointer;">해제</button>`:''}
+      ${active?`<button onclick="clearFacWarn(${id})" style="flex:1;padding:11px;border-radius:9px;border:1px solid rgba(255,255,255,.15);background:rgba(255,255,255,.05);color:#c4c8ce;font-size:13px;font-weight:700;cursor:pointer;">해제</button>`:''}
       <button onclick="saveFacWarn(${id})" style="flex:2;padding:11px;border-radius:9px;border:none;background:#c0392b;color:#fff;font-size:13px;font-weight:800;cursor:pointer;">${active?'변경 저장':'경고표시 켜기'}</button>
     </div>
-    <button onclick="document.getElementById('facWarnOv').remove()" style="width:100%;margin-top:8px;padding:8px;border:none;background:none;color:#7a9cb8;font-size:12px;cursor:pointer;">취소</button>
+    <button onclick="document.getElementById('facWarnOv').remove()" style="width:100%;margin-top:8px;padding:8px;border:none;background:none;color:#8b95a1;font-size:12px;cursor:pointer;">취소</button>
   </div>`;
   ov.onclick=function(e){if(e.target===ov)ov.remove();};
   document.body.appendChild(ov);
@@ -907,7 +907,7 @@ function _facIssues(){return DB.g('facIssues')||[];}
 function _facIssueById(id){return _facIssues().find(x=>String(x.id)===String(id));}
 function _facIssueOpen(){return _facIssues().filter(x=>x.status!=='closed');}
 function _gLabel(g){return (FAC_GRADES[g]||{}).l||(g||'-');}
-function _gColor(g){return (FAC_GRADES[g]||{}).c||'#7a9cb8';}
+function _gColor(g){return (FAC_GRADES[g]||{}).c||'#8b95a1';}
 // 내 검토 대기(담당자 배정됨 + 2단계 이하) 개수 — 배지용
 function _facIssueMineWaiting(){
   if(!(_isFacManager()||_isMasterAdmin()))return 0;
@@ -976,9 +976,9 @@ function openFacIssueReport(facId){
   _facIssueGrade='';
   _facIssueTags=new Set();
   const fixed=document.getElementById('fiFacFixed');
-  fixed.innerHTML=`<div style="font-size:13px;font-weight:800;color:#e0edf8;">${_esc(f.type.split(' ')[0])} ${_esc(f.name)}</div>
-    <div style="font-size:11px;color:#7a9cb8;margin-top:3px;">📍 ${_esc(f.loc||'위치정보 없음')}</div>
-    <div style="font-size:10px;color:#5a7e98;margin-top:2px;font-family:monospace;">${f.lat?'GPS '+f.lat.toFixed(5)+', '+f.lng.toFixed(5):'GPS 미등록'} <span style="font-family:inherit;">· 시설 고정(수정 불가)</span></div>`;
+  fixed.innerHTML=`<div style="font-size:13px;font-weight:800;color:#eaecef;">${_esc(f.type.split(' ')[0])} ${_esc(f.name)}</div>
+    <div style="font-size:11px;color:#8b95a1;margin-top:3px;">📍 ${_esc(f.loc||'위치정보 없음')}</div>
+    <div style="font-size:10px;color:#6b7684;margin-top:2px;font-family:monospace;">${f.lat?'GPS '+f.lat.toFixed(5)+', '+f.lng.toFixed(5):'GPS 미등록'} <span style="font-family:inherit;">· 시설 고정(수정 불가)</span></div>`;
   document.getElementById('fiDesc').value='';
   _renderInspTags();
   const pv=document.getElementById('prevFacIssue');if(pv){pv.innerHTML='📸 촬영 또는 앨범 (필수)';pv.dataset.url='';}
@@ -1047,8 +1047,8 @@ function openFacIssueDetail(id){
   let h=`
     <div style="display:flex;align-items:center;gap:9px;margin-bottom:4px;">
       <div style="background:${gc};color:#08121e;font-weight:900;border-radius:8px;padding:4px 10px;font-size:15px;">${_esc(it.grade)}</div>
-      <div style="flex:1;min-width:0;"><div style="font-size:14px;font-weight:800;color:#e0edf8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${_esc(it.facName)}</div>
-        <div style="font-size:10px;color:#7a9cb8;">점검 등급: <span style="color:${gc};font-weight:700;">${_gLabel(it.grade)}</span></div></div>
+      <div style="flex:1;min-width:0;"><div style="font-size:14px;font-weight:800;color:#eaecef;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${_esc(it.facName)}</div>
+        <div style="font-size:10px;color:#8b95a1;">점검 등급: <span style="color:${gc};font-weight:700;">${_gLabel(it.grade)}</span></div></div>
       ${closed?'<span style="background:rgba(39,174,96,.18);color:#7ec8a0;font-size:11px;font-weight:800;border-radius:7px;padding:4px 9px;">✅ 종료</span>':`<span style="background:${FAC_ISTAGE[stage].c};color:#08121e;font-size:11px;font-weight:800;border-radius:7px;padding:4px 9px;">${FAC_ISTAGE[stage].ico} ${FAC_ISTAGE[stage].l}</span>`}
     </div>
     ${_issueStageBar(stage,closed)}
@@ -1057,40 +1057,40 @@ function openFacIssueDetail(id){
   // 1) 점검 내용
   const _tagChips=(it.tags&&it.tags.length)?`<div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:6px;">${it.tags.map(t=>`<span style="background:rgba(255,255,255,.15);color:#3182f6;font-size:11px;font-weight:700;border-radius:14px;padding:3px 10px;">${_esc(t)}</span>`).join('')}</div>`:'';
   h+=`<div style="background:#0f0f11;border-radius:10px;padding:11px;margin-bottom:9px;">
-    <div style="font-size:11px;font-weight:800;color:#3182f6;margin-bottom:6px;">📥 1. 점검 등록 <span style="color:#5a7e98;font-weight:400;">· ${_esc(it.reporter||'-')} · ${_fmtWhen(it.createdAt)}</span></div>
+    <div style="font-size:11px;font-weight:800;color:#3182f6;margin-bottom:6px;">📥 1. 점검 등록 <span style="color:#6b7684;font-weight:400;">· ${_esc(it.reporter||'-')} · ${_fmtWhen(it.createdAt)}</span></div>
     ${it.photo?`<img src="${_esc(it.photo)}" style="width:100%;border-radius:8px;margin-bottom:7px;max-height:240px;object-fit:cover;cursor:pointer;" onclick="_facPhotoView('${_escq(it.photo)}')">`:''}
     ${_tagChips}
-    <div style="font-size:12px;color:#cfe2f2;line-height:1.6;">${it.desc?_esc(it.desc):(it.tags&&it.tags.length?'':'<span style="color:#5a7e98;">상세 설명 없음</span>')}</div>
-    <div style="font-size:11px;color:#7a9cb8;margin-top:5px;">📍 ${_esc(it.loc||'-')}${it.lat?` <span style="font-family:monospace;color:#4a7090;">(${it.lat.toFixed(4)}, ${it.lng.toFixed(4)})</span>`:''}</div>
+    <div style="font-size:12px;color:#d5d8dc;line-height:1.6;">${it.desc?_esc(it.desc):(it.tags&&it.tags.length?'':'<span style="color:#6b7684;">상세 설명 없음</span>')}</div>
+    <div style="font-size:11px;color:#8b95a1;margin-top:5px;">📍 ${_esc(it.loc||'-')}${it.lat?` <span style="font-family:monospace;color:#565f6b;">(${it.lat.toFixed(4)}, ${it.lng.toFixed(4)})</span>`:''}</div>
   </div>`;
 
   // 2) 담당자 검토
   if(it.mgr){
     const mg=it.mgr;const mgc=_gColor(mg.grade);
     h+=`<div style="background:#0f0f11;border-radius:10px;padding:11px;margin-bottom:9px;border-left:3px solid ${mg.decision==='ok'?'#27ae60':'#f0a500'};">
-      <div style="font-size:11px;font-weight:800;color:#f0a500;margin-bottom:6px;">🔎 2. 담당자 검토 <span style="color:#5a7e98;font-weight:400;">· ${_esc(mg.by||'-')} · ${_fmtWhen(mg.at)}</span></div>
-      <div style="font-size:12px;color:#cfe2f2;margin-bottom:4px;">재평가 등급: <b style="color:${mgc};">${_gLabel(mg.grade)}</b> · 판정: <b style="color:${mg.decision==='ok'?'#7ec8a0':'#ff9a6e'};">${mg.decision==='ok'?'이상없음 회신·종료':'D·E 판정 → 현장확인'}</b></div>
-      ${mg.opinion?`<div style="font-size:12px;color:#cfe2f2;line-height:1.6;">💬 ${_esc(mg.opinion)}</div>`:''}
+      <div style="font-size:11px;font-weight:800;color:#f0a500;margin-bottom:6px;">🔎 2. 담당자 검토 <span style="color:#6b7684;font-weight:400;">· ${_esc(mg.by||'-')} · ${_fmtWhen(mg.at)}</span></div>
+      <div style="font-size:12px;color:#d5d8dc;margin-bottom:4px;">재평가 등급: <b style="color:${mgc};">${_gLabel(mg.grade)}</b> · 판정: <b style="color:${mg.decision==='ok'?'#7ec8a0':'#ff9a6e'};">${mg.decision==='ok'?'이상없음 회신·종료':'D·E 판정 → 현장확인'}</b></div>
+      ${mg.opinion?`<div style="font-size:12px;color:#d5d8dc;line-height:1.6;">💬 ${_esc(mg.opinion)}</div>`:''}
     </div>`;
   } else if(stage===2 && !closed && canReview){
     const _rg=it.grade;const _rde=_rg==='D'||_rg==='E';
     h+=`<div style="background:rgba(240,165,0,.06);border:1px solid rgba(240,165,0,.3);border-radius:10px;padding:11px;margin-bottom:9px;">
       <div style="font-size:11px;font-weight:800;color:#f0a500;margin-bottom:7px;">🔎 2. 담당자 재평가</div>
-      <div style="font-size:10px;color:#9bbdd4;margin-bottom:4px;">재평가 등급 <span style="color:#5a7e98;font-weight:400;">— 등급에 따라 처리 경로가 정해집니다</span></div>
+      <div style="font-size:10px;color:#a5abb3;margin-bottom:4px;">재평가 등급 <span style="color:#6b7684;font-weight:400;">— 등급에 따라 처리 경로가 정해집니다</span></div>
       <select id="fiMgrGrade" class="fsel" onchange="_fiMgrUpdate()" style="margin-bottom:6px;">${['A','B','C','D','E'].map(g=>`<option value="${g}"${g===it.grade?' selected':''}>${_gLabel(g)}</option>`).join('')}</select>
       <div id="fiMgrHint" style="font-size:10px;line-height:1.5;margin-bottom:8px;color:${_rde?'#ff9a6e':'#7ec8a0'};">${_rde?'D·E 등급: <b>지역담당구역자 현장확인</b> 단계로 넘어갑니다':'A·B·C 등급: 판정 사유를 회신하고 <b>이상없음 종료</b>됩니다 (사유 필수)'}</div>
       <textarea id="fiMgrOpinion" class="fta" rows="2" placeholder="${_rde?'검토 의견 (선택 — 예: 데크 침하 심함, 통제 검토)':'판정 사유 (필수 — 왜 이 등급인지 회신)'}" style="margin-bottom:8px;"></textarea>
       <button id="fiMgrBtn" onclick="facIssueReview(${it.id})" style="width:100%;background:${_rde?'#c0392b':'#1e7a4e'};color:#fff;border:none;border-radius:8px;padding:10px;font-size:12px;font-weight:800;cursor:pointer;">${_rde?'⚠️ '+_rg+'등급 확정 → 지역담당 현장확인 요청':'✅ '+_rg+'등급 · 사유 회신 후 이상없음 종료'}</button>
     </div>`;
   } else if(stage<2){
-    h+=`<div style="background:rgba(255,255,255,.02);border:1px dashed rgba(255,255,255,.1);border-radius:10px;padding:10px;margin-bottom:9px;font-size:11px;color:#5a7e98;">🔎 2. 담당자 검토 — 대기 중${canReview?' (담당자: 위 알림/목록에서 검토)':''}</div>`;
+    h+=`<div style="background:rgba(255,255,255,.02);border:1px dashed rgba(255,255,255,.1);border-radius:10px;padding:10px;margin-bottom:9px;font-size:11px;color:#6b7684;">🔎 2. 담당자 검토 — 대기 중${canReview?' (담당자: 위 알림/목록에서 검토)':''}</div>`;
   }
 
   // 3) 지역담당구역자 현장확인
   if(it.zone){
     h+=`<div style="background:#0f0f11;border-radius:10px;padding:11px;margin-bottom:9px;border-left:3px solid #9b59b6;">
-      <div style="font-size:11px;font-weight:800;color:#b07cd0;margin-bottom:6px;">🥾 3. 구역 현장확인 <span style="color:#5a7e98;font-weight:400;">· ${_esc(it.zone.by||'-')} · ${_fmtWhen(it.zone.at)}</span></div>
-      <div style="font-size:12px;color:#cfe2f2;line-height:1.6;">${it.zone.note?_esc(it.zone.note):'<span style="color:#5a7e98;">확인 완료</span>'}</div>
+      <div style="font-size:11px;font-weight:800;color:#b07cd0;margin-bottom:6px;">🥾 3. 구역 현장확인 <span style="color:#6b7684;font-weight:400;">· ${_esc(it.zone.by||'-')} · ${_fmtWhen(it.zone.at)}</span></div>
+      <div style="font-size:12px;color:#d5d8dc;line-height:1.6;">${it.zone.note?_esc(it.zone.note):'<span style="color:#6b7684;">확인 완료</span>'}</div>
     </div>`;
   } else if(stage===3 && !closed && canZone){
     h+=`<div style="background:rgba(155,89,182,.07);border:1px solid rgba(155,89,182,.3);border-radius:10px;padding:11px;margin-bottom:9px;">
@@ -1099,21 +1099,21 @@ function openFacIssueDetail(id){
       <button onclick="facIssueZone(${it.id})" style="width:100%;background:#7a4a9e;color:#fff;border:none;border-radius:8px;padding:9px;font-size:12px;font-weight:800;cursor:pointer;">현장확인 완료 → 시설과 이관</button>
     </div>`;
   } else if(stage<3 && !closed){
-    h+=`<div style="background:rgba(255,255,255,.02);border:1px dashed rgba(255,255,255,.1);border-radius:10px;padding:10px;margin-bottom:9px;font-size:11px;color:#5a7e98;">🥾 3. 구역 현장확인 — 담당자 확인 후 진행</div>`;
+    h+=`<div style="background:rgba(255,255,255,.02);border:1px dashed rgba(255,255,255,.1);border-radius:10px;padding:10px;margin-bottom:9px;font-size:11px;color:#6b7684;">🥾 3. 구역 현장확인 — 담당자 확인 후 진행</div>`;
   }
 
   // 4) 시설과 조치 — 완료 시 조치 후 등급(A~E) 선택, 오래 걸리면 조치 예정일 등록
   const planBanner=(!closed&&it.plan&&it.plan.until)?(()=>{const od=it.plan.until<Date.now();
     return `<div style="background:${od?'rgba(224,80,80,.08)':'rgba(255,255,255,.07)'};border:1px solid ${od?'rgba(224,80,80,.35)':'rgba(255,255,255,.25)'};border-radius:9px;padding:8px 11px;margin-bottom:8px;">
       <div style="font-size:11px;font-weight:800;color:${od?'#ff7a6e':'#3182f6'};">🗓️ ${_fmtDateK(it.plan.until)}까지 조치 예정${od?' — 예정일 지남':''}</div>
-      ${it.plan.note?`<div style="font-size:11px;color:#9bbdd4;margin-top:3px;">${_esc(it.plan.note)}</div>`:''}
-      <div style="font-size:9px;color:#5a7e98;margin-top:2px;">${_esc(it.plan.by||'')} · ${_fmtWhen(it.plan.at)}</div>
+      ${it.plan.note?`<div style="font-size:11px;color:#a5abb3;margin-top:3px;">${_esc(it.plan.note)}</div>`:''}
+      <div style="font-size:9px;color:#6b7684;margin-top:2px;">${_esc(it.plan.by||'')} · ${_fmtWhen(it.plan.at)}</div>
     </div>`;})():'';
   if(it.dept){
     h+=`<div style="background:#0f0f11;border-radius:10px;padding:11px;margin-bottom:9px;border-left:3px solid #27ae60;">
-      <div style="font-size:11px;font-weight:800;color:#7ec8a0;margin-bottom:6px;">🔧 4. 시설과 조치 <span style="color:#5a7e98;font-weight:400;">· ${_esc(it.dept.by||'-')} · ${_fmtWhen(it.dept.at)}</span></div>
-      ${it.dept.grade?`<div style="font-size:12px;color:#cfe2f2;margin-bottom:4px;">조치 후 등급: <b style="color:${_gColor(it.dept.grade)};">${_gLabel(it.dept.grade)}</b></div>`:''}
-      <div style="font-size:12px;color:#cfe2f2;line-height:1.6;">${it.dept.note?_esc(it.dept.note):'<span style="color:#5a7e98;">조치 완료</span>'}</div>
+      <div style="font-size:11px;font-weight:800;color:#7ec8a0;margin-bottom:6px;">🔧 4. 시설과 조치 <span style="color:#6b7684;font-weight:400;">· ${_esc(it.dept.by||'-')} · ${_fmtWhen(it.dept.at)}</span></div>
+      ${it.dept.grade?`<div style="font-size:12px;color:#d5d8dc;margin-bottom:4px;">조치 후 등급: <b style="color:${_gColor(it.dept.grade)};">${_gLabel(it.dept.grade)}</b></div>`:''}
+      <div style="font-size:12px;color:#d5d8dc;line-height:1.6;">${it.dept.note?_esc(it.dept.note):'<span style="color:#6b7684;">조치 완료</span>'}</div>
     </div>`;
   } else if(stage===4 && !closed && canDept){
     const defG=(it.mgr&&it.mgr.grade)||it.grade;
@@ -1121,28 +1121,28 @@ function openFacIssueDetail(id){
     h+=`<div style="background:rgba(39,174,96,.06);border:1px solid rgba(39,174,96,.3);border-radius:10px;padding:11px;margin-bottom:9px;">
       <div style="font-size:11px;font-weight:800;color:#7ec8a0;margin-bottom:7px;">🔧 4. 탐방시설과 현장확인·조치</div>
       ${planBanner}
-      <div style="font-size:10px;color:#9bbdd4;margin-bottom:4px;">조치 후 등급 (A~E)</div>
+      <div style="font-size:10px;color:#a5abb3;margin-bottom:4px;">조치 후 등급 (A~E)</div>
       <select id="fiDeptGrade" class="fsel" style="margin-bottom:8px;">${['A','B','C','D','E'].map(g=>`<option value="${g}"${g===defG?' selected':''}>${_gLabel(g)}</option>`).join('')}</select>
       <textarea id="fiDeptNote" class="fta" rows="2" placeholder="조치 내용 (예: 데크 교체 완료 / 예산 반영 예정)" style="margin-bottom:8px;"></textarea>
       <button onclick="facIssueDept(${it.id})" style="width:100%;background:#0c4838;color:#fff;border:none;border-radius:8px;padding:10px;font-size:12px;font-weight:800;cursor:pointer;">✅ 조치 완료 → 종료</button>
-      <div style="display:flex;align-items:center;gap:8px;margin:10px 0 7px;"><div style="flex:1;height:1px;background:rgba(255,255,255,.08);"></div><span style="font-size:10px;color:#5a7e98;white-space:nowrap;">고치는 데 시간이 오래 걸리면</span><div style="flex:1;height:1px;background:rgba(255,255,255,.08);"></div></div>
+      <div style="display:flex;align-items:center;gap:8px;margin:10px 0 7px;"><div style="flex:1;height:1px;background:rgba(255,255,255,.08);"></div><span style="font-size:10px;color:#6b7684;white-space:nowrap;">고치는 데 시간이 오래 걸리면</span><div style="flex:1;height:1px;background:rgba(255,255,255,.08);"></div></div>
       <div style="display:flex;gap:6px;">
         <input type="date" id="fiDeptUntil" class="fi" style="flex:1;box-sizing:border-box;" value="${planVal}">
         <button onclick="facIssueDeptPlan(${it.id})" style="flex-shrink:0;background:rgba(255,255,255,.15);color:#3182f6;border:1px solid rgba(255,255,255,.4);border-radius:8px;padding:0 13px;font-size:11px;font-weight:800;cursor:pointer;">🗓️ ${it.plan?'예정 변경':'예정 등록'}</button>
       </div>
-      <div style="font-size:9px;color:#5a7e98;margin-top:4px;">예정 등록 시 종료되지 않고 '${'~'}까지 조치 예정'으로 표시됩니다</div>
+      <div style="font-size:9px;color:#6b7684;margin-top:4px;">예정 등록 시 종료되지 않고 '${'~'}까지 조치 예정'으로 표시됩니다</div>
     </div>`;
   } else if(stage===4 && !closed){
     h+=`<div style="background:rgba(255,255,255,.02);border:1px dashed rgba(255,255,255,.1);border-radius:10px;padding:10px;margin-bottom:9px;">
-      <div style="font-size:11px;color:#5a7e98;margin-bottom:${it.plan?'7px':'0'};">🔧 4. 시설과 조치 — 탐방시설과 처리 대기 중</div>${planBanner}</div>`;
+      <div style="font-size:11px;color:#6b7684;margin-bottom:${it.plan?'7px':'0'};">🔧 4. 시설과 조치 — 탐방시설과 처리 대기 중</div>${planBanner}</div>`;
   } else if(stage<4 && !closed){
-    h+=`<div style="background:rgba(255,255,255,.02);border:1px dashed rgba(255,255,255,.1);border-radius:10px;padding:10px;margin-bottom:9px;font-size:11px;color:#5a7e98;">🔧 4. 시설과 조치 — 현장확인 후 진행</div>`;
+    h+=`<div style="background:rgba(255,255,255,.02);border:1px dashed rgba(255,255,255,.1);border-radius:10px;padding:10px;margin-bottom:9px;font-size:11px;color:#6b7684;">🔧 4. 시설과 조치 — 현장확인 후 진행</div>`;
   }
 
   if(closed){
     h+=`<div style="background:rgba(39,174,96,.08);border:1px solid rgba(39,174,96,.3);border-radius:10px;padding:10px 12px;margin-bottom:9px;text-align:center;">
       <div style="font-size:12px;font-weight:800;color:#7ec8a0;">✅ 처리 종료</div>
-      <div style="font-size:10px;color:#7a9cb8;margin-top:3px;">${_esc(it.closeReason||'')}${it.closedBy?' · '+_esc(it.closedBy):''}${it.closedAt?' · '+_fmtWhen(it.closedAt):''}</div>
+      <div style="font-size:10px;color:#8b95a1;margin-top:3px;">${_esc(it.closeReason||'')}${it.closedBy?' · '+_esc(it.closedBy):''}${it.closedAt?' · '+_fmtWhen(it.closedAt):''}</div>
     </div>`;
   }
 
@@ -1150,14 +1150,14 @@ function openFacIssueDetail(id){
   const isReporter=String((DB.g('currentUser')||{}).kakaoId||'')===String(it.reporterKakaoId||'##');
   const canDelete=canDept||_isMasterAdmin()||(isReporter&&stage===1&&!closed);
   h+=`<div style="display:flex;gap:6px;margin-top:4px;">`;
-  if(!closed&&(canReview||canDept))h+=`<button onclick="facIssueClose(${it.id})" style="flex:1;background:rgba(255,255,255,.05);color:#b8d4e8;border:1px solid rgba(255,255,255,.15);border-radius:8px;padding:8px;font-size:11px;cursor:pointer;">조기 종료</button>`;
+  if(!closed&&(canReview||canDept))h+=`<button onclick="facIssueClose(${it.id})" style="flex:1;background:rgba(255,255,255,.05);color:#c4c8ce;border:1px solid rgba(255,255,255,.15);border-radius:8px;padding:8px;font-size:11px;cursor:pointer;">조기 종료</button>`;
   if(closed&&canDept)h+=`<button onclick="facIssueReopen(${it.id})" style="flex:1;background:rgba(240,165,0,.1);color:#f0a500;border:1px solid rgba(240,165,0,.3);border-radius:8px;padding:8px;font-size:11px;cursor:pointer;">재개</button>`;
   if(canDelete)h+=`<button onclick="facIssueDelete(${it.id})" style="flex:1;background:rgba(224,80,80,.1);color:#ff8a80;border:1px solid rgba(224,80,80,.25);border-radius:8px;padding:8px;font-size:11px;cursor:pointer;">🗑️ 삭제</button>`;
   h+=`</div>`;
 
   // 처리 이력
   if(it.log&&it.log.length){
-    h+=`<div style="margin-top:10px;border-top:1px solid rgba(255,255,255,.06);padding-top:8px;"><div style="font-size:10px;color:#5a7e98;font-weight:700;margin-bottom:4px;">📜 처리 이력</div>`
+    h+=`<div style="margin-top:10px;border-top:1px solid rgba(255,255,255,.06);padding-top:8px;"><div style="font-size:10px;color:#6b7684;font-weight:700;margin-bottom:4px;">📜 처리 이력</div>`
       +it.log.slice().reverse().map(l=>`<div style="font-size:10px;color:#6a8296;line-height:1.6;">· ${_fmtWhen(l.at)} · ${_esc(l.by||'')} — ${_esc(l.act||'')}</div>`).join('')+`</div>`;
   }
 
@@ -1310,8 +1310,8 @@ function renderFacIssues(){
       return `<div onclick="openFacIssueDetail(${it.id})" style="background:#0f0f11;border-radius:9px;padding:9px 11px;margin-bottom:6px;cursor:pointer;border-left:3px solid ${gc};display:flex;align-items:center;gap:9px;">
         <div style="background:${gc};color:#08121e;font-weight:900;border-radius:6px;padding:2px 7px;font-size:12px;flex-shrink:0;">${_esc(it.grade)}</div>
         <div style="flex:1;min-width:0;">
-          <div style="font-size:12px;font-weight:700;color:#e0edf8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${_esc(it.facName)}</div>
-          <div style="font-size:10px;color:#7a9cb8;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${it.tags&&it.tags.length?'<span style="color:#3182f6;">'+_esc(it.tags.join(', '))+'</span> · ':''}${_esc(it.loc||'')}${it.reporter?' · '+_esc(it.reporter):''}</div>
+          <div style="font-size:12px;font-weight:700;color:#eaecef;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${_esc(it.facName)}</div>
+          <div style="font-size:10px;color:#8b95a1;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${it.tags&&it.tags.length?'<span style="color:#3182f6;">'+_esc(it.tags.join(', '))+'</span> · ':''}${_esc(it.loc||'')}${it.reporter?' · '+_esc(it.reporter):''}</div>
           ${it.plan&&it.plan.until?`<div style="font-size:9px;font-weight:700;color:${it.plan.until<Date.now()?'#ff7a6e':'#3182f6'};margin-top:2px;">🗓️ ${_fmtDateK(it.plan.until)}까지 조치 예정${it.plan.until<Date.now()?' — 지남':''}</div>`:''}
         </div>
         <span style="background:${st.c}22;color:${st.c};font-size:9px;font-weight:800;border-radius:6px;padding:3px 7px;flex-shrink:0;">${st.ico} ${st.l}</span>
@@ -1319,14 +1319,14 @@ function renderFacIssues(){
     }).join('');
   }
   if(closed.length){
-    h+=`<div style="font-size:10px;color:#5a7e98;margin-top:9px;">✅ 종료 ${closed.length}건`+
+    h+=`<div style="font-size:10px;color:#6b7684;margin-top:9px;">✅ 종료 ${closed.length}건`+
       (closed.length?` <span onclick="_toggleClosedIssues()" id="fiClosedToggle" style="color:#3182f6;cursor:pointer;">· 보기</span>`:'')+`</div>`
       +`<div id="fiClosedList" style="display:none;margin-top:5px;">`+closed.slice(0,30).map(it=>{
         const gc=_gColor(it.grade);
         return `<div onclick="openFacIssueDetail(${it.id})" style="background:rgba(255,255,255,.02);border-radius:8px;padding:7px 10px;margin-bottom:4px;cursor:pointer;opacity:.7;display:flex;align-items:center;gap:8px;">
-          <div style="background:${gc}55;color:#cfe2f2;font-weight:800;border-radius:5px;padding:1px 6px;font-size:11px;">${_esc(it.grade)}</div>
-          <div style="flex:1;min-width:0;font-size:11px;color:#9bbdd4;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${_esc(it.facName)}</div>
-          <span style="font-size:9px;color:#5a7e98;">${_esc(it.closeReason||'종료')}</span>
+          <div style="background:${gc}55;color:#d5d8dc;font-weight:800;border-radius:5px;padding:1px 6px;font-size:11px;">${_esc(it.grade)}</div>
+          <div style="flex:1;min-width:0;font-size:11px;color:#a5abb3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${_esc(it.facName)}</div>
+          <span style="font-size:9px;color:#6b7684;">${_esc(it.closeReason||'종료')}</span>
         </div>`;
       }).join('')+`</div>`;
   }
@@ -1389,31 +1389,31 @@ function renderFacWork(){
   const head=(ico,title,cnt,c)=>`<div style="font-size:12px;font-weight:800;color:${c};margin:15px 0 7px;">${ico} ${title}${cnt?` <span style="background:${c};color:#08121e;border-radius:9px;padding:0 7px;font-size:10px;margin-left:2px;">${cnt}</span>`:''}</div>`;
   const card=(it,body)=>{
     const gc=_gColor(it.grade);
-    return `<div style="background:#0a1828;border:1px solid rgba(255,255,255,.06);border-left:3px solid ${gc};border-radius:11px;padding:11px;margin-bottom:9px;">
+    return `<div style="background:#16161a;border:1px solid rgba(255,255,255,.06);border-left:3px solid ${gc};border-radius:11px;padding:11px;margin-bottom:9px;">
       <div style="display:flex;align-items:center;gap:9px;cursor:pointer;" onclick="openFacIssueDetail(${it.id})">
         ${it.photo?`<img src="${_esc(it.photo)}" style="width:44px;height:44px;border-radius:8px;object-fit:cover;flex-shrink:0;">`:`<div style="width:44px;height:44px;border-radius:8px;background:#0f0f11;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;">🏗️</div>`}
         <div style="flex:1;min-width:0;">
-          <div style="font-size:12px;font-weight:700;color:#e0edf8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;"><span style="color:${gc};font-weight:900;">${_esc(it.grade)}</span> · ${_esc(it.facName)}</div>
-          <div style="font-size:10px;color:#7a9cb8;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${it.tags&&it.tags.length?'<span style="color:#3182f6;">'+_esc(it.tags.join(', '))+'</span> · ':''}${_esc(it.reporter||'')} · ${_fmtWhen(it.createdAt)}</div>
+          <div style="font-size:12px;font-weight:700;color:#eaecef;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;"><span style="color:${gc};font-weight:900;">${_esc(it.grade)}</span> · ${_esc(it.facName)}</div>
+          <div style="font-size:10px;color:#8b95a1;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${it.tags&&it.tags.length?'<span style="color:#3182f6;">'+_esc(it.tags.join(', '))+'</span> · ':''}${_esc(it.reporter||'')} · ${_fmtWhen(it.createdAt)}</div>
         </div>
         <span style="font-size:10px;color:#3182f6;flex-shrink:0;">상세 ›</span>
       </div>
-      ${it.desc?`<div style="font-size:11px;color:#9bbdd4;margin-top:6px;line-height:1.5;">${_esc(it.desc)}</div>`:''}
+      ${it.desc?`<div style="font-size:11px;color:#a5abb3;margin-top:6px;line-height:1.5;">${_esc(it.desc)}</div>`:''}
       ${body||''}
     </div>`;
   };
   const formWrap=inner=>`<div style="margin-top:9px;border-top:1px dashed rgba(255,255,255,.08);padding-top:9px;">${inner}</div>`;
 
-  let h=`<div style="font-size:11px;color:#9bbdd4;line-height:1.6;background:rgba(240,165,0,.05);border:1px solid rgba(240,165,0,.15);border-radius:9px;padding:8px 11px;">🔧 <b style="color:#f0a500;">담당 업무함</b> — 점검 회신·현장확인·조치를 여기서 바로 처리합니다.</div>`;
+  let h=`<div style="font-size:11px;color:#a5abb3;line-height:1.6;background:rgba(240,165,0,.05);border:1px solid rgba(240,165,0,.15);border-radius:9px;padding:8px 11px;">🔧 <b style="color:#f0a500;">담당 업무함</b> — 점검 회신·현장확인·조치를 여기서 바로 처리합니다.</div>`;
 
   // ── 1. 담당자 검토 대기 (인라인 회신) ──
   h+=head('🔎','담당자 검토 대기',s2.length,'#f0a500');
   if(!s2.length)h+=`<div class="muted" style="font-size:11px;">검토 대기 없음</div>`;
   else h+=s2.map(it=>{
-    if(!canReview)return card(it,formWrap(`<div style="font-size:10px;color:#5a7e98;">담당자 회신 대기 중</div>`));
+    if(!canReview)return card(it,formWrap(`<div style="font-size:10px;color:#6b7684;">담당자 회신 대기 중</div>`));
     const de0=it.grade==='D'||it.grade==='E';
     return card(it,formWrap(`
-      <div style="font-size:10px;color:#9bbdd4;margin-bottom:4px;">재평가 등급 — 등급이 처리 경로를 정합니다</div>
+      <div style="font-size:10px;color:#a5abb3;margin-bottom:4px;">재평가 등급 — 등급이 처리 경로를 정합니다</div>
       <select id="fwMgrGrade_${it.id}" class="fsel" onchange="_fwMgrUpdate(${it.id})" style="margin-bottom:5px;">${['A','B','C','D','E'].map(g=>`<option value="${g}"${g===it.grade?' selected':''}>${_gLabel(g)}</option>`).join('')}</select>
       <div id="fwMgrHint_${it.id}" style="font-size:10px;line-height:1.5;margin-bottom:6px;color:${de0?'#ff9a6e':'#7ec8a0'};">${de0?'D·E: <b>지역담당 현장확인</b>으로 넘어갑니다':'A·B·C: 사유 회신 후 <b>이상없음 종료</b> (사유 필수)'}</div>
       <textarea id="fwMgrOpinion_${it.id}" class="fta" rows="2" placeholder="${de0?'검토 의견 (선택)':'판정 사유 (필수 — 왜 이 등급인지)'}" style="margin-bottom:7px;"></textarea>
@@ -1433,13 +1433,13 @@ function renderFacWork(){
   if(!s4.length)h+=`<div class="muted" style="font-size:11px;">조치 대기 없음</div>`;
   else h+=s4.map(it=>{
     const pb=(it.plan&&it.plan.until)?(()=>{const od=it.plan.until<Date.now();
-      return `<div style="font-size:10px;font-weight:800;color:${od?'#ff7a6e':'#3182f6'};margin-bottom:6px;">🗓️ ${_fmtDateK(it.plan.until)}까지 조치 예정${od?' — 예정일 지남':''}${it.plan.note?` <span style="color:#7a9cb8;font-weight:400;">· ${_esc(it.plan.note)}</span>`:''}</div>`;})():'';
-    if(!canDept)return card(it,formWrap(`${pb}<div style="font-size:10px;color:#5a7e98;">탐방시설과 조치 대기 중${it.zone&&it.zone.note?' · 🥾 '+_esc(it.zone.note):''}</div>`));
+      return `<div style="font-size:10px;font-weight:800;color:${od?'#ff7a6e':'#3182f6'};margin-bottom:6px;">🗓️ ${_fmtDateK(it.plan.until)}까지 조치 예정${od?' — 예정일 지남':''}${it.plan.note?` <span style="color:#8b95a1;font-weight:400;">· ${_esc(it.plan.note)}</span>`:''}</div>`;})():'';
+    if(!canDept)return card(it,formWrap(`${pb}<div style="font-size:10px;color:#6b7684;">탐방시설과 조치 대기 중${it.zone&&it.zone.note?' · 🥾 '+_esc(it.zone.note):''}</div>`));
     const defG=(it.mgr&&it.mgr.grade)||it.grade;
     const planVal=it.plan&&it.plan.until?new Date(it.plan.until-new Date().getTimezoneOffset()*60000).toISOString().slice(0,10):'';
     return card(it,formWrap(`
       ${pb}${it.zone&&it.zone.note?`<div style="font-size:10px;color:#b07cd0;margin-bottom:6px;">🥾 현장확인: ${_esc(it.zone.note)}</div>`:''}
-      <div style="font-size:10px;color:#9bbdd4;margin-bottom:4px;">조치 후 등급 (A~E)</div>
+      <div style="font-size:10px;color:#a5abb3;margin-bottom:4px;">조치 후 등급 (A~E)</div>
       <select id="fwDeptGrade_${it.id}" class="fsel" style="margin-bottom:6px;">${['A','B','C','D','E'].map(g=>`<option value="${g}"${g===defG?' selected':''}>${_gLabel(g)}</option>`).join('')}</select>
       <textarea id="fwDeptNote_${it.id}" class="fta" rows="2" placeholder="조치 내용 (예: 데크 교체 완료 / 예산 반영 예정)" style="margin-bottom:7px;"></textarea>
       <button onclick="fwDept(${it.id})" style="width:100%;background:#0c4838;color:#fff;border:none;border-radius:8px;padding:9px;font-size:12px;font-weight:800;cursor:pointer;">✅ 조치 완료 → 종료</button>
@@ -1454,8 +1454,8 @@ function renderFacWork(){
     h+=head('✅','최근 종료',0,'#7ec8a0');
     h+=closed.map(it=>`<div onclick="openFacIssueDetail(${it.id})" style="background:rgba(255,255,255,.02);border-radius:9px;padding:8px 11px;margin-bottom:5px;cursor:pointer;opacity:.75;display:flex;align-items:center;gap:8px;">
       <span style="color:${_gColor(it.grade)};font-weight:900;font-size:12px;flex-shrink:0;">${_esc(it.grade)}</span>
-      <span style="flex:1;min-width:0;font-size:11px;color:#9bbdd4;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${_esc(it.facName)}</span>
-      <span style="font-size:9px;color:#5a7e98;flex-shrink:0;">${_esc(it.closeReason||'종료')}</span>
+      <span style="flex:1;min-width:0;font-size:11px;color:#a5abb3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${_esc(it.facName)}</span>
+      <span style="font-size:9px;color:#6b7684;flex-shrink:0;">${_esc(it.closeReason||'종료')}</span>
     </div>`).join('');
   }
   wrap.innerHTML=h;
@@ -1631,12 +1631,12 @@ const _grpDuty=g=>g.stations.reduce((s,st)=>s+_dutyOf(st.loc),0);
 function _renderDutyBaseline(){
   return `<div class="ao-card">
     <div class="ao-sec-hd" style="margin-top:0;"><span class="bar" style="background:#5fcf8f;"></span>🟢 평시 당직 현황</div>
-    <div style="font-size:12.5px;color:#cfe2f2;line-height:2;">
+    <div style="font-size:12.5px;color:#d5d8dc;line-height:2;">
       🏢 <b>본소(사무소)</b> — 당직 <b style="color:#7ee0a8;">1명</b> 상시<br>
       🏔️ <b>백담분소</b> — 당직 <b style="color:#7ee0a8;">1명</b> 상시<br>
       ⛺ <b>대피소</b> (희운각·양폭·수렴동·소청·중청) — 각 <b style="color:#7ee0a8;">2명</b> 상시
     </div>
-    <div style="font-size:10px;color:#5a7e98;margin-top:8px;line-height:1.6;">※ 오색·한계산성·점봉산 분소는 상시 당직 없음(특보 시 응소).<br>주의보 시 백담은 상시 당직자가 특보 당직 겸직, 경보 시 1명 추가 응소.</div>
+    <div style="font-size:10px;color:#6b7684;margin-top:8px;line-height:1.6;">※ 오색·한계산성·점봉산 분소는 상시 당직 없음(특보 시 응소).<br>주의보 시 백담은 상시 당직자가 특보 당직 겸직, 경보 시 1명 추가 응소.</div>
   </div>`;
 }
 // 응소 현황 요약 (일회성) — 상시 당직 + 응소 합산해 충족/부족 한 줄
@@ -1648,17 +1648,17 @@ function _renderRespSummary(active,opLevel){
     const reg=active.responders.filter(r=>g.stations.some(s=>s.loc===(r.loc||'사무소'))).length;
     const eff=base+reg, shortage=Math.max(0,required-eff), ok=required===0||shortage===0;
     const badge=required===0
-      ? `<span style="font-size:10px;color:#6a94b0;">대기</span>`
+      ? `<span style="font-size:10px;color:#78828e;">대기</span>`
       : ok? `<span style="font-size:10px;color:#5fcf8f;font-weight:800;">✅ 충족</span>`
           : `<span style="font-size:10px;color:#ff8a73;font-weight:800;">⚠️ ${shortage}명 부족</span>`;
     const det=[];if(base)det.push(`상시 ${base}`);if(reg)det.push(`응소 ${reg}`);
     const sub=det.length?`${det.join(' + ')}${required?` / 필요 ${required}`:''}`:(required?`필요 ${required}`:'평시');
     return `<div style="display:flex;align-items:center;gap:8px;padding:7px 2px;border-bottom:1px solid rgba(255,255,255,.04);">
       <span style="font-size:12.5px;color:#dceaf6;min-width:104px;flex-shrink:0;">${g.ico} ${_esc(g.label)}</span>
-      <span style="font-size:11px;flex:1;color:#5a7e98;">${sub}</span>${badge}
+      <span style="font-size:11px;flex:1;color:#6b7684;">${sub}</span>${badge}
     </div>`;
   }).join('');
-  return `<div class="ao-card" style="padding:4px 12px 8px;">${rows}<div style="font-size:9px;color:#46708f;margin-top:6px;">상시=평시 당직 자동 반영 · 응소 등록은 🚨 입력 탭</div></div>`;
+  return `<div class="ao-card" style="padding:4px 12px 8px;">${rows}<div style="font-size:9px;color:#565f6b;margin-top:6px;">상시=평시 당직 자동 반영 · 응소 등록은 🚨 입력 탭</div></div>`;
 }
 // 관측 현황 요약 (지속) — 거점별 최신값 + 경과시간 + 미보고 강조
 function _renderObsSummary(active){
@@ -1671,9 +1671,9 @@ function _renderObsSummary(active){
     if(manned)targets.push(s);
   });
   ALERT_STATIONS.filter(s=>s.obs&&(active.reports||[]).some(r=>r.loc===s.loc)).forEach(s=>targets.push(s));
-  if(!targets.length)return `<div class="ao-card" style="font-size:11px;color:#456a85;padding:10px 12px;">관측 거점이 아직 없습니다</div>`;
+  if(!targets.length)return `<div class="ao-card" style="font-size:11px;color:#565f6b;padding:10px 12px;">관측 거점이 아직 없습니다</div>`;
   const valTxt=last=>{
-    if(!last)return '<span style="color:#456a85;">보고 없음</span>';
+    if(!last)return '<span style="color:#565f6b;">보고 없음</span>';
     if(mt==='snow')return `❄️ <b style="color:#9ce0f0;">${_esc(String(last.snow??'-'))}</b>cm`;
     if(mt==='rain')return `🌧️ <b style="color:#a8cdf5;">${_esc(String(last.rain??'-'))}</b>mm`;
     return `❄️ <b style="color:#9ce0f0;">${_esc(String(last.snow??'-'))}</b> · 🌧️ <b style="color:#a8cdf5;">${_esc(String(last.rain??'-'))}</b>`;
@@ -1683,13 +1683,13 @@ function _renderObsSummary(active){
     const last=_latestReport(active,s.loc), at=last?(last.at||_alertTimeMs(last.time)):0, overdue=_ov(s);
     let ago='-';if(at){const m=Math.floor((NOW-at)/60000);ago=m>=60?Math.floor(m/60)+'시간 '+(m%60)+'분 전':m+'분 전';}
     return `<div style="display:flex;align-items:center;gap:8px;padding:7px 2px;border-bottom:1px solid rgba(255,255,255,.04);${overdue?'background:rgba(231,76,60,.07);border-radius:6px;':''}">
-      <span style="font-size:12px;color:${overdue?'#ff9e80':'#cfe2f2'};min-width:92px;flex-shrink:0;">${s.obs?'📡 ':''}${_esc(s.label)}</span>
+      <span style="font-size:12px;color:${overdue?'#ff9e80':'#d5d8dc'};min-width:92px;flex-shrink:0;">${s.obs?'📡 ':''}${_esc(s.label)}</span>
       <span style="font-size:12px;flex:1;">${valTxt(last)}</span>
       <span style="font-size:10px;color:${overdue?'#ff8a73':'#6a96b4'};font-weight:${overdue?'800':'400'};flex-shrink:0;">${overdue?'⏰ 미보고':_esc(ago)}</span>
     </div>`;
   }).join('');
   const ovCnt=targets.filter(_ov).length;
-  const head=`<div style="font-size:10px;color:#6a94b0;margin-bottom:5px;">보고 주기 ${itvMin>=60?(itvMin/60)+'시간':itvMin+'분'} · ${ovCnt?`<span style="color:#ff8a73;font-weight:800;">미보고 ${ovCnt}곳</span>`:'<span style="color:#5fcf8f;font-weight:700;">전 거점 양호</span>'}</div>`;
+  const head=`<div style="font-size:10px;color:#78828e;margin-bottom:5px;">보고 주기 ${itvMin>=60?(itvMin/60)+'시간':itvMin+'분'} · ${ovCnt?`<span style="color:#ff8a73;font-weight:800;">미보고 ${ovCnt}곳</span>`:'<span style="color:#5fcf8f;font-weight:700;">전 거점 양호</span>'}</div>`;
   return `<div class="ao-card" style="padding:8px 12px;">${head}${rows}</div>`;
 }
 // 특보 종류에 따른 측정 항목: 호우→rain, 대설→snow, 둘 다→both. 그 외(강풍·건조 등)→''(측정 없음)
@@ -1781,12 +1781,12 @@ function renderAlertView(){
       <button onclick="_kmaCheckNow()" class="rx-btn">🔄 지금 확인</button>
       ${isAdminUser()?`<button onclick="kmaWarnDiag()" class="rx-btn">🔧 진단</button>`:''}
     </div>
-    <div style="font-size:10.5px;color:#5d92bc;margin-top:6px;line-height:1.65;">
-      ${_rxAt?`마지막 수신 <b style="color:#9fc4de;">${_alertMsShort(_rxAt)}</b> <span style="color:#46708f;">(${_rxAgo})</span>`:'아직 기상청 응답을 받은 적이 없습니다 — 🔄 지금 확인을 눌러보세요'}${_rxSrc?` · ${_rxSrc}`:''} · 10분마다 자동 확인
+    <div style="font-size:10.5px;color:#6b7684;margin-top:6px;line-height:1.65;">
+      ${_rxAt?`마지막 수신 <b style="color:#9fc4de;">${_alertMsShort(_rxAt)}</b> <span style="color:#565f6b;">(${_rxAgo})</span>`:'아직 기상청 응답을 받은 적이 없습니다 — 🔄 지금 확인을 눌러보세요'}${_rxSrc?` · ${_rxSrc}`:''} · 10분마다 자동 확인
     </div>
     ${kmaLive.length
       ?`<div style="display:flex;flex-wrap:wrap;gap:4px 12px;margin-top:8px;padding-top:8px;border-top:1px solid rgba(255,255,255,.12);">${kmaLive.map(a=>`<div class="ao-wx-chip" style="margin:0;"><span class="ao-level-badge ao-level-${a.stage.indexOf('Ⅱ')>=0?'Ⅱ단계':'Ⅰ단계'}">${_stageShort(a.stage)}</span> <span style="color:#dceaf6;">${_esc(a.type||'')}</span></div>`).join('')}</div>`
-      :`<div style="font-size:11px;color:#6a94b0;margin-top:7px;padding-top:7px;border-top:1px solid rgba(255,255,255,.1);">☀️ 현재 설악산 관할(속초·고성·양양·인제·산지) 발효 특보 없음</div>`}
+      :`<div style="font-size:11px;color:#78828e;margin-top:7px;padding-top:7px;border-top:1px solid rgba(255,255,255,.1);">☀️ 현재 설악산 관할(속초·고성·양양·인제·산지) 발효 특보 없음</div>`}
   </div>`;
 
   // 활성 특보운영 — 분소별 응소 현황 + 시간별 기상관측
@@ -1818,12 +1818,12 @@ function renderAlertView(){
       const acol=ALERT_LEVEL_COLORS[a.stage]||'#3182f6';
       return `<div style="background:rgba(255,255,255,.03);border:1px solid ${acol}44;border-radius:10px;padding:8px 11px;margin-bottom:6px;">
         <div style="display:flex;align-items:center;gap:7px;flex-wrap:wrap;">
-          <span style="font-size:9px;color:#6a94b0;flex-shrink:0;">${a.drill?'🎯훈련':a.source==='auto'?'📡자동':'✋수동'}</span>
+          <span style="font-size:9px;color:#78828e;flex-shrink:0;">${a.drill?'🎯훈련':a.source==='auto'?'📡자동':'✋수동'}</span>
           <b style="font-size:13.5px;color:${acol};">${_esc(a.type)}${_stageShort(a.stage)}</b>
           ${d.txt?`<span style="font-size:10.5px;color:${d.future?'#9ce0f0':'#f0c060'};font-weight:800;">⏱ ${d.txt}</span>`:''}
           ${isAdminUser()&&ai>=0?`<span onclick="removeAlertItem(${active.id},${ai})" style="cursor:pointer;color:#ff6b5b;margin-left:auto;font-weight:800;padding:0 4px;">×</span>`:''}
         </div>
-        <div style="font-size:10.5px;color:#8fb4cc;margin-top:4px;line-height:1.5;">${(fc||when)?`🕐 ${fc?`발표 ${_esc(fc)}`:''}${fc&&when?' · ':''}${when?(d.future?_esc(when)+' 발효 예정':'발효 '+_esc(when)):''}`:''}${rg?`<br>📍 ${_esc(rg)}`:''}</div>
+        <div style="font-size:10.5px;color:#949aa2;margin-top:4px;line-height:1.5;">${(fc||when)?`🕐 ${fc?`발표 ${_esc(fc)}`:''}${fc&&when?' · ':''}${when?(d.future?_esc(when)+' 발효 예정':'발효 '+_esc(when)):''}`:''}${rg?`<br>📍 ${_esc(rg)}`:''}</div>
       </div>`;
     };
     // 등급별 묶음: Ⅲ단계 → 경보 → 주의보 → 예비특보 (급한 것 위로), 그 외 단계는 '기타'로 보존
@@ -1840,7 +1840,7 @@ function renderAlertView(){
       return `<div style="margin-bottom:9px;">
         <div style="display:flex;align-items:center;gap:6px;margin:2px 0 5px;">
           <span style="font-size:11px;font-weight:800;color:${col};">${label}</span>
-          <span style="font-size:9px;color:#5a7e98;">${items.length}건</span>
+          <span style="font-size:9px;color:#6b7684;">${items.length}건</span>
           <span style="flex:1;height:1px;background:${col}33;"></span>
         </div>
         ${items.map(_alertRow).join('')}
@@ -1882,14 +1882,14 @@ function renderAlertView(){
 
       <div class="ao-card">
         <div class="ao-sec-hd" style="margin-top:0;"><span class="bar" style="background:#ff8a80;"></span>🚨 발령 특보</div>
-        <div>${alertRows||'<span style="font-size:11px;color:#456a85;">발령된 특보 없음</span>'} ${isAdminUser()?`<button onclick="openAlertStart()" class="ao-add-alert">+ 특보 발령</button>`:''}</div>
-        ${active.note?`<div style="font-size:12px;color:#9fc0da;margin-top:8px;background:rgba(255,255,255,.03);border-radius:8px;padding:7px 10px;">📝 ${_esc(active.note)}</div>`:''}
+        <div>${alertRows||'<span style="font-size:11px;color:#565f6b;">발령된 특보 없음</span>'} ${isAdminUser()?`<button onclick="openAlertStart()" class="ao-add-alert">+ 특보 발령</button>`:''}</div>
+        ${active.note?`<div style="font-size:12px;color:#a5abb3;margin-top:8px;background:rgba(255,255,255,.03);border-radius:8px;padding:7px 10px;">📝 ${_esc(active.note)}</div>`:''}
       </div>
 
-      ${mt?`<div class="ao-sec-hd"><span class="bar"></span>👤 응소 현황 <span style="font-size:9px;color:#46708f;font-weight:600;margin-left:auto;">일회성 · 입력은 🚨 입력 탭</span></div>
+      ${mt?`<div class="ao-sec-hd"><span class="bar"></span>👤 응소 현황 <span style="font-size:9px;color:#565f6b;font-weight:600;margin-left:auto;">일회성 · 입력은 🚨 입력 탭</span></div>
       ${_renderRespSummary(active,opLevel)}
 
-      <div class="ao-sec-hd"><span class="bar" style="background:#4fc0a0;"></span>📡 관측 현황 <span style="font-size:9px;color:#46708f;font-weight:600;margin-left:auto;">주기마다 지속 보고</span></div>
+      <div class="ao-sec-hd"><span class="bar" style="background:#4fc0a0;"></span>📡 관측 현황 <span style="font-size:9px;color:#565f6b;font-weight:600;margin-left:auto;">주기마다 지속 보고</span></div>
       ${_renderObsSummary(active)}
 
       <div class="ao-sec-hd"><span class="bar" style="background:#4fc0a0;"></span>📊 누적 관측 요약</div>
@@ -1901,7 +1901,7 @@ function renderAlertView(){
     activeHtml=`<div class="ao-empty">
       <div class="ao-empty-ico">🌀</div>
       <div class="ao-empty-msg">현재 진행 중인 특보운영이 없습니다</div>
-      ${isAdminUser()?`<button onclick="alertTab(3)" class="ao-start-btn">🌀 특보운영 시작</button>`:'<div style="font-size:11px;color:#456a85;">관리자가 특보운영을 시작하면 표시됩니다</div>'}
+      ${isAdminUser()?`<button onclick="alertTab(3)" class="ao-start-btn">🌀 특보운영 시작</button>`:'<div style="font-size:11px;color:#565f6b;">관리자가 특보운영을 시작하면 표시됩니다</div>'}
     </div>
     ${_renderDutyBaseline()}`;
   }
@@ -1911,15 +1911,15 @@ function renderAlertView(){
   _navOrder.alert=closed.map(o=>String(o.id)); // 특보 보관함 이전/다음 순서
   let histHtml='';
   if(closed.length){
-    histHtml=`<div style="margin-top:18px;"><div class="ao-sec-hd"><span class="bar" style="background:#5d82a0;"></span>📜 특보운영 기록 보관함 <span style="font-size:10px;color:#46708f;font-weight:600;margin-left:auto;">총 ${closed.length}건</span></div>
+    histHtml=`<div style="margin-top:18px;"><div class="ao-sec-hd"><span class="bar" style="background:#5d82a0;"></span>📜 특보운영 기록 보관함 <span style="font-size:10px;color:#565f6b;font-weight:600;margin-left:auto;">총 ${closed.length}건</span></div>
     ${closed.map(o=>{
       const incCnt=_incidentsInOp(o).length;
       return `<div class="ao-hist" onclick="openAlertHistory(${o.id})" style="cursor:pointer;">
       <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;">
         <div style="font-size:12px;font-weight:700;color:#bcd2e6;flex:1;min-width:0;">${o.drill?'<span class="drill-badge" style="font-size:9px;padding:1px 6px;">🎯 훈련</span> ':''}${_esc(_opLevel(o))} · ${_esc(_opAlerts(o).map(a=>a.type+_stageShort(a.stage)).join(', ')||'-')}</div>
-        <span style="font-size:14px;color:#46708f;flex-shrink:0;">›</span>
+        <span style="font-size:14px;color:#565f6b;flex-shrink:0;">›</span>
       </div>
-      <div style="font-size:10px;color:#46708f;margin-top:3px;">${_esc((o.startedAt||'').slice(5))} → ${_esc((o.closedAt||'').slice(5))} · 응소 ${(o.responders||[]).length}명 · 관측 ${(o.reports||[]).length}건${incCnt?` · <span style="color:#ff8a80;">🚨 안전사고 ${incCnt}건</span>`:''}</div>
+      <div style="font-size:10px;color:#565f6b;margin-top:3px;">${_esc((o.startedAt||'').slice(5))} → ${_esc((o.closedAt||'').slice(5))} · 응소 ${(o.responders||[]).length}명 · 관측 ${(o.reports||[]).length}건${incCnt?` · <span style="color:#ff8a80;">🚨 안전사고 ${incCnt}건</span>`:''}</div>
     </div>`;}).join('')}
     </div>`;
   }
@@ -1998,11 +1998,11 @@ function _renderAlertStats(ops){
     const v=s.size;
     const bd=Object.keys(y.monthTypes[i]).map(t=>t+' '+y.monthTypes[i][t].size+'일').join(', ');
     return `<div title="${sel}년 ${i+1}월 — 발효 ${v}일${bd?' ('+_escq(bd)+')':''}" style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%;min-width:0;">
-      ${v?`<div style="font-size:8.5px;color:#7a9cb8;margin-bottom:2px;">${v}</div>`:''}
+      ${v?`<div style="font-size:8.5px;color:#8b95a1;margin-bottom:2px;">${v}</div>`:''}
       <div style="width:100%;max-width:18px;height:${v?Math.max(4,Math.round(v/monthMax*70)):0}px;background:#3388c2;border-radius:3px 3px 0 0;"></div>
     </div>`;
   }).join('');
-  const monthLabels=y.month.map((s,i)=>`<div style="flex:1;text-align:center;font-size:8.5px;color:${s.size?'#7a9cb8':'#3a5a75'};">${i+1}</div>`).join('');
+  const monthLabels=y.month.map((s,i)=>`<div style="flex:1;text-align:center;font-size:8.5px;color:${s.size?'#8b95a1':'#3a5a75'};">${i+1}</div>`).join('');
   // 종류별 발효일수 — 순위 막대 (정체성 → 종류 고정색 + 전 항목 직접 라벨)
   const maxTypeDays=top?top.d:1;
   const typeRows=typeRank.map(r=>{
@@ -2012,10 +2012,10 @@ function _renderAlertStats(ops){
     let topMo=-1,topMoD=0;
     y.monthTypes.forEach((m,i)=>{const dd=m[r.t]?m[r.t].size:0;if(dd>topMoD){topMoD=dd;topMo=i;}});
     return `<div title="${_escq(r.t)} ${r.d}일 · 최고 ${stgTxt}" style="display:flex;align-items:center;gap:8px;padding:5px 0;">
-      <span style="display:inline-flex;align-items:center;gap:5px;min-width:60px;flex-shrink:0;"><span style="width:8px;height:8px;border-radius:50%;background:${col};flex-shrink:0;"></span><span style="font-size:11.5px;color:#c0d8ec;font-weight:700;">${_esc(r.t)}</span></span>
+      <span style="display:inline-flex;align-items:center;gap:5px;min-width:60px;flex-shrink:0;"><span style="width:8px;height:8px;border-radius:50%;background:${col};flex-shrink:0;"></span><span style="font-size:11.5px;color:#cdd1d6;font-weight:700;">${_esc(r.t)}</span></span>
       <div style="flex:1;height:10px;background:rgba(255,255,255,.05);border-radius:5px;overflow:hidden;"><div style="height:100%;width:${Math.max(3,Math.round(r.d/maxTypeDays*100))}%;background:${col};border-radius:5px;"></div></div>
-      <span style="font-size:11.5px;color:#e0edf8;font-weight:800;min-width:30px;text-align:right;flex-shrink:0;">${r.d}일</span>
-      <span style="font-size:9px;color:#5a7e98;min-width:62px;text-align:right;flex-shrink:0;">최고 ${stgTxt}${topMo>=0?' · 주로 '+(topMo+1)+'월':''}</span>
+      <span style="font-size:11.5px;color:#eaecef;font-weight:800;min-width:30px;text-align:right;flex-shrink:0;">${r.d}일</span>
+      <span style="font-size:9px;color:#6b7684;min-width:62px;text-align:right;flex-shrink:0;">최고 ${stgTxt}${topMo>=0?' · 주로 '+(topMo+1)+'월':''}</span>
     </div>`;
   }).join('');
   // 단계별 발효일수 (상태색 — 심각도 고정)
@@ -2025,12 +2025,12 @@ function _renderAlertStats(ops){
     const v=(y.stage[p[0]]||new Set()).size;
     if(!v)return'';
     return `<div style="display:flex;align-items:center;gap:8px;padding:4px 0;">
-      <span style="font-size:11px;color:#c0d8ec;min-width:60px;flex-shrink:0;">${p[0]}</span>
+      <span style="font-size:11px;color:#cdd1d6;min-width:60px;flex-shrink:0;">${p[0]}</span>
       <div style="flex:1;height:8px;background:rgba(255,255,255,.05);border-radius:4px;overflow:hidden;"><div style="height:100%;width:${Math.max(3,Math.round(v/sgMax*100))}%;background:${p[1]};border-radius:4px;"></div></div>
-      <span style="font-size:11px;color:#e0edf8;font-weight:800;min-width:30px;text-align:right;">${v}일</span>
+      <span style="font-size:11px;color:#eaecef;font-weight:800;min-width:30px;text-align:right;">${v}일</span>
     </div>`;
   }).join('');
-  const mini=(label,val,col,sub)=>`<div style="background:#0f0f11;border-radius:10px;padding:11px 8px;text-align:center;"><div style="font-size:19px;font-weight:800;color:${col||'#e0edf8'};line-height:1.15;">${val}</div><div style="font-size:9.5px;color:#7a9cb8;margin-top:3px;">${label}</div>${sub?`<div style="font-size:8.5px;color:#4a7090;margin-top:1px;">${sub}</div>`:''}</div>`;
+  const mini=(label,val,col,sub)=>`<div style="background:#0f0f11;border-radius:10px;padding:11px 8px;text-align:center;"><div style="font-size:19px;font-weight:800;color:${col||'#eaecef'};line-height:1.15;">${val}</div><div style="font-size:9.5px;color:#8b95a1;margin-top:3px;">${label}</div>${sub?`<div style="font-size:8.5px;color:#565f6b;margin-top:1px;">${sub}</div>`:''}</div>`;
   const fmtH=h=>h>=48?(h/24).toFixed(h>=240?0:1)+'일':Math.round(h)+'시간';
   // 특보 발효 이력 목록 (선택 연도) — 자동해제·삭제분까지 로그에서 전부, 최신순
   const _logY=log.filter(r=>{const f=r.issuedAtMs||_alertTimeMs(r.issuedAt)||0;return f&&new Date(f).getFullYear()===sel;}).sort((a,b)=>(b.issuedAtMs||0)-(a.issuedAtMs||0));
@@ -2045,7 +2045,7 @@ function _renderAlertStats(ops){
     return `<div style="display:flex;align-items:center;gap:8px;padding:7px 2px;border-bottom:1px solid rgba(255,255,255,.04);">
       <span style="width:9px;height:9px;border-radius:50%;background:${col};flex-shrink:0;"></span>
       <span style="flex:1;min-width:0;">
-        <span style="display:block;font-size:12px;font-weight:700;color:#dceaf6;">${_esc(r.type)}${_esc(_stageShort(r.stage||''))} <span style="font-size:9px;font-weight:600;color:#6a94b0;">${r.source==='auto'?'📡자동':'✋수동'}</span></span>
+        <span style="display:block;font-size:12px;font-weight:700;color:#dceaf6;">${_esc(r.type)}${_esc(_stageShort(r.stage||''))} <span style="font-size:9px;font-weight:600;color:#78828e;">${r.source==='auto'?'📡자동':'✋수동'}</span></span>
         <span style="display:block;font-size:9.5px;color:#5d86a3;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${period} · ${_durTxt(dur)}${r.regions&&r.regions.length?' · '+_esc(r.regions.slice(0,2).join('·')):''}</span>
       </span>
     </div>`;
@@ -2053,10 +2053,10 @@ function _renderAlertStats(ops){
   return `<div style="padding:2px 2px 10px;">
     <div style="display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap;">${years.map(v=>`<div class="pill${v===sel?' on':''}" onclick="alertStatYear(${v})">${v}년</div>`).join('')}</div>
     <div class="scard" style="margin-bottom:10px;">
-      <div class="stitle">📊 ${sel}년 특보 발효 현황 <span style="font-size:9px;font-weight:400;color:#5a7e98;">· 일수 기준</span></div>
+      <div class="stitle">📊 ${sel}년 특보 발효 현황 <span style="font-size:9px;font-weight:400;color:#6b7684;">· 일수 기준</span></div>
       <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:6px;">
         ${mini('특보 발효일',y.days.size+'일','#3182f6','연중 '+Math.round(y.days.size/yearDen*100)+'%')}
-        ${top?mini('최다 특보','<span style="display:inline-flex;align-items:center;gap:5px;"><span style="width:8px;height:8px;border-radius:50%;background:'+_alertTypeColor(top.t)+';"></span>'+_esc(top.t)+'</span>','#e0edf8',top.d+'일 발효'):mini('최다 특보','-','#e0edf8')}
+        ${top?mini('최다 특보','<span style="display:inline-flex;align-items:center;gap:5px;"><span style="width:8px;height:8px;border-radius:50%;background:'+_alertTypeColor(top.t)+';"></span>'+_esc(top.t)+'</span>','#eaecef',top.d+'일 발효'):mini('최다 특보','-','#eaecef')}
         ${mini('경보 이상',warnDays+'일',warnDays?'#ff6b5b':'#27ae60',warnDays?'':'경보 발효 없음')}
         ${mini('비상근무',fmtH(totalHr),'#7ee0a8',opsY.length?opsY.length+'회 운영':'')}
       </div>
@@ -2066,7 +2066,7 @@ function _renderAlertStats(ops){
       <div style="display:flex;align-items:flex-end;gap:3px;height:90px;padding-top:4px;">${monthBars}</div>
       <div style="display:flex;gap:3px;margin-top:4px;">${monthLabels}</div>
     </div>
-    ${typeRows?`<div class="scard" style="margin-bottom:10px;"><div class="stitle">🌧️ 종류별 발효일수</div>${typeRows}<div style="font-size:8.5px;color:#46708f;margin-top:6px;">같은 날 여러 특보는 종류별로 각각 1일씩 집계</div></div>`:''}
+    ${typeRows?`<div class="scard" style="margin-bottom:10px;"><div class="stitle">🌧️ 종류별 발효일수</div>${typeRows}<div style="font-size:8.5px;color:#565f6b;margin-top:6px;">같은 날 여러 특보는 종류별로 각각 1일씩 집계</div></div>`:''}
     ${sgRows?`<div class="scard" style="margin-bottom:10px;"><div class="stitle">📶 단계별 발효일수</div>${sgRows}</div>`:''}
     <div class="scard">
       <div class="stitle">🌀 ${sel}년 운영 활동</div>
@@ -2077,7 +2077,7 @@ function _renderAlertStats(ops){
         ${mini('최장 운영',longest?fmtH(longest/3600000):'-','#f0c060')}
       </div>
     </div>
-    ${_epRows?`<div class="scard" style="margin-top:10px;"><div class="stitle">📋 ${sel}년 특보 발효 이력 <span style="font-size:9px;font-weight:400;color:#5a7e98;">· 총 ${_logY.length}건 (자동해제분 포함)</span></div><div style="max-height:300px;overflow-y:auto;margin-top:2px;">${_epRows}</div></div>`:''}
+    ${_epRows?`<div class="scard" style="margin-top:10px;"><div class="stitle">📋 ${sel}년 특보 발효 이력 <span style="font-size:9px;font-weight:400;color:#6b7684;">· 총 ${_logY.length}건 (자동해제분 포함)</span></div><div style="max-height:300px;overflow-y:auto;margin-top:2px;">${_epRows}</div></div>`:''}
   </div>`;
 }
 
@@ -2088,9 +2088,9 @@ function _renderAlertInput(active){
   if(!active){
     html+=`<div class="ao-card" style="text-align:center;padding:22px 16px;">
       <div style="font-size:34px;margin-bottom:8px;">🌀</div>
-      <div style="font-size:13px;color:#9fc0da;margin-bottom:14px;">진행 중인 특보운영이 없습니다</div>
+      <div style="font-size:13px;color:#a5abb3;margin-bottom:14px;">진행 중인 특보운영이 없습니다</div>
       ${admin?`<button onclick="openAlertStart()" class="ao-start-btn" style="margin:0 auto;">🌀 특보운영 시작</button>`
-             :`<div style="font-size:11px;color:#456a85;">관리자가 특보운영을 시작하면<br>여기서 응소·관측을 입력할 수 있습니다</div>`}
+             :`<div style="font-size:11px;color:#565f6b;">관리자가 특보운영을 시작하면<br>여기서 응소·관측을 입력할 수 있습니다</div>`}
     </div>`;
     return html+'</div>';
   }
@@ -2111,7 +2111,7 @@ function _renderAlertInput(active){
     const cl=DB.g('crisisLevel')||{};const clv=cl.level||'';
     const clColor=clv==='관심'?'#3498db':clv==='주의'?'#e6b800':clv==='경계'?'#e67e22':clv==='심각'?'#c0392b':'rgba(255,255,255,.5)';
     html+=`<div class="ao-card" style="margin-bottom:12px;">
-      <div class="ao-sec-hd" style="margin-top:0;"><span class="bar" style="background:${clColor};"></span>🚨 재난위기경보${clv?` <span style="background:${clColor}26;color:${clColor};font-size:10px;font-weight:800;border-radius:6px;padding:1px 7px;margin-left:6px;">${CRISIS_LABEL[clv]||clv}${cl.type?' — '+cl.type:''}</span>`:'<span style="font-size:10px;color:#4a7090;margin-left:6px;">미설정</span>'}</div>
+      <div class="ao-sec-hd" style="margin-top:0;"><span class="bar" style="background:${clColor};"></span>🚨 재난위기경보${clv?` <span style="background:${clColor}26;color:${clColor};font-size:10px;font-weight:800;border-radius:6px;padding:1px 7px;margin-left:6px;">${CRISIS_LABEL[clv]||clv}${cl.type?' — '+cl.type:''}</span>`:'<span style="font-size:10px;color:#565f6b;margin-left:6px;">미설정</span>'}</div>
       <button onclick="openCrisisLevelModal()" class="ao-loc-btn" style="width:100%;border-color:${clColor}55;color:${clColor};">🚨 위기경보 단계 설정</button>
     </div>`;
     const ts=DB.g('trailStatus')||{};const ctrlCnt=Object.values(ts).filter(v=>v.status==='통제').length;
@@ -2119,7 +2119,7 @@ function _renderAlertInput(active){
       <div class="ao-sec-hd" style="margin-top:0;"><span class="bar" style="background:#e67e22;"></span>🚧 탐방로 통제 현황${ctrlCnt?` <span style="background:rgba(231,76,60,.2);color:#ff9e80;font-size:10px;font-weight:800;border-radius:6px;padding:1px 7px;margin-left:6px;">통제 ${ctrlCnt}구간</span>`:''}</div>
       <div style="display:flex;gap:6px;">
         <button onclick="openTrailCtrl()" class="ao-loc-btn" style="flex:1;">🚧 통제/개방 관리</button>
-        <button onclick="openTrailLog()" class="ao-loc-btn" style="border-color:rgba(255,255,255,.12);color:#8aa6bc;">🕑 이력</button>
+        <button onclick="openTrailLog()" class="ao-loc-btn" style="border-color:rgba(255,255,255,.12);color:#949aa2;">🕑 이력</button>
       </div>
     </div>`;
   }
@@ -2128,11 +2128,11 @@ function _renderAlertInput(active){
     const wb=DB.g('weatherBrief')||{};
     const fresh=wb.text&&wb.atMs&&(Date.now()-wb.atMs<6*3600*1000);
     html+=`<div class="ao-card" style="margin-bottom:12px;">
-      <div class="ao-sec-hd" style="margin-top:0;"><span class="bar" style="background:#3182f6;"></span>🌦️ 기상 브리핑${wb.time?` <span style="font-size:10px;color:#6a94b0;font-weight:700;margin-left:6px;">${_esc(wb.time)} 기준</span>`:''}</div>
-      ${wb.text?`<div style="font-size:12.5px;line-height:1.6;color:${fresh?'#cfe2f2':'#8aa6bc'};white-space:pre-wrap;padding:2px 0 4px;">${_esc(wb.text)}</div><div style="font-size:10px;color:#5a7a92;margin-bottom:6px;">— ${_esc(wb.by||'')}${fresh?'':' · ⚠️ 6시간 경과(갱신 필요)'}</div>`:`<div style="font-size:11px;color:#5a7a92;padding:2px 0 6px;">등록된 브리핑이 없습니다.</div>`}
+      <div class="ao-sec-hd" style="margin-top:0;"><span class="bar" style="background:#3182f6;"></span>🌦️ 기상 브리핑${wb.time?` <span style="font-size:10px;color:#78828e;font-weight:700;margin-left:6px;">${_esc(wb.time)} 기준</span>`:''}</div>
+      ${wb.text?`<div style="font-size:12.5px;line-height:1.6;color:${fresh?'#d5d8dc':'#949aa2'};white-space:pre-wrap;padding:2px 0 4px;">${_esc(wb.text)}</div><div style="font-size:10px;color:#5a7a92;margin-bottom:6px;">— ${_esc(wb.by||'')}${fresh?'':' · ⚠️ 6시간 경과(갱신 필요)'}</div>`:`<div style="font-size:11px;color:#5a7a92;padding:2px 0 6px;">등록된 브리핑이 없습니다.</div>`}
       <div style="display:flex;gap:6px;">
         ${admin?`<button onclick="openWeatherBrief()" class="ao-loc-btn" style="flex:1;border-color:#3182f655;color:#3182f6;">✍️ 작성/갱신</button>`:''}
-        <button onclick="openWeatherLog()" class="ao-loc-btn" style="${admin?'':'width:100%;'}border-color:rgba(255,255,255,.12);color:#8aa6bc;">🕑 이력</button>
+        <button onclick="openWeatherLog()" class="ao-loc-btn" style="${admin?'':'width:100%;'}border-color:rgba(255,255,255,.12);color:#949aa2;">🕑 이력</button>
       </div>
     </div>`;
   }
@@ -2147,7 +2147,7 @@ function _renderAlertInput(active){
       const cnt=(active.responders||[]).filter(r=>(r.loc||'사무소')===st.loc).length;
       const occ=isShelter?_latestOccupancy(active,st.loc):null;
       // 대피소: 직원+탐방객 체류인원 표시 / 분소: 당직자(응소인원)만 표시
-      const occLine=occ?`<div style="font-size:11px;color:#7ec8a0;margin:2px 0 4px;">⛺ 직원 ${occ.staff??'-'}명 · 탐방객 ${occ.visitors??'-'}명 <span style="color:#4a7090;">${(occ.time||'').slice(11,16)}</span>${occ.note?' · '+_esc(occ.note):''}</div>`:'';
+      const occLine=occ?`<div style="font-size:11px;color:#7ec8a0;margin:2px 0 4px;">⛺ 직원 ${occ.staff??'-'}명 · 탐방객 ${occ.visitors??'-'}명 <span style="color:#565f6b;">${(occ.time||'').slice(11,16)}</span>${occ.note?' · '+_esc(occ.note):''}</div>`:'';
       const base=_dutyOf(st.loc);
       const cntChip=_mtIn
         ?`<span class="ao-loc-cnt ${(cnt+base)?'ok':''}">👤 ${base?`상시 ${base}`:''}${base&&cnt?' + ':''}${cnt?`응소 ${cnt}`:(base?'':'응소 0')}명</span>`
@@ -2170,7 +2170,7 @@ function _renderAlertInput(active){
 function _renderAlertReqTable(level){
   const req=ALERT_REQS[level];
   if(!req)return'';
-  return`<div style="margin-top:10px;font-size:10px;color:#3a6a8a;font-weight:700;margin-bottom:4px;">📋 단계별 필요 인원 (별표10)</div>
+  return`<div style="margin-top:10px;font-size:10px;color:#454e5a;font-weight:700;margin-bottom:4px;">📋 단계별 필요 인원 (별표10)</div>
   <table class="ao-req-table">
     <tr><th>구분</th><th>역할</th><th>최소인원</th></tr>
     ${req.사무소.map(r=>`<tr><td>사무소</td><td>${r.role}</td><td>${r.min}명</td></tr>`).join('')}
@@ -2440,7 +2440,7 @@ function _updateCrisisBanner(){
 function openCrisisLevelModal(){
   const cl=DB.g('crisisLevel')||{};
   const html=`<div style="padding:6px 0;">
-    <div style="font-size:12px;color:#7a9cb8;margin-bottom:14px;">산사태·기상재해 국가위기경보 단계를 설정하세요. 전 기기 즉시 표시됩니다.</div>
+    <div style="font-size:12px;color:#8b95a1;margin-bottom:14px;">산사태·기상재해 국가위기경보 단계를 설정하세요. 전 기기 즉시 표시됩니다.</div>
     <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px;">
       ${CRISIS_LEVELS.map(l=>`<button onclick="setCrisisLevel('${l}')" style="flex:1;min-width:60px;padding:10px 4px;border-radius:10px;border:2px solid ${l==='관심'?'#3498db':l==='주의'?'#f1c40f':l==='경계'?'#e67e22':'#c0392b'};background:${l===(cl.level||'')?'rgba(255,255,255,.1)':'transparent'};color:${l==='주의'?'#f1c40f':l==='관심'?'#3498db':l==='경계'?'#e67e22':'#c0392b'};font-size:14px;font-weight:900;cursor:pointer;">${CRISIS_LABEL[l]||l}</button>`).join('')}
     </div>
@@ -2490,7 +2490,7 @@ function openWeatherBrief(){
   const modal=document.createElement('div');
   modal.id='wbModal';modal.className='modal on';
   modal.innerHTML=`<div class="mbox"><div class="mhdr"><span class="mtitle">🌦️ 기상 브리핑 작성</span><button class="mclose" onclick="document.getElementById('wbModal').remove()">×</button></div>
-    <div style="font-size:11px;color:#6a94b0;margin-bottom:8px;">전 직원·응소자에게 즉시 공유됩니다. 정기(예: 04:30·16:30) 갱신 권장.</div>
+    <div style="font-size:11px;color:#78828e;margin-bottom:8px;">전 직원·응소자에게 즉시 공유됩니다. 정기(예: 04:30·16:30) 갱신 권장.</div>
     <textarea id="wbText" class="fi" style="min-height:160px;line-height:1.6;font-size:13px;resize:vertical;">${_esc(tmpl)}</textarea>
     <button class="btn btn-primary" style="margin-top:10px;" onclick="saveWeatherBrief()">📢 브리핑 게시</button>
   </div>`;
@@ -2517,12 +2517,12 @@ function openWeatherLog(_fresh){
   const log=DB.g('weatherLog')||[];
   const modal=document.createElement('div');
   modal.id='wbLogModal';modal.className='modal on';
-  modal.innerHTML=`<div class="mbox"><div class="mhdr"><span class="mtitle">🌦️ 기상 브리핑 이력 <span style="font-size:11px;color:#6a94b0;font-weight:600;">(${log.length}건)</span></span><button class="mclose" onclick="document.getElementById('wbLogModal').remove()">×</button></div>
+  modal.innerHTML=`<div class="mbox"><div class="mhdr"><span class="mtitle">🌦️ 기상 브리핑 이력 <span style="font-size:11px;color:#78828e;font-weight:600;">(${log.length}건)</span></span><button class="mclose" onclick="document.getElementById('wbLogModal').remove()">×</button></div>
     <div style="max-height:60vh;overflow-y:auto;">
     ${log.length?log.map(e=>`<div style="background:#0f0f11;border-radius:9px;padding:10px 12px;margin-bottom:7px;border:1px solid rgba(255,255,255,.12);">
       <div style="font-size:10px;color:#3182f6;font-weight:700;margin-bottom:5px;">${_esc(e.time||'')}${e.by?` · ${_esc(e.by)}`:''}</div>
-      <div style="font-size:12px;color:#cfe2f2;line-height:1.6;white-space:pre-wrap;">${_esc(e.text||'')}</div>
-    </div>`).join(''):'<div style="text-align:center;color:#6a94b0;font-size:12px;padding:24px;">기록된 브리핑이 없습니다.</div>'}
+      <div style="font-size:12px;color:#d5d8dc;line-height:1.6;white-space:pre-wrap;">${_esc(e.text||'')}</div>
+    </div>`).join(''):'<div style="text-align:center;color:#78828e;font-size:12px;padding:24px;">기록된 브리핑이 없습니다.</div>'}
     </div>
   </div>`;
   document.body.appendChild(modal);
@@ -2597,7 +2597,7 @@ function openTrailCtrl(){
     SEORAK_TRAILS.filter(t=>t.zone===z).forEach(t=>{
       const cur=(ts[t.id]||{}).status||'개방';
       html+=`<div style="display:flex;align-items:center;gap:6px;padding:7px 0;border-bottom:1px solid rgba(255,255,255,.04);">
-        <div style="flex:1;font-size:12px;color:#cfe2f2;">${_esc(t.name)}</div>
+        <div style="flex:1;font-size:12px;color:#d5d8dc;">${_esc(t.name)}</div>
         <div style="display:flex;gap:4px;">${TRAIL_STATUS_OPTS.map(s=>`<button onclick="this.closest('.trow')._sel='${s}';this.parentNode.querySelectorAll('button').forEach(b=>b.classList.remove('on'));this.classList.add('on')" class="ao-loc-btn tst${cur===s?' on':''}" data-tid="${t.id}" data-st="${s}" style="font-size:10px;padding:3px 8px;min-width:0;background:${cur===s?TRAIL_STATUS_COLORS[s]+'26':'rgba(255,255,255,.04)'};border-color:${cur===s?TRAIL_STATUS_COLORS[s]:'rgba(255,255,255,.1)'};color:${cur===s?TRAIL_STATUS_COLORS[s]:'rgba(255,255,255,.4)'}">${s}</button>`).join('')}</div>
       </div>`;
     });
@@ -2655,12 +2655,12 @@ function openTrailLog(_fresh){
   const SC=TRAIL_STATUS_COLORS;
   const modal=document.createElement('div');
   modal.id='trailLogModal';modal.className='modal on';
-  modal.innerHTML=`<div class="mbox"><div class="mhdr"><span class="mtitle">🚧 통제 변경 이력 <span style="font-size:11px;color:#6a94b0;font-weight:600;">(${log.length}건)</span></span><button class="mclose" onclick="document.getElementById('trailLogModal').remove()">×</button></div>
+  modal.innerHTML=`<div class="mbox"><div class="mhdr"><span class="mtitle">🚧 통제 변경 이력 <span style="font-size:11px;color:#78828e;font-weight:600;">(${log.length}건)</span></span><button class="mclose" onclick="document.getElementById('trailLogModal').remove()">×</button></div>
     <div style="max-height:60vh;overflow-y:auto;">
     ${log.length?log.map(e=>`<div style="background:#0f0f11;border-radius:9px;padding:10px 12px;margin-bottom:7px;border:1px solid rgba(230,126,34,.15);">
-      <div style="font-size:10px;color:#e67e22;font-weight:700;margin-bottom:5px;">${_esc(e.time||'')} · ${_esc(e.by||'')}${e.note?` <span style="color:#8aa6bc;font-weight:400;">— ${_esc(e.note)}</span>`:''}</div>
-      ${(e.changes||[]).map(c=>`<div style="font-size:11.5px;color:#cfe2f2;line-height:1.7;">${_esc(c.name)}: <span style="color:${SC[c.from]||'#888'};">${_esc(c.from)}</span> → <span style="color:${SC[c.to]||'#888'};font-weight:700;">${_esc(c.to)}</span></div>`).join('')}
-    </div>`).join(''):'<div style="text-align:center;color:#6a94b0;font-size:12px;padding:24px;">변경 이력이 없습니다.</div>'}
+      <div style="font-size:10px;color:#e67e22;font-weight:700;margin-bottom:5px;">${_esc(e.time||'')} · ${_esc(e.by||'')}${e.note?` <span style="color:#949aa2;font-weight:400;">— ${_esc(e.note)}</span>`:''}</div>
+      ${(e.changes||[]).map(c=>`<div style="font-size:11.5px;color:#d5d8dc;line-height:1.7;">${_esc(c.name)}: <span style="color:${SC[c.from]||'#888'};">${_esc(c.from)}</span> → <span style="color:${SC[c.to]||'#888'};font-weight:700;">${_esc(c.to)}</span></div>`).join('')}
+    </div>`).join(''):'<div style="text-align:center;color:#78828e;font-size:12px;padding:24px;">변경 이력이 없습니다.</div>'}
     </div>
   </div>`;
   document.body.appendChild(modal);
@@ -2715,7 +2715,7 @@ function openAlertHistory(opId){
 function _renderAlertOpDetail(op){
   const opLevel=_opLevel(op);
   const lvColor=ALERT_LEVEL_COLORS[opLevel]||'#3182f6';
-  const alertChips=(op.alerts||_opAlerts(op)).map(a=>`<span class="ao-alert-chip ${a.source==='auto'?'auto':'manual'}">${a.drill||op.drill?'🎯훈련':a.source==='auto'?'📡자동':'✋수동'} <b>${_esc(a.type)}${_stageShort(a.stage)}</b></span>`).join('')||'<span style="font-size:11px;color:#456a85;">-</span>';
+  const alertChips=(op.alerts||_opAlerts(op)).map(a=>`<span class="ao-alert-chip ${a.source==='auto'?'auto':'manual'}">${a.drill||op.drill?'🎯훈련':a.source==='auto'?'📡자동':'✋수동'} <b>${_esc(a.type)}${_stageShort(a.stage)}</b></span>`).join('')||'<span style="font-size:11px;color:#565f6b;">-</span>';
   // 응소자: 관측소별 그룹
   const resps=op.responders||[];
   let respHtml='';
@@ -2724,18 +2724,18 @@ function _renderAlertOpDetail(op){
     resps.forEach(r=>{const k=r.loc||'사무소';(byLoc[k]=byLoc[k]||[]).push(r);});
     respHtml=Object.entries(byLoc).map(([loc,arr])=>`<div class="ao-loc-card" style="margin-bottom:6px;">
       <div class="ao-loc-hd"><b style="color:#e8f2fb;font-size:12px;">${_esc(_stationLabel(loc))}</b><span class="ao-loc-cnt ok">👤 ${arr.length}명</span></div>
-      <div style="margin-top:5px;">${arr.map(r=>`<span class="ao-resp-chip"><b style="color:#e0edf8;">${_esc(r.name)}</b> ${_esc(r.role||'')}${r.arrivedAt?' <span style="color:#7ec8a0;">'+_esc(r.arrivedAt)+'</span>':''}</span>`).join('')}</div>
+      <div style="margin-top:5px;">${arr.map(r=>`<span class="ao-resp-chip"><b style="color:#eaecef;">${_esc(r.name)}</b> ${_esc(r.role||'')}${r.arrivedAt?' <span style="color:#7ec8a0;">'+_esc(r.arrivedAt)+'</span>':''}</span>`).join('')}</div>
     </div>`).join('');
-  } else respHtml='<div style="font-size:11px;color:#456a85;padding:8px 0;">응소 기록 없음</div>';
+  } else respHtml='<div style="font-size:11px;color:#565f6b;padding:8px 0;">응소 기록 없음</div>';
   // 그 기간 발생 안전사고
   const incs=_incidentsInOp(op);
   let incHtml='';
   if(incs.length){
     incHtml=incs.map(r=>`<div class="ao-hist" onclick="closeM('modalAlertHistory');try{openResListDetail(${r.id});}catch(e){}" style="cursor:pointer;border-left:3px solid #c0392b;">
       <div style="font-size:12px;font-weight:700;color:#ffc9c2;">🚨 ${_esc(r.title||r.type||'안전사고')}</div>
-      <div style="font-size:10px;color:#46708f;margin-top:3px;">${_esc((r.date||'').slice(5))}${r.weatherAlert?' · 🌀 '+_esc(r.weatherAlert):''}</div>
+      <div style="font-size:10px;color:#565f6b;margin-top:3px;">${_esc((r.date||'').slice(5))}${r.weatherAlert?' · 🌀 '+_esc(r.weatherAlert):''}</div>
     </div>`).join('');
-  } else incHtml='<div style="font-size:11px;color:#456a85;padding:8px 0;">기간 중 발생한 안전사고 없음</div>';
+  } else incHtml='<div style="font-size:11px;color:#565f6b;padding:8px 0;">기간 중 발생한 안전사고 없음</div>';
   return `
     <div class="ao-hero" style="background:linear-gradient(135deg,${lvColor}22,${lvColor}0a);border:1.5px solid ${lvColor}44;margin-bottom:14px;">
       <div class="ao-hero-lv" style="color:${lvColor};margin-top:0;">${_esc(opLevel)}${op.drill?' <span class="drill-badge" style="font-size:11px;">🎯 훈련</span>':''}</div>
@@ -2744,7 +2744,7 @@ function _renderAlertOpDetail(op){
     </div>
     <div class="ao-sec-hd" style="margin-top:0;"><span class="bar" style="background:#ff8a80;"></span>🚨 발령 특보</div>
     <div style="margin-bottom:6px;">${alertChips}</div>
-    ${op.note?`<div style="font-size:12px;color:#9fc0da;background:rgba(255,255,255,.03);border-radius:8px;padding:7px 10px;margin-bottom:6px;">📝 ${_esc(op.note)}</div>`:''}
+    ${op.note?`<div style="font-size:12px;color:#a5abb3;background:rgba(255,255,255,.03);border-radius:8px;padding:7px 10px;margin-bottom:6px;">📝 ${_esc(op.note)}</div>`:''}
     <div class="ao-sec-hd"><span class="bar"></span>📋 응소 현황</div>
     ${respHtml}
     <div class="ao-sec-hd"><span class="bar" style="background:#4fc0a0;"></span>📊 누적 관측 요약</div>
@@ -2771,7 +2771,7 @@ function openAddResponder(id,presetLoc){
   // 분소 카드에서 호출 시 소속 고정, 그렇지 않으면 선택 가능
   const locWrap=document.getElementById('respLocPills');
   if(presetLoc){
-    locWrap.innerHTML=`<span style="font-size:12px;font-weight:700;color:#e0edf8;background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.3);border-radius:20px;padding:4px 12px;">${_esc(_stationLabel(presetLoc))}</span>`;
+    locWrap.innerHTML=`<span style="font-size:12px;font-weight:700;color:#eaecef;background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.3);border-radius:20px;padding:4px 12px;">${_esc(_stationLabel(presetLoc))}</span>`;
   }else{
     _renderStationPills('respLocPills',_respLoc,'selRespLoc');
   }
@@ -2859,17 +2859,17 @@ function _openQuickRespSheet(opId){
   m.style.cssText='position:fixed;inset:0;z-index:9600;background:rgba(0,0,0,.6);display:flex;align-items:flex-end;justify-content:center;';
   const main=(typeof ALERT_STATIONS!=='undefined'?ALERT_STATIONS:[]).filter(s=>!s.obs);
   const roles=['당직','비상근무','과장','소장','지원반'];
-  m.innerHTML=`<div style="background:#0a1828;border:1px solid rgba(39,174,96,.3);border-radius:16px 16px 0 0;max-width:430px;width:100%;padding:16px 16px calc(14px + env(safe-area-inset-bottom));">
+  m.innerHTML=`<div style="background:#16161a;border:1px solid rgba(39,174,96,.3);border-radius:16px 16px 0 0;max-width:430px;width:100%;padding:16px 16px calc(14px + env(safe-area-inset-bottom));">
     <div style="display:flex;align-items:center;margin-bottom:4px;">
       <b style="font-size:14.5px;color:#7ee0a8;">🙋 응소 등록 — ${_esc(_myRespName())}</b>
       <button onclick="document.getElementById('quickRespSheet').remove()" style="margin-left:auto;background:none;border:none;color:rgba(255,255,255,.5);font-size:21px;cursor:pointer;padding:0 2px;">×</button>
     </div>
-    <div style="font-size:10.5px;color:#6a94b0;margin-bottom:11px;">처음 1회만 선택하면 기억해뒀다가, 다음부터는 버튼 한 번에 등록됩니다</div>
-    <div style="font-size:10px;color:#5d92bc;font-weight:800;margin-bottom:5px;">근무지</div>
+    <div style="font-size:10.5px;color:#78828e;margin-bottom:11px;">처음 1회만 선택하면 기억해뒀다가, 다음부터는 버튼 한 번에 등록됩니다</div>
+    <div style="font-size:10px;color:#6b7684;font-weight:800;margin-bottom:5px;">근무지</div>
     <div id="qrsLocWrap" style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:12px;">
       ${main.map(s=>`<div class="pill${window._qrsLoc===s.loc?' on':''}" onclick="_qrsPick('loc','${_escq(s.loc)}',this)">${_esc(s.label)}</div>`).join('')}
     </div>
-    <div style="font-size:10px;color:#5d92bc;font-weight:800;margin-bottom:5px;">역할</div>
+    <div style="font-size:10px;color:#6b7684;font-weight:800;margin-bottom:5px;">역할</div>
     <div id="qrsRoleWrap" style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:14px;">
       ${roles.map(r=>`<div class="pill${window._qrsRole===r?' on':''}" onclick="_qrsPick('role','${r}',this)">${r}</div>`).join('')}
     </div>
@@ -2925,7 +2925,7 @@ function quickRespCancel(opId){
 function _renderReportsTable(op){
   const mt=_alertMeasureType(op);
   const allReps=(op.reports||[]).slice();
-  if(!allReps.length)return`<div style="font-size:12px;color:#456a85;text-align:center;padding:16px 0;background:#0a1424;border-radius:10px;">관측 보고 없음 — 분소별 기상보고 버튼으로 입력</div>`;
+  if(!allReps.length)return`<div style="font-size:12px;color:#565f6b;text-align:center;padding:16px 0;background:#0a1424;border-radius:10px;">관측 보고 없음 — 분소별 기상보고 버튼으로 입력</div>`;
   // 입력값은 '관측 시점까지의 누적값' → 합산하지 않고 그대로 표시. 시간당 증가량(Δ)은 직전 보고 대비로 계산.
   const chrono=allReps.slice().sort((a,b)=>(a.at||0)-(b.at||0));
   const last={};const dlt={};
@@ -2949,12 +2949,12 @@ function _renderReportsTable(op){
       return`<tr><td>${_esc((r.time||'').slice(5,16))}</td><td>${_esc(_stationLabel(r.loc))}</td><td>${_esc(r.observer||'-')}</td>${snowTd}${rainTd}${delTd}</tr>${r.note?`<tr><td colspan="${cols}" style="color:#5a8aa0;font-size:9px;padding:1px 6px 4px;">↳ ${_esc(r.note)}</td></tr>`:''}`;
     }).join('')}
   </table>
-  <div style="font-size:9px;color:#456a85;margin-top:5px;">※ 값은 관측 시점까지의 <b>누적값</b>(입력 그대로). Δ는 직전 보고 대비 증가량(시간당 강우).</div>`;
+  <div style="font-size:9px;color:#565f6b;margin-top:5px;">※ 값은 관측 시점까지의 <b>누적값</b>(입력 그대로). Δ는 직전 보고 대비 증가량(시간당 강우).</div>`;
 }
 // ── 누적 관측 요약 (관측소별 현재 누적 합계 — 한눈에) ──
 function _renderCumulativeSummary(op){
   const reps=op.reports||[];
-  if(!reps.length)return`<div style="font-size:12px;color:#456a85;text-align:center;padding:14px 0;background:#0a1424;border-radius:10px;">아직 누적된 관측값이 없습니다</div>`;
+  if(!reps.length)return`<div style="font-size:12px;color:#565f6b;text-align:center;padding:14px 0;background:#0a1424;border-radius:10px;">아직 누적된 관측값이 없습니다</div>`;
   const mt=_alertMeasureType(op);
   // 입력값=누적값 → 합산 금지. 관측소별 '최신 누적값'(현재값) + 시계열(추세 그래프용)
   const byLoc={};
@@ -2966,7 +2966,7 @@ function _renderCumulativeSummary(op){
     if((r.time||'')>(byLoc[key].lastTime))byLoc[key].lastTime=r.time||'';
   });
   const entries=Object.entries(byLoc).filter(([,v])=>v.snowSeq.length||v.rainSeq.length);
-  if(!entries.length)return`<div style="font-size:12px;color:#456a85;text-align:center;padding:14px 0;background:#0a1424;border-radius:10px;">아직 누적된 관측값이 없습니다</div>`;
+  if(!entries.length)return`<div style="font-size:12px;color:#565f6b;text-align:center;padding:14px 0;background:#0a1424;border-radius:10px;">아직 누적된 관측값이 없습니다</div>`;
   // 미니 막대 추세(스파크라인): 최근 최대 8개 누적값 → 높이 막대
   const _spark=(seq,col)=>{
     if(!seq||seq.length<2)return'';
@@ -2978,10 +2978,10 @@ function _renderCumulativeSummary(op){
   const rows=entries.map(([,v])=>{
     const snowTd=mt!=='rain'?`<td style="text-align:center;color:#9ce0f0;font-weight:800;white-space:nowrap;">${v.snow!=null?v.snow.toFixed(1):'-'}${_spark(v.snowSeq,'#7ec8d8')}</td>`:'';
     const rainTd=mt!=='snow'?`<td style="text-align:center;color:#a8cdf5;font-weight:800;white-space:nowrap;">${v.rain!=null?v.rain.toFixed(1):'-'}${_spark(v.rainSeq,'#7db8f0')}</td>`:'';
-    return`<tr><td style="font-weight:600;color:#cfe2f2;">${_esc(v.label)}</td>${snowTd}${rainTd}<td style="font-size:9px;color:#5a8aa0;">${_esc((v.lastTime||'').slice(11,16))}</td></tr>`;
+    return`<tr><td style="font-weight:600;color:#d5d8dc;">${_esc(v.label)}</td>${snowTd}${rainTd}<td style="font-size:9px;color:#5a8aa0;">${_esc((v.lastTime||'').slice(11,16))}</td></tr>`;
   }).join('');
   return`<table class="ao-req-table"><tr><th>관측소</th>${snowHd}${rainHd}<th>최근</th></tr>${rows}</table>
-  <div style="font-size:9px;color:#456a85;margin-top:5px;">※ 현재 누적값(최신 보고 기준). 막대는 누적 강우 추세.</div>`;
+  <div style="font-size:9px;color:#565f6b;margin-top:5px;">※ 현재 누적값(최신 보고 기준). 막대는 누적 강우 추세.</div>`;
 }
 function openAlertReport(opId,presetLoc){
   {const _op=(DB.g('alertOps')||[]).find(o=>o.id===opId);
@@ -2990,7 +2990,7 @@ function openAlertReport(opId,presetLoc){
   // 특정 관측소(대피소·본소·분소)에서 보고하면 그 관측소로 고정 — 다른 관측소 재선택 차단
   const _rlw=document.getElementById('reportLocPills');
   if(presetLoc&&_rlw){
-    _rlw.innerHTML=`<span style="font-size:12px;font-weight:700;color:#e0edf8;background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.3);border-radius:20px;padding:4px 12px;">📍 ${_esc(_stationLabel(presetLoc))}</span>`;
+    _rlw.innerHTML=`<span style="font-size:12px;font-weight:700;color:#eaecef;background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.3);border-radius:20px;padding:4px 12px;">📍 ${_esc(_stationLabel(presetLoc))}</span>`;
   }else{
     _renderStationPills('reportLocPills',_reportLoc,'selReportLoc');
   }
@@ -3095,10 +3095,10 @@ function renderAdmCtrl(){
   const ongoing=res.filter(r=>r.status==='ongoing');
   const warned=facs.filter(f=>_facWarn(f));
   const hazOpen=haz.filter(h=>!h.hazStatus||h.hazStatus==='미조치'||h.hazStatus==='조치중');
-  const seg=(lbl,k,n,col)=>`<button onclick="admCtrlTab('${k}')" style="flex:1;padding:9px 4px;border:none;border-radius:8px;font-size:11.5px;font-weight:800;cursor:pointer;white-space:nowrap;background:${t===k?'rgba(255,255,255,.18)':'transparent'};color:${t===k?'#7fc4e0':'#6a8296'};">${lbl}${n?` <span style="background:${col||'#e05050'};color:#fff;border-radius:8px;padding:0 5px;font-size:9px;">${n}</span>`:''}</button>`;
-  const chip=(lbl,on,onclick,col)=>`<span onclick="${onclick}" style="cursor:pointer;display:inline-block;padding:5px 11px;margin:0 4px 4px 0;border-radius:13px;font-size:11px;font-weight:700;border:1px solid ${on?(col||'#3182f6'):'rgba(255,255,255,.12)'};background:${on?'rgba(255,255,255,.16)':'transparent'};color:${on?(col||'#7fc4e0'):'#6a8296'};">${lbl}</span>`;
-  const inp='background:#0f0f11;border:1px solid rgba(255,255,255,.12);color:#cfe2f2;border-radius:8px;padding:7px 9px;font-size:12px;width:100%;box-sizing:border-box;margin-bottom:7px;';
-  let html=`<div style="display:flex;gap:3px;background:#0a1626;border:1px solid rgba(255,255,255,.15);border-radius:10px;padding:3px;margin-bottom:11px;">${seg('📊 현황','dash')}${seg('🚨 구조','res',ongoing.length)}${seg('🛠️ 시설물','fac',warned.length,'#e67e22')}${seg('⚠️ 위험','haz',hazOpen.length,'#e67e22')}</div>`;
+  const seg=(lbl,k,n,col)=>`<button onclick="admCtrlTab('${k}')" style="flex:1;padding:9px 4px;border:none;border-radius:8px;font-size:11.5px;font-weight:800;cursor:pointer;white-space:nowrap;background:${t===k?'rgba(255,255,255,.18)':'transparent'};color:${t===k?'#a5abb3':'#6a8296'};">${lbl}${n?` <span style="background:${col||'#e05050'};color:#fff;border-radius:8px;padding:0 5px;font-size:9px;">${n}</span>`:''}</button>`;
+  const chip=(lbl,on,onclick,col)=>`<span onclick="${onclick}" style="cursor:pointer;display:inline-block;padding:5px 11px;margin:0 4px 4px 0;border-radius:13px;font-size:11px;font-weight:700;border:1px solid ${on?(col||'#3182f6'):'rgba(255,255,255,.12)'};background:${on?'rgba(255,255,255,.16)':'transparent'};color:${on?(col||'#a5abb3'):'#6a8296'};">${lbl}</span>`;
+  const inp='background:#0f0f11;border:1px solid rgba(255,255,255,.12);color:#d5d8dc;border-radius:8px;padding:7px 9px;font-size:12px;width:100%;box-sizing:border-box;margin-bottom:7px;';
+  let html=`<div style="display:flex;gap:3px;background:#131316;border:1px solid rgba(255,255,255,.15);border-radius:10px;padding:3px;margin-bottom:11px;">${seg('📊 현황','dash')}${seg('🚨 구조','res',ongoing.length)}${seg('🛠️ 시설물','fac',warned.length,'#e67e22')}${seg('⚠️ 위험','haz',hazOpen.length,'#e67e22')}</div>`;
   if(t==='dash'){
     html+=`<div class="scard" style="margin-bottom:8px;">
       <div class="stitle">📊 전체 현황</div>
@@ -3108,9 +3108,9 @@ function renderAdmCtrl(){
         <div class="stat-box" onclick="admCtrlTab('res')" style="cursor:pointer;"><div class="stat-num">${res.length}</div><div class="stat-lbl">구조이력</div></div>
         <div class="stat-box" onclick="window._admResF='진행중';admCtrlTab('res')" style="cursor:pointer;border-color:#c0392b;"><div class="stat-num bad">${ongoing.length}</div><div class="stat-lbl">진행중</div></div>
       </div>
-      ${(typeof _HAZ_OFF!=='undefined'&&_HAZ_OFF)?'':`<div onclick="admCtrlTab('haz')" style="cursor:pointer;margin-top:8px;font-size:11px;color:#7a9cb8;">위험상황 보고 ${haz.length}건 · <span style="color:${hazOpen.length?'#e67e22':'#5dbf8a'};font-weight:700;">미조치·조치중 ${hazOpen.length}건</span> ›</div>`}
+      ${(typeof _HAZ_OFF!=='undefined'&&_HAZ_OFF)?'':`<div onclick="admCtrlTab('haz')" style="cursor:pointer;margin-top:8px;font-size:11px;color:#8b95a1;">위험상황 보고 ${haz.length}건 · <span style="color:${hazOpen.length?'#e67e22':'#5dbf8a'};font-weight:700;">미조치·조치중 ${hazOpen.length}건</span> ›</div>`}
     </div>
-    <div style="font-size:10px;color:#5a7e98;margin:4px 2px 0;">숫자를 누르면 해당 탭으로 이동합니다. 긴급 항목만 아래에 표시됩니다.</div>
+    <div style="font-size:10px;color:#6b7684;margin:4px 2px 0;">숫자를 누르면 해당 탭으로 이동합니다. 긴급 항목만 아래에 표시됩니다.</div>
     <div class="sec-label">⚠️ 경고표시 시설물 (${warned.length})</div>
     ${warned.slice(0,5).map(f=>{const w=_facWarn(f);return `<div class="adm-row"><div class="adm-info"><div class="adm-name">⚠️ ${f.type.split(' ')[0]} ${_esc(_facDispName(f))}</div><div class="adm-meta">${_esc(_facZoneLbl(f)||'-')}${w.reason?' · '+_esc(w.reason):''}</div></div><button class="abtn" onclick="openFacDetail(${f.id})">보기</button></div>`;}).join('')||'<div class="muted" style="font-size:12px;padding:5px 0;">경고표시된 시설 없음</div>'}
     ${warned.length>5?`<button class="abtn" style="width:100%;margin-top:4px;" onclick="window._admFacF='경고';admCtrlTab('fac')">전체 ${warned.length}건 보기 →</button>`:''}
@@ -3231,15 +3231,15 @@ function renderAdmMembers(){
   <div class="scard" style="margin-bottom:10px;border:1px solid ${autoOn?'rgba(46,204,113,.4)':'rgba(255,255,255,.08)'};background:${autoOn?'rgba(46,204,113,.06)':'rgba(255,255,255,.02)'};">
     <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;">
       <div style="flex:1;min-width:0;">
-        <div style="font-size:12px;font-weight:700;color:${autoOn?'#5dbf8a':'#cfe2f2'};">${autoOn?'✅ 자동 승인 켜짐':'🔒 수동 승인 모드'}</div>
-        <div style="font-size:10px;color:#7a9cb8;margin-top:3px;line-height:1.5;">${autoOn?'지금 로그인하는 직원은 대기 없이 바로 입장합니다. 발표·행사가 끝나면 꺼주세요.':'새 직원은 아래 ‘신규 승인 대기’에서 승인해야 입장합니다.'}</div>
+        <div style="font-size:12px;font-weight:700;color:${autoOn?'#5dbf8a':'#d5d8dc'};">${autoOn?'✅ 자동 승인 켜짐':'🔒 수동 승인 모드'}</div>
+        <div style="font-size:10px;color:#8b95a1;margin-top:3px;line-height:1.5;">${autoOn?'지금 로그인하는 직원은 대기 없이 바로 입장합니다. 발표·행사가 끝나면 꺼주세요.':'새 직원은 아래 ‘신규 승인 대기’에서 승인해야 입장합니다.'}</div>
       </div>
       <button onclick="toggleAutoApprove()" style="flex-shrink:0;background:${autoOn?'#27ae60':'#1a4a6e'};color:#fff;border:none;border-radius:18px;padding:8px 14px;font-size:12px;font-weight:800;cursor:pointer;">${autoOn?'끄기':'자동 승인 켜기'}</button>
     </div>
   </div>
-  <div style="font-size:11px;color:#7a9cb8;margin-bottom:8px;line-height:1.6;">카카오 로그인 이력 + DB 접근 권한을 한 곳에서 관리합니다. 역할을 지정하면 즉시 적용됩니다.</div>
-  <div style="font-size:11px;color:#9bbdd4;margin-bottom:8px;">총 <b style="color:#e0edf8;">${fu.length}</b>명 · 관리자 <b style="color:#5dbf8a;">${adminCnt}</b> · 멤버 <b style="color:#3182f6;">${memberCnt}</b>${facMgrCnt?` · 🔧담당 <b style="color:#f0a500;">${facMgrCnt}</b>`:''}${pendingNew.length?` · <b style="color:#e67e22;">신규 ${pendingNew.length}</b>`:''}</div>
-  <div style="font-size:10px;color:#7a9cb8;background:rgba(240,165,0,.06);border:1px solid rgba(240,165,0,.18);border-radius:8px;padding:7px 9px;margin-bottom:10px;line-height:1.55;">🔧 <b style="color:#f0a500;">시설물 담당자</b>: 순찰자가 올린 <b>시설물 점검</b>을 재평가·회신하는 사람입니다. 지정된 담당자에게만 점검 알림이 갑니다. 이름 옆 🔧 버튼으로 지정하세요.</div>`;
+  <div style="font-size:11px;color:#8b95a1;margin-bottom:8px;line-height:1.6;">카카오 로그인 이력 + DB 접근 권한을 한 곳에서 관리합니다. 역할을 지정하면 즉시 적용됩니다.</div>
+  <div style="font-size:11px;color:#a5abb3;margin-bottom:8px;">총 <b style="color:#eaecef;">${fu.length}</b>명 · 관리자 <b style="color:#5dbf8a;">${adminCnt}</b> · 멤버 <b style="color:#3182f6;">${memberCnt}</b>${facMgrCnt?` · 🔧담당 <b style="color:#f0a500;">${facMgrCnt}</b>`:''}${pendingNew.length?` · <b style="color:#e67e22;">신규 ${pendingNew.length}</b>`:''}</div>
+  <div style="font-size:10px;color:#8b95a1;background:rgba(240,165,0,.06);border:1px solid rgba(240,165,0,.18);border-radius:8px;padding:7px 9px;margin-bottom:10px;line-height:1.55;">🔧 <b style="color:#f0a500;">시설물 담당자</b>: 순찰자가 올린 <b>시설물 점검</b>을 재평가·회신하는 사람입니다. 지정된 담당자에게만 점검 알림이 갑니다. 이름 옆 🔧 버튼으로 지정하세요.</div>`;
 
   // ── 신규 승인 대기 섹션 (최상단 강조) ──
   if(pendingNew.length){
@@ -3248,7 +3248,7 @@ function renderAdmMembers(){
       +pendingNew.map(u=>`<div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-top:1px solid rgba(255,255,255,.05);">
         ${u.kakaoImg?`<img src="${_esc(_imgHttps(u.kakaoImg))}" style="width:34px;height:34px;border-radius:50%;object-fit:cover;flex-shrink:0;" onerror="this.style.display='none'">`:`<div style="width:34px;height:34px;border-radius:50%;background:#3a2a18;display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0;">🆕</div>`}
         <div style="flex:1;min-width:0;">
-          <div style="font-size:13px;font-weight:700;color:#e0edf8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${_esc(u.name||'이름없음')}</div>
+          <div style="font-size:13px;font-weight:700;color:#eaecef;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${_esc(u.name||'이름없음')}</div>
           <div style="font-size:10px;color:#9c8060;margin-top:1px;">${_esc(u.dept||'소속 미입력')}${u.rank?' · '+_esc(u.rank):''} <span style="font-family:monospace;color:#6a5030;">ID ${_esc(u.kakaoId)}</span></div>
         </div>
         <button onclick="grantMember('${_escq(u.kakaoId)}')" style="flex-shrink:0;background:#27ae60;color:#fff;border:none;border-radius:8px;padding:8px 13px;font-size:12px;font-weight:800;cursor:pointer;">✅ 승인</button>
@@ -3259,11 +3259,11 @@ function renderAdmMembers(){
 
   html+=`
   <div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:10px;">
-    ${chips.map(d=>`<div onclick="setAdmMemberFilter('${d}')" style="padding:4px 10px;border-radius:20px;font-size:10px;font-weight:700;cursor:pointer;${d===_admMemberFilter?'background:#1a4a6e;color:#3182f6;':'background:#1c1c1e;color:#4a7090;border:1px solid #1a3a5a;'}">${d}</div>`).join('')}
+    ${chips.map(d=>`<div onclick="setAdmMemberFilter('${d}')" style="padding:4px 10px;border-radius:20px;font-size:10px;font-weight:700;cursor:pointer;${d===_admMemberFilter?'background:#1a4a6e;color:#3182f6;':'background:#1c1c1e;color:#565f6b;border:1px solid #1a3a5a;'}">${d}</div>`).join('')}
   </div>`;
 
   if(!fu.length){
-    html+=`<div style="font-size:11px;color:#4a7090;padding:8px 0;">카카오 로그인 이력이 없습니다. 직원들이 카카오 로그인하면 자동으로 표시됩니다.</div>`;
+    html+=`<div style="font-size:11px;color:#565f6b;padding:8px 0;">카카오 로그인 이력이 없습니다. 직원들이 카카오 로그인하면 자동으로 표시됩니다.</div>`;
   } else {
     html+=fu.map(u=>{
       const role=roleOf(u.kakaoId);
@@ -3276,14 +3276,14 @@ function renderAdmMembers(){
         <div style="display:flex;align-items:center;gap:8px;">
           ${u.kakaoImg?`<img src="${_esc(_imgHttps(u.kakaoImg))}" style="width:32px;height:32px;border-radius:50%;object-fit:cover;flex-shrink:0;" onerror="this.style.display='none'">`:`<div style="width:32px;height:32px;border-radius:50%;background:#1a3a5a;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0;">👤</div>`}
           <div style="flex:1;min-width:0;">
-            <div style="font-size:12px;font-weight:700;color:#e0edf8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${_esc(u.name||'이름없음')} ${roleBadge} ${facMgrBadge} ${appBadge}</div>
-            <div style="font-size:10px;color:#4a7090;margin-top:1px;">${_esc(u.dept)}${u.rank?' · '+_esc(u.rank):''} <span style="font-family:monospace;color:#2a5060;">ID ${_esc(u.kakaoId)}</span></div>
+            <div style="font-size:12px;font-weight:700;color:#eaecef;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${_esc(u.name||'이름없음')} ${roleBadge} ${facMgrBadge} ${appBadge}</div>
+            <div style="font-size:10px;color:#565f6b;margin-top:1px;">${_esc(u.dept)}${u.rank?' · '+_esc(u.rank):''} <span style="font-family:monospace;color:#2a5060;">ID ${_esc(u.kakaoId)}</span></div>
             ${u.reg?`<div style="font-size:9px;color:#3a5a6a;margin-top:1px;">📅 등록 ${new Date(u.reg).toLocaleString('ko-KR',{year:'2-digit',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'})}</div>`:''}
           </div>
           <div style="display:flex;align-items:center;gap:4px;flex-shrink:0;">
             ${_isDeveloper(u.kakaoId)
               ?`<span style="font-size:10px;color:#5dbf8a;font-weight:800;background:rgba(39,174,96,.12);border:1px solid rgba(39,174,96,.3);border-radius:7px;padding:4px 8px;">👨‍💻 개발자</span>`
-              :`<select onchange="_aclSetRole('${_escq(u.kakaoId)}',this.value)" style="background:#0a1626;color:#cfe2f2;border:1px solid rgba(255,255,255,.25);border-radius:7px;padding:4px 5px;font-size:10px;cursor:pointer;">
+              :`<select onchange="_aclSetRole('${_escq(u.kakaoId)}',this.value)" style="background:#131316;color:#d5d8dc;border:1px solid rgba(255,255,255,.25);border-radius:7px;padding:4px 5px;font-size:10px;cursor:pointer;">
               <option value="none"${role==='none'?' selected':''}>미등록</option>
               <option value="member"${role==='member'?' selected':''}>멤버</option>
               <option value="admin"${role==='admin'?' selected':''}>관리자</option>
@@ -3295,7 +3295,7 @@ function renderAdmMembers(){
           </div>
         </div>
         <div id="admMemberEdit_${editId}" style="display:none;margin-top:8px;background:rgba(0,0,0,.25);border-radius:9px;padding:10px;">
-          <div style="font-size:10px;color:#4a7090;font-weight:600;margin-bottom:7px;">✏️ 직원 정보 수정</div>
+          <div style="font-size:10px;color:#565f6b;font-weight:600;margin-bottom:7px;">✏️ 직원 정보 수정</div>
           <input id="admME_name_${editId}" class="fi" value="${_esc(u.name||'')}" placeholder="이름" style="margin-bottom:6px;">
           <select id="admME_dept_${editId}" class="fsel" style="margin-bottom:6px;">
             ${deptOpts.map(d=>`<option value="${d}"${u.dept===d?' selected':''}>${d}</option>`).join('')}
@@ -3364,7 +3364,7 @@ function _toggleAdmRank(uid,rank){
 function renderAdmCat(){
   const cats=DB.g('catFac')||[];
   const meta=DB.g('catFacMeta')||{};
-  const togHtml=(id,label,checked)=>`<label style="display:flex;align-items:center;gap:6px;font-size:11px;color:#7a9cb8;cursor:pointer;margin-top:5px;"><input type="checkbox" id="${id}"${checked?' checked':''}> ${label}</label>`;
+  const togHtml=(id,label,checked)=>`<label style="display:flex;align-items:center;gap:6px;font-size:11px;color:#8b95a1;cursor:pointer;margin-top:5px;"><input type="checkbox" id="${id}"${checked?' checked':''}> ${label}</label>`;
   const rowsHtml=cats.map((c,i)=>{
     const m=meta[c]||{};
     const badges=(m.rescue?'<span style="font-size:9px;background:rgba(255,255,255,.15);color:#3182f6;border:1px solid rgba(255,255,255,.3);border-radius:3px;padding:1px 5px;margin-right:3px;">🗺 재난</span>':'')+(m.adminOnly?'<span style="font-size:9px;background:rgba(192,57,43,.12);color:#e05050;border:1px solid rgba(192,57,43,.3);border-radius:3px;padding:1px 5px;">🔒 관리자</span>':'');
@@ -3372,7 +3372,7 @@ function renderAdmCat(){
       <div class="adm-row" style="margin-bottom:0;">
         <div class="adm-info" style="flex:1;min-width:0;">
           <div class="adm-name" style="font-size:12px;">${_esc(c)}</div>
-          <div style="margin-top:3px;">${badges||'<span style="font-size:9px;color:#3a6a8a;">일반</span>'}</div>
+          <div style="margin-top:3px;">${badges||'<span style="font-size:9px;color:#454e5a;">일반</span>'}</div>
         </div>
         <button class="abtn" style="font-size:10px;" onclick="toggleCatEdit(${i})">수정</button>
         <button class="abtn del" style="font-size:10px;" onclick="delCat(${i})">삭제</button>
@@ -3398,7 +3398,7 @@ function renderAdmCat(){
     </div>
   </div>
   <button id="catAddBtn" class="btn btn-ghost" style="width:100%;padding:9px;border-radius:8px;margin-top:8px;font-size:12px;" onclick="this.style.display='none';document.getElementById('catAddForm').style.display='block';">＋ 카테고리 추가</button>`;
-  document.getElementById('admCatWrap').innerHTML=`<div style="font-size:10px;color:#3a6a8a;margin-bottom:7px;font-weight:600;">시설물 카테고리</div>${rowsHtml}${addHtml}`;
+  document.getElementById('admCatWrap').innerHTML=`<div style="font-size:10px;color:#454e5a;margin-bottom:7px;font-weight:600;">시설물 카테고리</div>${rowsHtml}${addHtml}`;
   // 수정 폼 name 값 채우기 (innerHTML escaping 우회)
   cats.forEach((c,i)=>{const el=document.getElementById('catEditName'+i);if(el)el.value=c;});
 }
@@ -3428,25 +3428,25 @@ function renderAdmSheets(){
   const url=DB.g('sheetsUrl')||'';
   document.getElementById('admSheetsWrap').innerHTML=`
     <div class="scard" style="margin-bottom:8px;"><div class="stitle">🔗 Google Sheets 자동 동기화</div>
-      <div style="font-size:12px;color:#7a9cb8;line-height:1.6;margin-bottom:10px;">구조보고·시설점검 저장 시 자동으로 스프레드시트에 기록됩니다.</div>
+      <div style="font-size:12px;color:#8b95a1;line-height:1.6;margin-bottom:10px;">구조보고·시설점검 저장 시 자동으로 스프레드시트에 기록됩니다.</div>
       <div class="fg"><span class="fl">Apps Script 배포 URL</span><input type="text" id="sheetsUrlIn" class="fi" placeholder="https://script.google.com/macros/s/..." value="${url}"></div>
       <button onclick="saveSheetsUrl()" style="width:100%;background:${url?'#0c4838':'#1a4a6e'};color:#fff;border:none;padding:10px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;">${url?'✅ 저장됨 (재입력하여 변경)':'저장'}</button>
     </div>
     <div class="scard" style="margin-bottom:8px;"><div class="stitle">📌 Google Sheets 설정 방법</div>
-      <div style="font-size:11px;color:#7a9cb8;line-height:1.8;">1. Google Sheets 열기<br>2. 확장 프로그램 → Apps Script<br>3. 코드 작성 → 배포 → 웹앱으로 배포<br>4. 생성된 URL을 위에 입력</div>
+      <div style="font-size:11px;color:#8b95a1;line-height:1.8;">1. Google Sheets 열기<br>2. 확장 프로그램 → Apps Script<br>3. 코드 작성 → 배포 → 웹앱으로 배포<br>4. 생성된 URL을 위에 입력</div>
     </div>
     <div class="scard" style="margin-bottom:8px;">
       <div class="stitle">🚒 외부기관 관리</div>
-      <div style="font-size:11px;color:#7a9cb8;margin-bottom:8px;">119·산악구조대·특수대응단 등 기관별로 추가하세요. 각 기관에 코드를 전달하면 해당 기관명으로 접수됩니다 (접수·조회·댓글만 가능).</div>
+      <div style="font-size:11px;color:#8b95a1;margin-bottom:8px;">119·산악구조대·특수대응단 등 기관별로 추가하세요. 각 기관에 코드를 전달하면 해당 기관명으로 접수됩니다 (접수·조회·댓글만 가능).</div>
       <div id="extAgencyListWrap">${_extAgencyRowsHtml()}</div>
       <div style="display:flex;gap:6px;margin-top:8px;">
-        <button onclick="addExtAgencyRow()" style="flex:1;background:rgba(255,255,255,.05);color:#9bbdd4;border:1px dashed rgba(255,120,30,.3);padding:9px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;">＋ 기관 추가</button>
+        <button onclick="addExtAgencyRow()" style="flex:1;background:rgba(255,255,255,.05);color:#a5abb3;border:1px dashed rgba(255,120,30,.3);padding:9px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;">＋ 기관 추가</button>
         <button onclick="saveExtAgencies()" style="flex:1;background:#7a3010;color:#fff;border:none;padding:9px;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;">💾 전체 저장</button>
       </div>
     </div>
     <div class="scard" style="margin-bottom:8px;">
       <div class="stitle">🤖 AI 출동지령서 스캔 키</div>
-      <div style="font-size:11px;color:#7a9cb8;margin-bottom:8px;">Google Gemini API 키 (무료) — <a href="https://aistudio.google.com/app/apikey" target="_blank" style="color:#c4b5fd;">aistudio.google.com</a>에서 발급</div>
+      <div style="font-size:11px;color:#8b95a1;margin-bottom:8px;">Google Gemini API 키 (무료) — <a href="https://aistudio.google.com/app/apikey" target="_blank" style="color:#c4b5fd;">aistudio.google.com</a>에서 발급</div>
       <div style="display:flex;gap:6px;">
         <input id="geminiKeyInp" type="password" class="fi" value="${DB.g('geminiApiKey')||''}" placeholder="AIza..." style="flex:1;font-family:monospace;font-size:13px;">
         <button onclick="saveGeminiKey()" style="background:#1a3a20;color:#86efac;border:1px solid rgba(74,222,128,.3);padding:8px 14px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;">저장</button>
@@ -3455,9 +3455,9 @@ function renderAdmSheets(){
     </div>
     <div class="scard" style="margin-bottom:8px;">
       <div class="stitle">🎯 커스텀 사고유형 아이콘</div>
-      <div style="font-size:11px;color:#7a9cb8;margin-bottom:8px;">'기타'로 직접 입력해 쓰는 사고유형(예: 낙석, 화재)에 전용 지도 아이콘을 지정. 등록하면 전 기기에 공유됩니다.</div>
+      <div style="font-size:11px;color:#8b95a1;margin-bottom:8px;">'기타'로 직접 입력해 쓰는 사고유형(예: 낙석, 화재)에 전용 지도 아이콘을 지정. 등록하면 전 기기에 공유됩니다.</div>
       <div id="customTypeList">${(DB.g('customResTypes')||[]).map((t,i)=>`<div style="display:flex;align-items:center;gap:8px;padding:6px 10px;background:#1c1c1e;border-radius:7px;margin-bottom:4px;border:1px solid rgba(255,255,255,.07);">
-        <span style="font-size:16px;">${_esc(t.ico||'⚠️')}</span><span style="flex:1;font-size:12px;color:#e0edf8;font-weight:600;">${_esc(t.name||'')}</span>
+        <span style="font-size:16px;">${_esc(t.ico||'⚠️')}</span><span style="flex:1;font-size:12px;color:#eaecef;font-weight:600;">${_esc(t.name||'')}</span>
         <button onclick="delCustomResType(${i})" style="background:rgba(192,57,43,.15);color:#c0392b;border:none;border-radius:5px;padding:3px 9px;font-size:11px;cursor:pointer;">삭제</button>
       </div>`).join('')||'<div style="font-size:11px;color:#3a4a6a;padding:4px 2px;">등록된 커스텀 유형 없음</div>'}</div>
       <div style="display:flex;gap:6px;margin-top:8px;">
@@ -3468,22 +3468,22 @@ function renderAdmSheets(){
     </div>
     <div class="scard" style="margin-bottom:8px;">
       <div class="stitle">📄 한글 보고서 서식 (hwpx)</div>
-      <div style="font-size:11px;color:#7a9cb8;margin-bottom:8px;line-height:1.6;">실제 결재 서식(.hwpx)을 등록하면 보고서 버튼이 <b style="color:#9fc0da;">그 서식 그대로</b> 데이터를 채운 한글파일을 만듭니다.<br>
+      <div style="font-size:11px;color:#8b95a1;margin-bottom:8px;line-height:1.6;">실제 결재 서식(.hwpx)을 등록하면 보고서 버튼이 <b style="color:#a5abb3;">그 서식 그대로</b> 데이터를 채운 한글파일을 만듭니다.<br>
       ① 한글에서 서식 문서를 열고, 값이 들어갈 칸에 <b style="color:#e8b34a;">{{사고일시}}</b> 같은 자리표시자를 입력<br>
       ② 다른 이름으로 저장 → <b>HWPX</b> 형식 선택 ③ 아래에서 업로드</div>
       <button onclick="copyTplPlaceholders()" style="width:100%;margin-bottom:8px;background:rgba(232,179,74,.1);border:1px solid rgba(232,179,74,.35);color:#e8b34a;padding:8px;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;">📋 자리표시자 전체 목록 복사</button>
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
-        <span style="font-size:12px;color:#cfe2f2;flex:1;">📑 처리현황: <span id="tplName_status" style="color:#7a9cb8;">확인중…</span></span>
+        <span style="font-size:12px;color:#d5d8dc;flex:1;">📑 처리현황: <span id="tplName_status" style="color:#8b95a1;">확인중…</span></span>
         <label style="background:#1a3a20;color:#86efac;border:1px solid rgba(74,222,128,.3);padding:7px 12px;border-radius:8px;font-size:11px;font-weight:700;cursor:pointer;">업로드<input type="file" accept=".hwpx" style="display:none;" onchange="uploadHwpxTpl('status',this)"></label>
       </div>
       <div style="display:flex;align-items:center;gap:8px;">
-        <span style="font-size:12px;color:#cfe2f2;flex:1;">📈 동향보고: <span id="tplName_trend" style="color:#7a9cb8;">확인중…</span></span>
+        <span style="font-size:12px;color:#d5d8dc;flex:1;">📈 동향보고: <span id="tplName_trend" style="color:#8b95a1;">확인중…</span></span>
         <label style="background:#1a3a20;color:#86efac;border:1px solid rgba(74,222,128,.3);padding:7px 12px;border-radius:8px;font-size:11px;font-weight:700;cursor:pointer;">업로드<input type="file" accept=".hwpx" style="display:none;" onchange="uploadHwpxTpl('trend',this)"></label>
       </div>
     </div>
     <div class="scard">
       <div class="stitle">🌦️ 기상청 프록시 주소</div>
-      <div style="font-size:11px;color:#7a9cb8;margin-bottom:8px;">실제 기상청 데이터를 안정적으로 받기 위한 본인 소유 프록시(Cloudflare Worker) 주소. 비우면 공개 프록시로 동작. 설정법: 저장소 <b>cloudflare-worker/README.md</b></div>
+      <div style="font-size:11px;color:#8b95a1;margin-bottom:8px;">실제 기상청 데이터를 안정적으로 받기 위한 본인 소유 프록시(Cloudflare Worker) 주소. 비우면 공개 프록시로 동작. 설정법: 저장소 <b>cloudflare-worker/README.md</b></div>
       <div style="display:flex;gap:6px;">
         <input id="kmaProxyInp" type="text" class="fi" value="${_esc(DB.g('kmaProxyUrl')||'')}" placeholder="https://seoraksan-kma.xxx.workers.dev" style="flex:1;font-family:monospace;font-size:11px;">
         <button onclick="saveKmaProxy()" style="background:#1a3a20;color:#86efac;border:1px solid rgba(74,222,128,.3);padding:8px 14px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;">저장</button>
@@ -3500,7 +3500,7 @@ function _loadTplNames(){
       const el=document.getElementById('tplName_'+k);if(!el)return;
       const dt=d.exists?d.data():null;
       if(dt&&dt.b64){el.textContent='✅ '+(dt.name||'등록됨')+(dt.by?' · '+dt.by:'');el.style.color='#86efac';}
-      else{el.textContent='미등록 (HTML 방식으로 동작)';el.style.color='#7a9cb8';}
+      else{el.textContent='미등록 (HTML 방식으로 동작)';el.style.color='#8b95a1';}
     }).catch(()=>{const el=document.getElementById('tplName_'+k);if(el)el.textContent='조회 실패';});
   });
 }
@@ -3712,7 +3712,7 @@ function _clearAllErrLogs(){
   if(!isAdminUser()){toast('⚠️ 관리자만 가능');return;}
   if(!_fdb){toast('서버 미연결');return;}
   if(!confirm('전체 기기의 오류 기록을 모두 삭제할까요?'))return;
-  const el=document.getElementById('allErrLogs');if(el)el.innerHTML='<div style="font-size:11px;color:#5a8aaa;">삭제 중…</div>';
+  const el=document.getElementById('allErrLogs');if(el)el.innerHTML='<div style="font-size:11px;color:#6b7684;">삭제 중…</div>';
   _fdb.collection('errLogs').limit(400).get().then(function(snap){
     let n=0;const ps=[];snap.docs.forEach(function(d){n++;ps.push(d.ref.delete().catch(function(){}));});
     Promise.all(ps).then(function(){
@@ -3724,7 +3724,7 @@ function _clearAllErrLogs(){
 function _loadAllErrLogs(){
   const el=document.getElementById('allErrLogs');
   if(!_fdb){if(el)el.innerHTML='<div style="font-size:11px;color:#e05050;">서버 미연결</div>';return;}
-  if(el)el.innerHTML='<div style="font-size:11px;color:#5a8aaa;">불러오는 중…</div>';
+  if(el)el.innerHTML='<div style="font-size:11px;color:#6b7684;">불러오는 중…</div>';
   _fdb.collection('errLogs').orderBy('at','desc').limit(80).get().then(function(snap){
     if(!el)return;
     const rows=snap.docs.map(d=>d.data());
@@ -3734,7 +3734,7 @@ function _loadAllErrLogs(){
       const who=(r.by||'미상')+(r.dept?'·'+r.dept:'');
       const plat=r.plat==='APP'?'📱앱':'🌐웹';
       return '<div style="font-size:10px;font-family:monospace;padding:3px 0;border-bottom:1px solid rgba(255,255,255,.04);">'
-        +'<span style="color:#7dd3fa;">'+plat+'</span> <span style="color:#9bbdd4;">'+_esc(who)+'</span> <span style="color:#5a7e98;">'+t+'</span><br>'
+        +'<span style="color:#aab4c0;">'+plat+'</span> <span style="color:#a5abb3;">'+_esc(who)+'</span> <span style="color:#6b7684;">'+t+'</span><br>'
         +'<span style="color:#b8856a;">'+_esc(r.m||'')+'</span></div>';
     }).join('');
     // 7일 지난 오래된 기록 정리(한 번에 소량)
@@ -3754,10 +3754,10 @@ function renderAdmSys(){
       if(!tr.length)return '';
       const canPurge=(typeof _isMasterAdmin==='function'&&_isMasterAdmin());
       return `<div class="scard" style="margin-bottom:8px;">
-        <div class="stitle">🗑 시설물 휴지통 <span style="font-size:9px;font-weight:400;color:#5a7e98;">삭제된 시설 — ♻️로 복구 (최근 100건 보관)</span></div>
+        <div class="stitle">🗑 시설물 휴지통 <span style="font-size:9px;font-weight:400;color:#6b7684;">삭제된 시설 — ♻️로 복구 (최근 100건 보관)</span></div>
         ${tr.map(t=>{const r=t.rec||{};const d=new Date(t.at);const ds=(d.getMonth()+1)+'/'+d.getDate();
-          return `<div style="display:flex;align-items:center;gap:7px;padding:6px 0;border-bottom:1px solid rgba(255,255,255,.05);font-size:11.5px;color:#cfe2f2;">
-            <span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${_esc((r.type||'').split(' ')[0])} ${_esc(r.name||'-')} <span style="color:#5a7e98;font-size:10px;">${ds} · ${_esc(t.by||'')}</span></span>
+          return `<div style="display:flex;align-items:center;gap:7px;padding:6px 0;border-bottom:1px solid rgba(255,255,255,.05);font-size:11.5px;color:#d5d8dc;">
+            <span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${_esc((r.type||'').split(' ')[0])} ${_esc(r.name||'-')} <span style="color:#6b7684;font-size:10px;">${ds} · ${_esc(t.by||'')}</span></span>
             <button onclick="restoreFac(${t.at})" style="background:rgba(94,207,143,.12);color:#5fcf8f;border:1px solid rgba(94,207,143,.3);border-radius:7px;padding:4px 10px;font-size:11px;font-weight:700;cursor:pointer;flex-shrink:0;">♻️ 복구</button>
             ${canPurge?`<button onclick="purgeFacTrash(${t.at})" style="background:none;color:#ff8a80;border:1px solid rgba(255,107,91,.3);border-radius:7px;padding:4px 8px;font-size:11px;cursor:pointer;flex-shrink:0;" title="영구 삭제">✕</button>`:''}
           </div>`;}).join('')}
@@ -3768,16 +3768,16 @@ function renderAdmSys(){
       const hid=_homeHiddenSet();
       return `<div class="scard" style="margin-bottom:8px;">
         <div class="stitle">🏠 홈 화면 메뉴 표시</div>
-        <div style="font-size:11px;color:#7a9cb8;margin-bottom:8px;">완성 전인(미완성) 메뉴를 <b style="color:#cfe2f2;">전 직원 홈 화면</b>에서 숨깁니다. 숨겨도 데이터는 보존되며, 다시 표시하면 그대로 나타납니다. <span style="color:#5a7e98;">(‘내 설정’·‘관리자 전용’은 잠금 방지를 위해 항상 표시)</span></div>
+        <div style="font-size:11px;color:#8b95a1;margin-bottom:8px;">완성 전인(미완성) 메뉴를 <b style="color:#d5d8dc;">전 직원 홈 화면</b>에서 숨깁니다. 숨겨도 데이터는 보존되며, 다시 표시하면 그대로 나타납니다. <span style="color:#6b7684;">(‘내 설정’·‘관리자 전용’은 잠금 방지를 위해 항상 표시)</span></div>
         ${HOME_MENUS.map(m=>{const h=hid.has(m.k);return `<div style="display:flex;align-items:center;gap:8px;padding:8px 2px;border-bottom:1px solid rgba(255,255,255,.04);">
-          <span style="flex:1;font-size:12.5px;color:${h?'#6a8296':'#e0edf8'};">${m.label}${h?' <span style="font-size:10px;color:#e0857a;font-weight:800;">· 숨김</span>':''}</span>
+          <span style="flex:1;font-size:12.5px;color:${h?'#6a8296':'#eaecef'};">${m.label}${h?' <span style="font-size:10px;color:#e0857a;font-weight:800;">· 숨김</span>':''}</span>
           <button onclick="_setHomeMenuHidden('${m.k}',${h?'false':'true'})" style="background:${h?'rgba(94,207,143,.12)':'rgba(192,57,43,.1)'};color:${h?'#5fcf8f':'#e0857a'};border:1px solid ${h?'rgba(94,207,143,.35)':'rgba(192,57,43,.3)'};border-radius:8px;padding:6px 13px;font-size:11.5px;font-weight:800;cursor:pointer;white-space:nowrap;">${h?'👁️ 표시하기':'🙈 숨기기'}</button>
         </div>`;}).join('')}
       </div>`;
     }catch(e){return'';}})()}
     <div class="scard" style="margin-bottom:8px;">
       <div class="stitle">💾 데이터 백업 / 복원</div>
-      <div style="font-size:11px;color:#7a9cb8;margin-bottom:8px;">전체 데이터를 파일로 내려받아 보관하세요 (사진 원본은 서버에 별도 저장)</div>
+      <div style="font-size:11px;color:#8b95a1;margin-bottom:8px;">전체 데이터를 파일로 내려받아 보관하세요 (사진 원본은 서버에 별도 저장)</div>
       <div style="display:flex;gap:6px;">
         <button onclick="exportAllData()" style="flex:1;background:rgba(39,174,96,.1);color:#27ae60;border:1px solid rgba(39,174,96,.3);padding:9px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;">⬇️ 전체 백업</button>
         <button onclick="document.getElementById('restoreFileInp').click()" style="flex:1;background:rgba(230,126,34,.08);color:#e67e22;border:1px solid rgba(230,126,34,.28);padding:9px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;">⬆️ 복원</button>
@@ -3786,20 +3786,20 @@ function renderAdmSys(){
     </div>
     <div class="scard" style="margin-bottom:8px;display:none;">
       <div class="stitle">🔄 앱 업데이트</div>
-      <div style="font-size:11px;color:#7a9cb8;margin-bottom:8px;">현재 버전 <b style="color:#cfe2f2;">${OTA_VER}</b> · 앱(APK)은 재설치 없이 최신 코드로 자체 업데이트됩니다. (웹은 새로고침 시 자동)</div>
+      <div style="font-size:11px;color:#8b95a1;margin-bottom:8px;">현재 버전 <b style="color:#d5d8dc;">${OTA_VER}</b> · 앱(APK)은 재설치 없이 최신 코드로 자체 업데이트됩니다. (웹은 새로고침 시 자동)</div>
       <button onclick="_otaCheck(true)" style="width:100%;padding:11px;border-radius:8px;border:1px solid rgba(255,255,255,.4);background:rgba(255,255,255,.12);color:#3182f6;font-size:13px;font-weight:700;cursor:pointer;">🔄 업데이트 확인 / 적용</button>
     </div>
     <div class="scard" style="margin-bottom:8px;">
       <div class="stitle">🆘 조난·사고자 위치 접수</div>
-      <div style="font-size:11px;color:#7a9cb8;margin-bottom:8px;">악용·오작동 시 전체 접수를 차단할 수 있습니다. 차단 중엔 1회용 링크도 발급되지 않고 수신 위치가 표시되지 않습니다.</div>
+      <div style="font-size:11px;color:#8b95a1;margin-bottom:8px;">악용·오작동 시 전체 접수를 차단할 수 있습니다. 차단 중엔 1회용 링크도 발급되지 않고 수신 위치가 표시되지 않습니다.</div>
       ${(()=>{const blk=!!DB.g('sosBlocked');return `<button onclick="toggleSosBlock()" style="width:100%;padding:11px;border-radius:8px;border:1px solid ${blk?'rgba(39,174,96,.4)':'rgba(192,57,43,.4)'};background:${blk?'rgba(39,174,96,.12)':'rgba(192,57,43,.12)'};color:${blk?'#27ae60':'#e05050'};font-size:13px;font-weight:700;cursor:pointer;">${blk?'⛔ 현재 차단됨 — 탭하여 접수 허용':'🆗 현재 허용됨 — 탭하여 접수 차단'}</button>`;})()}
     </div>
     <div class="scard sel-ok" style="margin-bottom:8px;">
       <div class="stitle">🐞 오류 기록 <button onclick="localStorage.removeItem('_errLog');renderAdmSys();" style="float:right;background:none;border:none;color:rgba(255,255,255,.3);font-size:10px;cursor:pointer;">내 기록 비우기</button></div>
-      <div style="font-size:10px;color:#5a8aaa;font-weight:700;margin:4px 0 3px;">📱 내 기기</div>
+      <div style="font-size:10px;color:#6b7684;font-weight:700;margin:4px 0 3px;">📱 내 기기</div>
       ${(()=>{try{const log=JSON.parse(localStorage.getItem('_errLog')||'[]');return log.length?log.slice(0,8).map(e=>`<div style="font-size:10px;color:#b8856a;font-family:monospace;padding:2px 0;border-bottom:1px solid rgba(255,255,255,.04);">${e.t} ${_esc(e.m)}</div>`).join(''):'<div style="font-size:11px;color:rgba(255,255,255,.25);">기록된 오류 없음 ✅</div>';}catch(e){return'';}})()}
       <div style="display:flex;justify-content:space-between;align-items:center;margin:9px 0 3px;">
-        <span style="font-size:10px;color:#5a8aaa;font-weight:700;">🌐 전체 기기 (누가·웹/앱)</span>
+        <span style="font-size:10px;color:#6b7684;font-weight:700;">🌐 전체 기기 (누가·웹/앱)</span>
         <span style="display:flex;gap:5px;">
           <button onclick="_loadAllErrLogs()" style="background:rgba(255,255,255,.12);color:#3182f6;border:1px solid rgba(255,255,255,.28);border-radius:14px;padding:3px 10px;font-size:10px;font-weight:700;cursor:pointer;">불러오기 ↻</button>
           <button onclick="_clearAllErrLogs()" style="background:rgba(192,57,43,.1);color:#e0857a;border:1px solid rgba(192,57,43,.28);border-radius:14px;padding:3px 10px;font-size:10px;font-weight:700;cursor:pointer;">전체 비우기</button>
@@ -3809,24 +3809,24 @@ function renderAdmSys(){
     </div>
     <div class="scard" style="margin-bottom:8px;">
       <div class="stitle">🔔 알림 받는 대상 안내</div>
-      <div style="font-size:11px;color:#7a9cb8;margin-bottom:10px;">기본적으로 <b style="color:#5dbf8a;">모든 직원</b>이 받습니다. 아래 일부만 <b style="color:#7dd3fa;">관리자 전용</b>입니다. (각자 [내 설정 → 알림]에서 자기 알림을 끄고 켤 수 있어요)</div>
+      <div style="font-size:11px;color:#8b95a1;margin-bottom:10px;">기본적으로 <b style="color:#5dbf8a;">모든 직원</b>이 받습니다. 아래 일부만 <b style="color:#aab4c0;">관리자 전용</b>입니다. (각자 [내 설정 → 알림]에서 자기 알림을 끄고 켤 수 있어요)</div>
       <div style="background:rgba(39,174,96,.06);border:1px solid rgba(39,174,96,.25);border-radius:9px;padding:10px 11px;margin-bottom:8px;">
         <div style="font-size:12px;font-weight:800;color:#5dbf8a;margin-bottom:5px;">👥 모두에게</div>
-        <div style="font-size:11px;color:#b8d4e8;line-height:1.85;">안전사고·낙석·위험수목·화재 등 현장 위험상황 · 응소 요청 · 진행중 경과/상황 종료 · 위험 시설물 · 기상특보·재난위기경보·탐방로 통제·기상 브리핑</div>
+        <div style="font-size:11px;color:#c4c8ce;line-height:1.85;">안전사고·낙석·위험수목·화재 등 현장 위험상황 · 응소 요청 · 진행중 경과/상황 종료 · 위험 시설물 · 기상특보·재난위기경보·탐방로 통제·기상 브리핑</div>
       </div>
       <div style="background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.25);border-radius:9px;padding:10px 11px;">
-        <div style="font-size:12px;font-weight:800;color:#7dd3fa;margin-bottom:5px;">🔑 관리자에게만</div>
-        <div style="font-size:11px;color:#b8d4e8;line-height:1.85;">새 직원 가입 승인 요청 · 관리자 권한 요청 · 정보 정정 요청</div>
+        <div style="font-size:12px;font-weight:800;color:#aab4c0;margin-bottom:5px;">🔑 관리자에게만</div>
+        <div style="font-size:11px;color:#c4c8ce;line-height:1.85;">새 직원 가입 승인 요청 · 관리자 권한 요청 · 정보 정정 요청</div>
       </div>
     </div>
     <div class="scard" style="margin-bottom:8px;">
       <div class="stitle">📲 푸시 알림 (꺼진 폰까지)</div>
-      <div style="font-size:11px;color:#7a9cb8;margin-bottom:8px;">구조 1보·위험상황 발생 시 자동 발송됩니다. 아래에서 <b style="color:#5dbf8a;">받는 대상을 골라</b> 직접 작성해 푸시할 수 있습니다.</div>
-      <div class="fg"><span class="fl">받는 대상 <span style="color:#5a7e98;font-weight:400;">(소속 선택 · 복수 가능, 비우면 전체)</span></span>
+      <div style="font-size:11px;color:#8b95a1;margin-bottom:8px;">구조 1보·위험상황 발생 시 자동 발송됩니다. 아래에서 <b style="color:#5dbf8a;">받는 대상을 골라</b> 직접 작성해 푸시할 수 있습니다.</div>
+      <div class="fg"><span class="fl">받는 대상 <span style="color:#6b7684;font-weight:400;">(소속 선택 · 복수 가능, 비우면 전체)</span></span>
         ${(()=>{
           const depts=new Set();
           [].concat(DB.g('loginLog')||[],DB.g('pendingUsers')||[]).forEach(e=>{if(e&&e.dept)depts.add(e.dept);});
-          const lbl='display:inline-flex;align-items:center;gap:5px;background:#1c1c1e;border:1px solid rgba(255,255,255,.25);border-radius:18px;padding:7px 12px;font-size:12px;color:#cfe2f2;cursor:pointer;';
+          const lbl='display:inline-flex;align-items:center;gap:5px;background:#1c1c1e;border:1px solid rgba(255,255,255,.25);border-radius:18px;padding:7px 12px;font-size:12px;color:#d5d8dc;cursor:pointer;';
           const chips=[...depts].sort().map(d=>`<label style="${lbl}"><input type="checkbox" class="pushDept" value="${_esc(d)}" onchange="_pushDeptChanged()" style="width:15px;height:15px;">${_esc(d)}</label>`).join('');
           return `<div id="pushTargetChips" style="display:flex;flex-wrap:wrap;gap:7px;">
             <label style="${lbl}background:rgba(255,255,255,.12);"><input type="checkbox" id="pushAll" checked onchange="_pushToggleAll(this)" style="width:15px;height:15px;">📢 전체</label>
@@ -3842,26 +3842,26 @@ function renderAdmSys(){
       </div>
       <div style="display:flex;gap:6px;margin-top:4px;">
         <button onclick="sendCustomPush()" style="flex:2;background:#1a4a6e;color:#fff;border:none;padding:10px;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;">📨 발송</button>
-        <button onclick="renderAdmSys()" style="background:rgba(255,255,255,.05);color:#7a9cb8;border:1px solid rgba(255,255,255,.1);padding:10px 12px;border-radius:8px;font-size:12px;cursor:pointer;">↻ 새로고침</button>
+        <button onclick="renderAdmSys()" style="background:rgba(255,255,255,.05);color:#8b95a1;border:1px solid rgba(255,255,255,.1);padding:10px 12px;border-radius:8px;font-size:12px;cursor:pointer;">↻ 새로고침</button>
       </div>
       ${(()=>{const log=DB.g('pushLog')||[];if(!log.length)return '';
-        return `<div style="margin-top:11px;"><div style="font-size:10px;color:#5a8aaa;font-weight:700;margin-bottom:4px;">🕘 보낸 내역</div>`
-          +log.slice(0,8).map(p=>`<div style="font-size:10px;color:#9bbdd4;padding:4px 0;border-bottom:1px solid rgba(255,255,255,.04);"><span style="color:#7dd3fa;font-weight:700;">${_esc(p.target||'전체')}</span> · ${_esc(p.body||'')}<br><span style="color:#5a7e98;font-size:9px;">${p.by?_esc(p.by)+' · ':''}${p.at?new Date(p.at).toLocaleString('ko-KR',{month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'}):''}${p.sent!=null?' · '+p.sent+'대 발송':''}</span></div>`).join('')
+        return `<div style="margin-top:11px;"><div style="font-size:10px;color:#6b7684;font-weight:700;margin-bottom:4px;">🕘 보낸 내역</div>`
+          +log.slice(0,8).map(p=>`<div style="font-size:10px;color:#a5abb3;padding:4px 0;border-bottom:1px solid rgba(255,255,255,.04);"><span style="color:#aab4c0;font-weight:700;">${_esc(p.target||'전체')}</span> · ${_esc(p.body||'')}<br><span style="color:#6b7684;font-size:9px;">${p.by?_esc(p.by)+' · ':''}${p.at?new Date(p.at).toLocaleString('ko-KR',{month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'}):''}${p.sent!=null?' · '+p.sent+'대 발송':''}</span></div>`).join('')
           +`</div>`;
       })()}
-      <div id="fcmStatus" style="font-size:10px;color:#3a6a8a;margin-top:8px;line-height:1.7;">등록된 기기 확인 중…</div>
+      <div id="fcmStatus" style="font-size:10px;color:#454e5a;margin-top:8px;line-height:1.7;">등록된 기기 확인 중…</div>
     </div>
     <div class="scard" style="margin-bottom:8px;"><div class="stitle">📊 데이터 현황</div>
-      <div style="font-size:12px;color:#b8d4e8;line-height:2.1;">시설물 <b>${(DB.g('facilities')||[]).length}개</b> · 경고표시 <b>${(DB.g('facilities')||[]).filter(f=>_facWarn(f)).length}건</b><br>구조이력 <b>${(DB.g('rescues')||[]).length}건</b> · 위험상황 <b>${(DB.g('hazards')||[]).length}건</b><br>특보운영 <b>${(DB.g('alertOps')||[]).length}건</b> · 대원 <b>${(DB.g('members')||[]).length}명</b></div>
+      <div style="font-size:12px;color:#c4c8ce;line-height:2.1;">시설물 <b>${(DB.g('facilities')||[]).length}개</b> · 경고표시 <b>${(DB.g('facilities')||[]).filter(f=>_facWarn(f)).length}건</b><br>구조이력 <b>${(DB.g('rescues')||[]).length}건</b> · 위험상황 <b>${(DB.g('hazards')||[]).length}건</b><br>특보운영 <b>${(DB.g('alertOps')||[]).length}건</b> · 대원 <b>${(DB.g('members')||[]).length}명</b></div>
       <div style="margin-top:8px;display:flex;align-items:center;gap:6px;font-size:11px;">
         <span style="width:8px;height:8px;border-radius:50%;background:${_fdb?'#27ae60':'#e05050'};display:inline-block;flex-shrink:0;"></span>
         <span style="color:${_fdb?'#5dbf8a':'#e05050'};font-weight:700;">Firebase ${_fdb?'연결됨':'미연결'}</span>
-        ${_fdb?'<span style="color:#4a7090;">· 모든 데이터 실시간 동기화 중</span>':'<span style="color:#7a3020;">· 오프라인 상태입니다</span>'}
+        ${_fdb?'<span style="color:#565f6b;">· 모든 데이터 실시간 동기화 중</span>':'<span style="color:#7a3020;">· 오프라인 상태입니다</span>'}
       </div>
     </div>
     <div class="scard" style="margin-bottom:8px;">
       <div class="stitle">📁 데이터 백업 / 복원</div>
-      <div style="font-size:11px;color:#7a9cb8;margin-bottom:10px;">시설물·구조이력·위키 전체를 JSON 파일로 내보내거나 복원합니다</div>
+      <div style="font-size:11px;color:#8b95a1;margin-bottom:10px;">시설물·구조이력·위키 전체를 JSON 파일로 내보내거나 복원합니다</div>
       <div style="display:flex;flex-direction:column;gap:7px;">
         <button onclick="exportAllData()" style="width:100%;background:rgba(39,174,96,.12);color:#5dbf8a;border:1px solid rgba(39,174,96,.3);padding:10px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;">📤 JSON 내보내기 (백업)</button>
         <label style="width:100%;background:rgba(255,255,255,.1);color:#3182f6;border:1px solid rgba(255,255,255,.28);padding:10px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;text-align:center;display:block;">
@@ -3876,8 +3876,8 @@ function renderAdmSys(){
         ${_isMasterAdmin()
           ?`<button onclick="resetAll()" style="width:100%;background:rgba(192,57,43,.1);color:#c0392b;border:1px solid rgba(192,57,43,.28);padding:10px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;">전체 데이터 초기화 (개발자)</button>`
             +(()=>{const b=_resetBackupInfo();return b?`<button onclick="restoreReset()" style="width:100%;background:rgba(39,174,96,.12);color:#5dbf8a;border:1px solid rgba(39,174,96,.35);padding:10px;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;">↩ 초기화 복구 (${b})</button>`:'';})()
-          :`<div style="font-size:11px;color:#9c8060;padding:9px 10px;border:1px dashed rgba(192,57,43,.25);border-radius:8px;line-height:1.6;">🔒 전체 데이터 초기화는 <b style="color:#cfe2f2;">개발자</b>만 할 수 있습니다.</div>`}
-        <button onclick="clearNotisOnly()" style="width:100%;background:rgba(255,255,255,.05);color:#b8d4e8;border:none;padding:10px;border-radius:8px;font-size:12px;cursor:pointer;">알림 이력만 삭제</button>
+          :`<div style="font-size:11px;color:#9c8060;padding:9px 10px;border:1px dashed rgba(192,57,43,.25);border-radius:8px;line-height:1.6;">🔒 전체 데이터 초기화는 <b style="color:#d5d8dc;">개발자</b>만 할 수 있습니다.</div>`}
+        <button onclick="clearNotisOnly()" style="width:100%;background:rgba(255,255,255,.05);color:#c4c8ce;border:none;padding:10px;border-radius:8px;font-size:12px;cursor:pointer;">알림 이력만 삭제</button>
       </div>
     </div>`;
   setTimeout(_refreshFcmStatus,100);

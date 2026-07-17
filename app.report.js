@@ -197,12 +197,12 @@ function viewFullPrev(){
   const prev=phNum>0?r.reports[phNum-1]:null;
   document.getElementById('prevRepTitle').textContent=phNum>0?`${phNum}보 전체 내용`:'1보 전체 내용';
   if(prev){
-    document.getElementById('prevRepContent').innerHTML=`<div style="font-size:12px;color:#7a9cb8;line-height:2;">
+    document.getElementById('prevRepContent').innerHTML=`<div style="font-size:12px;color:#8b95a1;line-height:2;">
       <b>보고 시간:</b> ${_esc(prev.repTime)}<br><b>상황 내용:</b> ${_esc(prev.update||'-')}<br>
       <b>부상자 상태:</b> ${_esc(prev.victimChange||'-')}<br><b>추가 대원:</b> ${_esc(prev.addMem||'-')}<br><b>작성자:</b> ${_esc(prev.author||'-')}
     </div>`;
   } else {
-    document.getElementById('prevRepContent').innerHTML=`<div style="font-size:12px;color:#7a9cb8;line-height:2;">
+    document.getElementById('prevRepContent').innerHTML=`<div style="font-size:12px;color:#8b95a1;line-height:2;">
       <b>유형:</b> ${_esc(r.type)}<br><b>발생:</b> ${r.date}<br><b>위치:</b> ${_esc(r.location||'-')}<br>
       <b>사고자:</b> ${_esc(r.vName||'미상')} / ${(r.vGender&&r.vGender!=='알수없음')?_esc(r.vGender):'-'}<br><b>중증도:</b> ${_esc(r.severity||'-')}<br>
       <b>부상부위:</b> ${_esc((r.injuryParts||[]).join(', ')||'-')}<br><b>구조방법:</b> ${_esc((r.rescueMethod||[]).join(', ')||'-')}
@@ -277,13 +277,13 @@ function _renderBuildPanelHtml(){
     return `<div style="background:#1c1c1e;border-radius:10px;padding:12px;border:.5px solid rgba(255,255,255,.3);margin-bottom:10px;">
       <div style="font-size:11px;color:#3182f6;font-weight:700;margin-bottom:10px;">🥾 공단 팀 출동</div>
       <input id="tlBuildNameInput" type="text" class="fi" placeholder="${_autoName}" style="width:100%;box-sizing:border-box;margin-bottom:10px;">
-      ${myDept?`<div style="font-size:10px;color:#4a7090;font-weight:600;margin-bottom:5px;">📂 ${myDept}</div>`:''}
+      ${myDept?`<div style="font-size:10px;color:#565f6b;font-weight:600;margin-bottom:5px;">📂 ${myDept}</div>`:''}
       <div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:8px;">
         ${mine.length?mine.map(chip).join(''):'<span style="font-size:10px;color:rgba(255,255,255,.25);">직원 정보 없음</span>'}
       </div>
       ${others.length?`<button id="tlOtherDeptsBtn" onclick="toggleTlOtherDepts()" style="background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.12);color:rgba(255,255,255,.5);border-radius:7px;padding:4px 10px;font-size:10px;font-weight:600;cursor:pointer;margin-bottom:6px;">추가인원 ▼</button>
         <div id="tlOtherDeptsWrap" style="display:none;">
-          ${Object.entries(byDept).map(([dept,members])=>`<div style="margin-bottom:8px;"><div style="font-size:10px;color:#4a7090;font-weight:600;margin-bottom:4px;">📂 ${dept}</div><div style="display:flex;flex-wrap:wrap;gap:5px;">${members.map(chip).join('')}</div></div>`).join('')}
+          ${Object.entries(byDept).map(([dept,members])=>`<div style="margin-bottom:8px;"><div style="font-size:10px;color:#565f6b;font-weight:600;margin-bottom:4px;">📂 ${dept}</div><div style="display:flex;flex-wrap:wrap;gap:5px;">${members.map(chip).join('')}</div></div>`).join('')}
         </div>`:''}
       <div style="display:flex;gap:7px;margin-top:10px;">
         <button onclick="cancelTlBuild()" style="flex:1;padding:8px;border-radius:8px;border:1px solid rgba(255,255,255,.12);background:transparent;color:rgba(255,255,255,.45);font-size:12px;font-weight:600;cursor:pointer;">취소</button>
@@ -312,7 +312,7 @@ function _renderBuildPanelHtml(){
         ${agTypes.map(agChip).join('')}
       </div>
       ${sel.sub?`<div style="font-size:10px;color:#5a8aa0;margin-bottom:8px;">${_esc(sel.sub)}</div>`:''}
-      ${(sel.regions&&sel.regions.length)?`<div style="font-size:10px;color:#4a7090;font-weight:700;margin-bottom:5px;">소속 선택</div>
+      ${(sel.regions&&sel.regions.length)?`<div style="font-size:10px;color:#565f6b;font-weight:700;margin-bottom:5px;">소속 선택</div>
       <div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:10px;" id="tlRegionChips">
         ${sel.regions.map(rg=>`<div onclick="_selAgRegion('${rg.replace(/'/g,"\\'")}')" data-v="${_esc(rg)}"
           style="cursor:pointer;background:${_tlBuildRegion===rg?'rgba(255,255,255,.18)':'rgba(255,255,255,.04)'};color:${_tlBuildRegion===rg?'#3182f6':'rgba(255,255,255,.5)'};border:1px solid ${_tlBuildRegion===rg?'rgba(255,255,255,.45)':'rgba(255,255,255,.12)'};border-radius:16px;font-size:11px;font-weight:700;padding:5px 12px;">${_esc(rg)}</div>`).join('')}
@@ -468,7 +468,7 @@ function _tlTeamFullHtml(team,idx){
   const memStr=mems.length?mems.map(m=>_esc(m)).join('·'):'';
   return `<div id="tlTeamCard_${idx}" style="display:flex;align-items:center;gap:6px;padding:6px 0;border-top:.5px solid rgba(255,255,255,.05);">
     <span style="font-size:12px;font-weight:700;color:#c8dff0;flex-shrink:0;">${_teamIco(team)} ${_esc(_deptShort(team.name))}</span>
-    ${cnt?`<span style="font-size:10px;color:#7dd3fa;font-weight:700;flex-shrink:0;">${cnt}명</span>`:''}
+    ${cnt?`<span style="font-size:10px;color:#aab4c0;font-weight:700;flex-shrink:0;">${cnt}명</span>`:''}
     <span style="flex:1;min-width:0;font-size:10.5px;color:rgba(255,255,255,.55);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${memStr?'👥 '+memStr:''}</span>
     ${_req?`<span style="font-size:9.5px;color:#7a96ad;flex-shrink:0;">🚨${_req}</span>`:''}
     ${_arr?`<span style="font-size:9.5px;color:#3ad17a;flex-shrink:0;">🏁${_arr}</span>`:`<button onclick="event.stopPropagation();tlMarkArrival(${idx})" style="flex-shrink:0;background:rgba(39,174,96,.12);border:1px solid rgba(39,174,96,.35);color:#5dbf8a;border-radius:6px;font-size:9.5px;font-weight:700;padding:2px 7px;cursor:pointer;">🏁 도착</button>`}
@@ -477,7 +477,7 @@ function _tlTeamFullHtml(team,idx){
 // 출동팀 카드 헤더: 팀 수 + 총 인원
 function _tlTeamsHdrHtml(){
   const tot=_tlTeams.reduce((a,t)=>a+_teamCnt(t),0);
-  return `🚑 출동팀${_tlTeams.length?' '+_tlTeams.length:''}${tot?` <span style="color:#7dd3fa;">· 총 ${tot}명</span>`:''}`;
+  return `🚑 출동팀${_tlTeams.length?' '+_tlTeams.length:''}${tot?` <span style="color:#aab4c0;">· 총 ${tot}명</span>`:''}`;
 }
 function _tlTeamRowsHtml(){
   return _tlTeams.length?_tlTeams.map((t,i)=>_tlTeamFullHtml(t,i)).join('')
@@ -645,12 +645,12 @@ function _buildLogHtml(r){
   const _dLbl=d=>{try{const a=d.split('-').map(Number);const wd=['일','월','화','수','목','금','토'][new Date(a[0],a[1]-1,a[2]).getDay()];return a[1]+'/'+a[2]+' ('+wd+')';}catch(e){return d;}};
   let _prevDate='';
   const rows=logEntries.map((e,i)=>{
-    const col=TYPE_COL[e.type]||'#7a9cb8';
+    const col=TYPE_COL[e.type]||'#8b95a1';
     const bg=TYPE_BG[e.type]||'transparent';
     const isLast=i===logEntries.length-1;
     // 날짜가 바뀌면(자정 경과) 구분선 — 첫 날은 표시 안 함(하루짜리 상황엔 안 나옴)
     const _d=String(e.k||'').slice(0,10);let _dv='';
-    if(_d&&_d!==_prevDate){if(_prevDate&&/^\d{4}-\d{2}-\d{2}$/.test(_d))_dv=`<div style="display:flex;align-items:center;gap:8px;margin:8px 0 6px;"><span style="flex:1;height:1px;background:rgba(255,255,255,.22);"></span><span style="font-size:10px;color:#5d92bc;font-weight:800;white-space:nowrap;">📅 ${_dLbl(_d)}</span><span style="flex:1;height:1px;background:rgba(255,255,255,.22);"></span></div>`;_prevDate=_d;}
+    if(_d&&_d!==_prevDate){if(_prevDate&&/^\d{4}-\d{2}-\d{2}$/.test(_d))_dv=`<div style="display:flex;align-items:center;gap:8px;margin:8px 0 6px;"><span style="flex:1;height:1px;background:rgba(255,255,255,.22);"></span><span style="font-size:10px;color:#6b7684;font-weight:800;white-space:nowrap;">📅 ${_dLbl(_d)}</span><span style="flex:1;height:1px;background:rgba(255,255,255,.22);"></span></div>`;_prevDate=_d;}
     return _dv+`<div class="${isWpPass(e)?'log-wp':''}" style="display:${(collapseWp&&isWpPass(e))?'none':'flex'};gap:0;position:relative;">
       <!-- 세로 타임라인 트랙 -->
       <div style="display:flex;flex-direction:column;align-items:center;width:28px;flex-shrink:0;">
@@ -660,7 +660,7 @@ function _buildLogHtml(r){
       <!-- 이벤트 내용 -->
       <div style="flex:1;padding:2px 0 ${isLast?'0':'10px'} 4px;">
         <div style="display:flex;align-items:center;gap:6px;margin-bottom:${e.sub?'2':'0'}px;">
-          <span style="font-size:11px;color:#7a9cb8;font-family:monospace;font-weight:600;white-space:nowrap;">${e.t}</span>
+          <span style="font-size:11px;color:#8b95a1;font-family:monospace;font-weight:600;white-space:nowrap;">${e.t}</span>
           <span style="font-size:${isWpPass(e)?'11':'12'}px;font-weight:${isWpPass(e)?'600':'700'};color:${isWpPass(e)?'rgba(255,255,255,.55)':col};">${e.ico} ${_esc(e.label)}</span>
           ${(e.sig&&(e.by===getAuthor()||(typeof isAdminUser==='function'&&isAdminUser())))?(()=>{const _di=window._tlDelReg.push({rid:r.id,sig:e.sig})-1;return `<span onclick="event.stopPropagation();_tlRecDel(${_di})" style="margin:-8px -6px -8px auto;color:rgba(255,107,91,.9);font-size:16px;font-weight:800;cursor:pointer;padding:8px 12px;flex-shrink:0;line-height:1;touch-action:manipulation;-webkit-tap-highlight-color:rgba(255,107,91,.2);" title="기록 삭제">×</span>`;})():''}
         </div>
@@ -806,10 +806,10 @@ function _docPreviewOverlay(docHtml,title){
   let ov=document.getElementById('docPrevOv');if(ov)ov.remove();
   ov=document.createElement('div');ov.id='docPrevOv';
   ov.style.cssText='position:fixed;inset:0;z-index:99990;background:#222;display:flex;flex-direction:column;';
-  ov.innerHTML='<div style="flex-shrink:0;display:flex;gap:8px;padding:calc(8px + env(safe-area-inset-top)) 12px 8px;background:#0a1828;align-items:center;border-bottom:1px solid rgba(255,255,255,.1);">'
+  ov.innerHTML='<div style="flex-shrink:0;display:flex;gap:8px;padding:calc(8px + env(safe-area-inset-top)) 12px 8px;background:#16161a;align-items:center;border-bottom:1px solid rgba(255,255,255,.1);">'
     +'<button id="docPrevBack" class="press-fx" style="background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.4);color:#3182f6;border-radius:8px;padding:9px 14px;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap;">← 앱으로</button>'
-    +'<span style="flex:1;font-size:12px;color:#cfe2f2;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+_esc(title||'문서')+'</span>'
-    +'<button id="docPrevPrint" class="press-fx" style="background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.15);color:#cfe2f2;border-radius:8px;padding:9px 14px;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap;">🖨 인쇄</button></div>'
+    +'<span style="flex:1;font-size:12px;color:#d5d8dc;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+_esc(title||'문서')+'</span>'
+    +'<button id="docPrevPrint" class="press-fx" style="background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.15);color:#d5d8dc;border-radius:8px;padding:9px 14px;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap;">🖨 인쇄</button></div>'
     +'<iframe id="docPrevFrame" style="flex:1;border:none;background:#fff;width:100%;"></iframe>';
   document.body.appendChild(ov);
   const fr=document.getElementById('docPrevFrame');
@@ -1126,18 +1126,18 @@ function safetyReport(rid){
   let m=document.getElementById('sfOptSheet');
   if(!m){m=document.createElement('div');m.id='sfOptSheet';document.body.appendChild(m);}
   m.style.cssText='position:fixed;inset:0;z-index:99850;background:rgba(0,0,0,.6);display:flex;align-items:flex-end;justify-content:center;';
-  m.innerHTML=`<div style="background:#0a1828;border:1px solid rgba(240,140,60,.35);border-radius:16px 16px 0 0;max-width:430px;width:100%;padding:16px 16px calc(14px + env(safe-area-inset-bottom));">
+  m.innerHTML=`<div style="background:#16161a;border:1px solid rgba(240,140,60,.35);border-radius:16px 16px 0 0;max-width:430px;width:100%;padding:16px 16px calc(14px + env(safe-area-inset-bottom));">
     <div style="display:flex;align-items:center;margin-bottom:4px;">
       <b style="font-size:14px;color:#f0a05a;">🧡 안전지원활동 현황 <span style="font-size:10px;font-weight:600;opacity:.75;">지침 서식 그대로</span></b>
       <button onclick="document.getElementById('sfOptSheet').remove()" style="margin-left:auto;background:none;border:none;color:rgba(255,255,255,.5);font-size:21px;cursor:pointer;">×</button>
     </div>
-    <div style="font-size:10.5px;color:#7a9cb8;margin-bottom:10px;">지원유형만 고르면 일시·장소·성별·연령대·내용은 기록에서 자동 입력됩니다</div>
+    <div style="font-size:10.5px;color:#8b95a1;margin-bottom:10px;">지원유형만 고르면 일시·장소·성별·연령대·내용은 기록에서 자동 입력됩니다</div>
     <div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:8px;" id="sfTypePills">
       ${['구급약품지원','안전장비지원','식품지원','기타'].map(o=>`<div class="pill" onclick="this.classList.toggle('on');window._sfTypes[this.classList.contains('on')?'add':'delete']('${o}');var w=document.getElementById('sfEtcWrap');if(w)w.style.display=window._sfTypes.has('기타')?'block':'none';">${o}</div>`).join('')}
     </div>
     <div id="sfEtcWrap" style="display:none;margin-bottom:8px;"><input type="text" id="sfEtcTxt" class="fi" placeholder="기타 내용 (예: 비조우, 오인신고, 단순도움)" oninput="window._sfEtc=this.value;"></div>
     <button onclick="_safetyHwpxGen(${rid})" class="btn2 btn2-blk" style="background:linear-gradient(145deg,#8a4c16,#6b3a0e);color:#ffd9b0;font-size:13.5px;padding:12px;">📄 한글파일(.hwpx)로 저장</button>
-    <button onclick="document.getElementById('sfOptSheet').remove();_safetyReportHtml(${rid});" style="width:100%;margin-top:6px;padding:9px;border:none;background:none;color:#7a9cb8;font-size:11px;cursor:pointer;text-decoration:underline;">HTML 복사본으로 만들기 (한글 붙여넣기용)</button>
+    <button onclick="document.getElementById('sfOptSheet').remove();_safetyReportHtml(${rid});" style="width:100%;margin-top:6px;padding:9px;border:none;background:none;color:#8b95a1;font-size:11px;cursor:pointer;text-decoration:underline;">HTML 복사본으로 만들기 (한글 붙여넣기용)</button>
   </div>`;
   m.onclick=e=>{if(e.target===m)m.remove();};
 }
@@ -1253,8 +1253,8 @@ function openReportShare(rid){
   if(!m){m=document.createElement('div');m.id='repShareModal';document.body.appendChild(m);}
   m.style.cssText='position:fixed;inset:0;z-index:99800;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;padding:30px;';
   const b='width:100%;margin-bottom:7px;padding:12px;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;transition:transform .1s,opacity .1s;';
-  m.innerHTML=`<div style="background:#0a1828;border:1px solid rgba(255,255,255,.25);border-radius:14px;max-width:300px;width:100%;padding:16px;max-height:85vh;overflow-y:auto;">
-    <div style="font-size:14px;font-weight:800;color:#e0edf8;margin-bottom:12px;text-align:center;">📄 보고서</div>
+  m.innerHTML=`<div style="background:#16161a;border:1px solid rgba(255,255,255,.25);border-radius:14px;max-width:300px;width:100%;padding:16px;max-height:85vh;overflow-y:auto;">
+    <div style="font-size:14px;font-weight:800;color:#eaecef;margin-bottom:12px;text-align:center;">📄 보고서</div>
     <button class="press-fx" onclick="share119(${rid});this.closest('#repShareModal').remove();" style="${b}border:1px solid rgba(224,90,78,.45);background:rgba(224,90,78,.12);color:#ff9a8a;">🚑 유관기관 공유 <span style="font-size:10px;font-weight:600;opacity:.8;">(119·경찰 — 문자/카톡)</span></button>
     <div style="border:1px solid rgba(232,179,74,.4);background:rgba(232,179,74,.07);border-radius:10px;padding:9px 10px 8px;margin-bottom:7px;">
       <div style="font-size:12.5px;font-weight:800;color:#e8b34a;text-align:center;margin-bottom:7px;">📑 안전사고 처리현황 <span style="font-size:10px;font-weight:600;opacity:.75;">(한글용)</span></div>
@@ -1265,7 +1265,7 @@ function openReportShare(rid){
     </div>
     <button class="press-fx" onclick="govReport(${rid},'trend');this.closest('#repShareModal').remove();" style="${b}border:1px solid rgba(232,179,74,.4);background:rgba(232,179,74,.1);color:#e8b34a;">📈 동향보고 (한글용)</button>
     <button class="press-fx" onclick="safetyReport(${rid});this.closest('#repShareModal').remove();" style="${b}border:1px solid rgba(240,140,60,.4);background:rgba(240,140,60,.1);color:#f0a05a;">🧡 안전지원활동 현황 (한글용)</button>
-    <button onclick="this.closest('#repShareModal').remove();" style="width:100%;padding:9px;border:none;background:none;color:#7a9cb8;font-size:12px;cursor:pointer;">닫기</button>
+    <button onclick="this.closest('#repShareModal').remove();" style="width:100%;padding:9px;border:none;background:none;color:#8b95a1;font-size:12px;cursor:pointer;">닫기</button>
   </div>`;
   m.onclick=function(e){if(e.target===m)m.remove();};
 }
@@ -1293,15 +1293,15 @@ function renderTimeline(r,viewMode,outId){
     if(!cmts.length)return '<div style="font-size:11px;color:rgba(255,255,255,.25);padding:4px 0;">댓글 없음</div>';
     return cmts.map(cm=>`<div style="background:#0f0f11;border-radius:7px;padding:8px 10px;margin-bottom:5px;">
       <div style="font-size:11px;color:#3182f6;font-weight:600;">${_esc(cm.author||'익명')} · ${cm.time}</div>
-      <div style="font-size:12px;color:#b8d4e8;margin-top:3px;line-height:1.5;">${_esc(cm.text)}</div>
+      <div style="font-size:12px;color:#c4c8ce;margin-top:3px;line-height:1.5;">${_esc(cm.text)}</div>
     </div>`).join('');
   }
 
   const tabHdr=`<div style="background:#1c1c1e;border-radius:10px;padding:11px 12px;border:.5px solid rgba(255,255,255,.07);margin-bottom:10px;">
     <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;">
       <div style="flex:1;min-width:0;">
-        <div style="font-size:14px;font-weight:700;color:#e0edf8;">${_esc(r.title)}</div>
-        <div style="font-size:11px;color:#3a6a8a;margin-top:3px;">${_esc(r.type)} · ${r.status==='ongoing'?'<span style="color:#c0392b;font-weight:700;">진행중</span>':'<span style="color:#27ae60;font-weight:700;">종료</span>'} · ${r.date}${r.status==='ongoing'&&_elapsedStr(r.date)?` · <span class="js-elapsed" data-d="${_esc(r.date)}" style="color:#f0a500;font-weight:700;">⏱ ${_elapsedStr(r.date)}</span>`:''}</div>
+        <div style="font-size:14px;font-weight:700;color:#eaecef;">${_esc(r.title)}</div>
+        <div style="font-size:11px;color:#454e5a;margin-top:3px;">${_esc(r.type)} · ${r.status==='ongoing'?'<span style="color:#c0392b;font-weight:700;">진행중</span>':'<span style="color:#27ae60;font-weight:700;">종료</span>'} · ${r.date}${r.status==='ongoing'&&_elapsedStr(r.date)?` · <span class="js-elapsed" data-d="${_esc(r.date)}" style="color:#f0a500;font-weight:700;">⏱ ${_elapsedStr(r.date)}</span>`:''}</div>
       </div>
       <button onclick="openReportShare(${r.id})" style="flex-shrink:0;background:rgba(255,255,255,.12);color:#3182f6;border:1px solid rgba(255,255,255,.32);border-radius:7px;padding:5px 9px;font-size:10px;font-weight:800;cursor:pointer;white-space:nowrap;">📄 보고서</button>
     </div>
@@ -1323,8 +1323,8 @@ function renderTimeline(r,viewMode,outId){
       <!-- 📌 기록: 누가 · 무엇을 · 언제 — 과거 시간 입력 가능, 일지는 시간순 자동 정렬 -->
       <div style="background:#1c1c1e;border:1px solid rgba(255,255,255,.3);border-radius:12px;padding:12px 13px;margin-bottom:10px;">
         <div style="margin-bottom:8px;display:flex;align-items:center;">
-          <span style="font-size:12px;font-weight:800;color:#3182f6;">📌 기록 <span style="font-size:9px;color:#5a7e98;font-weight:400;">누가 · 무엇을 · 언제</span></span>
-          <span onclick="_toggleRecCard(${_tglArg})" style="margin-left:auto;font-size:10.5px;color:#5a7e98;font-weight:700;cursor:pointer;padding:2px 6px;">▲ 접기</span>
+          <span style="font-size:12px;font-weight:800;color:#3182f6;">📌 기록 <span style="font-size:9px;color:#6b7684;font-weight:400;">누가 · 무엇을 · 언제</span></span>
+          <span onclick="_toggleRecCard(${_tglArg})" style="margin-left:auto;font-size:10.5px;color:#6b7684;font-weight:700;cursor:pointer;padding:2px 6px;">▲ 접기</span>
         </div>
         ${_teamNames.length?`<div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:7px;" id="tlRecTeams">
           ${['본부',..._teamNames].map(n=>`<div class="pill" data-v="${_esc(n)}" onclick="_tlRecSelTeam(this)" style="font-size:11px;cursor:pointer;">${_esc(n)}</div>`).join('')}
@@ -1373,7 +1373,7 @@ function renderTimeline(r,viewMode,outId){
     r=_mergedRescue(r);
     const _ok=v=>{if(!v&&v!==0)return false;const s=String(v).trim();return s&&s!=='-'&&!['미상','없음','모르겠음','알수없음','미정','해당없음','기타'].includes(s);};
     const _okA=v=>(Array.isArray(v)?v:[]).filter(x=>_ok(x));
-    const _row=(k,v)=>v?`<div style="display:flex;gap:8px;padding:5px 0;border-bottom:.5px solid rgba(255,255,255,.04);align-items:flex-start;"><span style="font-size:11px;color:#4a7090;font-weight:600;flex-shrink:0;min-width:46px;">${k}</span><span style="font-size:11px;color:#b8d4e8;line-height:1.55;flex:1;">${v}</span></div>`:'';
+    const _row=(k,v)=>v?`<div style="display:flex;gap:8px;padding:5px 0;border-bottom:.5px solid rgba(255,255,255,.04);align-items:flex-start;"><span style="font-size:11px;color:#565f6b;font-weight:600;flex-shrink:0;min-width:46px;">${k}</span><span style="font-size:11px;color:#c4c8ce;line-height:1.55;flex:1;">${v}</span></div>`:'';
     // ── 우선순위: ① 부상 ② 위치 ③ 인적사항 ④ 나머지 ⑤ 추가내용 ──
     const _injList=(Array.isArray(r.injuries)?r.injuries:[]).filter(i=>i&&(i.part||i.type));
     const _injMain=_injList.length
@@ -1384,19 +1384,19 @@ function renderTimeline(r,viewMode,outId){
       <div style="font-size:17px;font-weight:800;color:#ffd9d0;line-height:1.4;">${_injMain||'<span style="color:#9c7a72;font-weight:600;font-size:13px;">부상 정보 미입력</span>'}</div>
       <div style="display:flex;flex-wrap:wrap;gap:5px;margin-top:6px;">
         ${_ok(r.severity)?`<span style="font-size:11px;font-weight:800;color:#fff;background:#c0392b;border-radius:6px;padding:2px 8px;">${_esc(r.severity)}</span>`:''}
-        ${_ok(r.outcome)?`<span style="font-size:11px;color:#cfe2f2;background:rgba(255,255,255,.06);border-radius:6px;padding:2px 8px;">결과: ${_esc(r.outcome)}</span>`:''}
+        ${_ok(r.outcome)?`<span style="font-size:11px;color:#d5d8dc;background:rgba(255,255,255,.06);border-radius:6px;padding:2px 8px;">결과: ${_esc(r.outcome)}</span>`:''}
       </div>
-      ${_vit0?`<div style="font-size:10px;color:#9bbdd4;margin-top:6px;">활력: ${_vit0}</div>`:''}`;
+      ${_vit0?`<div style="font-size:10px;color:#a5abb3;margin-top:6px;">활력: ${_vit0}</div>`:''}`;
     const _div='<div style="height:1px;background:rgba(255,255,255,.06);margin:9px 0;"></div>';
-    const locSect=_ok(r.location)?`<div style="font-size:12px;color:#cfe2f2;line-height:1.5;">📍 ${_esc(r.location)}${(typeof _elevStr==='function'&&r.lat&&r.lng)?` <span style="color:#a7f3e4;font-size:10px;">${_elevStr(r.lat,r.lng,r.alt)}</span>`:''}${_ok(r.loctype)?` <span style="color:#7a9cb8;font-size:10px;">· ${_esc(r.loctype)}</span>`:''}</div>`:'';
+    const locSect=_ok(r.location)?`<div style="font-size:12px;color:#d5d8dc;line-height:1.5;">📍 ${_esc(r.location)}${(typeof _elevStr==='function'&&r.lat&&r.lng)?` <span style="color:#a7f3e4;font-size:10px;">${_elevStr(r.lat,r.lng,r.alt)}</span>`:''}${_ok(r.loctype)?` <span style="color:#8b95a1;font-size:10px;">· ${_esc(r.loctype)}</span>`:''}</div>`:'';
     const _vAge=_ok(r.vBirth)?_ageFromBirth(r.vBirth)+'세':(_ok(r.vAge)?_esc(r.vAge)+'세':'');
     const _vLine=[_ok(r.vName)?_esc(r.vName):'미상',_vAge,_ok(r.vGender)&&r.vGender!=='알수없음'?_esc(r.vGender):'',_ok(r.vNation)&&r.vNation==='외국인'?('외국인'+(_ok(r.vNationality)?'('+_esc(r.vNationality)+')':'')):'',_ok(r.vTel)?_esc(r.vTel):''].filter(Boolean).join(' · ');
-    let personSect=`<div style="display:flex;align-items:center;flex-wrap:wrap;gap:5px;"><span style="font-size:10px;color:#4a7090;font-weight:700;min-width:40px;">사고자</span><span style="font-size:12px;color:#e0edf8;font-weight:600;">${_vLine}</span>${_ok(r.vTel)?_telBtnsHtml(r.vTel,r.id,'사고자',r.vName):''}</div>`;
+    let personSect=`<div style="display:flex;align-items:center;flex-wrap:wrap;gap:5px;"><span style="font-size:10px;color:#565f6b;font-weight:700;min-width:40px;">사고자</span><span style="font-size:12px;color:#eaecef;font-weight:600;">${_vLine}</span>${_ok(r.vTel)?_telBtnsHtml(r.vTel,r.id,'사고자',r.vName):''}</div>`;
     if(r.victims2&&r.victims2.length)personSect+=r.victims2.map((v,vi)=>`<div style="display:flex;align-items:center;flex-wrap:wrap;gap:5px;margin-top:6px;"><span style="font-size:10px;color:#e9897e;font-weight:700;min-width:40px;">추가${r.victims2.length>1?vi+1:''}</span><span style="font-size:12px;color:#f0d9d4;">${_esc([v.name||'미상',v.age?v.age+'세':'',(v.gender&&v.gender!=='알수없음')?v.gender:'',v.tel||''].filter(Boolean).join(' · '))}</span>${v.tel?_telBtnsHtml(v.tel,r.id,'추가 사고자',v.name):''}</div>`).join('');
-    if(_ok(r.repName)||_ok(r.repTel))personSect+=`<div style="display:flex;align-items:center;flex-wrap:wrap;gap:5px;margin-top:6px;"><span style="font-size:10px;color:#4a7090;font-weight:700;min-width:40px;">신고자</span><span style="font-size:12px;color:#cfe2f2;">${[_ok(r.repName)?_esc(r.repName):'',_ok(r.repTel)?_esc(r.repTel):''].filter(Boolean).join(' · ')}</span>${_ok(r.repRel)?`<span style="font-size:10px;color:#e8b34a;background:rgba(232,179,74,.1);border:1px solid rgba(232,179,74,.3);border-radius:5px;padding:1px 6px;font-weight:700;">${_esc(r.repRel)}</span>`:''}${_ok(r.repTel)?_telBtnsHtml(r.repTel,r.id,'신고자',r.repName):''}</div>`;
-    if(r.companions&&r.companions.length)personSect+=r.companions.map((c,ci)=>`<div style="display:flex;align-items:center;flex-wrap:wrap;gap:5px;margin-top:6px;"><span style="font-size:10px;color:#4a7090;font-weight:700;min-width:40px;">동반자${r.companions.length>1?ci+1:''}</span><span style="font-size:12px;color:#cfe2f2;">${_esc((c.name||'미상')+(c.tel?' '+c.tel:''))}</span>${c.tel?_telBtnsHtml(c.tel,r.id,'동반자',c.name):''}</div>`).join('');
+    if(_ok(r.repName)||_ok(r.repTel))personSect+=`<div style="display:flex;align-items:center;flex-wrap:wrap;gap:5px;margin-top:6px;"><span style="font-size:10px;color:#565f6b;font-weight:700;min-width:40px;">신고자</span><span style="font-size:12px;color:#d5d8dc;">${[_ok(r.repName)?_esc(r.repName):'',_ok(r.repTel)?_esc(r.repTel):''].filter(Boolean).join(' · ')}</span>${_ok(r.repRel)?`<span style="font-size:10px;color:#e8b34a;background:rgba(232,179,74,.1);border:1px solid rgba(232,179,74,.3);border-radius:5px;padding:1px 6px;font-weight:700;">${_esc(r.repRel)}</span>`:''}${_ok(r.repTel)?_telBtnsHtml(r.repTel,r.id,'신고자',r.repName):''}</div>`;
+    if(r.companions&&r.companions.length)personSect+=r.companions.map((c,ci)=>`<div style="display:flex;align-items:center;flex-wrap:wrap;gap:5px;margin-top:6px;"><span style="font-size:10px;color:#565f6b;font-weight:700;min-width:40px;">동반자${r.companions.length>1?ci+1:''}</span><span style="font-size:12px;color:#d5d8dc;">${_esc((c.name||'미상')+(c.tel?' '+c.tel:''))}</span>${c.tel?_telBtnsHtml(c.tel,r.id,'동반자',c.name):''}</div>`).join('');
     if(typeof _sosLiveLineHtml==='function'){const _sl=_sosLiveLineHtml(r);if(_sl)personSect+='<div style="margin-top:6px;">'+_sl+'</div>';}
-    const recvSect=_ok(r.reception)?`<div><span style="font-size:10px;color:#4a7090;font-weight:700;">📝 접수내용</span><div style="font-size:12px;color:#cfe2f2;line-height:1.55;margin-top:2px;">${_esc(r.reception)}</div></div>`:'';
+    const recvSect=_ok(r.reception)?`<div><span style="font-size:10px;color:#565f6b;font-weight:700;">📝 접수내용</span><div style="font-size:12px;color:#d5d8dc;line-height:1.55;margin-top:2px;">${_esc(r.reception)}</div></div>`:'';
     // 나머지(컴팩트)
     const rows=[];
     const dparts=[_ok(r.date)?r.date:'',_ok(r.dispatch)?'신고 '+r.dispatch:'',_ok(r.arrival)?'출동 '+r.arrival:''].filter(Boolean);
@@ -1411,13 +1411,13 @@ function renderTimeline(r,viewMode,outId){
     if(r.handover&&r.handover.to)rows.push(_row('인계',_esc(r.handover.to)+(r.handover.time?' · '+r.handover.time.slice(11):'')+(r.handover.by?' ('+_esc(r.handover.by)+')':'')));
     if(_ok(r.extra))rows.push(_row('특이',_esc(r.extra)));
     {const vseq=[];if(r.vitals&&_vitalsStr(r.vitals))vseq.push(r.vitals);(r.reports||[]).forEach(p=>{if(p.vitals&&_vitalsStr(p.vitals))vseq.push(p.vitals);});
-     if(vseq.length>1){const vhtml=vseq.map(v=>`<div style="font-size:10px;color:#9bbdd4;line-height:1.6;"><span style="color:#4a7090;">${(v.at||'').slice(5,16)||'-'}</span> ${_vitalsStr(v)}</div>`).join('');rows.push(_row('활력추이',vhtml));}}
+     if(vseq.length>1){const vhtml=vseq.map(v=>`<div style="font-size:10px;color:#a5abb3;line-height:1.6;"><span style="color:#565f6b;">${(v.at||'').slice(5,16)||'-'}</span> ${_vitalsStr(v)}</div>`).join('');rows.push(_row('활력추이',vhtml));}}
     // ── 추가 보고(N보) — 정형 변경 이력 + 부가내용을 차수별로 한 곳에 통합 (프로즈·구조 중복 제거) ──
     // 좌표 변경(위치좌표)은 아래 '위치 변경 이력'이 거리·최초접수 원본까지 담당하므로 여기선 제외해 삼중 중복 방지
     const _updRep=(r.reports||[]).map((p,i)=>({p,ci:i+1,chg:(p.changes||[]).filter(c=>c.label!=='위치좌표')}))
       .filter(({p,chg})=>chg.length||p.update||(p.victimChange&&p.victimChange!=='변화없음')||p.addMem||p.extra);
     const updHtml=_updRep.length?`<div style="background:#1c1c1e;border-radius:10px;padding:11px 12px;border:.5px solid rgba(255,255,255,.16);margin-bottom:8px;"><div style="font-size:10px;color:#3182f6;font-weight:800;margin-bottom:5px;">📌 추가 보고</div>${_updRep.map(({p,ci,chg})=>{
-      const chgHtml=chg.map(c=>`<div style="font-size:11px;line-height:1.55;padding:1px 0;color:#b8d4e8;">${_esc(c.label)}: <span style="color:#9c8060;">${_esc(c.from)}</span> → <b style="color:#e0edf8;">${_esc(c.to)}</b></div>`).join('');
+      const chgHtml=chg.map(c=>`<div style="font-size:11px;line-height:1.55;padding:1px 0;color:#c4c8ce;">${_esc(c.label)}: <span style="color:#9c8060;">${_esc(c.from)}</span> → <b style="color:#eaecef;">${_esc(c.to)}</b></div>`).join('');
       const extras=[];
       // update 프로즈는 '경위 갱신·타임라인' 부가신호만(신버전) — 구버전(→ 포함)은 chg가 있으면 중복이라 숨기고, chg가 없을 때만 폴백 표시
       const _showUpd=p.update&&(!p.update.includes('→')||(!chg.length&&!(p.changes&&p.changes.length)));
@@ -1425,11 +1425,11 @@ function renderTimeline(r,viewMode,outId){
       if(p.victimChange&&p.victimChange!=='변화없음')extras.push('부상자 '+_esc(p.victimChange));
       if(p.addMem)extras.push('추가대원 '+_esc(p.addMem));
       if(p.extra)extras.push(_esc(p.extra));
-      return `<div style="padding:6px 0;border-bottom:.5px solid rgba(255,255,255,.05);"><div style="font-size:11px;color:#7dd3fa;font-weight:700;margin-bottom:2px;">${ci}차 <span style="color:#5a7e98;font-weight:400;font-size:9px;">${p.repTime||''}${p.author?' · '+_esc(p.author):''}</span></div>${chgHtml}${extras.length?`<div style="font-size:11px;color:#b8d4e8;line-height:1.5;margin-top:${chgHtml?'3px':'0'};">${extras.join(' · ')}</div>`:''}</div>`;
+      return `<div style="padding:6px 0;border-bottom:.5px solid rgba(255,255,255,.05);"><div style="font-size:11px;color:#aab4c0;font-weight:700;margin-bottom:2px;">${ci}차 <span style="color:#6b7684;font-weight:400;font-size:9px;">${p.repTime||''}${p.author?' · '+_esc(p.author):''}</span></div>${chgHtml}${extras.length?`<div style="font-size:11px;color:#c4c8ce;line-height:1.5;margin-top:${chgHtml?'3px':'0'};">${extras.join(' · ')}</div>`:''}</div>`;
     }).join('')}</div>`:'';
     // 위치 변경 이력 — 좌표 이동 기록(N보 수정=via 표기 / 사고자 실시간 위치 채택). 최초접수 원본은 origLat/origLng 보존
     const locLog=(r.locLog||[]);
-    const locChgHtml=locLog.length?`<div style="background:#1c1c1e;border-radius:10px;padding:11px 12px;border:.5px solid rgba(20,184,166,.22);margin-bottom:8px;"><div style="font-size:10px;color:#2dd4bf;font-weight:800;margin-bottom:5px;">📍 위치 변경 이력 <span style="color:#5a7e98;font-weight:400;font-size:9px;">최초접수 ${r.origLat!=null?(+r.origLat).toFixed(5)+', '+(+r.origLng).toFixed(5):''}</span></div>${locLog.map(l=>`<div style="font-size:11px;color:#b8d4e8;line-height:1.6;padding:3px 0;border-bottom:.5px solid rgba(255,255,255,.04);">${l.via?'위치 수정 <span style="color:#5a7e98;font-size:9px;">('+_esc(l.via)+')</span>':'실시간 위치 채택'} <span style="color:#9c8060;">${(+l.from.lat).toFixed(5)}, ${(+l.from.lng).toFixed(5)}</span> → <b style="color:#a7f3e4;">${(+l.to.lat).toFixed(5)}, ${(+l.to.lng).toFixed(5)}</b>${l.dist?' <span style="color:#5a9e94;">('+l.dist+'m)</span>':''} <span style="color:#5a7e98;font-size:9px;">${l.at||''}${l.by?' · '+_esc(l.by):''}</span></div>`).join('')}</div>`:'';
+    const locChgHtml=locLog.length?`<div style="background:#1c1c1e;border-radius:10px;padding:11px 12px;border:.5px solid rgba(20,184,166,.22);margin-bottom:8px;"><div style="font-size:10px;color:#2dd4bf;font-weight:800;margin-bottom:5px;">📍 위치 변경 이력 <span style="color:#6b7684;font-weight:400;font-size:9px;">최초접수 ${r.origLat!=null?(+r.origLat).toFixed(5)+', '+(+r.origLng).toFixed(5):''}</span></div>${locLog.map(l=>`<div style="font-size:11px;color:#c4c8ce;line-height:1.6;padding:3px 0;border-bottom:.5px solid rgba(255,255,255,.04);">${l.via?'위치 수정 <span style="color:#6b7684;font-size:9px;">('+_esc(l.via)+')</span>':'실시간 위치 채택'} <span style="color:#9c8060;">${(+l.from.lat).toFixed(5)}, ${(+l.from.lng).toFixed(5)}</span> → <b style="color:#a7f3e4;">${(+l.to.lat).toFixed(5)}, ${(+l.to.lng).toFixed(5)}</b>${l.dist?' <span style="color:#5a9e94;">('+l.dist+'m)</span>':''} <span style="color:#6b7684;font-size:9px;">${l.at||''}${l.by?' · '+_esc(l.by):''}</span></div>`).join('')}</div>`:'';
     const logHtml=_buildLogHtml(r);
     // ── 접이식 보고서 + 하단 타임라인 ──
     // 요약(부상·위치·사람+전화)은 항상 보이고, 상세(접수·경위·사진·출동인원 등)는 '보고서 펼치기'로.
@@ -1439,7 +1439,7 @@ function renderTimeline(r,viewMode,outId){
       ${injurySect}
       ${locSect?_div+locSect:''}
       ${_div}${personSect}
-      <button onclick="_toggleRepSheet(${r.id},'${_isBoard?_esc(outId):''}')" style="width:100%;margin-top:10px;padding:9px;border-radius:9px;border:1px dashed rgba(255,255,255,.3);background:rgba(255,255,255,.05);color:#5d92bc;font-size:12px;font-weight:700;cursor:pointer;">${_shOpen?'▲ 보고서 접기':'📄 보고서 전체 펼치기 — 접수·경위·사진·출동인원'}</button>
+      <button onclick="_toggleRepSheet(${r.id},'${_isBoard?_esc(outId):''}')" style="width:100%;margin-top:10px;padding:9px;border-radius:9px;border:1px dashed rgba(255,255,255,.3);background:rgba(255,255,255,.05);color:#6b7684;font-size:12px;font-weight:700;cursor:pointer;">${_shOpen?'▲ 보고서 접기':'📄 보고서 전체 펼치기 — 접수·경위·사진·출동인원'}</button>
     </div>`;
     // 펼쳤을 때만 붙는 상세 묶음 (접수·기타 정보 → 추가·변경 이력 → 사진 → 출동 인원)
     const _mkReportDetail=()=>_shOpen?`
@@ -1456,16 +1456,16 @@ function renderTimeline(r,viewMode,outId){
     function _teamSectHtml(){return `
         ${(()=>{
           const tot=((r.members||[]).length)+(r.teams||[]).reduce((a,t)=>a+_teamCnt(t),0)+(r.extraTeams||[]).reduce((a,t)=>a+((t.members||[]).length),0);
-          return `<div style="font-size:11px;color:#3182f6;font-weight:700;margin-bottom:7px;">👥 출동 인원${tot?` <span style="color:#7dd3fa;">· 총 ${tot}명</span>`:''}</div>`;
+          return `<div style="font-size:11px;color:#3182f6;font-weight:700;margin-bottom:7px;">👥 출동 인원${tot?` <span style="color:#aab4c0;">· 총 ${tot}명</span>`:''}</div>`;
         })()}
-        ${(r.members&&r.members.length)?`<div style="font-size:11px;color:#b8d4e8;margin-bottom:3px;"><span style="color:#7ec8a0;font-weight:600;">🏃 초동팀 <span style="color:#7dd3fa;font-size:10px;">${r.members.length}명</span></span> <span style="color:#b8d4e8;">— ${_esc(r.members.join(', '))}</span></div>`:''}
+        ${(r.members&&r.members.length)?`<div style="font-size:11px;color:#c4c8ce;margin-bottom:3px;"><span style="color:#7ec8a0;font-weight:600;">🏃 초동팀 <span style="color:#aab4c0;font-size:10px;">${r.members.length}명</span></span> <span style="color:#c4c8ce;">— ${_esc(r.members.join(', '))}</span></div>`:''}
         ${(r.teams&&r.teams.length)?r.teams.map(t=>{
           const cnt=_teamCnt(t);
-          const mem=(t.members&&t.members.length)?` <span style="color:#b8d4e8;font-weight:400;">— ${_esc(t.members.join(', '))}</span>`:'';
-          return `<div style="font-size:11px;color:#b8d4e8;margin-bottom:3px;"><span style="color:#7ec8a0;font-weight:600;">${_teamIco(t)} ${_esc(_deptShort(t.name))}${cnt?` <span style="color:#7dd3fa;font-size:10px;">${cnt}명</span>`:''}</span>${mem}</div>`;
+          const mem=(t.members&&t.members.length)?` <span style="color:#c4c8ce;font-weight:400;">— ${_esc(t.members.join(', '))}</span>`:'';
+          return `<div style="font-size:11px;color:#c4c8ce;margin-bottom:3px;"><span style="color:#7ec8a0;font-weight:600;">${_teamIco(t)} ${_esc(_deptShort(t.name))}${cnt?` <span style="color:#aab4c0;font-size:10px;">${cnt}명</span>`:''}</span>${mem}</div>`;
         }).join(''):''}
         ${(!r.members||!r.members.length)&&(!r.teams||!r.teams.length)?'<div style="font-size:11px;color:rgba(255,255,255,.3);">미기재 — 타임라인에서 팀을 출동시키면 자동 표시됩니다</div>':''}
-        ${(r.extraTeams&&r.extraTeams.length)?r.extraTeams.map(t=>`<div style="font-size:11px;color:#b8d4e8;margin-bottom:3px;"><span style="color:#7ec8a0;font-weight:600;">${_esc(_deptShort(t.teamName))}${(t.members||[]).length?` <span style="color:#7dd3fa;font-size:10px;">${(t.members||[]).length}명</span>`:''}</span>${(t.members||[]).length?` <span style="color:#b8d4e8;">— ${_esc((t.members||[]).join(', '))}</span>`:''}</div>`).join(''):''}
+        ${(r.extraTeams&&r.extraTeams.length)?r.extraTeams.map(t=>`<div style="font-size:11px;color:#c4c8ce;margin-bottom:3px;"><span style="color:#7ec8a0;font-weight:600;">${_esc(_deptShort(t.teamName))}${(t.members||[]).length?` <span style="color:#aab4c0;font-size:10px;">${(t.members||[]).length}명</span>`:''}</span>${(t.members||[]).length?` <span style="color:#c4c8ce;">— ${_esc((t.members||[]).join(', '))}</span>`:''}</div>`).join(''):''}
         ${(r.agencies)?(()=>{
           const ag=r.agencies;const parts=[];
           if(ag.hwandongha)parts.push(`🚒 ${(DB.g('extAgencyDisplayName')||'환동해 특수대응단').split(' ')[0]} ${ag.hwTeam||'?'}팀`);
@@ -1474,7 +1474,7 @@ function renderTimeline(r,viewMode,outId){
           if(ag.forestry)parts.push('🌲 산림청');
           if(ag.other)parts.push(_esc(ag.other));
           if(ag.agenciesNote)parts.push(`(${_esc(ag.agenciesNote)})`);
-          return parts.length?`<div style="font-size:11px;color:#b8d4e8;margin-top:2px;"><span style="color:#4a7090;">유관기관:</span> ${parts.join(' · ')}</div>`:'';
+          return parts.length?`<div style="font-size:11px;color:#c4c8ce;margin-top:2px;"><span style="color:#565f6b;">유관기관:</span> ${parts.join(' · ')}</div>`:'';
         })():''}`;}
     // 조립(한 화면): [📄 보고서 구역] → [🕘 현장 기록 구역] → 💬 댓글 — 색 바 헤더로 두 구역을 명확히 구분
     const _secHd=(col,txt,mt)=>`<div style="display:flex;align-items:center;gap:6px;margin:${mt||2}px 2px 6px;"><span style="width:3px;height:14px;border-radius:2px;background:${col};"></span><span style="font-size:11.5px;font-weight:800;color:${col};">${txt}</span><span style="flex:1;height:1px;background:${col}26;"></span></div>`;
@@ -1487,7 +1487,7 @@ function renderTimeline(r,viewMode,outId){
       +_mobilizeBlockHtml('rescues',r)
       +_mkRecCard()
       +(logHtml?`<div style="margin:2px 0 8px;">${logHtml}</div>`
-               :'<div style="text-align:center;font-size:11px;color:#456a85;padding:12px 0 8px;">기록 없음 — 위 📌 기록 추가로 입력하세요</div>')
+               :'<div style="text-align:center;font-size:11px;color:#565f6b;padding:12px 0 8px;">기록 없음 — 위 📌 기록 추가로 입력하세요</div>')
       +_mkTeamCard()
       +`<div style="background:#1c1c1e;border-radius:10px;padding:12px;border:.5px solid rgba(255,255,255,.07);margin-top:8px;">
         <div style="font-size:11px;color:#3182f6;font-weight:700;margin-bottom:8px;">💬 댓글</div>
@@ -1557,7 +1557,7 @@ function _rescueStepperHtml(r){
         ${i>0?`<div style="position:absolute;right:50%;margin-right:9px;top:8px;left:-50%;margin-left:9px;height:2px;background:${done?'rgba(61,220,132,.35)':'rgba(255,255,255,.06)'};"></div>`:''}
         <div style="position:relative;width:18px;height:18px;line-height:15px;border-radius:50%;margin:0 auto;background:${done?'rgba(61,220,132,.14)':isCur?'rgba(255,255,255,.16)':'transparent'};border:2px solid ${col};color:${col};font-size:10px;font-weight:900;">${done?'✓':(isCur?'·':'')}</div>
         <div style="font-size:9.5px;font-weight:${isCur?'800':'600'};color:${done?'#7ee0a8':isCur?'#3182f6':'rgba(255,255,255,.3)'};margin-top:3px;white-space:nowrap;">${m.l}</div>
-        <div style="font-size:8.5px;color:#5a7e98;height:11px;">${m.t||''}</div>
+        <div style="font-size:8.5px;color:#6b7684;height:11px;">${m.t||''}</div>
       </div>`;
     }).join('')}
   </div>`;
@@ -1588,12 +1588,12 @@ function showPrevHistModal(id){
     const body=origIdx===0?[r.location,r.situation,r.extra].filter(Boolean).join(' · '):(p.update||'');
     return `<div style="padding:9px 14px;border-bottom:.5px solid rgba(255,255,255,.06);">
       <div style="font-size:10px;color:#3182f6;font-weight:700;margin-bottom:3px;">${label} · ${_esc(author)}</div>
-      ${body?`<div style="font-size:11px;color:#b8d4e8;line-height:1.5;">${_esc(body)}</div>`:''}
+      ${body?`<div style="font-size:11px;color:#c4c8ce;line-height:1.5;">${_esc(body)}</div>`:''}
     </div>`;
   }).join('');
-  ov.innerHTML=`<div style="background:#040a16;border-radius:14px 14px 0 0;width:100%;max-height:70vh;max-height:70dvh;overflow:hidden;display:flex;flex-direction:column;border-top:.5px solid rgba(255,255,255,.25);">
+  ov.innerHTML=`<div style="background:#0a0a0c;border-radius:14px 14px 0 0;width:100%;max-height:70vh;max-height:70dvh;overflow:hidden;display:flex;flex-direction:column;border-top:.5px solid rgba(255,255,255,.25);">
     <div style="padding:14px 16px 10px;display:flex;align-items:center;justify-content:space-between;border-bottom:.5px solid rgba(255,255,255,.07);flex-shrink:0;">
-      <span style="font-size:13px;font-weight:700;color:#e0edf8;">📋 이전 이력 (${all.length-1}건)</span>
+      <span style="font-size:13px;font-weight:700;color:#eaecef;">📋 이전 이력 (${all.length-1}건)</span>
       <button onclick="document.getElementById('prevHistOv').style.display='none'" style="background:none;border:none;color:rgba(255,255,255,.5);font-size:20px;cursor:pointer;padding:0 4px;line-height:1;">×</button>
     </div>
     <div style="overflow-y:auto;flex:1;">${rows}</div>
@@ -1680,7 +1680,7 @@ function submitComment(resId,variant){
   DB.s('rescues',res);
   const cmts=res[ri].comments;
   inp.value='';
-  const cmtHtml=cmts.map(cm=>`<div style="background:#0f0f11;border-radius:7px;padding:8px 10px;margin-bottom:5px;"><div style="font-size:11px;color:#3182f6;font-weight:600;">${_esc(cm.author)} · ${cm.time}</div><div style="font-size:12px;color:#b8d4e8;margin-top:3px;line-height:1.5;">${_esc(cm.text)}</div></div>`).join('');
+  const cmtHtml=cmts.map(cm=>`<div style="background:#0f0f11;border-radius:7px;padding:8px 10px;margin-bottom:5px;"><div style="font-size:11px;color:#3182f6;font-weight:600;">${_esc(cm.author)} · ${cm.time}</div><div style="font-size:12px;color:#c4c8ce;margin-top:3px;line-height:1.5;">${_esc(cm.text)}</div></div>`).join('');
   // 댓글 목록 갱신 (두 위치 모두)
   const listEl=document.getElementById('commentList_'+resId);if(listEl)listEl.innerHTML=cmtHtml;
   const listElAdv=document.getElementById('commentList_adv_'+resId);if(listElAdv)listElAdv.innerHTML=cmtHtml;
@@ -2055,13 +2055,13 @@ function share119(rid){
   let m=document.getElementById('share119Modal');
   if(!m){m=document.createElement('div');m.id='share119Modal';document.body.appendChild(m);}
   m.style.cssText='position:fixed;inset:0;z-index:99850;background:rgba(0,0,0,.6);display:flex;align-items:flex-end;justify-content:center;';
-  m.innerHTML=`<div style="background:#0a1828;border:1px solid rgba(224,90,78,.3);border-radius:16px 16px 0 0;max-width:430px;width:100%;padding:16px 16px calc(14px + env(safe-area-inset-bottom));max-height:82vh;display:flex;flex-direction:column;">
+  m.innerHTML=`<div style="background:#16161a;border:1px solid rgba(224,90,78,.3);border-radius:16px 16px 0 0;max-width:430px;width:100%;padding:16px 16px calc(14px + env(safe-area-inset-bottom));max-height:82vh;display:flex;flex-direction:column;">
     <div style="display:flex;align-items:center;margin-bottom:10px;flex-shrink:0;">
       <b style="font-size:14.5px;color:#ffb3a8;">🚑 유관기관 공유</b>
-      <span style="font-size:10px;color:#7a9cb8;margin-left:8px;">119 · 경찰 · 유관기관 전파용 요약</span>
+      <span style="font-size:10px;color:#8b95a1;margin-left:8px;">119 · 경찰 · 유관기관 전파용 요약</span>
       <button onclick="document.getElementById('share119Modal').remove()" style="margin-left:auto;background:none;border:none;color:rgba(255,255,255,.5);font-size:21px;cursor:pointer;padding:0 2px;">×</button>
     </div>
-    <pre class="sel-ok" style="flex:1;min-height:0;overflow-y:auto;background:#0f0f11;border:1px solid rgba(255,255,255,.08);border-radius:10px;padding:11px 12px;font-size:12px;line-height:1.75;color:#cfe2f2;white-space:pre-wrap;word-break:break-all;font-family:inherit;margin-bottom:11px;">${_esc(window._sh119Txt)}</pre>
+    <pre class="sel-ok" style="flex:1;min-height:0;overflow-y:auto;background:#0f0f11;border:1px solid rgba(255,255,255,.08);border-radius:10px;padding:11px 12px;font-size:12px;line-height:1.75;color:#d5d8dc;white-space:pre-wrap;word-break:break-all;font-family:inherit;margin-bottom:11px;">${_esc(window._sh119Txt)}</pre>
     <div style="display:flex;gap:7px;flex-shrink:0;">
       <button class="btn2 btn2-pri" style="flex:1.2;" onclick="_share119Send('share')">📤 공유하기</button>
       <button class="btn2 btn2-sec" style="flex:1;" onclick="_share119Send('sms')">✉️ 문자</button>
@@ -2257,7 +2257,7 @@ function render1BoForm(prefill=null){
 
   w.innerHTML=`
     <!-- 섹터 탭 — 최상단 고정(sticky). 스크롤해도 4개 섹터 전환이 항상 보임 -->
-    <div style="position:sticky;top:-12px;margin:-12px -12px 0;z-index:6;display:flex;background:#040a16;border-bottom:1px solid rgba(255,255,255,.06);overflow-x:auto;scrollbar-width:none;flex-shrink:0;box-shadow:0 2px 8px rgba(0,0,0,.45);">
+    <div style="position:sticky;top:-12px;margin:-12px -12px 0;z-index:6;display:flex;background:#0a0a0c;border-bottom:1px solid rgba(255,255,255,.06);overflow-x:auto;scrollbar-width:none;flex-shrink:0;box-shadow:0 2px 8px rgba(0,0,0,.45);">
       ${tabs.map((t,i)=>`<div class="rep-tab${i===0?' rep-tab-on':''}" onclick="switchRepTab('${t.id}',this)"
         style="flex:1;min-width:52px;padding:8px 3px;text-align:center;font-size:10px;cursor:pointer;
         border-bottom:2px solid ${i===0?'#3182f6':'transparent'};
@@ -2266,7 +2266,7 @@ function render1BoForm(prefill=null){
     </div>
     ${isNbo?`<div id="nboBanner" style="background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.25);border-radius:0;margin:0 -12px;padding:9px 13px;font-size:11px;color:#3182f6;display:flex;align-items:center;justify-content:space-between;">
       <span>📋 <b>${p._phaseNum||2}보 작성중</b> — 변경사항만 수정</span>
-      <button onclick="history.back()" style="background:rgba(255,255,255,.07);color:#c0d8ec;border:none;padding:5px 10px;border-radius:6px;font-size:11px;cursor:pointer;">✕</button>
+      <button onclick="history.back()" style="background:rgba(255,255,255,.07);color:#cdd1d6;border:none;padding:5px 10px;border-radius:6px;font-size:11px;cursor:pointer;">✕</button>
     </div>`:''}
 
     <!-- ══ 섹터0: 고도화 타임라인 ══ -->
@@ -2278,7 +2278,7 @@ function render1BoForm(prefill=null){
 
     <!-- ══ 섹터1: 위치·기상 ══ -->
     <div id="repSec1" class="rep-sec" style="padding:12px;overflow-y:auto;">
-      ${isNbo?`<div class="fg" style="margin-bottom:10px;"><span class="fl">🕐 사고 일시 <span style="font-size:9px;color:#7a9cb8;font-weight:400;">(잘못 기록된 경우 수정 — 저장 시 반영)</span></span>
+      ${isNbo?`<div class="fg" style="margin-bottom:10px;"><span class="fl">🕐 사고 일시 <span style="font-size:9px;color:#8b95a1;font-weight:400;">(잘못 기록된 경우 수정 — 저장 시 반영)</span></span>
         <input type="datetime-local" id="r_accdt" class="fi" value="${String(p.date||'').replace(' ','T').slice(0,16)}"></div>`:''}
       <!-- AI 출동지령서 스캔 (상단 고정칸에서 섹터1 안으로 이동 — 화면 낭비 제거) -->
       <div style="margin-bottom:10px;">
@@ -2291,17 +2291,17 @@ function render1BoForm(prefill=null){
           <div id="aiScanSpinner" style="display:none;width:18px;height:18px;border:2px solid rgba(139,92,246,.3);border-top-color:#c4b5fd;border-radius:50%;animation:spin .8s linear infinite;flex-shrink:0;"></div>
           <input type="file" accept="image/*" style="display:none;" onchange="aiScanDispatch(this)">
         </label>
-        <div id="aiScanStatus" style="display:none;font-size:10px;color:#7a9cb8;margin-top:6px;padding:0 4px;line-height:1.6;"></div>
+        <div id="aiScanStatus" style="display:none;font-size:10px;color:#8b95a1;margin-top:6px;padding:0 4px;line-height:1.6;"></div>
       </div>
       <!-- 📞 접수 — 시간순으로 가장 먼저 아는 정보라 첫 탭 최상단 (기타 탭에서 이동, '경위'와의 중복 혼동 해소) -->
-      <div class="rsec"><div class="rsec-t">📞 사고 접수 <span style="font-size:9px;color:#7a9cb8;font-weight:400;">신고 받은 그대로</span></div>
+      <div class="rsec"><div class="rsec-t">📞 사고 접수 <span style="font-size:9px;color:#8b95a1;font-weight:400;">신고 받은 그대로</span></div>
         <div class="fg"><span class="fl">접수 경로</span>
           <div style="display:flex;gap:6px;" id="recvRouteBtns">
             ${['119','사무소 전화','현장 접수'].map(o=>`<button class="tog-btn${(p.recvRoute||'119')===o?' on':''}" data-val="${o}" style="flex:1;white-space:nowrap;padding:9px 4px;font-size:11.5px;" onclick="selRecvRoute('${o}')">${o==='119'?'🚒 119':o==='사무소 전화'?'☎️ 사무소전화':'🧍 현장접수'}</button>`).join('')}
           </div>
           <input type="hidden" id="r_recvRoute" value="${p.recvRoute||'119'}">
         </div>
-        <div class="fg"><span class="fl">접수 내용 <span style="font-size:9px;color:#7a9cb8;font-weight:400;">(신고 원문 — 파악된 사고 전개는 환자·부상 탭 '사고 경위'에)</span></span>
+        <div class="fg"><span class="fl">접수 내용 <span style="font-size:9px;color:#8b95a1;font-weight:400;">(신고 원문 — 파악된 사고 전개는 환자·부상 탭 '사고 경위'에)</span></span>
           <textarea id="r_recv" class="fta" rows="3" placeholder="예) 119 이첩 — 천불동계곡 하산 중 발목 부상, 자력 이동 불가, 일행 1명">${p.reception||''}</textarea>
         </div>
         <div class="fg"><span class="fl">🚨 사고 유형</span>
@@ -2345,7 +2345,7 @@ function render1BoForm(prefill=null){
           </select>
         </div>
         <div id="climbLocWrap" style="display:${(p.loctype==='암벽'||p.loctype==='빙벽')?'block':'none'};" class="fg">
-          ${(p.loctype==='암벽'||p.loctype==='빙벽')?`<span class="fl">📍 ${p.loctype} 위치 선택 <span style="font-size:9px;color:#7a9cb8;font-weight:400;">${p.loctype==='암벽'?'지구별':''}</span></span>${_climbLocBtnsHtml(p.loctype,p.location)}`:''}
+          ${(p.loctype==='암벽'||p.loctype==='빙벽')?`<span class="fl">📍 ${p.loctype} 위치 선택 <span style="font-size:9px;color:#8b95a1;font-weight:400;">${p.loctype==='암벽'?'지구별':''}</span></span>${_climbLocBtnsHtml(p.loctype,p.location)}`:''}
         </div>
         <div id="permitWrap" style="display:${p.loctype&&(p.loctype==='암벽'||p.loctype==='빙벽')?'block':'none'};" class="fg">
           <span class="fl">🏔️ 암빙벽 허가</span>
@@ -2353,23 +2353,23 @@ function render1BoForm(prefill=null){
         </div>
         <div id="permitRoster" style="display:${p.permit==='허가자 있음'?'block':'none'};" class="fg">
           <button type="button" onclick="openClimbVictimPick()" style="width:100%;background:linear-gradient(145deg,#3a2409,#5a3a12);color:#f0c88a;border:1px solid rgba(240,200,138,.35);border-radius:8px;padding:10px;font-size:12.5px;font-weight:800;cursor:pointer;">🧗 그날 암벽 신청명단 확인 · 사고자 불러오기</button>
-          <div style="font-size:9.5px;color:#7a9cb8;margin-top:4px;">※ 사고자가 신청자가 아닐 수 있습니다 — 명단에서 동반자도 개별 선택됩니다</div>
+          <div style="font-size:9.5px;color:#8b95a1;margin-top:4px;">※ 사고자가 신청자가 아닐 수 있습니다 — 명단에서 동반자도 개별 선택됩니다</div>
         </div>
       </div>
       <div class="rsec"><div class="rsec-t">🌤️ 기상 정보</div>
         <div class="fg"><span class="fl">기상 상황</span>
           <div class="pills" id="weatherPills">${['맑음','흐림','비','눈','강풍','안개'].map(o=>`<div class="pill${p.weather===o?' on':''}" onclick="sPill(this,'weatherPills')">${o}</div>`).join('')}</div>
         </div>
-        <div class="fg"><span class="fl">최초접수 당시 기온 (°C) <span style="font-size:9px;color:#7a9cb8;font-weight:400;">(가까운 관측지점 자동 · 수정 가능)</span></span>
+        <div class="fg"><span class="fl">최초접수 당시 기온 (°C) <span style="font-size:9px;color:#8b95a1;font-weight:400;">(가까운 관측지점 자동 · 수정 가능)</span></span>
           <input type="number" inputmode="decimal" step="0.1" id="r_initTemp" class="fi" placeholder="자동 입력" value="${p.initTemp!=null&&p.initTemp!==''?p.initTemp:(()=>{try{const t=(document.getElementById('wTmp')||{}).textContent||'';const n=parseInt(t);return isNaN(n)?'':n;}catch(e){return '';}})()}">
         </div>
         <div class="fg"><span class="fl">기상 특보</span>
           <div style="background:#0f0f11;border-radius:8px;border:1px solid rgba(255,255,255,.07);padding:10px;margin-top:4px;">
-            <div style="font-size:10px;color:#7a9cb8;font-weight:700;margin-bottom:5px;">종류</div>
+            <div style="font-size:10px;color:#8b95a1;font-weight:700;margin-bottom:5px;">종류</div>
             <div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:8px;" id="wAlertTypePills">
               ${['강풍','호우','대설','건조','한파','폭염','황사','태풍'].map(t=>`<div class="pill" onclick="selWAlertType(this,'${t}')" style="font-size:11px;cursor:pointer;">${t}</div>`).join('')}
             </div>
-            <div style="font-size:10px;color:#7a9cb8;font-weight:700;margin-bottom:5px;">단계</div>
+            <div style="font-size:10px;color:#8b95a1;font-weight:700;margin-bottom:5px;">단계</div>
             <div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:8px;" id="wAlertLevelPills">
               ${['주의보','경보','특보'].map(l=>`<div class="pill" onclick="selWAlertLevel(this,'${l}')" style="font-size:11px;cursor:pointer;">${l}</div>`).join('')}
             </div>
@@ -2390,9 +2390,9 @@ function render1BoForm(prefill=null){
             ${['본인부주의','실족','추락','낙석 피격','탈진/탈수','저체온','심혈관 이상','동물 피해','익수','기타'].map(o=>`<option${(p.cause||'본인부주의')===o?' selected':''}>${o}</option>`).join('')}
           </select>
         </div>
-        <div class="fg"><span class="fl">사고 경위 <span style="font-size:9px;color:#7a9cb8;font-weight:400;">(파악된 사실 — 접수 원문과 달라진 내용 포함)</span></span>
+        <div class="fg"><span class="fl">사고 경위 <span style="font-size:9px;color:#8b95a1;font-weight:400;">(파악된 사실 — 접수 원문과 달라진 내용 포함)</span></span>
           <textarea id="r_sit" class="fta" rows="4" placeholder="예) 오전 09:00 비선대 주차장에서 산행 시작, 11:30경 천불동계곡 3km 지점 하산 중 실족하여 우측 발목 부상 발생">${p.situation||''}</textarea>
-          <button type="button" onclick="_copyRecvToSit()" style="margin-top:5px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.25);color:#5d92bc;border-radius:7px;padding:5px 10px;font-size:10.5px;font-weight:700;cursor:pointer;">📞 접수 내용 가져와서 시작</button>
+          <button type="button" onclick="_copyRecvToSit()" style="margin-top:5px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.25);color:#6b7684;border-radius:7px;padding:5px 10px;font-size:10.5px;font-weight:700;cursor:pointer;">📞 접수 내용 가져와서 시작</button>
         </div>
       </div>
 
@@ -2410,21 +2410,21 @@ function render1BoForm(prefill=null){
             <button class="tog-btn" data-val="내상" style="flex:1;padding:7px 4px;min-height:34px;font-size:12px;" onclick="selInjCat('내상')">💊 내상·질환</button>
           </div>
           <!-- ① 부상 유형 (카테고리별 목록 — JS가 렌더) -->
-          <div style="font-size:10px;color:#7a9cb8;font-weight:700;margin-bottom:5px;">① 부상 유형 <span style="font-weight:400;color:#5a7a92;">※ 내상·질환은 부위 불필요</span></div>
+          <div style="font-size:10px;color:#8b95a1;font-weight:700;margin-bottom:5px;">① 부상 유형 <span style="font-weight:400;color:#5a7a92;">※ 내상·질환은 부위 불필요</span></div>
           <div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:8px;" id="injTypePills"></div>
           <div id="injTypeCustomWrap" style="display:none;margin-bottom:8px;">
             <input type="text" id="injTypeCustom" class="fi" placeholder="부상·질환 직접 입력 (예: 안구 손상, 알레르기 쇼크)">
           </div>
           <!-- ② 부상 부위 -->
           <div id="injPartWrap" style="margin-bottom:8px;">
-            <div style="font-size:10px;color:#7a9cb8;font-weight:700;margin-bottom:5px;">② 부상 부위</div>
+            <div style="font-size:10px;color:#8b95a1;font-weight:700;margin-bottom:5px;">② 부상 부위</div>
             <div style="display:flex;gap:4px;flex-wrap:wrap;" id="injPartPills">
               ${['머리','목','어깨','팔꿈치','손목','손','흉부','복부','허리','골반','무릎','발목','발'].map(t=>`<div class="pill" onclick="selInjPart(this,'${t}')" style="font-size:11px;cursor:pointer;">${t}</div>`).join('')}
             </div>
           </div>
           <!-- 좌/우 — 부위 선택 후 노출 -->
           <div id="injSideWrap" style="display:none;margin-bottom:8px;">
-            <div style="font-size:10px;color:#7a9cb8;font-weight:700;margin-bottom:5px;">좌/우</div>
+            <div style="font-size:10px;color:#8b95a1;font-weight:700;margin-bottom:5px;">좌/우</div>
             <div style="display:flex;gap:4px;flex-wrap:wrap;" id="injSidePills">
               ${['좌','우','양쪽'].map(s=>`<div class="pill" onclick="selInjSide(this,'${s}')" style="font-size:11px;cursor:pointer;">${s}</div>`).join('')}
             </div>
@@ -2440,8 +2440,8 @@ function render1BoForm(prefill=null){
       </div>
 
       <!-- 4. 활력징후 (음주여부 + 중증도 포함) -->
-      <div class="rsec"><div class="rsec-t">💓 활력징후 <span style="font-size:9px;color:#7a9cb8;font-weight:400;">(보고마다 기록 → 추이 확인)</span></div>
-        <div style="font-size:9px;color:#5a7e98;margin-bottom:6px;">＋/− 버튼은 예시값에서 시작해 조정 · 안 건드리면 빈값으로 저장</div>
+      <div class="rsec"><div class="rsec-t">💓 활력징후 <span style="font-size:9px;color:#8b95a1;font-weight:400;">(보고마다 기록 → 추이 확인)</span></div>
+        <div style="font-size:9px;color:#6b7684;margin-bottom:6px;">＋/− 버튼은 예시값에서 시작해 조정 · 안 건드리면 빈값으로 저장</div>
         <div class="frow">
           <div class="fg"><span class="fl">맥박 (회/분)</span>
             <div class="vit-step"><button type="button" onclick="_vitStep('r_hr',-1,80,1)">−</button><input type="number" inputmode="numeric" id="r_hr" class="fi vit-input" min="0" placeholder="예: 80" value="${p.vitals?.hr||''}" enterkeyhint="next" onkeydown="_vitNext(event)" oninput="_vitClamp(this)"><button type="button" onclick="_vitStep('r_hr',1,80,1)">＋</button></div>
@@ -2507,7 +2507,7 @@ function render1BoForm(prefill=null){
         <div class="fg"><span class="fl">알레르기</span><input type="text" id="r_vAll" class="fi" placeholder="없음 또는 항목" value="${p.vAllergy||''}"></div>
         <div class="fg"><span class="fl">복용약</span><input type="text" id="r_vMed" class="fi" placeholder="없음 또는 항목" value="${p.vMeds||''}"></div>
       </div>
-      <div class="rsec"><div class="rsec-t">👥 추가 사고자 <span style="font-size:9px;color:#7a9cb8;font-weight:400;">(다수 사상자 발생 시)</span></div>
+      <div class="rsec"><div class="rsec-t">👥 추가 사고자 <span style="font-size:9px;color:#8b95a1;font-weight:400;">(다수 사상자 발생 시)</span></div>
         <div id="victim2List">${(p.victims2||[]).map(v=>`<div class="victim2-item" style="background:#0f0f11;border-radius:8px;padding:10px;margin-bottom:6px;border:1px solid rgba(231,76,60,.15);">${_victim2CardHtml(v)}</div>`).join('')}</div>
         <button onclick="addVictim2()" style="width:100%;padding:9px;background:rgba(231,76,60,.08);border:1px dashed rgba(231,76,60,.3);color:#e9897e;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;margin-top:4px;">＋ 사고자 추가</button>
       </div>
@@ -2520,7 +2520,7 @@ function render1BoForm(prefill=null){
           <input type="hidden" id="r_hasRep" value="${p.hasRep||'n'}">
         </div>
         <div id="reporterWrap" style="display:${p.hasRep==='y'?'block':'none'};">
-          <div class="fg"><span class="fl">사고자와의 관계 <span style="font-size:9px;color:#7a9cb8;font-weight:400;">(동반자 선택 시 동반자1 정보 자동 입력)</span></span>
+          <div class="fg"><span class="fl">사고자와의 관계 <span style="font-size:9px;color:#8b95a1;font-weight:400;">(동반자 선택 시 동반자1 정보 자동 입력)</span></span>
             <div style="display:flex;gap:5px;flex-wrap:wrap;" id="repRelBtns">
               ${['동반자','가족','일행','목격자','본인','기타'].map(o=>`<button class="tog-btn${p.repRel===o?' on':''}" data-val="${o}" onclick="selRepRel('${o}')" style="padding:7px 12px;min-height:34px;font-size:11px;">${o}</button>`).join('')}
             </div>
@@ -2573,7 +2573,7 @@ function render1BoForm(prefill=null){
       <!-- 접수 경로·내용은 위치·기상 탭 최상단으로 이동 (경위와 중복 혼동 해소) -->
       <div class="rsec" style="margin-top:${isNbo?'0':'12px'};"><div class="rsec-t">📋 사고 제목 및 작성 정보</div>
         <div class="fg">
-          <span class="fl">사고 제목 <span style="font-size:9px;color:#7a9cb8;font-weight:400;">(자동생성 — 수정 가능)</span></span>
+          <span class="fl">사고 제목 <span style="font-size:9px;color:#8b95a1;font-weight:400;">(자동생성 — 수정 가능)</span></span>
           <input type="text" id="r_title" class="fi" placeholder="위치·기상 탭 입력 시 자동생성" value="${p.title||''}">
         </div>
         <div class="fg"><span class="fl">보고 작성자</span>

@@ -73,12 +73,12 @@ if(window.Kakao&&!Kakao.isInitialized()) Kakao.init(KAKAO_KEY);
 
 <div id="loadingScreen" style="position:fixed;inset:0;background:#0f0f11;z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;pointer-events:auto;">
   <img src="data:image/png;base64,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" style="width:70px;height:70px;object-fit:contain;mix-blend-mode:screen;filter:brightness(1.3);" alt="설악산">
-  <div style="margin-top:12px;font-size:13px;font-weight:700;color:#e0edf8;letter-spacing:.5px;">설악산국립공원</div>
-  <div style="font-size:10px;color:#3a6a8a;letter-spacing:1px;margin-top:2px;">SEORAKSAN NATIONAL PARK</div>
+  <div style="margin-top:12px;font-size:13px;font-weight:700;color:#eaecef;letter-spacing:.5px;">설악산국립공원</div>
+  <div style="font-size:10px;color:#454e5a;letter-spacing:1px;margin-top:2px;">SEORAKSAN NATIONAL PARK</div>
   <div style="margin-top:26px;width:180px;height:3px;background:rgba(255,255,255,.07);border-radius:2px;overflow:hidden;">
     <div id="loadBar" style="height:100%;width:0%;background:linear-gradient(90deg,#3182f6,#27ae60);border-radius:2px;transition:width .5s ease;"></div>
   </div>
-  <div id="loadTip" style="margin-top:16px;font-size:12px;color:#4a7090;text-align:center;padding:0 32px;line-height:1.7;max-width:300px;min-height:40px;transition:opacity .3s;"></div>
+  <div id="loadTip" style="margin-top:16px;font-size:12px;color:#565f6b;text-align:center;padding:0 32px;line-height:1.7;max-width:300px;min-height:40px;transition:opacity .3s;"></div>
 
 </div>
 <script>
@@ -135,11 +135,11 @@ if(window.Kakao&&!Kakao.isInitialized()) Kakao.init(KAKAO_KEY);
     </button>
     <div id="extLoginForm" style="display:none;background:rgba(255,120,30,.06);border:1px solid rgba(255,120,30,.22);border-radius:12px;padding:14px;margin-top:-4px;">
       <div id="extLoginLabel" style="font-size:11px;color:#f0a060;margin-bottom:10px;text-align:center;">소속 기관을 선택하고 코드를 입력하세요</div>
-      <div style="font-size:10px;color:#7a9cb8;margin-bottom:4px;">소속 기관</div>
+      <div style="font-size:10px;color:#8b95a1;margin-bottom:4px;">소속 기관</div>
       <select id="extAgencySel" class="fsel" style="margin-bottom:8px;font-size:13px;"></select>
-      <div style="font-size:10px;color:#7a9cb8;margin-bottom:4px;">담당자 이름 <span style="color:#4a7090;">(선택)</span></div>
+      <div style="font-size:10px;color:#8b95a1;margin-bottom:4px;">담당자 이름 <span style="color:#565f6b;">(선택)</span></div>
       <input id="extPersonInp" class="fi" placeholder="홍길동 (비워도 됨)" style="margin-bottom:8px;font-size:13px;" onkeydown="if(event.key==='Enter')document.getElementById('extCodeInp').focus()">
-      <div style="font-size:10px;color:#7a9cb8;margin-bottom:4px;">접속 코드</div>
+      <div style="font-size:10px;color:#8b95a1;margin-bottom:4px;">접속 코드</div>
       <input id="extCodeInp" class="fi" type="password" placeholder="코드 입력" style="margin-bottom:10px;font-family:monospace;font-size:15px;letter-spacing:3px;" onkeydown="if(event.key==='Enter')doExtAgencyLogin()">
       <button onclick="doExtAgencyLogin()" style="width:100%;background:#c04010;color:#fff;border:none;border-radius:10px;padding:12px;font-size:13px;font-weight:700;cursor:pointer;">입장</button>
     </div>
@@ -147,8 +147,8 @@ if(window.Kakao&&!Kakao.isInitialized()) Kakao.init(KAKAO_KEY);
   <div style="margin-top:20px;text-align:center;">
     <div onclick="openChangelog()" style="cursor:pointer;display:inline-block;padding:6px 14px;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.15);border-radius:20px;">
       <span style="font-size:11px;color:#3182f6;font-weight:700;">v1.2</span>
-      <span style="font-size:10px;color:#4a7090;margin-left:6px;">2026.05.15</span>
-      <span style="font-size:10px;color:#4a7090;margin-left:4px;">· 변경이력 ▾</span>
+      <span style="font-size:10px;color:#565f6b;margin-left:6px;">2026.05.15</span>
+      <span style="font-size:10px;color:#565f6b;margin-left:4px;">· 변경이력 ▾</span>
     </div>
     <div style="font-size:10px;color:#2a3a4a;margin-top:6px;">개발: 윤태종 · 설악산국립공원</div>
   </div>
@@ -157,14 +157,14 @@ if(window.Kakao&&!Kakao.isInitialized()) Kakao.init(KAKAO_KEY);
 <!-- ══ 승인 대기 게이트 (멤버 승인 전 앱 전체 차단) ══ -->
 <div id="approvalGate" style="display:none;position:fixed;inset:0;background:#0f0f11;z-index:10001;flex-direction:column;align-items:center;justify-content:center;padding:28px;text-align:center;">
   <div style="font-size:46px;margin-bottom:6px;">🔒</div>
-  <div style="font-size:18px;font-weight:800;color:#e0edf8;">관리자의 승인을 기다리고 있습니다</div>
-  <div style="font-size:12px;color:#7a9cb8;line-height:1.9;margin-top:12px;max-width:300px;">
-    가입 신청이 접수되었습니다.<br>관리자가 <b style="color:#9fc0da;">승인</b>하면 <b style="color:#9fc0da;">재로그인 없이 자동으로</b> 입장됩니다.<br>아래 ID를 관리자에게 전달해 주세요.
+  <div style="font-size:18px;font-weight:800;color:#eaecef;">관리자의 승인을 기다리고 있습니다</div>
+  <div style="font-size:12px;color:#8b95a1;line-height:1.9;margin-top:12px;max-width:300px;">
+    가입 신청이 접수되었습니다.<br>관리자가 <b style="color:#a5abb3;">승인</b>하면 <b style="color:#a5abb3;">재로그인 없이 자동으로</b> 입장됩니다.<br>아래 ID를 관리자에게 전달해 주세요.
   </div>
-  <div id="approvalGateId" style="font-size:11px;color:#4a7090;margin-top:14px;font-family:monospace;background:rgba(255,255,255,.04);border-radius:8px;padding:7px 12px;"></div>
+  <div id="approvalGateId" style="font-size:11px;color:#565f6b;margin-top:14px;font-family:monospace;background:rgba(255,255,255,.04);border-radius:8px;padding:7px 12px;"></div>
   <button onclick="_recheckApproval()" style="margin-top:22px;width:100%;max-width:280px;background:#1a4a6e;color:#fff;border:none;border-radius:11px;padding:13px;font-size:14px;font-weight:700;cursor:pointer;">🔄 승인 확인</button>
-  <button onclick="kakaoLogout()" style="margin-top:10px;width:100%;max-width:280px;background:rgba(255,255,255,.05);color:#9fc0da;border:1px solid rgba(255,255,255,.12);border-radius:11px;padding:11px;font-size:13px;font-weight:600;cursor:pointer;">로그아웃</button>
-  <div onclick="document.getElementById('adminLoginOverlay').style.display='flex';setTimeout(function(){var e=document.getElementById('adminLoginPw');if(e)e.focus();},200);" style="margin-top:18px;font-size:11px;color:#3a6a8a;cursor:pointer;text-decoration:underline;">관리자 비밀번호로 로그인</div>
+  <button onclick="kakaoLogout()" style="margin-top:10px;width:100%;max-width:280px;background:rgba(255,255,255,.05);color:#a5abb3;border:1px solid rgba(255,255,255,.12);border-radius:11px;padding:11px;font-size:13px;font-weight:600;cursor:pointer;">로그아웃</button>
+  <div onclick="document.getElementById('adminLoginOverlay').style.display='flex';setTimeout(function(){var e=document.getElementById('adminLoginPw');if(e)e.focus();},200);" style="margin-top:18px;font-size:11px;color:#454e5a;cursor:pointer;text-decoration:underline;">관리자 비밀번호로 로그인</div>
 </div>
 
 
@@ -188,8 +188,8 @@ if(window.Kakao&&!Kakao.isInitialized()) Kakao.init(KAKAO_KEY);
 <div id="changelogModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:9999;align-items:center;justify-content:center;" onclick="if(event.target===this)closeChangelog()">
   <div style="background:#1c1c1e;border-radius:16px;padding:20px;max-width:320px;width:90%;max-height:70vh;overflow-y:auto;border:1px solid rgba(255,255,255,.2);">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
-      <span style="font-size:14px;font-weight:700;color:#e0edf8;">📋 변경이력</span>
-      <button onclick="closeChangelog()" style="background:none;border:none;color:#4a7090;font-size:18px;cursor:pointer;">×</button>
+      <span style="font-size:14px;font-weight:700;color:#eaecef;">📋 변경이력</span>
+      <button onclick="closeChangelog()" style="background:none;border:none;color:#565f6b;font-size:18px;cursor:pointer;">×</button>
     </div>
     <div id="changelogBody"></div>
     <div style="font-size:10px;color:#2a3a4a;text-align:center;margin-top:8px;">개발: 윤태종 · 설악산국립공원</div>
@@ -230,7 +230,7 @@ if(window.Kakao&&!Kakao.isInitialized()) Kakao.init(KAKAO_KEY);
     <!-- 로고 진짜 가운데 (absolute) -->
     <div style="position:absolute;left:50%;transform:translateX(-50%);display:flex;flex-direction:column;align-items:center;gap:2px;">
       <img src="data:image/png;base64,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" style="width:34px;height:34px;object-fit:contain;mix-blend-mode:screen;filter:brightness(1.3);" alt="설악산">
-      <div style="font-size:10px;color:#4a7090;font-weight:700;letter-spacing:.3px;white-space:nowrap;">설악산 현장관리</div>
+      <div style="font-size:10px;color:#565f6b;font-weight:700;letter-spacing:.3px;white-space:nowrap;">설악산 현장관리</div>
     </div>
     <!-- 벨 오른쪽 -->
     <div style="min-width:80px;display:flex;justify-content:flex-end;">
@@ -261,7 +261,7 @@ if(window.Kakao&&!Kakao.isInitialized()) Kakao.init(KAKAO_KEY);
     <span class="weather-tmp skl" id="wTmp" style="min-width:36px;">--°</span>
     <span class="weather-info skl" id="wDesc" style="min-width:74px;">속초</span>
     <span class="weather-wind skl" id="wWind" style="min-width:48px;">&nbsp;</span>
-    <span style="font-size:10px;color:#3a6a8a;margin-left:auto;">▸</span>
+    <span style="font-size:10px;color:#454e5a;margin-left:auto;">▸</span>
   </div>
   <div id="weatherAlertWrap" class="weather-alert-wrap" onclick="openApp('alert')" style="cursor:pointer;touch-action:manipulation;"></div>
 
@@ -281,7 +281,7 @@ if(window.Kakao&&!Kakao.isInitialized()) Kakao.init(KAKAO_KEY);
   <div class="home-menu-bottom" style="flex-shrink:0;">
     <button class="mbtn-sm ext-hide" onclick="openApp('settings')"><span class="mbtn-sm-ico">⚙️</span><div class="mbtn-sm-text"><div class="mbtn-sm-title">내 설정</div><div class="mbtn-sm-desc">알림·계정·API키</div></div></button>
     <button class="mbtn-sm ext-hide" style="background:#150e2a;border:1px solid rgba(139,92,246,.2);position:relative;" onclick="openApp('admin')"><span class="mbtn-sm-ico">🔐</span><div class="mbtn-sm-text"><div class="mbtn-sm-title" style="color:#c4b5fd;">관리자 전용</div><div class="mbtn-sm-desc">관제·데이터 관리</div></div><span id="admBadge" style="display:none;position:absolute;top:8px;right:10px;background:#e74c3c;color:#fff;font-size:10px;font-weight:800;min-width:17px;height:17px;line-height:17px;text-align:center;border-radius:9px;padding:0 4px;box-shadow:0 0 0 2px #150e2a;">0</span></button>
-    <button id="mbBoard" data-home-key="board" class="mbtn-sm ext-hide" style="grid-column:1/-1;background:#06121f;border:1px solid rgba(255,255,255,.22);" onclick="openBoard()"><span class="mbtn-sm-ico">🖥️</span><div class="mbtn-sm-text"><div class="mbtn-sm-title" style="color:#7dd3fa;">상황판</div><div class="mbtn-sm-desc">본소 모니터 거치용 관제 화면 — 지도+진행중 구조 (주소 뒤 ?board=1 북마크)</div></div></button>
+    <button id="mbBoard" data-home-key="board" class="mbtn-sm ext-hide" style="grid-column:1/-1;background:#06121f;border:1px solid rgba(255,255,255,.22);" onclick="openBoard()"><span class="mbtn-sm-ico">🖥️</span><div class="mbtn-sm-text"><div class="mbtn-sm-title" style="color:#aab4c0;">상황판</div><div class="mbtn-sm-desc">본소 모니터 거치용 관제 화면 — 지도+진행중 구조 (주소 뒤 ?board=1 북마크)</div></div></button>
     <!-- 외부기관 전용: 로그아웃 버튼 -->
     <button id="extLogoutBtn" class="mbtn-sm" style="grid-column:1/-1;background:rgba(255,80,30,.08);border:1px solid rgba(255,80,30,.22);" onclick="extAgencyLogout()"><span class="mbtn-sm-ico">🚪</span><div class="mbtn-sm-text"><div class="mbtn-sm-title" style="color:#f08050;">로그아웃</div><div class="mbtn-sm-desc">외부기관 세션 종료</div></div></button>
   </div>
@@ -322,13 +322,13 @@ if(window.Kakao&&!Kakao.isInitialized()) Kakao.init(KAKAO_KEY);
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M12 8c-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4-1.79-4-4-4zm8.94 3A8.994 8.994 0 0 0 13 3.06V1h-2v2.06A8.994 8.994 0 0 0 3.06 11H1v2h2.06A8.994 8.994 0 0 0 11 20.94V23h2v-2.06A8.994 8.994 0 0 0 20.94 13H23v-2h-2.06zM12 19c-3.87 0-7-3.13-7-7s3.13-7 7-7 7 3.13 7 7-3.13 7-7 7z"/></svg>
     </button>
     <div id="rescueInfoPanel" style="position:absolute;bottom:calc(118px + env(safe-area-inset-bottom));left:13px;z-index:9;pointer-events:none;display:flex;flex-direction:column;gap:3px;max-width:calc(100% - 105px);">
-      <div id="rescueZoneBadge" style="display:none;background:rgba(26,58,95,.9);color:#7dd3fa;font-size:10px;font-weight:700;padding:4px 9px;border-radius:7px;border:1px solid rgba(255,255,255,.35);letter-spacing:.4px;backdrop-filter:blur(4px);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;"></div>
-      <div id="rescueCoords" style="background:rgba(0,0,0,.65);color:#8ab4cc;font-size:10px;padding:4px 8px;border-radius:7px;font-family:monospace;backdrop-filter:blur(4px);letter-spacing:.3px;line-height:1.5;border:1px solid rgba(255,255,255,.07);"><span id="rescueCoordsLat">--</span></div>
+      <div id="rescueZoneBadge" style="display:none;background:rgba(26,58,95,.9);color:#aab4c0;font-size:10px;font-weight:700;padding:4px 9px;border-radius:7px;border:1px solid rgba(255,255,255,.35);letter-spacing:.4px;backdrop-filter:blur(4px);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;"></div>
+      <div id="rescueCoords" style="background:rgba(0,0,0,.65);color:#949aa2;font-size:10px;padding:4px 8px;border-radius:7px;font-family:monospace;backdrop-filter:blur(4px);letter-spacing:.3px;line-height:1.5;border:1px solid rgba(255,255,255,.07);"><span id="rescueCoordsLat">--</span></div>
     </div>
     <button class="fab" style="background:#7a1818;color:#fff;" onclick="openNewRescue()">🚨</button>
     <button class="fab2" id="hazFab" onclick="openNewHazard()">⚠️ 위험상황 보고</button>
     <!-- 재난/구조 필터 패널 -->
-    <div id="resMapFilterPanel" style="display:none;position:absolute;bottom:0;left:0;right:0;z-index:20;background:#0a1828;border-radius:11px 11px 0 0;box-shadow:0 -3px 18px rgba(0,0,0,.7);max-height:52%;flex-direction:column;transition:transform .22s cubic-bezier(.4,0,.2,1);touch-action:none;">
+    <div id="resMapFilterPanel" style="display:none;position:absolute;bottom:0;left:0;right:0;z-index:20;background:#16161a;border-radius:11px 11px 0 0;box-shadow:0 -3px 18px rgba(0,0,0,.7);max-height:52%;flex-direction:column;transition:transform .22s cubic-bezier(.4,0,.2,1);touch-action:none;">
       <div id="resMFPHandle" style="padding:7px 0 3px;flex-shrink:0;cursor:grab;user-select:none;"><div class="sheet-handle"></div></div>
       <div style="padding:2px 12px 5px;display:flex;justify-content:space-between;align-items:center;flex-shrink:0;border-bottom:1px solid rgba(255,255,255,.06);">
         <span style="font-size:11px;font-weight:700;color:#3182f6;">🔍 필터 <span id="resMapFilterCount" style="color:#e05050;font-size:10px;"></span></span>
@@ -341,7 +341,7 @@ if(window.Kakao&&!Kakao.isInitialized()) Kakao.init(KAKAO_KEY);
       </div>
     </div>
     <!-- 시설물 카테고리 필터 패널 -->
-    <div id="resCatFilterPanel" style="display:none;position:absolute;bottom:0;left:0;right:0;z-index:20;background:#0a1828;border-radius:11px 11px 0 0;box-shadow:0 -3px 18px rgba(0,0,0,.7);max-height:60%;flex-direction:column;transition:transform .22s cubic-bezier(.4,0,.2,1);touch-action:none;">
+    <div id="resCatFilterPanel" style="display:none;position:absolute;bottom:0;left:0;right:0;z-index:20;background:#16161a;border-radius:11px 11px 0 0;box-shadow:0 -3px 18px rgba(0,0,0,.7);max-height:60%;flex-direction:column;transition:transform .22s cubic-bezier(.4,0,.2,1);touch-action:none;">
       <div id="resCFPHandle" style="padding:7px 0 3px;flex-shrink:0;cursor:grab;user-select:none;"><div class="sheet-handle"></div></div>
       <div style="padding:2px 12px 5px;display:flex;justify-content:space-between;align-items:center;flex-shrink:0;border-bottom:1px solid rgba(255,255,255,.06);">
         <span style="font-size:11px;font-weight:700;color:#27ae60;">🗺️ 시설물 필터 <span id="resCatFilterCount" style="color:#e05050;font-size:10px;"></span></span>
@@ -371,18 +371,18 @@ if(window.Kakao&&!Kakao.isInitialized()) Kakao.init(KAKAO_KEY);
       <button id="resListTab_rescue" onclick="setResListTab('rescue')" style="flex:1;padding:6px 2px;border-radius:8px;border:1.5px solid rgba(192,57,43,.25);background:transparent;color:#c0392b;font-size:11px;font-weight:700;cursor:pointer;">🚨 구조</button>
       <button id="resListTab_haz" onclick="setResListTab('haz')" style="flex:1;padding:6px 2px;border-radius:8px;border:1.5px solid rgba(230,126,34,.25);background:transparent;color:#e67e22;font-size:11px;font-weight:700;cursor:pointer;">⚠️ 위험</button>
     </div>
-    <button id="resListFilterBtn" onclick="toggleResListFilter()" style="background:#0a1828;border:1px solid rgba(255,255,255,.3);color:#3182f6;padding:5px 9px;border-radius:20px;font-size:11px;font-weight:700;display:flex;align-items:center;gap:4px;cursor:pointer;flex-shrink:0;">⚙️<span id="resListFilterBadge" style="display:none;background:#e05050;color:#fff;border-radius:50%;width:15px;height:15px;font-size:9px;font-weight:800;align-items:center;justify-content:center;"></span></button>
+    <button id="resListFilterBtn" onclick="toggleResListFilter()" style="background:#16161a;border:1px solid rgba(255,255,255,.3);color:#3182f6;padding:5px 9px;border-radius:20px;font-size:11px;font-weight:700;display:flex;align-items:center;gap:4px;cursor:pointer;flex-shrink:0;">⚙️<span id="resListFilterBadge" style="display:none;background:#e05050;color:#fff;border-radius:50%;width:15px;height:15px;font-size:9px;font-weight:800;align-items:center;justify-content:center;"></span></button>
   </div>
   <div style="display:flex;align-items:center;gap:6px;padding:0 10px 7px;flex-shrink:0;">
     <div style="flex:1;position:relative;display:flex;align-items:center;">
-      <span style="position:absolute;left:9px;font-size:12px;color:#4a7090;pointer-events:none;">🔍</span>
+      <span style="position:absolute;left:9px;font-size:12px;color:#565f6b;pointer-events:none;">🔍</span>
       <input type="text" id="resSearchInput" placeholder="이름·장소·작성자·제목 검색" oninput="onResSearch(this.value)"
-        style="width:100%;background:#0a1828;border:1px solid rgba(255,255,255,.2);border-radius:9px;color:#e0edf8;font-size:12px;padding:7px 28px 7px 26px;outline:none;">
-      <button id="resSearchClear" onclick="clearResSearch()" style="display:none;position:absolute;right:6px;background:none;border:none;color:#7a9cb8;font-size:15px;cursor:pointer;padding:0 4px;">×</button>
+        style="width:100%;background:#16161a;border:1px solid rgba(255,255,255,.2);border-radius:9px;color:#eaecef;font-size:12px;padding:7px 28px 7px 26px;outline:none;">
+      <button id="resSearchClear" onclick="clearResSearch()" style="display:none;position:absolute;right:6px;background:none;border:none;color:#8b95a1;font-size:15px;cursor:pointer;padding:0 4px;">×</button>
     </div>
   </div>
   <div style="flex:1;overflow-y:auto;padding:8px 12px 80px;" id="resListWrap"></div>
-  <div id="resListFilterPanel" style="display:none;position:absolute;bottom:0;left:0;right:0;z-index:20;background:#0a1828;border-radius:11px 11px 0 0;box-shadow:0 -3px 18px rgba(0,0,0,.7);max-height:52%;flex-direction:column;transition:transform .22s cubic-bezier(.4,0,.2,1);touch-action:none;">
+  <div id="resListFilterPanel" style="display:none;position:absolute;bottom:0;left:0;right:0;z-index:20;background:#16161a;border-radius:11px 11px 0 0;box-shadow:0 -3px 18px rgba(0,0,0,.7);max-height:52%;flex-direction:column;transition:transform .22s cubic-bezier(.4,0,.2,1);touch-action:none;">
     <div id="resLFPHandle" style="padding:7px 0 3px;flex-shrink:0;cursor:grab;user-select:none;"><div class="sheet-handle"></div></div>
     <div style="padding:2px 12px 5px;display:flex;justify-content:space-between;align-items:center;flex-shrink:0;border-bottom:1px solid rgba(255,255,255,.06);">
       <span style="font-size:11px;font-weight:700;color:#3182f6;">🔍 필터 <span id="resListFilterCount" style="color:#e05050;font-size:10px;"></span></span>
@@ -409,7 +409,7 @@ if(window.Kakao&&!Kakao.isInitialized()) Kakao.init(KAKAO_KEY);
 <div id="v-report" class="view" style="flex-direction:column;">
   <div class="phase-bar" id="phaseBar"></div>
   <div class="rcontent" id="repContent"></div>
-  <div id="rep1BoFooter" style="display:none;background:#040a16;padding:10px 12px calc(16px + env(safe-area-inset-bottom));border-top:.5px solid rgba(255,255,255,.08);flex-shrink:0;"></div>
+  <div id="rep1BoFooter" style="display:none;background:#0a0a0c;padding:10px 12px calc(16px + env(safe-area-inset-bottom));border-top:.5px solid rgba(255,255,255,.08);flex-shrink:0;"></div>
 </div>
 
 <!-- ══ 유형 세부통계 ══ -->
@@ -436,7 +436,7 @@ if(window.Kakao&&!Kakao.isInitialized()) Kakao.init(KAKAO_KEY);
     <button class="fab-gps" onclick="gpsTo('inspect')">📍</button>
     <button class="fab" style="background:#0c4838;color:#fff;" onclick="openAddFac()">＋</button>
     <!-- 필터 패널 (배경 오버레이 없음 → 지도 조작 가능) -->
-    <div id="inspFilterPanel" style="display:none;position:absolute;bottom:0;left:0;right:0;z-index:20;background:#0a1828;border-radius:11px 11px 0 0;box-shadow:0 -3px 18px rgba(0,0,0,.7);max-height:52%;flex-direction:column;transition:transform .22s cubic-bezier(.4,0,.2,1);touch-action:none;">
+    <div id="inspFilterPanel" style="display:none;position:absolute;bottom:0;left:0;right:0;z-index:20;background:#16161a;border-radius:11px 11px 0 0;box-shadow:0 -3px 18px rgba(0,0,0,.7);max-height:52%;flex-direction:column;transition:transform .22s cubic-bezier(.4,0,.2,1);touch-action:none;">
       <!-- 드래그 핸들 -->
       <div id="inspFPHandle" style="padding:7px 0 3px;flex-shrink:0;cursor:grab;user-select:none;">
         <div class="sheet-handle"></div>
@@ -455,8 +455,8 @@ if(window.Kakao&&!Kakao.isInitialized()) Kakao.init(KAKAO_KEY);
       </div>
     </div>
     <!-- 왼쪽 주변시설물·좌표: 오른쪽 FAB(📍GPS, margin-bottom:env)와 같은 안전영역 기준으로 정렬 — 웹/앱 모두 높이 맞음 -->
-    <div id="inspectCoords" style="position:absolute;bottom:calc(112px + env(safe-area-inset-bottom));left:10px;background:rgba(0,0,0,.6);color:#8ab4cc;font-size:10px;padding:3px 8px;border-radius:5px;z-index:9;pointer-events:none;font-family:monospace;backdrop-filter:blur(4px);letter-spacing:.3px;">--</div>
-    <button onclick="openNearFacs()" style="position:absolute;bottom:calc(138px + env(safe-area-inset-bottom));left:10px;z-index:9;background:rgba(11,28,48,.92);border:1px solid rgba(255,255,255,.4);color:#7fc4e0;border-radius:10px;padding:8px 12px;font-size:12px;font-weight:800;cursor:pointer;box-shadow:0 2px 10px rgba(0,0,0,.5);-webkit-appearance:none;appearance:none;">📍 주변 시설물</button>
+    <div id="inspectCoords" style="position:absolute;bottom:calc(112px + env(safe-area-inset-bottom));left:10px;background:rgba(0,0,0,.6);color:#949aa2;font-size:10px;padding:3px 8px;border-radius:5px;z-index:9;pointer-events:none;font-family:monospace;backdrop-filter:blur(4px);letter-spacing:.3px;">--</div>
+    <button onclick="openNearFacs()" style="position:absolute;bottom:calc(138px + env(safe-area-inset-bottom));left:10px;z-index:9;background:rgba(11,28,48,.92);border:1px solid rgba(255,255,255,.4);color:#a5abb3;border-radius:10px;padding:8px 12px;font-size:12px;font-weight:800;cursor:pointer;box-shadow:0 2px 10px rgba(0,0,0,.5);-webkit-appearance:none;appearance:none;">📍 주변 시설물</button>
     <div class="dbcard" id="facPopup">
       <div class="dbgrab"><div class="dbhandle"></div></div>
       <div class="dbtitle" id="facPopTitle">시설물 핀을 탭하여 조회</div>
@@ -468,9 +468,9 @@ if(window.Kakao&&!Kakao.isInitialized()) Kakao.init(KAKAO_KEY);
 
 <!-- ══ 시설물 목록 ══ -->
 <div id="v-inspect-list" class="view" style="flex-direction:column;">
-  <button id="facListFilterBtn" onclick="toggleFacListFilter()" style="position:absolute;top:6px;right:8px;z-index:10;background:#0a1828;border:1px solid rgba(255,255,255,.3);color:#3182f6;padding:4px 10px;border-radius:20px;font-size:11px;font-weight:700;display:flex;align-items:center;gap:4px;cursor:pointer;">⚙️ 필터 <span id="facListFilterBadge" style="display:none;background:#e05050;color:#fff;border-radius:50%;width:17px;height:17px;font-size:9px;font-weight:800;align-items:center;justify-content:center;box-shadow:0 1px 5px rgba(224,80,80,.55);flex-shrink:0;"></span></button>
+  <button id="facListFilterBtn" onclick="toggleFacListFilter()" style="position:absolute;top:6px;right:8px;z-index:10;background:#16161a;border:1px solid rgba(255,255,255,.3);color:#3182f6;padding:4px 10px;border-radius:20px;font-size:11px;font-weight:700;display:flex;align-items:center;gap:4px;cursor:pointer;">⚙️ 필터 <span id="facListFilterBadge" style="display:none;background:#e05050;color:#fff;border-radius:50%;width:17px;height:17px;font-size:9px;font-weight:800;align-items:center;justify-content:center;box-shadow:0 1px 5px rgba(224,80,80,.55);flex-shrink:0;"></span></button>
   <div style="flex:1;overflow-y:auto;padding:42px 12px 80px;" id="facListWrap"></div>
-  <div id="facListFilterPanel" style="display:none;position:absolute;bottom:0;left:0;right:0;z-index:20;background:#0a1828;border-radius:11px 11px 0 0;box-shadow:0 -3px 18px rgba(0,0,0,.7);max-height:52%;flex-direction:column;transition:transform .22s cubic-bezier(.4,0,.2,1);touch-action:none;">
+  <div id="facListFilterPanel" style="display:none;position:absolute;bottom:0;left:0;right:0;z-index:20;background:#16161a;border-radius:11px 11px 0 0;box-shadow:0 -3px 18px rgba(0,0,0,.7);max-height:52%;flex-direction:column;transition:transform .22s cubic-bezier(.4,0,.2,1);touch-action:none;">
     <div id="facLFPHandle" style="padding:7px 0 3px;flex-shrink:0;cursor:grab;user-select:none;"><div class="sheet-handle"></div></div>
     <div style="padding:2px 12px 5px;display:flex;justify-content:space-between;align-items:center;flex-shrink:0;border-bottom:1px solid rgba(255,255,255,.06);">
       <span style="font-size:11px;font-weight:700;color:#3182f6;">🔍 필터 <span id="facListFilterCount" style="color:#e05050;font-size:10px;"></span></span>
@@ -492,7 +492,7 @@ if(window.Kakao&&!Kakao.isInitialized()) Kakao.init(KAKAO_KEY);
     <div class="stat-grid">
       <div class="stat-box"><div class="stat-num" id="fs-tot">0</div><div class="stat-lbl">전체</div></div>
       <div class="stat-box" style="border-color:#c0392b;"><div class="stat-num bad" id="fs-warn">0</div><div class="stat-lbl">경고표시</div></div>
-      <div class="stat-box" style="border-color:#6a8aa0;"><div class="stat-num" id="fs-nogps" style="color:#8aa6bc;">0</div><div class="stat-lbl">GPS 없음</div></div>
+      <div class="stat-box" style="border-color:#6a8aa0;"><div class="stat-num" id="fs-nogps" style="color:#949aa2;">0</div><div class="stat-lbl">GPS 없음</div></div>
     </div>
     <div class="scard"><div class="stitle">🔧 시설물 점검 처리 <span class="muted" style="font-size:10px;font-weight:400;">· 지도·목록에서 시설 선택 후 점검</span></div><div id="facIssueWrap"></div></div>
     <div class="scard"><div class="stitle">⚠️ 경고표시 중</div><div id="facWarnWrap"></div></div>
@@ -510,7 +510,7 @@ if(window.Kakao&&!Kakao.isInitialized()) Kakao.init(KAKAO_KEY);
 <div id="v-alert" class="view" style="flex-direction:column;overflow:hidden;">
   <div id="crisisBanner" class="crisis-banner"></div>
   <div class="bpad" id="alertViewWrap" style="flex:1;min-height:0;overflow-y:auto;padding-bottom:18px;"></div>
-  <div id="alertBnav" style="display:flex;flex-shrink:0;background:#040a16;border-top:.5px solid rgba(255,255,255,.07);padding-bottom:env(safe-area-inset-bottom);">
+  <div id="alertBnav" style="display:flex;flex-shrink:0;background:#0a0a0c;border-top:.5px solid rgba(255,255,255,.07);padding-bottom:env(safe-area-inset-bottom);">
     <div class="navi on" id="anv1" onclick="alertTab(1)"><div class="navi-ico">📋</div><span class="navi-lbl">목록</span></div>
     <div class="navi" id="anv2" onclick="alertTab(2)"><div class="navi-ico">📊</div><span class="navi-lbl">통계</span></div>
     <div class="navi" id="anv3" onclick="alertTab(3)"><div class="navi-ico">🚨</div><span class="navi-lbl">입력</span></div>
@@ -522,11 +522,11 @@ if(window.Kakao&&!Kakao.isInitialized()) Kakao.init(KAKAO_KEY);
 <div id="v-board" class="view" style="background:#040a14;padding:0;overflow:hidden;">
   <div style="display:flex;justify-content:space-between;align-items:center;padding:calc(8px + env(safe-area-inset-top)) 14px 8px;border-bottom:1px solid rgba(255,255,255,.18);background:#040a14;z-index:5;flex-shrink:0;">
     <div style="display:flex;align-items:baseline;gap:12px;min-width:0;flex:1;overflow:hidden;">
-      <span class="board-title" style="font-size:19px;font-weight:900;color:#e0edf8;white-space:nowrap;">🏔️ 상황판</span>
+      <span class="board-title" style="font-size:19px;font-weight:900;color:#eaecef;white-space:nowrap;">🏔️ 상황판</span>
       <span id="boardClock" class="board-clock" style="font-size:15px;font-weight:700;color:#3182f6;font-family:monospace;"></span>
     </div>
     <div style="display:flex;align-items:center;gap:8px;flex-shrink:0;">
-      <button id="boardMapTypeBtn" onclick="toggleBoardMapType()" style="background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.3);color:#7fc4e0;border-radius:9px;padding:7px 14px;font-size:13px;font-weight:700;cursor:pointer;">🛰 위성</button>
+      <button id="boardMapTypeBtn" onclick="toggleBoardMapType()" style="background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.3);color:#a5abb3;border-radius:9px;padding:7px 14px;font-size:13px;font-weight:700;cursor:pointer;">🛰 위성</button>
       <button onclick="closeBoard()" style="background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);color:rgba(255,255,255,.5);border-radius:9px;padding:7px 14px;font-size:13px;cursor:pointer;">✕ 닫기</button>
     </div>
   </div>
@@ -555,7 +555,7 @@ if(window.Kakao&&!Kakao.isInitialized()) Kakao.init(KAKAO_KEY);
 <div id="v-admin" class="view" style="flex-direction:column;">
   <div style="background:rgba(192,57,43,.08);border-bottom:1px solid rgba(192,57,43,.15);padding:8px 13px;flex-shrink:0;display:flex;align-items:center;gap:8px;">
     <span style="font-size:13px;">🔐</span>
-    <div style="flex:1;"><div style="font-size:12px;font-weight:700;color:#e0edf8;">관리자 전용</div><div style="font-size:10px;color:#3a6a8a;">관제·데이터 관리</div></div>
+    <div style="flex:1;"><div style="font-size:12px;font-weight:700;color:#eaecef;">관리자 전용</div><div style="font-size:10px;color:#454e5a;">관제·데이터 관리</div></div>
     <button onclick="adminLogout()" style="font-size:11px;color:#c0392b;background:rgba(192,57,43,.15);border:1px solid rgba(192,57,43,.3);border-radius:7px;padding:5px 10px;cursor:pointer;">로그아웃</button>
   </div>
   <div class="adm-tabs">
@@ -576,7 +576,7 @@ if(window.Kakao&&!Kakao.isInitialized()) Kakao.init(KAKAO_KEY);
 <div id="v-settings" class="view" style="flex-direction:column;">
   <div style="background:rgba(255,255,255,.07);border-bottom:1px solid rgba(255,255,255,.12);padding:8px 13px;flex-shrink:0;display:flex;align-items:center;gap:8px;">
     <span style="font-size:13px;">⚙️</span>
-    <div><div style="font-size:12px;font-weight:700;color:#e0edf8;">내 설정</div><div style="font-size:10px;color:#3a6a8a;">개인 정보 · 알림</div></div>
+    <div><div style="font-size:12px;font-weight:700;color:#eaecef;">내 설정</div><div style="font-size:10px;color:#454e5a;">개인 정보 · 알림</div></div>
   </div>
   <div class="adm-tabs">
     <div class="adm-tab on" id="stab-info" onclick="settingsTab('info',this)">👤 내 정보</div>
@@ -596,19 +596,19 @@ if(window.Kakao&&!Kakao.isInitialized()) Kakao.init(KAKAO_KEY);
   <div class="navi ext-hide" id="nv4" style="display:none;" onclick="switchTab(4,this)"><div class="navi-ico" style="position:relative;">🔧<span id="nv4Badge" style="display:none;position:absolute;top:-4px;right:-11px;background:#e05050;color:#fff;border-radius:9px;min-width:15px;height:15px;font-size:9px;font-weight:800;line-height:15px;text-align:center;padding:0 3px;box-shadow:0 1px 5px rgba(224,80,80,.5);">0</span></div><span class="navi-lbl">담당</span></div>
 </div>
 <div class="toast" id="toast"></div>
-<div id="undoBar" style="display:none;position:absolute;bottom:80px;left:50%;transform:translateX(-50%);background:#1c1c1e;color:#e0edf8;padding:9px 9px 9px 18px;border-radius:24px;font-size:13px;font-weight:600;border:1px solid rgba(231,76,60,.4);box-shadow:0 4px 16px rgba(0,0,0,.6);z-index:101;max-width:92%;align-items:center;gap:12px;">
+<div id="undoBar" style="display:none;position:absolute;bottom:80px;left:50%;transform:translateX(-50%);background:#1c1c1e;color:#eaecef;padding:9px 9px 9px 18px;border-radius:24px;font-size:13px;font-weight:600;border:1px solid rgba(231,76,60,.4);box-shadow:0 4px 16px rgba(0,0,0,.6);z-index:101;max-width:92%;align-items:center;gap:12px;">
   <span id="undoBarMsg" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;"></span>
   <button id="undoBarBtn" style="flex-shrink:0;background:rgba(231,76,60,.18);border:1px solid rgba(231,76,60,.5);color:#ff8070;border-radius:18px;padding:6px 14px;font-size:12px;font-weight:800;cursor:pointer;">↩ 되돌리기</button>
 </div>
 <!-- ══ 관리자 로그인 오버레이 ══ -->
 <div id="adminLoginOverlay" style="display:none;position:fixed;inset:0;background:#0f0f11;z-index:10002;flex-direction:column;align-items:center;justify-content:center;padding:28px;">
   <div style="font-size:44px;margin-bottom:16px;">🔐</div>
-  <div style="font-size:17px;font-weight:800;color:#e0edf8;margin-bottom:6px;">관리자 로그인</div>
-  <div style="font-size:12px;color:#3a6a8a;margin-bottom:24px;">관리자 비밀번호를 입력하세요</div>
+  <div style="font-size:17px;font-weight:800;color:#eaecef;margin-bottom:6px;">관리자 로그인</div>
+  <div style="font-size:12px;color:#454e5a;margin-bottom:24px;">관리자 비밀번호를 입력하세요</div>
   <div style="width:100%;max-width:320px;display:flex;flex-direction:column;gap:10px;">
     <input id="adminLoginPw" type="password" class="fi" placeholder="비밀번호" autocomplete="off" style="font-size:14px;padding:12px 14px;" onkeydown="if(event.key==='Enter')doAdminLogin()">
     <button onclick="doAdminLogin()" style="background:#c0392b;color:#fff;border:none;border-radius:10px;padding:13px;font-size:14px;font-weight:700;cursor:pointer;margin-top:4px;">로그인</button>
-    <button onclick="document.getElementById('adminLoginOverlay').style.display='none'" style="background:transparent;color:#3a6a8a;border:none;font-size:12px;cursor:pointer;padding:6px;">← 뒤로</button>
+    <button onclick="document.getElementById('adminLoginOverlay').style.display='none'" style="background:transparent;color:#454e5a;border:none;font-size:12px;cursor:pointer;padding:6px;">← 뒤로</button>
   </div>
 </div>
 
@@ -629,7 +629,7 @@ if(window.Kakao&&!Kakao.isInitialized()) Kakao.init(KAKAO_KEY);
     </div>
     <!-- 등록 직원 빠른 선택 -->
     <div id="staffQuickPick" style="display:none;margin-bottom:10px;">
-      <div style="font-size:10px;color:#4a7090;font-weight:600;margin-bottom:5px;">👥 등록된 직원 — 탭하면 자동 입력</div>
+      <div style="font-size:10px;color:#565f6b;font-weight:600;margin-bottom:5px;">👥 등록된 직원 — 탭하면 자동 입력</div>
       <div id="staffQuickChips" style="display:flex;flex-wrap:wrap;gap:5px;"></div>
     </div>
     <div class="fg"><span class="fl">직위</span>
@@ -649,10 +649,10 @@ if(window.Kakao&&!Kakao.isInitialized()) Kakao.init(KAKAO_KEY);
     </div>
     <div class="fg" id="uCodeWrap" style="display:none;">
       <span class="fl">승인 코드 <span style="color:#c0392b;">*</span></span>
-      <div style="font-size:11px;color:#4a7090;margin-bottom:6px;">관리자에게 받은 승인 코드를 입력하세요</div>
+      <div style="font-size:11px;color:#565f6b;margin-bottom:6px;">관리자에게 받은 승인 코드를 입력하세요</div>
       <input type="text" id="uCodeIn" class="fi" placeholder="승인 코드 입력" style="letter-spacing:2px;text-transform:uppercase;" onkeydown="if(event.key==='Enter')saveUser()">
     </div>
-    <div id="userLockNote" style="display:none;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.22);border-radius:8px;padding:11px 12px;font-size:11px;color:#9bbdd4;line-height:1.6;">ℹ️ 이름·소속·직위는 <b style="color:#cfe2f2;">관리자만</b> 수정할 수 있습니다.<br>변경이 필요하면 아래 버튼으로 정정 요청을 보내세요. (직원이 임의로 바꾸면 혼선이 생겨 잠가둠)</div>
+    <div id="userLockNote" style="display:none;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.22);border-radius:8px;padding:11px 12px;font-size:11px;color:#a5abb3;line-height:1.6;">ℹ️ 이름·소속·직위는 <b style="color:#d5d8dc;">관리자만</b> 수정할 수 있습니다.<br>변경이 필요하면 아래 버튼으로 정정 요청을 보내세요. (직원이 임의로 바꾸면 혼선이 생겨 잠가둠)</div>
     <button id="profileFixReqBtn" style="display:none;width:100%;margin-top:8px;background:rgba(255,255,255,.12);color:#3182f6;border:1px solid rgba(255,255,255,.3);border-radius:8px;padding:11px;font-size:12px;font-weight:700;cursor:pointer;" onclick="requestProfileFix()">✏️ 관리자에게 정정 요청</button>
     <button id="userSaveBtn" class="btn-submit" style="background:#1a4a6e;color:#fff;" onclick="saveUser()">저장</button>
   </div>
@@ -675,10 +675,10 @@ if(window.Kakao&&!Kakao.isInitialized()) Kakao.init(KAKAO_KEY);
     <div id="phaseChoiceWrap" style="margin-bottom:12px;">
       <div style="font-size:11px;color:#3182f6;font-weight:700;margin-bottom:8px;">이번 보에 변경사항이 있습니까?</div>
       <div style="display:flex;flex-direction:column;gap:7px;">
-        <button onclick="selectPhaseChoice('yes',this)" style="padding:12px;border-radius:9px;border:1.5px solid rgba(255,255,255,.1);background:transparent;color:#c0d8ec;text-align:left;cursor:pointer;font-size:12px;font-weight:600;">
+        <button onclick="selectPhaseChoice('yes',this)" style="padding:12px;border-radius:9px;border:1.5px solid rgba(255,255,255,.1);background:transparent;color:#cdd1d6;text-align:left;cursor:pointer;font-size:12px;font-weight:600;">
           ✅ 예 — 전보와 다른 내용 있음
         </button>
-        <button onclick="selectPhaseChoice('no',this)" style="padding:12px;border-radius:9px;border:1.5px solid rgba(255,255,255,.1);background:transparent;color:#c0d8ec;text-align:left;cursor:pointer;font-size:12px;font-weight:600;">
+        <button onclick="selectPhaseChoice('no',this)" style="padding:12px;border-radius:9px;border:1.5px solid rgba(255,255,255,.1);background:transparent;color:#cdd1d6;text-align:left;cursor:pointer;font-size:12px;font-weight:600;">
           ➡️ 아니오 — 미작성 항목만 추가
         </button>
         <button onclick="openTimetable()" style="padding:12px;border-radius:9px;border:1.5px solid rgba(255,255,255,.3);background:rgba(255,255,255,.07);color:#3182f6;text-align:left;cursor:pointer;font-size:12px;font-weight:600;">
@@ -706,7 +706,7 @@ if(window.Kakao&&!Kakao.isInitialized()) Kakao.init(KAKAO_KEY);
 <div id="modalTimetable" class="modal">
   <div class="mbox">
     <div class="mhdr"><span class="mtitle">⏱ 구조 타임테이블</span><button class="mclose" onclick="closeM('modalTimetable')">×</button></div>
-    <div style="font-size:11px;color:#7a9cb8;margin-bottom:10px;">단계별 시간을 기록하세요. 요구조자 조우 후 처치 단계가 활성화됩니다.</div>
+    <div style="font-size:11px;color:#8b95a1;margin-bottom:10px;">단계별 시간을 기록하세요. 요구조자 조우 후 처치 단계가 활성화됩니다.</div>
     <div id="timetableList"></div>
     <button onclick="addTimetableEntry()" style="width:100%;padding:10px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.2);color:#3182f6;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;margin-top:6px;">＋ 단계 추가</button>
     <button class="btn-submit" style="background:#1a4a6e;color:#fff;margin-top:8px;" onclick="saveTimetable()">💾 타임테이블 저장</button>
@@ -818,7 +818,7 @@ if(window.Kakao&&!Kakao.isInitialized()) Kakao.init(KAKAO_KEY);
         <button class="sm-btn" onclick="gpsFromPhone('facGpsIn')">📍GPS</button>
       </div>
       <div id="fac_loc_mini_map" style="display:none;width:100%;height:220px;border-radius:10px;margin-top:8px;overflow:hidden;border:1px solid rgba(255,255,255,.25);"></div>
-      <div id="fac_minimap_coords" style="display:none;font-size:11px;color:#8ab4cc;font-family:monospace;margin-top:5px;text-align:center;"></div>
+      <div id="fac_minimap_coords" style="display:none;font-size:11px;color:#949aa2;font-family:monospace;margin-top:5px;text-align:center;"></div>
       <div id="fac_map_hint" style="display:none;font-size:10.5px;color:#5f9bc4;margin-top:3px;text-align:center;">🗺 지도를 드래그해 십자선(중앙)을 시설 위치에 맞추세요</div>
     </div>
     <div class="fg"><span class="fl">설치일</span><input type="date" id="facInstall" class="fi"></div>
@@ -857,7 +857,7 @@ if(window.Kakao&&!Kakao.isInitialized()) Kakao.init(KAKAO_KEY);
 <div id="modalFacIssue" class="modal">
   <div class="mbox">
     <div class="mhdr"><span class="mtitle">🔧 시설물 점검</span><button class="mclose" onclick="closeM('modalFacIssue')">×</button></div>
-    <div style="font-size:11px;color:#7a9cb8;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.18);border-radius:8px;padding:8px 10px;margin-bottom:10px;line-height:1.55;">순찰 중 시설물을 점검·기록합니다. 등록하면 <b style="color:#f0a500;">시설물 담당자</b>가 검토·회신합니다.</div>
+    <div style="font-size:11px;color:#8b95a1;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.18);border-radius:8px;padding:8px 10px;margin-bottom:10px;line-height:1.55;">순찰 중 시설물을 점검·기록합니다. 등록하면 <b style="color:#f0a500;">시설물 담당자</b>가 검토·회신합니다.</div>
     <div id="fiFacFixed" style="background:#0f0f11;border-radius:9px;padding:10px 12px;margin-bottom:10px;"></div>
     <div class="fg">
       <span class="fl">등급 (시설물 안전등급 A~E)</span>
@@ -868,7 +868,7 @@ if(window.Kakao&&!Kakao.isInitialized()) Kakao.init(KAKAO_KEY);
         <div id="fiG_D" onclick="_pickIssueGrade('D')" style="flex:1;text-align:center;padding:9px 0;border-radius:8px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.03);color:rgba(255,255,255,.55);font-size:14px;font-weight:700;cursor:pointer;">D</div>
         <div id="fiG_E" onclick="_pickIssueGrade('E')" style="flex:1;text-align:center;padding:9px 0;border-radius:8px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.03);color:rgba(255,255,255,.55);font-size:14px;font-weight:700;cursor:pointer;">E</div>
       </div>
-      <div id="fiGradeDesc" style="font-size:11px;color:#7a9cb8;margin-top:6px;min-height:16px;">등급을 선택하세요</div>
+      <div id="fiGradeDesc" style="font-size:11px;color:#8b95a1;margin-top:6px;min-height:16px;">등급을 선택하세요</div>
     </div>
     <div class="fg">
       <span class="fl">점검 내용 <span class="muted" style="font-weight:400;">(버튼 선택 · 중복 가능)</span></span>
@@ -898,8 +898,8 @@ if(window.Kakao&&!Kakao.isInitialized()) Kakao.init(KAKAO_KEY);
   <div style="background:#1c1c1e;border-radius:18px 18px 0 0;height:90vh;height:90dvh;display:flex;flex-direction:column;">
     <div style="padding:12px 15px;display:flex;justify-content:space-between;align-items:center;flex-shrink:0;border-bottom:1px solid rgba(255,255,255,.07);">
       <div>
-        <div style="font-size:13px;font-weight:700;color:#e0edf8;">📍 위치 선택</div>
-        <div style="font-size:10px;color:#4a7090;margin-top:2px;">지도를 움직여 십자선을 원하는 위치에 맞추세요</div>
+        <div style="font-size:13px;font-weight:700;color:#eaecef;">📍 위치 선택</div>
+        <div style="font-size:10px;color:#565f6b;margin-top:2px;">지도를 움직여 십자선을 원하는 위치에 맞추세요</div>
       </div>
       <button onclick="closeM('modalMapPicker')" style="background:none;border:none;color:rgba(255,255,255,.3);font-size:21px;cursor:pointer;">×</button>
     </div>
@@ -916,7 +916,7 @@ if(window.Kakao&&!Kakao.isInitialized()) Kakao.init(KAKAO_KEY);
       </div>
       <!-- 현재 좌표 표시 -->
       <div id="pickerCoords" style="position:absolute;bottom:10px;left:50%;transform:translateX(-50%);background:rgba(11,28,48,.9);color:#3182f6;padding:5px 13px;border-radius:20px;font-size:11px;font-weight:600;z-index:10;border:1px solid rgba(255,255,255,.3);white-space:nowrap;"></div>
-      <div id="pickerZoneBadge" style="display:none;position:absolute;bottom:44px;left:50%;transform:translateX(-50%);background:rgba(26,58,95,.92);color:#7dd3fa;padding:4px 13px;border-radius:12px;font-size:11px;font-weight:700;z-index:10;border:1px solid rgba(255,255,255,.38);white-space:nowrap;letter-spacing:.4px;"></div>
+      <div id="pickerZoneBadge" style="display:none;position:absolute;bottom:44px;left:50%;transform:translateX(-50%);background:rgba(26,58,95,.92);color:#aab4c0;padding:4px 13px;border-radius:12px;font-size:11px;font-weight:700;z-index:10;border:1px solid rgba(255,255,255,.38);white-space:nowrap;letter-spacing:.4px;"></div>
     </div>
     <!-- 확인 버튼 -->
     <div style="padding:12px 15px;flex-shrink:0;border-top:1px solid rgba(255,255,255,.07);">
@@ -929,7 +929,7 @@ if(window.Kakao&&!Kakao.isInitialized()) Kakao.init(KAKAO_KEY);
 <div id="modalAddDispatch" class="modal">
   <div class="mbox">
     <div class="mhdr"><span class="mtitle">＋ 추가 출동 인원</span><button class="mclose" onclick="closeM('modalAddDispatch')">×</button></div>
-    <div style="font-size:11px;color:#7a9cb8;margin-bottom:12px;line-height:1.6;">
+    <div style="font-size:11px;color:#8b95a1;margin-bottom:12px;line-height:1.6;">
       등록되지 않은 외부 인원(119, 경찰, 타 기관 등)을 추가하세요.
     </div>
     <div class="fg"><span class="fl">이름 / 소속</span>
@@ -1043,7 +1043,7 @@ if(window.Kakao&&!Kakao.isInitialized()) Kakao.init(KAKAO_KEY);
   <div class="mbox">
     <div class="mhdr"><span class="mtitle">👥 체류인원 보고</span><button class="mclose" onclick="closeM('modalAlertOcc')">×</button></div>
     <div class="fg"><span class="fl">거점</span>
-      <div id="occLocDisplay" style="font-size:13px;font-weight:700;color:#e0edf8;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.25);border-radius:12px;padding:5px 12px;display:inline-block;margin-top:4px;"></div>
+      <div id="occLocDisplay" style="font-size:13px;font-weight:700;color:#eaecef;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.25);border-radius:12px;padding:5px 12px;display:inline-block;margin-top:4px;"></div>
     </div>
     <div style="display:flex;gap:8px;">
       <div class="fg" style="flex:1;"><span class="fl">직원 (명)</span><input type="number" inputmode="numeric" id="occStaff" class="fi" placeholder="0" min="0"></div>
@@ -1090,7 +1090,7 @@ if(window.Kakao&&!Kakao.isInitialized()) Kakao.init(KAKAO_KEY);
 <div id="modalPhaseSelect" class="modal">
   <div class="mbox">
     <div class="mhdr"><span class="mtitle" id="phaseSelectTitle">보 선택</span><button class="mclose" onclick="closeM('modalPhaseSelect')">×</button></div>
-    <div style="font-size:11px;color:#7a9cb8;margin-bottom:10px;">원하는 보를 선택하여 내용을 확인하세요</div>
+    <div style="font-size:11px;color:#8b95a1;margin-bottom:10px;">원하는 보를 선택하여 내용을 확인하세요</div>
     <div id="phaseSelectList"></div>
     <button class="btn-submit" style="background:#1a4a6e;color:#fff;margin-top:8px;" onclick="openFullTimeline()">📊 타임라인 전체보기</button>
   </div>

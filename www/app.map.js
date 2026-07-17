@@ -97,10 +97,10 @@ function _showClusterList(group){
     var og=it.status==='ongoing';
     var ico=it.type==='hazard'?'⚠️':(og?'🔴':'✅');
     var tag=it.type==='hazard'?'위험':(og?'진행중':'종료');
-    return '<div onclick="(function(){var e=document.getElementById(\'clusListModal\');if(e)e.remove();openResPopup(\''+_escq(String(it.id))+'\',\''+it.type+'\');})()" style="display:flex;align-items:center;gap:8px;padding:11px;border-radius:9px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.08);margin-bottom:6px;cursor:pointer;"><span style="font-size:16px;">'+ico+'</span><span style="font-size:12px;color:#e0edf8;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+_esc(it.title||'(제목없음)')+'</span><span style="font-size:10px;font-weight:700;color:'+(og?'#ff6b5e':(it.type==='hazard'?'#e67e22':'#7a9cb8'))+';flex-shrink:0;">'+tag+'</span></div>';
+    return '<div onclick="(function(){var e=document.getElementById(\'clusListModal\');if(e)e.remove();openResPopup(\''+_escq(String(it.id))+'\',\''+it.type+'\');})()" style="display:flex;align-items:center;gap:8px;padding:11px;border-radius:9px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.08);margin-bottom:6px;cursor:pointer;"><span style="font-size:16px;">'+ico+'</span><span style="font-size:12px;color:#eaecef;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+_esc(it.title||'(제목없음)')+'</span><span style="font-size:10px;font-weight:700;color:'+(og?'#ff6b5e':(it.type==='hazard'?'#e67e22':'#8b95a1'))+';flex-shrink:0;">'+tag+'</span></div>';
   }).join('');
-  m.innerHTML='<div style="background:#0a1828;border:1px solid rgba(255,255,255,.25);border-radius:14px;max-width:340px;width:100%;max-height:70vh;overflow-y:auto;padding:14px;">'
-    +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;"><span style="font-size:14px;font-weight:800;color:#e0edf8;">📍 같은 위치 '+items.length+'건</span><button onclick="var e=document.getElementById(\'clusListModal\');if(e)e.remove();" style="background:none;border:none;color:rgba(255,255,255,.5);font-size:22px;cursor:pointer;line-height:1;">×</button></div>'
+  m.innerHTML='<div style="background:#16161a;border:1px solid rgba(255,255,255,.25);border-radius:14px;max-width:340px;width:100%;max-height:70vh;overflow-y:auto;padding:14px;">'
+    +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;"><span style="font-size:14px;font-weight:800;color:#eaecef;">📍 같은 위치 '+items.length+'건</span><button onclick="var e=document.getElementById(\'clusListModal\');if(e)e.remove();" style="background:none;border:none;color:rgba(255,255,255,.5);font-size:22px;cursor:pointer;line-height:1;">×</button></div>'
     +rows+'</div>';
   m.onclick=function(e){if(e.target===m)m.remove();};
 }
@@ -206,7 +206,7 @@ function _showFacOverlapList(group,tappedId){
   // 하단바(z20) 위로 — '내 주변 시설물' 시트와 동일 규격
   ov.style.cssText='position:absolute;bottom:0;left:0;right:0;z-index:30;background:#1c1c1e;border:1px solid rgba(255,255,255,.2);border-radius:16px 16px 0 0;box-shadow:0 -4px 20px rgba(0,0,0,.7);max-height:56vh;display:flex;flex-direction:column;padding-bottom:calc(8px + env(safe-area-inset-bottom));';
   ov.innerHTML='<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 13px 7px;flex-shrink:0;">'
-    +'<span style="font-size:12px;font-weight:800;color:#7fc4e0;">📍 같은 자리 시설 <span style="font-size:9px;color:#46708f;font-weight:600;">'+items.length+'개 겹침 · 눌러서 선택</span></span>'
+    +'<span style="font-size:12px;font-weight:800;color:#a5abb3;">📍 같은 자리 시설 <span style="font-size:9px;color:#565f6b;font-weight:600;">'+items.length+'개 겹침 · 눌러서 선택</span></span>'
     +'<button onclick="_closeFacOverlapSheet()" style="background:none;border:none;color:rgba(255,255,255,.45);font-size:18px;cursor:pointer;padding:0 2px;line-height:1;">×</button></div>'
     +'<div style="overflow-y:auto;padding:0 13px 10px;">'+rows+'</div>';
   var host=document.querySelector('#v-inspect-map .mapwrap')||document.getElementById('v-inspect-map');
@@ -368,9 +368,9 @@ function initMaps(){
   if(!window._mapFallbackTimer){
     window._mapFallbackTimer=setTimeout(function(){
       if(mapR&&mapI)return;
-      var html='<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;color:#7a9cb8;font-size:13px;text-align:center;padding:20px;gap:8px;">'+
+      var html='<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;color:#8b95a1;font-size:13px;text-align:center;padding:20px;gap:8px;">'+
         '<div>⚠️ 지도를 불러올 수 없습니다</div>'+
-        '<div style="font-size:11px;color:#4a7090;">네트워크 연결을 확인해주세요</div>'+
+        '<div style="font-size:11px;color:#565f6b;">네트워크 연결을 확인해주세요</div>'+
         '<button onclick="location.reload()" style="margin-top:4px;background:#1d6fa5;color:#fff;border:none;padding:8px 16px;border-radius:8px;font-size:12px;cursor:pointer;">새로고침</button>'+
         '</div>';
       ['mapInspect','mapRescue'].forEach(function(id){
@@ -607,7 +607,7 @@ function _renderBoardPins(fit){
     const el=document.createElement('div');
     el.innerHTML=`<div style="display:flex;flex-direction:column;align-items:center;cursor:pointer;">
       <div style="background:#c0392b;border:2px solid #fff;border-radius:50%;width:34px;height:34px;display:flex;align-items:center;justify-content:center;font-size:17px;box-shadow:0 2px 8px rgba(0,0,0,.6);animation:blink 1.2s infinite;">${ti.ico}</div>
-      <div style="margin-top:3px;background:rgba(10,22,38,.92);border:1px solid rgba(192,57,43,.5);color:#e0edf8;border-radius:8px;padding:2px 8px;font-size:11px;font-weight:700;white-space:nowrap;box-shadow:0 1px 5px rgba(0,0,0,.5);">${_esc(r.title)}</div></div>`;
+      <div style="margin-top:3px;background:rgba(10,22,38,.92);border:1px solid rgba(192,57,43,.5);color:#eaecef;border-radius:8px;padding:2px 8px;font-size:11px;font-weight:700;white-space:nowrap;box-shadow:0 1px 5px rgba(0,0,0,.5);">${_esc(r.title)}</div></div>`;
     el.onclick=()=>_boardFocus(r.id);
     const pos=new kakao.maps.LatLng(r.lat,r.lng);
     const ov=new kakao.maps.CustomOverlay({position:pos,content:el,yAnchor:1,zIndex:5,clickable:true});
@@ -636,7 +636,7 @@ function _renderBoardPins(fit){
   (DB.g('facilities')||[]).filter(f=>f.type&&f.type.includes('다목적위치표지판')&&f.lat&&f.lng).forEach(f=>{
     const code=(f.name.match(/\d[\d\-]*\d|\d/)||[f.name.slice(0,6)])[0];
     const el=document.createElement('div');
-    el.innerHTML=`<div style="background:rgba(10,30,55,.85);border:1px solid rgba(255,255,255,.6);color:#7dd3fa;border-radius:5px;padding:1px 5px;font-size:9px;font-weight:700;white-space:nowrap;box-shadow:0 1px 3px rgba(0,0,0,.5);cursor:default;">${_esc(code)}</div>`;
+    el.innerHTML=`<div style="background:rgba(10,30,55,.85);border:1px solid rgba(255,255,255,.6);color:#aab4c0;border-radius:5px;padding:1px 5px;font-size:9px;font-weight:700;white-space:nowrap;box-shadow:0 1px 3px rgba(0,0,0,.5);cursor:default;">${_esc(code)}</div>`;
     const pos=new kakao.maps.LatLng(f.lat,f.lng);
     const ov=new kakao.maps.CustomOverlay({position:pos,content:el,yAnchor:1,zIndex:2});
     ov.setMap(_boardMap);_boardOvs.push(ov);
@@ -732,38 +732,38 @@ function renderBoard(){
   html+=`<div style="display:flex;gap:10px;margin-bottom:16px;">
     <div onclick="setBoardView('rescue')" class="bd-stat" style="flex:1;min-width:0;background:${ongoing.length?'rgba(192,57,43,.12)':'rgba(39,174,96,.08)'};border:1px solid ${rescueActive?(ongoing.length?'rgba(192,57,43,.9)':'rgba(39,174,96,.75)'):(ongoing.length?'rgba(192,57,43,.4)':'rgba(39,174,96,.25)')};border-radius:12px;padding:12px 16px;text-align:center;cursor:pointer;transition:all .15s;${rescueActive?'box-shadow:inset 0 0 0 2px rgba(192,57,43,.3);':''}">
       <div class="bd-num" style="font-size:30px;font-weight:900;color:${ongoing.length?'#e05050':'#27ae60'};">${ongoing.length}</div>
-      <div class="bd-lbl" style="font-size:12px;color:${rescueActive?'#e0edf8':'rgba(255,255,255,.5)'};font-weight:${rescueActive?'700':'400'};">🚨 진행중 구조${rescueActive?' ▾':''}</div>
+      <div class="bd-lbl" style="font-size:12px;color:${rescueActive?'#eaecef':'rgba(255,255,255,.5)'};font-weight:${rescueActive?'700':'400'};">🚨 진행중 구조${rescueActive?' ▾':''}</div>
     </div>
     ${(typeof _HAZ_OFF!=='undefined'&&_HAZ_OFF)?'':`<div onclick="setBoardView('hazard')" class="bd-stat" style="position:relative;flex:1;min-width:0;background:${hazUnhandled?'rgba(231,76,60,.12)':'rgba(230,126,34,.08)'};border:1px solid ${hazActive?(hazUnhandled?'rgba(231,76,60,.9)':'rgba(230,126,34,.9)'):(hazUnhandled?'rgba(231,76,60,.5)':'rgba(230,126,34,.25)')};border-radius:12px;padding:12px 16px;text-align:center;cursor:pointer;transition:all .15s;${hazActive?'box-shadow:inset 0 0 0 2px rgba(230,126,34,.3);':''}">
       ${hazUnhandled?`<span style="position:absolute;top:6px;right:6px;background:#e74c3c;color:#fff;font-size:10px;font-weight:800;border-radius:10px;padding:1px 7px;box-shadow:0 0 0 2px rgba(231,76,60,.25);animation:blink 1.2s infinite;">미조치 ${hazUnhandled}</span>`:''}
       <div class="bd-num" style="font-size:30px;font-weight:900;color:${hazUnhandled?'#e05050':'#e67e22'};">${haz.length}</div>
-      <div class="bd-lbl" style="font-size:12px;color:${hazActive?'#e0edf8':'rgba(255,255,255,.5)'};font-weight:${hazActive?'700':'400'};">⚠️ 미조치 위험상황${hazActive?' ▾':''}</div>
+      <div class="bd-lbl" style="font-size:12px;color:${hazActive?'#eaecef':'rgba(255,255,255,.5)'};font-weight:${hazActive?'700':'400'};">⚠️ 미조치 위험상황${hazActive?' ▾':''}</div>
     </div>`}
     <div onclick="setBoardView('alert')" class="bd-stat" style="flex:1;min-width:0;background:${activeOp?'rgba(255,255,255,.12)':'rgba(39,174,96,.08)'};border:1px solid ${alertActive?(activeOp?'rgba(255,255,255,.9)':'rgba(39,174,96,.75)'):(activeOp?'rgba(255,255,255,.45)':'rgba(39,174,96,.25)')};border-radius:12px;padding:12px 16px;text-align:center;cursor:pointer;transition:all .15s;${alertActive?'box-shadow:inset 0 0 0 2px rgba(255,255,255,.3);':''}">
       <div class="bd-num" style="font-size:30px;font-weight:900;color:${activeOp?'#3182f6':'#27ae60'};">${activeOp?(opMt?opRespCnt:opAlertCnt):0}</div>
-      <div class="bd-lbl" style="font-size:12px;color:${alertActive?'#e0edf8':'rgba(255,255,255,.5)'};font-weight:${alertActive?'700':'400'};">🌀 ${activeOp?(opMt?'특보 응소':'발효 특보'):'특보운영'}${alertActive?' ▾':''}</div>
+      <div class="bd-lbl" style="font-size:12px;color:${alertActive?'#eaecef':'rgba(255,255,255,.5)'};font-weight:${alertActive?'700':'400'};">🌀 ${activeOp?(opMt?'특보 응소':'발효 특보'):'특보운영'}${alertActive?' ▾':''}</div>
     </div>
   </div>
   ${trailCtrlCnt||trailWarnCnt?`<div onclick="setBoardView('trail')" style="display:flex;align-items:center;gap:12px;background:rgba(231,76,60,.1);border:1px solid ${trailActive?'rgba(231,76,60,.85)':'rgba(231,76,60,.35)'};border-radius:12px;padding:10px 16px;margin-bottom:10px;cursor:pointer;">
     <div style="font-size:26px;font-weight:900;color:#e74c3c;">${trailCtrlCnt}</div>
     <div>
-      <div style="font-size:13px;font-weight:800;color:#e0edf8;">🚧 탐방로 통제 중${trailActive?' ▾':''}</div>
+      <div style="font-size:13px;font-weight:800;color:#eaecef;">🚧 탐방로 통제 중${trailActive?' ▾':''}</div>
       <div style="font-size:11px;color:#ff9e80;margin-top:2px;">통제 ${trailCtrlCnt}구간${trailWarnCnt?' · 주의 '+trailWarnCnt+'구간':''}</div>
     </div>
   </div>`:''}`;
   if(trailActive){
     const zones=[...new Set(SEORAK_TRAILS.map(t=>t.zone))];
-    html+=`<div style="background:#0a1626;border:1.5px solid rgba(231,76,60,.4);border-radius:14px;padding:16px 18px;">
+    html+=`<div style="background:#131316;border:1.5px solid rgba(231,76,60,.4);border-radius:14px;padding:16px 18px;">
       <div style="font-size:16px;font-weight:900;color:#e74c3c;margin-bottom:12px;">🚧 탐방로 통제 현황</div>`;
     zones.forEach(z=>{
       const zTrails=SEORAK_TRAILS.filter(t=>t.zone===z);
-      html+=`<div style="font-size:10px;color:#5a7e98;font-weight:800;letter-spacing:.5px;margin:8px 0 4px;">${z.toUpperCase()}</div>`;
+      html+=`<div style="font-size:10px;color:#6b7684;font-weight:800;letter-spacing:.5px;margin:8px 0 4px;">${z.toUpperCase()}</div>`;
       zTrails.forEach(t=>{
         const st=(ts[t.id]||{}).status||'개방';
         const col=TRAIL_STATUS_COLORS[st]||'#27ae60';
         html+=`<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-top:1px solid rgba(255,255,255,.04);">
           <span style="width:8px;height:8px;border-radius:50%;background:${col};flex-shrink:0;box-shadow:0 0 6px ${col}66;"></span>
-          <span style="font-size:12px;color:${st==='개방'?'rgba(255,255,255,.55)':'#e0edf8'};flex:1;">${_esc(t.name)}</span>
+          <span style="font-size:12px;color:${st==='개방'?'rgba(255,255,255,.55)':'#eaecef'};flex:1;">${_esc(t.name)}</span>
           <span style="font-size:11px;font-weight:800;color:${col};">${st}</span>
         </div>`;
       });
@@ -774,7 +774,7 @@ function renderBoard(){
       html+=`<div style="text-align:center;padding:50px 0 30px;font-size:17px;color:rgba(255,255,255,.3);">✅ 진행중인 특보운영 없음</div>`;
     } else {
       const al=_opAlerts(activeOp);
-      const chips=al.map(a=>`<span style="display:inline-block;font-size:13px;font-weight:800;color:#7dd3fa;background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.3);border-radius:7px;padding:4px 10px;margin:0 5px 5px 0;">${_esc(a.type)} ${_stageShort(a.stage)}</span>`).join('');
+      const chips=al.map(a=>`<span style="display:inline-block;font-size:13px;font-weight:800;color:#aab4c0;background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.3);border-radius:7px;padding:4px 10px;margin:0 5px 5px 0;">${_esc(a.type)} ${_stageShort(a.stage)}</span>`).join('');
       const elp=_elapsedStr(activeOp.startedAt);
       const resps=activeOp.responders||[];
       const groupRows=ALERT_GROUPS.map(g=>{
@@ -783,17 +783,17 @@ function renderBoard(){
         return {name:g.name,ico:g.ico,cnt:list.length,names:list.map(r=>_esc(r.name)).join(', ')};
       });
       const reps=(activeOp.reports||[]).slice().sort((a,b)=>(b.at||0)-(a.at||0)).slice(0,6);
-      html+=`<div style="background:#0a1626;border:1.5px solid rgba(255,255,255,.4);border-radius:14px;padding:16px 18px;margin-bottom:12px;">
+      html+=`<div style="background:#131316;border:1.5px solid rgba(255,255,255,.4);border-radius:14px;padding:16px 18px;margin-bottom:12px;">
         <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:11px;">
-          <span style="font-size:18px;font-weight:900;color:#7dd3fa;"><span class="ao-pulse" style="display:inline-block;vertical-align:middle;margin-right:5px;"></span>특보운영 중</span>
+          <span style="font-size:18px;font-weight:900;color:#aab4c0;"><span class="ao-pulse" style="display:inline-block;vertical-align:middle;margin-right:5px;"></span>특보운영 중</span>
           ${elp?`<span class="js-elapsed" data-d="${_esc(activeOp.startedAt)}" style="font-size:15px;font-weight:800;color:#f0a500;font-family:monospace;">⏱ ${elp}</span>`:''}
         </div>
-        <div style="margin-bottom:13px;">${chips||'<span style="font-size:12px;color:#456a85;">발령된 특보 없음</span>'}</div>
-        ${opMt?`<div style="font-size:13px;color:#9bbdd4;font-weight:700;margin-bottom:4px;">👤 분소별 응소 (총 ${resps.length}명)</div>
+        <div style="margin-bottom:13px;">${chips||'<span style="font-size:12px;color:#565f6b;">발령된 특보 없음</span>'}</div>
+        ${opMt?`<div style="font-size:13px;color:#a5abb3;font-weight:700;margin-bottom:4px;">👤 분소별 응소 (총 ${resps.length}명)</div>
         ${groupRows.map(gr=>`<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-top:1px solid rgba(255,255,255,.05);">
-          <span style="font-size:13px;font-weight:700;color:#cfe2f2;min-width:118px;flex-shrink:0;">${gr.ico} ${_esc(gr.name)}</span>
+          <span style="font-size:13px;font-weight:700;color:#d5d8dc;min-width:118px;flex-shrink:0;">${gr.ico} ${_esc(gr.name)}</span>
           <span style="font-size:14px;font-weight:800;color:${gr.cnt?'#5dbf8a':'rgba(255,255,255,.22)'};min-width:42px;flex-shrink:0;">${gr.cnt}명</span>
-          <span style="font-size:12px;color:#7a9cb8;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${gr.names||'-'}</span>
+          <span style="font-size:12px;color:#8b95a1;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${gr.names||'-'}</span>
         </div>`).join('')}`:''}
         ${(()=>{
           // 체류인원 요약 — 대피소(shelter) 위치만 집계
@@ -802,19 +802,19 @@ function renderBoard(){
           const occEntries=Object.entries(occMap);
           if(!occEntries.length)return'';
           const totalV=occEntries.reduce((s,[,o])=>s+(o.visitors||0),0);
-          return`<div style="font-size:13px;color:#9bbdd4;font-weight:700;margin:13px 0 4px;">⛺ 대피소 체류인원 (탐방객 총 ${totalV}명)</div>
+          return`<div style="font-size:13px;color:#a5abb3;font-weight:700;margin:13px 0 4px;">⛺ 대피소 체류인원 (탐방객 총 ${totalV}명)</div>
           ${occEntries.map(([loc,o])=>`<div style="display:flex;gap:8px;font-size:12px;padding:4px 0;border-top:1px solid rgba(255,255,255,.04);">
-            <span style="color:#5a7e98;min-width:100px;flex-shrink:0;">${_esc(_stationLabel(loc))}</span>
+            <span style="color:#6b7684;min-width:100px;flex-shrink:0;">${_esc(_stationLabel(loc))}</span>
             <span style="color:#7ec8a0;font-weight:700;">직원 ${o.staff??'-'}명</span>
             <span style="color:#a8cdf5;font-weight:700;">탐방객 ${o.visitors??'-'}명</span>
-            <span style="color:#4a7090;font-size:10px;">${(o.time||'').slice(11,16)}</span>
+            <span style="color:#565f6b;font-size:10px;">${(o.time||'').slice(11,16)}</span>
           </div>`).join('')}`;
         })()}
-        ${reps.length?`<div style="font-size:13px;color:#9bbdd4;font-weight:700;margin:13px 0 4px;">📊 최근 관측 (누적)</div>
+        ${reps.length?`<div style="font-size:13px;color:#a5abb3;font-weight:700;margin:13px 0 4px;">📊 최근 관측 (누적)</div>
           ${reps.map(r=>`<div style="display:flex;gap:10px;font-size:12px;padding:4px 0;border-top:1px solid rgba(255,255,255,.04);">
-            <span style="color:#5a7e98;min-width:96px;flex-shrink:0;">${_esc(_stationLabel(r.loc))}</span>
-            <span style="color:#7a9cb8;min-width:46px;flex-shrink:0;">${_esc((r.time||'').slice(11,16))}</span>
-            <span style="color:#cfe2f2;font-weight:700;">${r.snow!=null&&r.snow!==''?'❄️ '+_esc(r.snow)+'cm  ':''}${r.rain!=null&&r.rain!==''?'🌧️ '+_esc(r.rain)+'mm':''}</span>
+            <span style="color:#6b7684;min-width:96px;flex-shrink:0;">${_esc(_stationLabel(r.loc))}</span>
+            <span style="color:#8b95a1;min-width:46px;flex-shrink:0;">${_esc((r.time||'').slice(11,16))}</span>
+            <span style="color:#d5d8dc;font-weight:700;">${r.snow!=null&&r.snow!==''?'❄️ '+_esc(r.snow)+'cm  ':''}${r.rain!=null&&r.rain!==''?'🌧️ '+_esc(r.rain)+'mm':''}</span>
           </div>`).join('')}`:''}
         ${(()=>{
           // 탐방로 통제 현황 요약
@@ -835,13 +835,13 @@ function renderBoard(){
     }
     haz.slice().sort((a,b)=>(b.date||'').localeCompare(a.date||'')).forEach(h=>{
       const hasCoord=!!(h.lat&&h.lng);
-      html+=`<div onclick="_boardFocusHaz(${h.id})" style="background:#0a1626;border:1.5px solid rgba(230,126,34,.35);border-radius:14px;padding:13px 16px;margin-bottom:10px;cursor:pointer;">
+      html+=`<div onclick="_boardFocusHaz(${h.id})" style="background:#131316;border:1.5px solid rgba(230,126,34,.35);border-radius:14px;padding:13px 16px;margin-bottom:10px;cursor:pointer;">
         <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;">
-          <div style="font-size:16px;font-weight:800;color:#e0edf8;">${h.hazType?.split(' ')[0]||'⚠️'} ${_esc((h.hazType||'위험상황').replace(/^\S+\s/,''))||'위험상황'}</div>
+          <div style="font-size:16px;font-weight:800;color:#eaecef;">${h.hazType?.split(' ')[0]||'⚠️'} ${_esc((h.hazType||'위험상황').replace(/^\S+\s/,''))||'위험상황'}</div>
           <span style="flex-shrink:0;font-size:11px;font-weight:800;color:#e67e22;background:rgba(230,126,34,.14);border-radius:6px;padding:3px 8px;">${_esc(h.hazStatus||'미조치')}</span>
         </div>
         <div style="font-size:13px;color:#7aa8c8;margin-top:5px;">📍 ${_esc(h.loc||'위치 미상')}${h.danger?' · '+_esc(h.danger):''}${h.date?' · '+h.date:''}</div>
-        ${h.desc?`<div style="font-size:12px;color:#7a9cb8;margin-top:6px;line-height:1.5;">${_esc((h.desc||'').slice(0,80))}${(h.desc||'').length>80?'…':''}</div>`:''}
+        ${h.desc?`<div style="font-size:12px;color:#8b95a1;margin-top:6px;line-height:1.5;">${_esc((h.desc||'').slice(0,80))}${(h.desc||'').length>80?'…':''}</div>`:''}
         ${!hasCoord?`<div style="font-size:11px;color:rgba(255,255,255,.3);margin-top:6px;">좌표 없음 — 지도 이동 불가</div>`:''}
       </div>`;
     });
@@ -852,10 +852,10 @@ function renderBoard(){
   ongoing.forEach(r=>{
     const elp=_elapsedStr(r.date);
     const ti=RES_TYPES[r.type]||RES_TYPES['기타'];
-    html+=`<div style="background:#0a1626;border:1.5px solid rgba(192,57,43,.35);border-radius:14px;padding:14px 16px;margin-bottom:12px;">
+    html+=`<div style="background:#131316;border:1.5px solid rgba(192,57,43,.35);border-radius:14px;padding:14px 16px;margin-bottom:12px;">
       <div onclick="_boardFocus(${r.id})" style="cursor:pointer;">
         <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:6px;margin-bottom:4px;">
-          <div style="font-size:18px;font-weight:800;color:#e0edf8;">${ti.ico} ${_esc(r.title)}</div>
+          <div style="font-size:18px;font-weight:800;color:#eaecef;">${ti.ico} ${_esc(r.title)}</div>
           ${elp?`<div class="js-elapsed" data-d="${_esc(r.date)}" style="font-size:16px;font-weight:800;color:#f0a500;font-family:monospace;">⏱ ${elp}</div>`:''}
         </div>
         <div style="font-size:13px;color:#7aa8c8;margin-bottom:12px;">${_esc(r.type)} · ${_esc(_resLocLabel(r))} · ${r.date}</div>
@@ -909,14 +909,14 @@ function renderBoard(){
         locs.forEach(loc=>{const c=cum[loc];
           html+=`<div style="display:flex;align-items:center;gap:8px;padding:8px 12px;background:rgba(255,255,255,.02);border-radius:8px;margin-bottom:4px;font-size:12px;border-left:3px solid #3182f6;">
             <span style="flex:1;color:rgba(255,255,255,.7);">${_esc(_stationLabel(loc))}</span>
-            <span style="color:#cfe2f2;font-weight:700;">${c.snow?'❄️ '+c.snow.toFixed(1)+'cm  ':''}${c.rain?'🌧️ '+c.rain.toFixed(1)+'mm':''}${(!c.snow&&!c.rain)?'-':''}</span>
+            <span style="color:#d5d8dc;font-weight:700;">${c.snow?'❄️ '+c.snow.toFixed(1)+'cm  ':''}${c.rain?'🌧️ '+c.rain.toFixed(1)+'mm':''}${(!c.snow&&!c.rain)?'-':''}</span>
           </div>`;
         });
       }
     }
     const closedOps=aops.filter(o=>o.closedAt).sort((a,b)=>(b.startedAtMs||0)-(a.startedAtMs||0)).slice(0,6);
     if(closedOps.length){
-      html+=`<div style="margin-top:18px;font-size:12px;color:#8ab0c8;font-weight:700;margin-bottom:6px;">📜 최근 종료된 특보운영 <span style="color:#5a7e98;font-weight:400;">(${closedOps.length}건)</span></div>`;
+      html+=`<div style="margin-top:18px;font-size:12px;color:#8ab0c8;font-weight:700;margin-bottom:6px;">📜 최근 종료된 특보운영 <span style="color:#6b7684;font-weight:400;">(${closedOps.length}건)</span></div>`;
       closedOps.forEach(o=>{const al=_opAlerts(o);const lbl=al.map(a=>_esc(a.type)+_stageShort(a.stage)).join(', ')||'특보';
         html+=`<div onclick="openAlertHistory(${o.id})" style="display:flex;align-items:center;gap:8px;padding:8px 12px;background:rgba(255,255,255,.02);border-radius:8px;margin-bottom:4px;font-size:12px;cursor:pointer;border-left:3px solid #5d82a0;">
           <span style="flex:1;color:rgba(255,255,255,.6);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">🌀 ${lbl}</span>
@@ -1035,9 +1035,9 @@ function _showAdminDenied(){
   if(!el){el=document.createElement('div');el.id='adminDeniedOverlay';document.body.appendChild(el);}
   el.style.cssText='position:fixed;inset:0;z-index:10002;background:#0f0f11;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:calc(28px + env(safe-area-inset-top)) 28px calc(28px + env(safe-area-inset-bottom));text-align:center;';
   el.innerHTML='<div style="font-size:46px;">🔒</div>'
-    +'<div style="font-size:18px;font-weight:800;color:#e0edf8;margin-top:8px;">관리자 권한이 없습니다</div>'
-    +'<div style="font-size:13px;color:#7a9cb8;line-height:1.9;margin-top:12px;max-width:300px;">이 메뉴는 <b style="color:#9fc0da;">관리자만</b> 접근할 수 있습니다.<br>권한이 필요하면 <b style="color:#9fc0da;">관리자에게 문의</b>해 주세요.</div>'
-    +(u.kakaoId?'<div class="sel-ok" style="font-size:11px;color:#4a7090;margin-top:14px;font-family:monospace;background:rgba(255,255,255,.04);border-radius:8px;padding:7px 12px;">내 카카오 ID: <b style="color:#cfe2f2;">'+_esc(String(u.kakaoId))+'</b><br><span style="color:#5a8aaa;">이 ID를 관리자에게 전달하면 권한을 받을 수 있습니다</span></div>':'')
+    +'<div style="font-size:18px;font-weight:800;color:#eaecef;margin-top:8px;">관리자 권한이 없습니다</div>'
+    +'<div style="font-size:13px;color:#8b95a1;line-height:1.9;margin-top:12px;max-width:300px;">이 메뉴는 <b style="color:#a5abb3;">관리자만</b> 접근할 수 있습니다.<br>권한이 필요하면 <b style="color:#a5abb3;">관리자에게 문의</b>해 주세요.</div>'
+    +(u.kakaoId?'<div class="sel-ok" style="font-size:11px;color:#565f6b;margin-top:14px;font-family:monospace;background:rgba(255,255,255,.04);border-radius:8px;padding:7px 12px;">내 카카오 ID: <b style="color:#d5d8dc;">'+_esc(String(u.kakaoId))+'</b><br><span style="color:#6b7684;">이 ID를 관리자에게 전달하면 권한을 받을 수 있습니다</span></div>':'')
     +(u.kakaoId?'<button onclick="requestAdminAccess()" style="margin-top:20px;width:100%;max-width:280px;background:rgba(39,174,96,.15);color:#27ae60;border:1px solid rgba(39,174,96,.4);border-radius:11px;padding:13px;font-size:14px;font-weight:700;cursor:pointer;">🔐 관리자에게 권한 요청</button>':'')
     +'<button onclick="(function(){var e=document.getElementById(\'adminDeniedOverlay\');if(e)e.remove();goHome();})()" style="margin-top:10px;width:100%;max-width:280px;background:#1a4a6e;color:#fff;border:none;border-radius:11px;padding:13px;font-size:14px;font-weight:700;cursor:pointer;">홈으로</button>'
     +'<div onclick="(function(){var e=document.getElementById(\'adminDeniedOverlay\');if(e)e.remove();var ov=document.getElementById(\'adminLoginOverlay\');if(ov){ov.style.display=\'flex\';setTimeout(function(){var p=document.getElementById(\'adminLoginPw\');if(p)p.focus();},200);}})()" style="margin-top:18px;font-size:11px;color:#2a4a5a;cursor:pointer;text-decoration:underline;">관리자 인증(비밀번호)</div>';
@@ -1076,12 +1076,12 @@ function openChangelog(){
     <div style="margin-bottom:5px;border-radius:10px;border:1px solid rgba(255,255,255,.07);overflow:hidden;">
       <div onclick="toggleCL(${i})" style="display:flex;align-items:center;gap:8px;padding:10px 12px;cursor:pointer;background:#0d1f35;user-select:none;">
         <span style="background:#1a4a6e;color:#3182f6;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:700;flex-shrink:0;">${v.ver}</span>
-        <span style="font-size:10px;color:#4a7090;flex-shrink:0;">${v.date}</span>
-        <span style="font-size:10px;color:#7a9cb8;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${v.summary}</span>
-        <span id="clArr${i}" style="color:#4a7090;font-size:11px;flex-shrink:0;transition:transform .2s;">▾</span>
+        <span style="font-size:10px;color:#565f6b;flex-shrink:0;">${v.date}</span>
+        <span style="font-size:10px;color:#8b95a1;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${v.summary}</span>
+        <span id="clArr${i}" style="color:#565f6b;font-size:11px;flex-shrink:0;transition:transform .2s;">▾</span>
       </div>
       <div id="clBody${i}" style="display:none;padding:8px 12px 10px;background:#080f1c;">
-        ${v.items.map(it=>`<div style="font-size:11px;color:#b8d4e8;padding:2px 0 2px 4px;">· ${it}</div>`).join('')}
+        ${v.items.map(it=>`<div style="font-size:11px;color:#c4c8ce;padding:2px 0 2px 4px;">· ${it}</div>`).join('')}
       </div>
     </div>`).join('');
   m.style.display='flex';
@@ -1385,7 +1385,7 @@ function _buildResRouteHtml(data){
 
   const zm=signCode?(signCode.match(/^(\d{2})-/)||[])[1]:null;
   const zoneName=zm?(ZONE_NAMES[zm]||''):'';
-  const signLabel=signCode?`<div style="font-size:10px;color:#3a6a8a;margin-bottom:5px;padding:0 2px;">📍 ${signCode}${zoneName?' · '+zoneName:''}${pb?' → '+sn(pb.name):''}${ab?` <span style="color:#e0a840;font-size:9px;">/ ${sn(ab.name)}</span>`:''}</div>`:
+  const signLabel=signCode?`<div style="font-size:10px;color:#454e5a;margin-bottom:5px;padding:0 2px;">📍 ${signCode}${zoneName?' · '+zoneName:''}${pb?' → '+sn(pb.name):''}${ab?` <span style="color:#e0a840;font-size:9px;">/ ${sn(ab.name)}</span>`:''}</div>`:
     (hasGPS?`<div style="font-size:10px;color:#e05050;margin-bottom:5px;padding:0 2px;">⚠️ 표지판 코드 없음</div>`:'');
 
   const btns=[dispatch].filter(Boolean); // 좌표복사·대피·헬기 버튼 제거(요청) — 출동 정보만 유지
@@ -1462,7 +1462,7 @@ function renderExtraTeams(){
       `<b style="color:#7ec8a0;">${d?_esc(DEPT_SHORT[d]||d):''} ${_esc(byDept[d].join(', '))}</b>`
     );
     const summaryHtml=t.members.length===0
-      ?'<span style="color:#4a7090;">(미선택)</span>'
+      ?'<span style="color:#565f6b;">(미선택)</span>'
       :summaryParts.join(' · ');
     const filtered=filt==='전체'?allMembers:allMembers.filter(s=>s.dept===filt);
     return `<div style="margin-bottom:8px;padding:10px;background:#0f0f11;border-radius:8px;border:1px solid rgba(126,200,163,.2);">
@@ -1480,7 +1480,7 @@ function renderExtraTeams(){
           ${t.members.map(n=>`<div style="background:rgba(126,200,163,.15);color:#7ec8a0;border:1px solid rgba(126,200,163,.3);border-radius:20px;font-size:10px;font-weight:700;padding:3px 8px;display:flex;align-items:center;gap:4px;">${_esc(n)}<span onclick="toggleExtraTeamMemberByName(${ti},'${_escq(n)}')" style="cursor:pointer;color:#c0392b;font-size:12px;line-height:1;">×</span></div>`).join('')}
         </div>`:''}
         ${availDepts.length>1?`<div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:8px;">
-          ${['전체',...availDepts].map(d=>`<div onclick="setExtraTeamOtherFilter(${ti},'${_escq(d)}')" style="padding:3px 9px;border-radius:20px;font-size:10px;font-weight:700;cursor:pointer;${d===filt?'background:#1a4a6e;color:#3182f6;':'background:#1c1c1e;color:#4a7090;border:1px solid #1a3a5a;'}">${_esc(d)}</div>`).join('')}
+          ${['전체',...availDepts].map(d=>`<div onclick="setExtraTeamOtherFilter(${ti},'${_escq(d)}')" style="padding:3px 9px;border-radius:20px;font-size:10px;font-weight:700;cursor:pointer;${d===filt?'background:#1a4a6e;color:#3182f6;':'background:#1c1c1e;color:#565f6b;border:1px solid #1a3a5a;'}">${_esc(d)}</div>`).join('')}
         </div>`:''}
         ${filtered.length?`<div class="chk-grid">
           ${filtered.map(s=>{
@@ -1490,10 +1490,10 @@ function renderExtraTeams(){
               onclick="${takenElsewhere?'':(`toggleExtraTeamMember(${ti},\\'${_escq(s.name)}\\',this)`)}"
               style="${takenElsewhere?'opacity:.35;cursor:not-allowed;':''}">
               <div class="chk-box${inThis?' on':''}"></div>
-              <span class="chk-txt">${_esc(s.name)}<span style="font-size:9px;color:#4a7090;margin-left:3px;">${_esc(s.rank)}${takenElsewhere?' (배정됨)':''}</span></span>
+              <span class="chk-txt">${_esc(s.name)}<span style="font-size:9px;color:#565f6b;margin-left:3px;">${_esc(s.rank)}${takenElsewhere?' (배정됨)':''}</span></span>
             </div>`;
           }).join('')}
-        </div>`:'<div style="font-size:11px;color:#4a7090;padding:6px 0;">가입된 인원 없음</div>'}
+        </div>`:'<div style="font-size:11px;color:#565f6b;padding:6px 0;">가입된 인원 없음</div>'}
         <button onclick="confirmExtraTeam(${ti})" style="width:100%;margin-top:10px;padding:8px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.3);color:#3182f6;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;">✅ 확인</button>
       `}
     </div>`;
@@ -1566,7 +1566,7 @@ function _addFormMapSigns(){
     const m=(f.name||'').match(/^\d{1,2}-\d{1,3}/);
     const code=m?m[0]:(f.name||'').slice(0,5);
     const d=document.createElement('div');
-    d.style.cssText='background:rgba(8,18,36,.82);border:1px solid rgba(125,211,250,.45);border-radius:5px;padding:1px 4px;font-size:9px;font-weight:700;color:#7dd3fa;font-family:monospace;pointer-events:none;white-space:nowrap;';
+    d.style.cssText='background:rgba(8,18,36,.82);border:1px solid rgba(125,211,250,.45);border-radius:5px;padding:1px 4px;font-size:9px;font-weight:700;color:#aab4c0;font-family:monospace;pointer-events:none;white-space:nowrap;';
     d.textContent=code;
     new kakao.maps.CustomOverlay({position:new kakao.maps.LatLng(f.lat,f.lng),content:d,zIndex:2}).setMap(_formMap);
   });
@@ -1687,7 +1687,7 @@ function _addFacMapSigns(){
     const m=(f.name||'').match(/^\d{1,2}-\d{1,3}/);
     const code=m?m[0]:(f.name||'').slice(0,5);
     const d=document.createElement('div');
-    d.style.cssText='background:rgba(8,18,36,.82);border:1px solid rgba(125,211,250,.45);border-radius:5px;padding:1px 4px;font-size:9px;font-weight:700;color:#7dd3fa;font-family:monospace;pointer-events:none;white-space:nowrap;';
+    d.style.cssText='background:rgba(8,18,36,.82);border:1px solid rgba(125,211,250,.45);border-radius:5px;padding:1px 4px;font-size:9px;font-weight:700;color:#aab4c0;font-family:monospace;pointer-events:none;white-space:nowrap;';
     d.textContent=code;
     new kakao.maps.CustomOverlay({position:new kakao.maps.LatLng(f.lat,f.lng),content:d,zIndex:2}).setMap(_facMap);
   });
@@ -1952,8 +1952,8 @@ function renderInjuries(){
   if(!_injuries.length){el.innerHTML='';return;}
   el.innerHTML=_injuries.map((a,i)=>`
     <div style="display:flex;align-items:center;gap:6px;padding:6px 10px;background:#1c1c1e;border-radius:7px;margin-bottom:4px;border:1px solid rgba(255,255,255,.1);">
-      <span style="font-size:10px;color:${a.cat==='내상'?'#c4b5fd':'#7dd3fa'};font-weight:700;flex-shrink:0;">${a.cat==='내상'?'💊':'🩹'}</span>
-      <span style="font-size:12px;flex:1;color:#e0edf8;font-weight:600;">${_injLabel(a)}</span>
+      <span style="font-size:10px;color:${a.cat==='내상'?'#c4b5fd':'#aab4c0'};font-weight:700;flex-shrink:0;">${a.cat==='내상'?'💊':'🩹'}</span>
+      <span style="font-size:12px;flex:1;color:#eaecef;font-weight:600;">${_injLabel(a)}</span>
       <button onclick="removeInjury(${i})" style="background:none;border:none;color:#c0392b;font-size:15px;cursor:pointer;padding:0 2px;">×</button>
     </div>`).join('');
 }
@@ -2016,7 +2016,7 @@ function renderWAlerts(){
   if(!_weatherAlerts.length){el.innerHTML='';return;}
   el.innerHTML=_weatherAlerts.map((a,i)=>`
     <div style="display:flex;align-items:center;gap:6px;padding:6px 10px;background:#1c1c1e;border-radius:7px;margin-bottom:4px;border:1px solid rgba(255,255,255,.1);">
-      <span style="font-size:12px;flex:1;color:#e0edf8;font-weight:600;">${a.type}${a.level}</span>
+      <span style="font-size:12px;flex:1;color:#eaecef;font-weight:600;">${a.type}${a.level}</span>
       <button onclick="removeWAlert(${i})" style="background:none;border:none;color:#c0392b;font-size:15px;cursor:pointer;padding:0 2px;">×</button>
     </div>`).join('');
 }
@@ -2044,9 +2044,9 @@ function renderFireAgencies(){
   if(!_fireAgencies.length){el.innerHTML='';return;}
   el.innerHTML=_fireAgencies.map((a,i)=>`
     <div style="display:flex;align-items:center;gap:6px;padding:7px 10px;background:#1c1c1e;border-radius:7px;margin-bottom:4px;border:1px solid rgba(255,255,255,.1);">
-      <span style="font-size:10px;color:#4a7090;flex-shrink:0;">${_esc(a.cat)}</span>
-      <span style="font-size:12px;flex:1;color:#e0edf8;font-weight:600;">${_esc(a.name)}</span>
-      ${a.count?`<span style="font-size:11px;color:#7a9cb8;flex-shrink:0;">${_esc(a.count)}명</span>`:''}
+      <span style="font-size:10px;color:#565f6b;flex-shrink:0;">${_esc(a.cat)}</span>
+      <span style="font-size:12px;flex:1;color:#eaecef;font-weight:600;">${_esc(a.name)}</span>
+      ${a.count?`<span style="font-size:11px;color:#8b95a1;flex-shrink:0;">${_esc(a.count)}명</span>`:''}
       <button onclick="removeFireAgency(${i})" style="background:none;border:none;color:#c0392b;font-size:15px;cursor:pointer;padding:0 2px;">×</button>
     </div>`).join('');
 }
@@ -2195,13 +2195,13 @@ function preloadParkTiles(auto){
   // 진행 표시 — 자동 실행은 작은 알약으로 시작(방해 없음), 수동 실행은 카드로. — 버튼/탭으로 상호 전환
   const ov=document.createElement('div');ov.id='tpOv';
   ov.style.cssText='position:fixed;right:12px;left:12px;bottom:calc(76px + env(safe-area-inset-bottom));z-index:9700;pointer-events:none;display:flex;justify-content:flex-end;';
-  ov.innerHTML='<div id="tpFull" style="display:'+(auto?'none':'block')+';pointer-events:auto;width:100%;max-width:430px;background:#0a1828;border:1px solid rgba(255,255,255,.35);border-radius:12px;padding:12px 14px;box-shadow:0 6px 24px rgba(0,0,0,.5);">'
-    +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;gap:6px;"><b style="font-size:12.5px;color:#e0edf8;">🗺️ '+(auto?'지도 자동 저장 중 (설악산 인근)':'설악산 인근 지도 미리받기')+'</b><span style="display:flex;gap:6px;flex-shrink:0;">'
+  ov.innerHTML='<div id="tpFull" style="display:'+(auto?'none':'block')+';pointer-events:auto;width:100%;max-width:430px;background:#16161a;border:1px solid rgba(255,255,255,.35);border-radius:12px;padding:12px 14px;box-shadow:0 6px 24px rgba(0,0,0,.5);">'
+    +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;gap:6px;"><b style="font-size:12.5px;color:#eaecef;">🗺️ '+(auto?'지도 자동 저장 중 (설악산 인근)':'설악산 인근 지도 미리받기')+'</b><span style="display:flex;gap:6px;flex-shrink:0;">'
     +'<button onclick="_tpMinimize(1)" style="background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.15);color:#9fb6c8;border-radius:7px;padding:4px 11px;font-size:11px;font-weight:800;cursor:pointer;" title="작게 보기">—</button>'
     +'<button id="tpCancel" style="background:rgba(231,76,60,.12);border:1px solid rgba(231,76,60,.3);color:#ff8a73;border-radius:7px;padding:4px 10px;font-size:11px;font-weight:700;cursor:pointer;">중지</button></span></div>'
     +'<div style="height:6px;background:rgba(255,255,255,.07);border-radius:3px;overflow:hidden;"><div id="tpBar" style="height:100%;width:0%;background:#3182f6;transition:width .3s;"></div></div>'
-    +'<div id="tpTxt" style="font-size:10.5px;color:#6a94b0;margin-top:6px;">총 '+steps.length+'개 구역 준비 중... (다른 작업 하셔도 됩니다)</div></div>'
-    +'<div id="tpMini" onclick="_tpMinimize(0)" title="탭하면 크게" style="display:'+(auto?'flex':'none')+';pointer-events:auto;align-items:center;gap:5px;background:rgba(10,24,40,.92);border:1px solid rgba(255,255,255,.35);border-radius:16px;padding:6px 12px;font-size:11px;font-weight:800;color:#7fc4e0;cursor:pointer;box-shadow:0 3px 12px rgba(0,0,0,.4);">🗺️ <span id="tpMiniPct">0%</span></div>';
+    +'<div id="tpTxt" style="font-size:10.5px;color:#78828e;margin-top:6px;">총 '+steps.length+'개 구역 준비 중... (다른 작업 하셔도 됩니다)</div></div>'
+    +'<div id="tpMini" onclick="_tpMinimize(0)" title="탭하면 크게" style="display:'+(auto?'flex':'none')+';pointer-events:auto;align-items:center;gap:5px;background:rgba(10,24,40,.92);border:1px solid rgba(255,255,255,.35);border-radius:16px;padding:6px 12px;font-size:11px;font-weight:800;color:#a5abb3;cursor:pointer;box-shadow:0 3px 12px rgba(0,0,0,.4);">🗺️ <span id="tpMiniPct">0%</span></div>';
   document.body.appendChild(ov);
   document.getElementById('tpCancel').onclick=()=>{_tpAbort=true;};
   let i=0,pending=null;
