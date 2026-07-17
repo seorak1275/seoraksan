@@ -2123,11 +2123,15 @@ function printReport(id){
 // ✅ 상황 종료 — 처리·이송 방법 + 병원 선택을 받아 보고서(구조방법·병원)에 바로 연계
 const _END_METHODS=[['🚁','헬기 이송'],['🚑','구급대 이송'],['🚙','구조대차량 이송'],['🚗','자차 귀가'],['🥾','도보 하산'],['✍️','기타']];
 const _END_HOSPS=['온제병원(구 보광병원)','속초의료원','강릉아산병원','직접입력','추후입력','해당없음'];
+// 결과(사고 처리결과) — 엑셀 '결과' 열 대체. 부상현황과 별도로 사망/부상/무사 통계용
+const _END_OUTCOMES=[['🟢','무사'],['🩹','부상'],['⚫','사망'],['❔','기타']];
 function endSit(){
   const res=DB.g('rescues')||[];const idx=res.findIndex(x=>x.id===selResId);if(idx===-1)return;
   const r=res[idx];
   window._endMethods=new Set(Array.isArray(r.rescueMethod)?r.rescueMethod.filter(Boolean):(r.rescueMethod?[r.rescueMethod]:[]));
   window._endHosp=_END_HOSPS.includes(r.hospital)?r.hospital:(r.hospital?'직접입력':'');
+  // 결과 기본 추정: 심정지/사망 부상 있으면 사망, 부상 있으면 부상, 없으면 무사 — 저장값 있으면 그대로
+  window._endOutcome=r.outcome||(()=>{const inj=Array.isArray(r.injuries)?r.injuries:[];if(inj.some(i=>i&&(i.type==='심정지'||/사망/.test(i.type||''))))return '';if(inj.length)return '부상';return '';})();
   let ov=document.getElementById('endSitOv');if(ov)ov.remove();
   ov=document.createElement('div');ov.id='endSitOv';
   ov.style.cssText='position:fixed;inset:0;z-index:9500;background:rgba(0,0,0,.62);display:flex;align-items:flex-end;justify-content:center;';
@@ -2135,7 +2139,9 @@ function endSit(){
   ov.innerHTML=`<div style="background:#16161a;width:100%;max-width:480px;max-height:88vh;overflow-y:auto;border-radius:14px 14px 0 0;padding:16px 16px calc(20px + env(safe-area-inset-bottom));box-shadow:0 -4px 20px rgba(0,0,0,.7);">
     <div style="font-size:16px;font-weight:800;color:#eaecef;">✅ 상황 종료</div>
     <div style="font-size:12px;color:#8b95a1;margin:3px 0 16px;">${_esc(r.title)}</div>
-    <div style="font-size:11px;color:#3182f6;font-weight:800;margin-bottom:7px;">🚑 처리·이송 방법 <span style="color:#565f6b;font-weight:400;">복수 선택</span></div>
+    <div style="font-size:11px;color:#3182f6;font-weight:800;margin-bottom:7px;">🚩 결과 <span style="color:#565f6b;font-weight:400;">사망/부상/무사</span></div>
+    <div style="display:flex;flex-wrap:wrap;gap:6px;">${_END_OUTCOMES.map(([i,o])=>`<button type="button" class="endo${window._endOutcome===o?' on':''}" data-o="${o}" onclick="_endSetOutcome('${o}')">${i} ${o}</button>`).join('')}</div>
+    <div style="font-size:11px;color:#3182f6;font-weight:800;margin:16px 0 7px;">🚑 처리·이송 방법 <span style="color:#565f6b;font-weight:400;">복수 선택</span></div>
     <div style="display:flex;flex-wrap:wrap;gap:6px;">${_END_METHODS.map(([i,m])=>`<button type="button" class="endm${window._endMethods.has(m)?' on':''}" data-m="${m}" onclick="_endToggleMethod('${m}')">${i} ${m}</button>`).join('')}</div>
     <input type="text" id="endMethodCustom" class="fi" placeholder="기타 방법 직접 입력" style="margin-top:7px;display:${window._endMethods.has('기타')?'block':'none'};" value="">
     <div style="font-size:11px;color:#3182f6;font-weight:800;margin:16px 0 7px;">🏥 병원 이송</div>
@@ -2160,6 +2166,10 @@ function _endSetHosp(h){
   document.querySelectorAll('.endh').forEach(b=>b.classList.toggle('on',b.dataset.h===window._endHosp));
   const c=document.getElementById('endHospCustom');if(c)c.style.display=(window._endHosp==='직접입력')?'block':'none';
 }
+function _endSetOutcome(o){
+  window._endOutcome=(window._endOutcome===o)?'':o; // 재탭 = 해제
+  document.querySelectorAll('.endo').forEach(b=>b.classList.toggle('on',b.dataset.o===window._endOutcome));
+}
 function _endConfirm(){
   const res=DB.g('rescues')||[];const idx=res.findIndex(x=>x.id===selResId);if(idx===-1)return;
   const r=res[idx];
@@ -2171,6 +2181,7 @@ function _endConfirm(){
   // ── 보고서 연계: 구조방법·병원 필드에 바로 반영 ──
   if(methods.length)r.rescueMethod=Array.from(new Set([].concat(Array.isArray(r.rescueMethod)?r.rescueMethod:[],methods).filter(Boolean)));
   if(hosp&&hosp!=='추후입력')r.hospital=hosp; // 추후입력은 비워둠(나중에 보고서에서 입력)
+  if(window._endOutcome)r.outcome=window._endOutcome; // 결과(사망/부상/무사) — 통계용
   r.status='done';r.closedAtMs=Date.now();r.closedAt=now();
   if(!r.completion)r.completion=now().slice(11,16); // 완료 시각(없으면 지금)
   DB.s('rescues',res);

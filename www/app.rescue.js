@@ -1036,8 +1036,9 @@ function renderRescueStats(){
     // ── 통계 정규화 — 흩어진 표기 합치기: 괄호 제거·띄어쓰기 제거로 변형 통합(무리한 산행=무리한산행, 발목 염좌=발목염좌), 성별(남성/남→남) ──
     const _statBase=s=>String(s||'').replace(/\([^)]*\)/g,'').replace(/\s+/g,'').trim();
     const _statGender=g=>{const s=String(g||'').trim();return /^남/.test(s)?'남':/^여/.test(s)?'여':'';};
-    const injMap={},injPartMap={},sevMap={},cauMap={},methodMap={},ageMap={},timeMap={},genderMap={},loctypeMap={},weatherMap={};
+    const injMap={},injPartMap={},sevMap={},cauMap={},methodMap={},ageMap={},timeMap={},genderMap={},loctypeMap={},weatherMap={},outcomeMap={};
     res.forEach(r=>{
+      if(r.outcome){outcomeMap[r.outcome]=(outcomeMap[r.outcome]||0)+1;}
       // 부상: 구조화 r.injuries[{type,part}] 우선, 없으면 레거시 injuryTypes/injuryParts
       if(Array.isArray(r.injuries)&&r.injuries.length){
         r.injuries.forEach(i=>{
@@ -1087,6 +1088,7 @@ function renderRescueStats(){
       ${chartCard('👤 연령대 <span style="font-size:9px;font-weight:400;color:#6b7684;">나이 순</span>',ageMap,'#9b59b6',true)}
       ${chartCard('⚧ 성별',genderMap,'#3498db')}
       ${chartCard('🚑 구조유형',Object.fromEntries(Object.keys(RES_TYPES).map(t=>[t,res.filter(r=>r.type===t).length]).filter(([,v])=>v)),'#e05050')}
+      ${chartCard('🚩 결과',outcomeMap,'#c0392b')}
       ${chartCard('⚡ 사고원인',cauMap,'#e67e22')}
       ${chartCard('🩹 부상유형',injMap,'#c0392b')}
       ${chartCard('🦵 부상부위',injPartMap,'#d35400')}
