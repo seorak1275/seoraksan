@@ -1835,6 +1835,8 @@ function selRepRel(v){
 let _injuries=[];
 let _injType='',_injPart='',_injSide='',_injCat='외상';
 const _BILATERAL_PARTS=['어깨','팔꿈치','손목','손','무릎','발목','발'];
+// 같은 부상(유형·부위·좌우 동일) 중복 추가 방지
+function _injDup(n){return (_injuries||[]).some(i=>i&&i.type===n.type&&(i.part||'')===(n.part||'')&&(i.side||'')===(n.side||''));}
 // 외상(부위 필요) / 내상·질환(전신 — 부위 불필요) 유형 목록. '기타'는 직접 입력
 const _INJ_TYPES={
   '외상':['골절','탈구','염좌','열상','타박상','두부손상','절단','화상','직접입력'],
@@ -1846,7 +1848,6 @@ const _QUICK_INJ=[
   ['염좌','발목','🦶 발목 염좌'],
   ['골절','발목','🦶 발목 골절'],
   ['타박상','무릎','🦵 무릎 타박'],
-  ['골절','무릎','🦵 무릎 골절'],
   ['근육경련','','💥 근육경련'],
   ['탈진/탈수','','💦 탈진·탈수'],
   ['저체온증','','🥶 저체온증'],
@@ -1888,15 +1889,17 @@ function selInjType(el,type){
   document.querySelectorAll('#injTypePills .pill').forEach(p=>p.classList.remove('on'));
   el.classList.add('on');_injType=type;
   // 내상은 전신 — 부위/좌우 숨김. '기타'는 직접 입력칸 노출
+  // ※ 외상은 이미 고른 부위·좌우를 지우지 않음 — 유형·부위 선택 순서와 무관하게 동작(부위 먼저 골라도 유형 누를 때 사라지지 않음)
   const partWrap=document.getElementById('injPartWrap');
   const sw=document.getElementById('injSideWrap');
   const cw=document.getElementById('injTypeCustomWrap');
   const isSys=_injCat==='내상';
   if(partWrap) partWrap.style.display=isSys?'none':'block';
-  if(sw) sw.style.display='none';
   if(cw){cw.style.display=type==='직접입력'?'block':'none';if(type==='직접입력')setTimeout(()=>{try{document.getElementById('injTypeCustom').focus();}catch(e){}},50);}
-  if(isSys){_injPart='전신';_injSide='';}
-  else{_injPart='';_injSide='';document.querySelectorAll('#injPartPills .pill').forEach(p=>p.classList.remove('on'));}
+  if(isSys){_injPart='전신';_injSide='';if(sw)sw.style.display='none';}
+  else if(sw){ // 외상 — 현재 부위가 좌우 가능 부위면 좌/우 계속 노출
+    sw.style.display=(_injPart&&_BILATERAL_PARTS.includes(_injPart))?'block':'none';
+  }
 }
 function selInjPart(el,part){
   // 같은 부위 다시 누르면 해제
@@ -1924,7 +1927,9 @@ function addInjury(){
     type=c;
   }
   if(_injCat!=='내상'&&!_injPart){toast('부상 부위를 선택하세요');return;}
-  _injuries.push({type:type,part:_injCat==='내상'?'전신':_injPart,side:_injSide,cat:_injCat});
+  const _nInj={type:type,part:_injCat==='내상'?'전신':_injPart,side:_injSide,cat:_injCat};
+  if(_injDup(_nInj)){toast('이미 추가된 부상입니다');return;}
+  _injuries.push(_nInj);
   _injType='';_injPart='';_injSide='';
   const ci=document.getElementById('injTypeCustom');if(ci)ci.value='';
   const cw=document.getElementById('injTypeCustomWrap');if(cw)cw.style.display='none';
@@ -1938,7 +1943,9 @@ function removeInjury(i){_injuries.splice(i,1);renderInjuries();try{autoGenTitle
 // ⚡ 자주 발생 부상 원터치 추가 — 실사고 통계 상위 조합을 한 번에 (세부는 기존 유형·부위 pill로 언제든 가능)
 function quickInjury(type,part){
   const cat=(_INJ_TYPES['내상']||[]).includes(type)?'내상':'외상';
-  _injuries.push({type:type,part:cat==='내상'?'전신':(part||''),side:'',cat:cat});
+  const _q={type:type,part:cat==='내상'?'전신':(part||''),side:'',cat:cat};
+  if(_injDup(_q)){toast('이미 추가된 부상입니다');if(typeof _hapt==='function')_hapt(8);return;}
+  _injuries.push(_q);
   renderInjuries();
   try{autoGenTitle();}catch(e){}
   try{if(typeof _updateTabDots==='function')_updateTabDots();}catch(e){}
