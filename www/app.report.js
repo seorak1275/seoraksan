@@ -1469,8 +1469,9 @@ function renderTimeline(r,viewMode,outId){
     // 펼쳤을 때만 붙는 상세 묶음 (접수·기타 정보 → 추가·변경 이력 → 사진 → 출동 인원)
     // 변경 이력(추가 보고·위치 변경)은 평소엔 숨기고 맨 아래 '🕓 변경 이력'으로 접어둠 — 누가·언제·무엇을 바꿨는지 필요할 때만 펼침
     const _histInner=`${updHtml}${locChgHtml}`;
+    const _histCnt=_updRep.length+locLog.length; // 추가보고 + 위치변경 횟수
     const _histHtml=_histInner?`<div style="margin-bottom:8px;">
-        <button id="repHistBtn_${r.id}" onclick="_toggleRepHist(${r.id})" style="width:100%;padding:8px 10px;border-radius:9px;border:1px dashed rgba(255,255,255,.2);background:rgba(255,255,255,.03);color:#6b7684;font-size:11px;font-weight:700;cursor:pointer;text-align:left;">🕓 변경 이력 <span style="font-size:9px;color:#565f6b;font-weight:400;">· 누가·언제·무엇을 바꿨는지</span> <span style="float:right;">${window._repHistOpen?'▲':'▾'}</span></button>
+        <button id="repHistBtn_${r.id}" onclick="_toggleRepHist(${r.id})" style="width:100%;padding:8px 10px;border-radius:9px;border:1px dashed rgba(255,255,255,.2);background:rgba(255,255,255,.03);color:#6b7684;font-size:11px;font-weight:700;cursor:pointer;text-align:left;">🕓 변경 이력${_histCnt?` <span style="font-size:9.5px;color:#8b95a1;background:rgba(255,255,255,.08);border-radius:8px;padding:1px 7px;font-weight:800;">${_histCnt}</span>`:''} <span style="font-size:9px;color:#565f6b;font-weight:400;">· 누가·언제·무엇을 바꿨는지</span> <span style="float:right;">${window._repHistOpen?'▲':'▾'}</span></button>
         <div id="repHist_${r.id}" style="display:${window._repHistOpen?'block':'none'};margin-top:6px;">${_histInner}</div>
       </div>`:'';
     const _mkReportDetail=()=>_shOpen?`
