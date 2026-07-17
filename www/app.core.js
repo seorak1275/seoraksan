@@ -946,7 +946,7 @@ function _busy(msg){
   var el=document.getElementById('_busyOv');
   if(!el){el=document.createElement('div');el.id='_busyOv';
     el.style.cssText='position:fixed;inset:0;z-index:99995;background:rgba(4,10,20,.55);display:flex;align-items:center;justify-content:center;backdrop-filter:blur(1px);';
-    el.innerHTML='<div style="background:#20242c;border:1px solid rgba(49,130,246,.3);border-radius:14px;padding:20px 26px;display:flex;flex-direction:column;align-items:center;gap:13px;box-shadow:0 10px 34px rgba(0,0,0,.6);max-width:78vw;"><div style="width:30px;height:30px;border:3px solid rgba(49,130,246,.2);border-top-color:#3182f6;border-radius:50%;animation:spin .8s linear infinite;"></div><div id="_busyMsg" style="font-size:13px;color:#cfe2f2;font-weight:600;text-align:center;line-height:1.5;"></div></div>';
+    el.innerHTML='<div style="background:#1c1c1e;border:1px solid rgba(255,255,255,.3);border-radius:14px;padding:20px 26px;display:flex;flex-direction:column;align-items:center;gap:13px;box-shadow:0 10px 34px rgba(0,0,0,.6);max-width:78vw;"><div style="width:30px;height:30px;border:3px solid rgba(255,255,255,.2);border-top-color:#3182f6;border-radius:50%;animation:spin .8s linear infinite;"></div><div id="_busyMsg" style="font-size:13px;color:#cfe2f2;font-weight:600;text-align:center;line-height:1.5;"></div></div>';
     document.body.appendChild(el);}
   var m=el.querySelector('#_busyMsg');if(m)m.textContent=msg||'처리 중…';
   el.style.display='flex';
@@ -1402,7 +1402,7 @@ function addCompanion(){
   const div=document.createElement('div');
   div.className='companion-item';
   div.dataset.idx=idx;
-  div.style.cssText='background:#16181d;border-radius:8px;padding:10px;margin-bottom:6px;border:1px solid rgba(255,255,255,.07);';
+  div.style.cssText='background:#0f0f11;border-radius:8px;padding:10px;margin-bottom:6px;border:1px solid rgba(255,255,255,.07);';
   div.innerHTML=`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;"><span style="font-size:11px;color:#3182f6;font-weight:700;">동반자 ${idx+1}</span><button onclick="this.closest('.companion-item').remove();renumberCompanions()" style="background:rgba(192,57,43,.15);color:#c0392b;border:none;border-radius:5px;padding:3px 8px;font-size:10px;cursor:pointer;">삭제</button></div>
   <div class="frow"><div class="fg"><span class="fl">성명</span><input type="text" class="fi comp-name" placeholder="이름"></div><div class="fg"><span class="fl">연락처</span><input type="tel" class="fi comp-tel" placeholder="연락처"></div></div>`;
   list.appendChild(div);
@@ -1441,7 +1441,7 @@ function addVictim2(){
   const list=document.getElementById('victim2List');if(!list)return;
   const div=document.createElement('div');
   div.className='victim2-item';
-  div.style.cssText='background:#16181d;border-radius:8px;padding:10px;margin-bottom:6px;border:1px solid rgba(231,76,60,.15);';
+  div.style.cssText='background:#0f0f11;border-radius:8px;padding:10px;margin-bottom:6px;border:1px solid rgba(231,76,60,.15);';
   div.innerHTML=_victim2CardHtml({});
   list.appendChild(div);
 }
@@ -1740,7 +1740,7 @@ function openNoti(){
       return `<div class="ni ${n.read?'read':'unread'}" style="${hasLink?'cursor:pointer;':''}" ${hasLink?`onclick="${linkStr}"`:''}  >
         <div style="position:relative;flex-shrink:0;">
           <div class="ni-ico">${n.ico}</div>
-          ${n.read?'':'<div style="position:absolute;top:-2px;right:-3px;width:6px;height:6px;background:#e05050;border-radius:50%;border:1px solid #20242c;"></div>'}
+          ${n.read?'':'<div style="position:absolute;top:-2px;right:-3px;width:6px;height:6px;background:#e05050;border-radius:50%;border:1px solid #1c1c1e;"></div>'}
         </div>
         <div style="flex:1;min-width:0;">
           <div class="ni-msg">${_esc(n.msg)}</div>

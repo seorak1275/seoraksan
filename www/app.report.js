@@ -256,7 +256,7 @@ function _teamCnt(t){return (t.members&&t.members.length)||t.memberCount||0;}
 
 function _renderCreateBtnsHtml(){
   return `<div style="display:flex;gap:8px;margin-bottom:10px;">
-    <button onclick="startTlBuild('nps')" style="flex:1;padding:11px 6px;border-radius:9px;background:rgba(49,130,246,.1);border:1px solid rgba(49,130,246,.3);color:#3182f6;font-size:12px;font-weight:700;cursor:pointer;">+ 공단 팀 출동</button>
+    <button onclick="startTlBuild('nps')" style="flex:1;padding:11px 6px;border-radius:9px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.3);color:#3182f6;font-size:12px;font-weight:700;cursor:pointer;">+ 공단 팀 출동</button>
     <button onclick="startTlBuild('agency')" style="flex:1;padding:11px 6px;border-radius:9px;background:rgba(126,200,163,.08);border:1px solid rgba(126,200,163,.25);color:#7ec8a0;font-size:12px;font-weight:700;cursor:pointer;">+ 유관기관 팀 출동</button>
   </div>`;
 }
@@ -274,7 +274,7 @@ function _renderBuildPanelHtml(){
   }
   if(_tlBuildType==='nps'){
     const _autoName=_deptShort(myDept||'공단')+' '+(_tlTeams.filter(t=>t.id&&t.id.startsWith('nps_')).length+1)+'팀';
-    return `<div style="background:#20242c;border-radius:10px;padding:12px;border:.5px solid rgba(49,130,246,.3);margin-bottom:10px;">
+    return `<div style="background:#1c1c1e;border-radius:10px;padding:12px;border:.5px solid rgba(255,255,255,.3);margin-bottom:10px;">
       <div style="font-size:11px;color:#3182f6;font-weight:700;margin-bottom:10px;">🥾 공단 팀 출동</div>
       <input id="tlBuildNameInput" type="text" class="fi" placeholder="${_autoName}" style="width:100%;box-sizing:border-box;margin-bottom:10px;">
       ${myDept?`<div style="font-size:10px;color:#4a7090;font-weight:600;margin-bottom:5px;">📂 ${myDept}</div>`:''}
@@ -287,7 +287,7 @@ function _renderBuildPanelHtml(){
         </div>`:''}
       <div style="display:flex;gap:7px;margin-top:10px;">
         <button onclick="cancelTlBuild()" style="flex:1;padding:8px;border-radius:8px;border:1px solid rgba(255,255,255,.12);background:transparent;color:rgba(255,255,255,.45);font-size:12px;font-weight:600;cursor:pointer;">취소</button>
-        <button onclick="confirmTlBuild()" style="flex:2;padding:8px;border-radius:8px;background:rgba(49,130,246,.18);border:1px solid rgba(49,130,246,.4);color:#3182f6;font-size:12px;font-weight:700;cursor:pointer;">확인</button>
+        <button onclick="confirmTlBuild()" style="flex:2;padding:8px;border-radius:8px;background:rgba(255,255,255,.18);border:1px solid rgba(255,255,255,.4);color:#3182f6;font-size:12px;font-weight:700;cursor:pointer;">확인</button>
       </div>
     </div>`;
   } else {
@@ -306,7 +306,7 @@ function _renderBuildPanelHtml(){
         ${ag.l}${ag.hwTeam?`<br><span style="font-size:9px;opacity:.75;">현재 ${ag.hwTeam}팀</span>`:''}
       </div>`;
     }
-    return `<div style="background:#20242c;border-radius:10px;padding:12px;border:.5px solid rgba(126,200,163,.3);margin-bottom:10px;">
+    return `<div style="background:#1c1c1e;border-radius:10px;padding:12px;border:.5px solid rgba(126,200,163,.3);margin-bottom:10px;">
       <div style="font-size:11px;color:#7ec8a0;font-weight:700;margin-bottom:10px;">🚒 유관기관 팀 출동</div>
       <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:5px;margin-bottom:10px;">
         ${agTypes.map(agChip).join('')}
@@ -315,7 +315,7 @@ function _renderBuildPanelHtml(){
       ${(sel.regions&&sel.regions.length)?`<div style="font-size:10px;color:#4a7090;font-weight:700;margin-bottom:5px;">소속 선택</div>
       <div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:10px;" id="tlRegionChips">
         ${sel.regions.map(rg=>`<div onclick="_selAgRegion('${rg.replace(/'/g,"\\'")}')" data-v="${_esc(rg)}"
-          style="cursor:pointer;background:${_tlBuildRegion===rg?'rgba(49,130,246,.18)':'rgba(255,255,255,.04)'};color:${_tlBuildRegion===rg?'#3182f6':'rgba(255,255,255,.5)'};border:1px solid ${_tlBuildRegion===rg?'rgba(49,130,246,.45)':'rgba(255,255,255,.12)'};border-radius:16px;font-size:11px;font-weight:700;padding:5px 12px;">${_esc(rg)}</div>`).join('')}
+          style="cursor:pointer;background:${_tlBuildRegion===rg?'rgba(255,255,255,.18)':'rgba(255,255,255,.04)'};color:${_tlBuildRegion===rg?'#3182f6':'rgba(255,255,255,.5)'};border:1px solid ${_tlBuildRegion===rg?'rgba(255,255,255,.45)':'rgba(255,255,255,.12)'};border-radius:16px;font-size:11px;font-weight:700;padding:5px 12px;">${_esc(rg)}</div>`).join('')}
       </div>`:''}
       <div style="display:flex;gap:7px;margin-bottom:10px;">
         <div style="flex:2;"><input id="tlBuildNameInput" type="text" class="fi" value="${_esc(_agTeamName(sel.k,_tlBuildRegion,hw))}" placeholder="팀 이름 (직접 수정 가능)" style="width:100%;box-sizing:border-box;"></div>
@@ -637,7 +637,7 @@ function _buildLogHtml(r){
   window._tlDelReg=[]; // 삭제 버튼 레지스트리 — 인덱스 대신 서명(_logKey)으로 정확히 삭제(중복·병합에도 안전)
   // 타입별 색상
   const TYPE_COL={victim:'#e74c3c',team:'#3182f6',report:'#9b59b6',nps:'#27ae60'};
-  const TYPE_BG={victim:'rgba(231,76,60,.1)',team:'rgba(49,130,246,.08)',report:'rgba(155,89,182,.08)',nps:'rgba(39,174,96,.08)'};
+  const TYPE_BG={victim:'rgba(231,76,60,.1)',team:'rgba(255,255,255,.08)',report:'rgba(155,89,182,.08)',nps:'rgba(39,174,96,.08)'};
   const isWpPass=e=>e.type==='team'&&e.ico==='📍';
   const wpCount=logEntries.filter(isWpPass).length;
   const collapseWp=wpCount>=4; // 통과 기록이 많으면 기본 접힘 — 주요 이벤트만 한눈에
@@ -650,7 +650,7 @@ function _buildLogHtml(r){
     const isLast=i===logEntries.length-1;
     // 날짜가 바뀌면(자정 경과) 구분선 — 첫 날은 표시 안 함(하루짜리 상황엔 안 나옴)
     const _d=String(e.k||'').slice(0,10);let _dv='';
-    if(_d&&_d!==_prevDate){if(_prevDate&&/^\d{4}-\d{2}-\d{2}$/.test(_d))_dv=`<div style="display:flex;align-items:center;gap:8px;margin:8px 0 6px;"><span style="flex:1;height:1px;background:rgba(49,130,246,.22);"></span><span style="font-size:10px;color:#5d92bc;font-weight:800;white-space:nowrap;">📅 ${_dLbl(_d)}</span><span style="flex:1;height:1px;background:rgba(49,130,246,.22);"></span></div>`;_prevDate=_d;}
+    if(_d&&_d!==_prevDate){if(_prevDate&&/^\d{4}-\d{2}-\d{2}$/.test(_d))_dv=`<div style="display:flex;align-items:center;gap:8px;margin:8px 0 6px;"><span style="flex:1;height:1px;background:rgba(255,255,255,.22);"></span><span style="font-size:10px;color:#5d92bc;font-weight:800;white-space:nowrap;">📅 ${_dLbl(_d)}</span><span style="flex:1;height:1px;background:rgba(255,255,255,.22);"></span></div>`;_prevDate=_d;}
     return _dv+`<div class="${isWpPass(e)?'log-wp':''}" style="display:${(collapseWp&&isWpPass(e))?'none':'flex'};gap:0;position:relative;">
       <!-- 세로 타임라인 트랙 -->
       <div style="display:flex;flex-direction:column;align-items:center;width:28px;flex-shrink:0;">
@@ -672,7 +672,7 @@ function _buildLogHtml(r){
   const legend=`<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px;">
     ${Object.entries({요구조자:'victim',팀이동:'team',보고:'report','공단':'nps'}).map(([lbl,tp])=>`<span style="font-size:9px;color:${TYPE_COL[tp]};background:${TYPE_BG[tp]};border-radius:4px;padding:1px 6px;font-weight:700;">${lbl}</span>`).join('')}
   </div>`;
-  return `<div class="slog-box" style="background:#16181d;border-radius:10px;padding:11px 13px;margin-top:8px;border:.5px solid rgba(49,130,246,.15);">
+  return `<div class="slog-box" style="background:#0f0f11;border-radius:10px;padding:11px 13px;margin-top:8px;border:.5px solid rgba(255,255,255,.15);">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:7px;">
       <span style="font-size:11px;color:#3182f6;font-weight:700;">📜 상황 일지</span>
       ${collapseWp?`<button data-on="0" data-n="${wpCount}" onclick="_toggleWpLog(this)" style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.12);color:rgba(255,255,255,.5);border-radius:10px;padding:2px 9px;font-size:10px;font-weight:700;cursor:pointer;">📍 통과 ${wpCount}건 보기</button>`:''}
@@ -807,7 +807,7 @@ function _docPreviewOverlay(docHtml,title){
   ov=document.createElement('div');ov.id='docPrevOv';
   ov.style.cssText='position:fixed;inset:0;z-index:99990;background:#222;display:flex;flex-direction:column;';
   ov.innerHTML='<div style="flex-shrink:0;display:flex;gap:8px;padding:calc(8px + env(safe-area-inset-top)) 12px 8px;background:#0a1828;align-items:center;border-bottom:1px solid rgba(255,255,255,.1);">'
-    +'<button id="docPrevBack" class="press-fx" style="background:rgba(49,130,246,.15);border:1px solid rgba(49,130,246,.4);color:#3182f6;border-radius:8px;padding:9px 14px;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap;">← 앱으로</button>'
+    +'<button id="docPrevBack" class="press-fx" style="background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.4);color:#3182f6;border-radius:8px;padding:9px 14px;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap;">← 앱으로</button>'
     +'<span style="flex:1;font-size:12px;color:#cfe2f2;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+_esc(title||'문서')+'</span>'
     +'<button id="docPrevPrint" class="press-fx" style="background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.15);color:#cfe2f2;border-radius:8px;padding:9px 14px;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap;">🖨 인쇄</button></div>'
     +'<iframe id="docPrevFrame" style="flex:1;border:none;background:#fff;width:100%;"></iframe>';
@@ -1253,7 +1253,7 @@ function openReportShare(rid){
   if(!m){m=document.createElement('div');m.id='repShareModal';document.body.appendChild(m);}
   m.style.cssText='position:fixed;inset:0;z-index:99800;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;padding:30px;';
   const b='width:100%;margin-bottom:7px;padding:12px;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;transition:transform .1s,opacity .1s;';
-  m.innerHTML=`<div style="background:#0a1828;border:1px solid rgba(49,130,246,.25);border-radius:14px;max-width:300px;width:100%;padding:16px;max-height:85vh;overflow-y:auto;">
+  m.innerHTML=`<div style="background:#0a1828;border:1px solid rgba(255,255,255,.25);border-radius:14px;max-width:300px;width:100%;padding:16px;max-height:85vh;overflow-y:auto;">
     <div style="font-size:14px;font-weight:800;color:#e0edf8;margin-bottom:12px;text-align:center;">📄 보고서</div>
     <button class="press-fx" onclick="share119(${rid});this.closest('#repShareModal').remove();" style="${b}border:1px solid rgba(224,90,78,.45);background:rgba(224,90,78,.12);color:#ff9a8a;">🚑 유관기관 공유 <span style="font-size:10px;font-weight:600;opacity:.8;">(119·경찰 — 문자/카톡)</span></button>
     <div style="border:1px solid rgba(232,179,74,.4);background:rgba(232,179,74,.07);border-radius:10px;padding:9px 10px 8px;margin-bottom:7px;">
@@ -1291,19 +1291,19 @@ function renderTimeline(r,viewMode,outId){
       .filter(c=>{if(seen.has(c.id))return false;seen.add(c.id);return true;})
       .sort((a,b)=>(a.id||0)-(b.id||0));
     if(!cmts.length)return '<div style="font-size:11px;color:rgba(255,255,255,.25);padding:4px 0;">댓글 없음</div>';
-    return cmts.map(cm=>`<div style="background:#16181d;border-radius:7px;padding:8px 10px;margin-bottom:5px;">
+    return cmts.map(cm=>`<div style="background:#0f0f11;border-radius:7px;padding:8px 10px;margin-bottom:5px;">
       <div style="font-size:11px;color:#3182f6;font-weight:600;">${_esc(cm.author||'익명')} · ${cm.time}</div>
       <div style="font-size:12px;color:#b8d4e8;margin-top:3px;line-height:1.5;">${_esc(cm.text)}</div>
     </div>`).join('');
   }
 
-  const tabHdr=`<div style="background:#20242c;border-radius:10px;padding:11px 12px;border:.5px solid rgba(255,255,255,.07);margin-bottom:10px;">
+  const tabHdr=`<div style="background:#1c1c1e;border-radius:10px;padding:11px 12px;border:.5px solid rgba(255,255,255,.07);margin-bottom:10px;">
     <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;">
       <div style="flex:1;min-width:0;">
         <div style="font-size:14px;font-weight:700;color:#e0edf8;">${_esc(r.title)}</div>
         <div style="font-size:11px;color:#3a6a8a;margin-top:3px;">${_esc(r.type)} · ${r.status==='ongoing'?'<span style="color:#c0392b;font-weight:700;">진행중</span>':'<span style="color:#27ae60;font-weight:700;">종료</span>'} · ${r.date}${r.status==='ongoing'&&_elapsedStr(r.date)?` · <span class="js-elapsed" data-d="${_esc(r.date)}" style="color:#f0a500;font-weight:700;">⏱ ${_elapsedStr(r.date)}</span>`:''}</div>
       </div>
-      <button onclick="openReportShare(${r.id})" style="flex-shrink:0;background:rgba(49,130,246,.12);color:#3182f6;border:1px solid rgba(49,130,246,.32);border-radius:7px;padding:5px 9px;font-size:10px;font-weight:800;cursor:pointer;white-space:nowrap;">📄 보고서</button>
+      <button onclick="openReportShare(${r.id})" style="flex-shrink:0;background:rgba(255,255,255,.12);color:#3182f6;border:1px solid rgba(255,255,255,.32);border-radius:7px;padding:5px 9px;font-size:10px;font-weight:800;cursor:pointer;white-space:nowrap;">📄 보고서</button>
     </div>
   </div>`; // 탭(타임라인/보고서) 제거 — 아래 한 화면에 보고서·기록·타임라인 통합
 
@@ -1317,11 +1317,11 @@ function renderTimeline(r,viewMode,outId){
   const _mkRecCard=()=>{
     if(!_canWriteTl)return '';
     const _tglArg=`${r.id},'${_isBoard?_esc(outId):''}'`;
-    if(!window._tlRecOpen)return `<button onclick="_toggleRecCard(${_tglArg})" style="width:100%;margin-bottom:8px;padding:11px;border-radius:11px;border:1px dashed rgba(49,130,246,.35);background:rgba(49,130,246,.06);color:#3182f6;font-size:12.5px;font-weight:800;cursor:pointer;">📌 기록 추가 — 조우·처치·헬기·직접입력 ▾</button>`;
+    if(!window._tlRecOpen)return `<button onclick="_toggleRecCard(${_tglArg})" style="width:100%;margin-bottom:8px;padding:11px;border-radius:11px;border:1px dashed rgba(255,255,255,.35);background:rgba(255,255,255,.06);color:#3182f6;font-size:12.5px;font-weight:800;cursor:pointer;">📌 기록 추가 — 조우·처치·헬기·직접입력 ▾</button>`;
     const _teamNames=(r.teams||[]).map(t=>t.name).filter(Boolean);
     return `
       <!-- 📌 기록: 누가 · 무엇을 · 언제 — 과거 시간 입력 가능, 일지는 시간순 자동 정렬 -->
-      <div style="background:#20242c;border:1px solid rgba(49,130,246,.3);border-radius:12px;padding:12px 13px;margin-bottom:10px;">
+      <div style="background:#1c1c1e;border:1px solid rgba(255,255,255,.3);border-radius:12px;padding:12px 13px;margin-bottom:10px;">
         <div style="margin-bottom:8px;display:flex;align-items:center;">
           <span style="font-size:12px;font-weight:800;color:#3182f6;">📌 기록 <span style="font-size:9px;color:#5a7e98;font-weight:400;">누가 · 무엇을 · 언제</span></span>
           <span onclick="_toggleRecCard(${_tglArg})" style="margin-left:auto;font-size:10.5px;color:#5a7e98;font-weight:700;cursor:pointer;padding:2px 6px;">▲ 접기</span>
@@ -1350,7 +1350,7 @@ function renderTimeline(r,viewMode,outId){
           </div>
           <div style="display:flex;gap:6px;">
             <button id="tlRecAedY" onclick="this._v=1;this.style.background='rgba(231,76,60,.25)';this.style.color='#e74c3c';var n=document.getElementById('tlRecAedN');n.style.background='transparent';n.style.color='rgba(255,255,255,.4)';" style="flex:1;padding:6px;border-radius:7px;border:1px solid rgba(231,76,60,.3);background:transparent;color:rgba(255,255,255,.4);font-size:11px;font-weight:700;cursor:pointer;">AED 사용</button>
-            <button id="tlRecAedN" onclick="var y=document.getElementById('tlRecAedY');y._v=0;y.style.background='transparent';y.style.color='rgba(255,255,255,.4)';this.style.background='rgba(49,130,246,.15)';this.style.color='#3182f6';" style="flex:1;padding:6px;border-radius:7px;border:1px solid rgba(49,130,246,.25);background:rgba(49,130,246,.1);color:#3182f6;font-size:11px;font-weight:700;cursor:pointer;">미사용</button>
+            <button id="tlRecAedN" onclick="var y=document.getElementById('tlRecAedY');y._v=0;y.style.background='transparent';y.style.color='rgba(255,255,255,.4)';this.style.background='rgba(255,255,255,.15)';this.style.color='#3182f6';" style="flex:1;padding:6px;border-radius:7px;border:1px solid rgba(255,255,255,.25);background:rgba(255,255,255,.1);color:#3182f6;font-size:11px;font-weight:700;cursor:pointer;">미사용</button>
           </div>
         </div>
         <div style="display:flex;gap:6px;margin-bottom:8px;">
@@ -1363,7 +1363,7 @@ function renderTimeline(r,viewMode,outId){
   };
   // 🚑 출동팀: 한 카드에 팀별 한 줄 + 팀 출동 버튼
   const _mkTeamCard=()=>_canWriteTl?`
-      <div style="background:#20242c;border:.5px solid rgba(49,130,246,.14);border-radius:12px;padding:11px 13px;margin-top:8px;">
+      <div style="background:#1c1c1e;border:.5px solid rgba(255,255,255,.14);border-radius:12px;padding:11px 13px;margin-top:8px;">
         <div id="tlTeamHdr" style="font-size:11px;color:#3182f6;font-weight:800;margin-bottom:4px;">${_tlTeamsHdrHtml()}</div>
         <div id="tlAllTeams">${_tlTeamRowsHtml()}</div>
         <div id="tlBuildArea" style="margin-top:9px;">${_tlBuilding?_renderBuildPanelHtml():_renderCreateBtnsHtml()}</div>
@@ -1416,7 +1416,7 @@ function renderTimeline(r,viewMode,outId){
     // 좌표 변경(위치좌표)은 아래 '위치 변경 이력'이 거리·최초접수 원본까지 담당하므로 여기선 제외해 삼중 중복 방지
     const _updRep=(r.reports||[]).map((p,i)=>({p,ci:i+1,chg:(p.changes||[]).filter(c=>c.label!=='위치좌표')}))
       .filter(({p,chg})=>chg.length||p.update||(p.victimChange&&p.victimChange!=='변화없음')||p.addMem||p.extra);
-    const updHtml=_updRep.length?`<div style="background:#20242c;border-radius:10px;padding:11px 12px;border:.5px solid rgba(49,130,246,.16);margin-bottom:8px;"><div style="font-size:10px;color:#3182f6;font-weight:800;margin-bottom:5px;">📌 추가 보고</div>${_updRep.map(({p,ci,chg})=>{
+    const updHtml=_updRep.length?`<div style="background:#1c1c1e;border-radius:10px;padding:11px 12px;border:.5px solid rgba(255,255,255,.16);margin-bottom:8px;"><div style="font-size:10px;color:#3182f6;font-weight:800;margin-bottom:5px;">📌 추가 보고</div>${_updRep.map(({p,ci,chg})=>{
       const chgHtml=chg.map(c=>`<div style="font-size:11px;line-height:1.55;padding:1px 0;color:#b8d4e8;">${_esc(c.label)}: <span style="color:#9c8060;">${_esc(c.from)}</span> → <b style="color:#e0edf8;">${_esc(c.to)}</b></div>`).join('');
       const extras=[];
       // update 프로즈는 '경위 갱신·타임라인' 부가신호만(신버전) — 구버전(→ 포함)은 chg가 있으면 중복이라 숨기고, chg가 없을 때만 폴백 표시
@@ -1429,21 +1429,21 @@ function renderTimeline(r,viewMode,outId){
     }).join('')}</div>`:'';
     // 위치 변경 이력 — 좌표 이동 기록(N보 수정=via 표기 / 사고자 실시간 위치 채택). 최초접수 원본은 origLat/origLng 보존
     const locLog=(r.locLog||[]);
-    const locChgHtml=locLog.length?`<div style="background:#20242c;border-radius:10px;padding:11px 12px;border:.5px solid rgba(20,184,166,.22);margin-bottom:8px;"><div style="font-size:10px;color:#2dd4bf;font-weight:800;margin-bottom:5px;">📍 위치 변경 이력 <span style="color:#5a7e98;font-weight:400;font-size:9px;">최초접수 ${r.origLat!=null?(+r.origLat).toFixed(5)+', '+(+r.origLng).toFixed(5):''}</span></div>${locLog.map(l=>`<div style="font-size:11px;color:#b8d4e8;line-height:1.6;padding:3px 0;border-bottom:.5px solid rgba(255,255,255,.04);">${l.via?'위치 수정 <span style="color:#5a7e98;font-size:9px;">('+_esc(l.via)+')</span>':'실시간 위치 채택'} <span style="color:#9c8060;">${(+l.from.lat).toFixed(5)}, ${(+l.from.lng).toFixed(5)}</span> → <b style="color:#a7f3e4;">${(+l.to.lat).toFixed(5)}, ${(+l.to.lng).toFixed(5)}</b>${l.dist?' <span style="color:#5a9e94;">('+l.dist+'m)</span>':''} <span style="color:#5a7e98;font-size:9px;">${l.at||''}${l.by?' · '+_esc(l.by):''}</span></div>`).join('')}</div>`:'';
+    const locChgHtml=locLog.length?`<div style="background:#1c1c1e;border-radius:10px;padding:11px 12px;border:.5px solid rgba(20,184,166,.22);margin-bottom:8px;"><div style="font-size:10px;color:#2dd4bf;font-weight:800;margin-bottom:5px;">📍 위치 변경 이력 <span style="color:#5a7e98;font-weight:400;font-size:9px;">최초접수 ${r.origLat!=null?(+r.origLat).toFixed(5)+', '+(+r.origLng).toFixed(5):''}</span></div>${locLog.map(l=>`<div style="font-size:11px;color:#b8d4e8;line-height:1.6;padding:3px 0;border-bottom:.5px solid rgba(255,255,255,.04);">${l.via?'위치 수정 <span style="color:#5a7e98;font-size:9px;">('+_esc(l.via)+')</span>':'실시간 위치 채택'} <span style="color:#9c8060;">${(+l.from.lat).toFixed(5)}, ${(+l.from.lng).toFixed(5)}</span> → <b style="color:#a7f3e4;">${(+l.to.lat).toFixed(5)}, ${(+l.to.lng).toFixed(5)}</b>${l.dist?' <span style="color:#5a9e94;">('+l.dist+'m)</span>':''} <span style="color:#5a7e98;font-size:9px;">${l.at||''}${l.by?' · '+_esc(l.by):''}</span></div>`).join('')}</div>`:'';
     const logHtml=_buildLogHtml(r);
     // ── 접이식 보고서 + 하단 타임라인 ──
     // 요약(부상·위치·사람+전화)은 항상 보이고, 상세(접수·경위·사진·출동인원 등)는 '보고서 펼치기'로.
     // 상황일지(타임라인)는 맨 밑에 묻혀 있던 것을 요약 바로 아래로 승격 — 화면이 훨씬 깔끔해짐.
     const _shOpen=!!window._repSheetOpen;
-    const reportSheet=`<div style="background:#20242c;border:1px solid rgba(231,76,60,.18);border-radius:12px;padding:13px 14px;margin-bottom:8px;">
+    const reportSheet=`<div style="background:#1c1c1e;border:1px solid rgba(231,76,60,.18);border-radius:12px;padding:13px 14px;margin-bottom:8px;">
       ${injurySect}
       ${locSect?_div+locSect:''}
       ${_div}${personSect}
-      <button onclick="_toggleRepSheet(${r.id},'${_isBoard?_esc(outId):''}')" style="width:100%;margin-top:10px;padding:9px;border-radius:9px;border:1px dashed rgba(49,130,246,.3);background:rgba(49,130,246,.05);color:#5d92bc;font-size:12px;font-weight:700;cursor:pointer;">${_shOpen?'▲ 보고서 접기':'📄 보고서 전체 펼치기 — 접수·경위·사진·출동인원'}</button>
+      <button onclick="_toggleRepSheet(${r.id},'${_isBoard?_esc(outId):''}')" style="width:100%;margin-top:10px;padding:9px;border-radius:9px;border:1px dashed rgba(255,255,255,.3);background:rgba(255,255,255,.05);color:#5d92bc;font-size:12px;font-weight:700;cursor:pointer;">${_shOpen?'▲ 보고서 접기':'📄 보고서 전체 펼치기 — 접수·경위·사진·출동인원'}</button>
     </div>`;
     // 펼쳤을 때만 붙는 상세 묶음 (접수·기타 정보 → 추가·변경 이력 → 사진 → 출동 인원)
     const _mkReportDetail=()=>_shOpen?`
-      <div style="background:#20242c;border:1px solid rgba(49,130,246,.15);border-radius:12px;padding:12px 14px;margin-bottom:8px;">
+      <div style="background:#1c1c1e;border:1px solid rgba(255,255,255,.15);border-radius:12px;padding:12px 14px;margin-bottom:8px;">
         ${recvSect||''}
         ${rows.length?(recvSect?_div:'')+rows.join(''):''}
         <div style="text-align:right;font-size:9px;color:#3a5a6a;margin-top:9px;">📝 최초접수 ${r.date||''}${r.author?' · 작성 '+_esc(r.author):''}</div>
@@ -1451,7 +1451,7 @@ function renderTimeline(r,viewMode,outId){
       ${updHtml}
       ${locChgHtml}
       ${_scenePhotosHtml(r)}
-      <div style="background:#20242c;border-radius:10px;padding:11px 12px;border:.5px solid rgba(49,130,246,.12);margin-bottom:8px;">${_teamSectHtml()}</div>`:'';
+      <div style="background:#1c1c1e;border-radius:10px;padding:11px 12px;border:.5px solid rgba(255,255,255,.12);margin-bottom:8px;">${_teamSectHtml()}</div>`:'';
     // 출동 인원 카드 내용을 재사용하기 위해 함수로 감쌈
     function _teamSectHtml(){return `
         ${(()=>{
@@ -1489,7 +1489,7 @@ function renderTimeline(r,viewMode,outId){
       +(logHtml?`<div style="margin:2px 0 8px;">${logHtml}</div>`
                :'<div style="text-align:center;font-size:11px;color:#456a85;padding:12px 0 8px;">기록 없음 — 위 📌 기록 추가로 입력하세요</div>')
       +_mkTeamCard()
-      +`<div style="background:#20242c;border-radius:10px;padding:12px;border:.5px solid rgba(255,255,255,.07);margin-top:8px;">
+      +`<div style="background:#1c1c1e;border-radius:10px;padding:12px;border:.5px solid rgba(255,255,255,.07);margin-top:8px;">
         <div style="font-size:11px;color:#3182f6;font-weight:700;margin-bottom:8px;">💬 댓글</div>
         <div id="commentList_${r.id}">${renderComments(r.id)}</div>
         <div style="display:flex;gap:6px;margin-top:8px;">
@@ -1504,7 +1504,7 @@ function renderTimeline(r,viewMode,outId){
     if(r.status==='ongoing'){
       _ftEl.style.display='block';
       if(!isExternal()){ // 통합 화면 — 작성 권한 있으면 항상 전체 푸터(내용 추가·종료·공단 응소)
-        const _histBtn=all.length>1?`<button onclick="showPrevHistModal(${r.id})" style="display:block;width:100%;padding:6px 10px;border-radius:7px;border:.5px solid rgba(49,130,246,.25);background:rgba(49,130,246,.07);color:#4a8aaa;font-size:11px;font-weight:600;cursor:pointer;margin-bottom:6px;text-align:left;">📋 이전 이력 보기 (${all.length-1}건)</button>`:'';
+        const _histBtn=all.length>1?`<button onclick="showPrevHistModal(${r.id})" style="display:block;width:100%;padding:6px 10px;border-radius:7px;border:.5px solid rgba(255,255,255,.25);background:rgba(255,255,255,.07);color:#4a8aaa;font-size:11px;font-weight:600;cursor:pointer;margin-bottom:6px;text-align:left;">📋 이전 이력 보기 (${all.length-1}건)</button>`:'';
         _ftEl.innerHTML=_histBtn+`<div style="display:flex;gap:7px;"><button class="btn-submit" style="flex:2;background:#1a4a6e;color:#fff;" onclick="selResId=${r.id};curResId=${r.id};addPhase();">📝 내용 추가</button><button class="btn-submit" style="flex:1;background:#0d5040;color:#fff;" onclick="selResId=${r.id};curResId=${r.id};endSit();">✅ 상황 종료</button></div>`
           +`<button onclick="openNpsResponse(${r.id})" style="margin-top:6px;width:100%;background:rgba(0,120,60,.18);color:#7ec8a0;border:1px solid rgba(0,120,60,.3);border-radius:9px;padding:9px;font-size:12px;font-weight:600;cursor:pointer;">🏕️ 공단 응소 기록</button>`;
       } else if(!isExternal()){
@@ -1549,13 +1549,13 @@ function _rescueMilestones(r){
 function _rescueStepperHtml(r){
   const ms=_rescueMilestones(r);
   let cur=ms.findIndex(m=>!m.done);if(cur<0)cur=ms.length;
-  return `<div style="display:flex;background:#20242c;border:1px solid rgba(49,130,246,.18);border-radius:12px;padding:10px 8px 7px;margin-bottom:8px;">
+  return `<div style="display:flex;background:#1c1c1e;border:1px solid rgba(255,255,255,.18);border-radius:12px;padding:10px 8px 7px;margin-bottom:8px;">
     ${ms.map((m,i)=>{
       const done=m.done,isCur=i===cur;
       const col=done?'#3ddc84':isCur?'#3182f6':'rgba(255,255,255,.16)';
       return `<div style="flex:1;min-width:0;text-align:center;position:relative;">
         ${i>0?`<div style="position:absolute;right:50%;margin-right:9px;top:8px;left:-50%;margin-left:9px;height:2px;background:${done?'rgba(61,220,132,.35)':'rgba(255,255,255,.06)'};"></div>`:''}
-        <div style="position:relative;width:18px;height:18px;line-height:15px;border-radius:50%;margin:0 auto;background:${done?'rgba(61,220,132,.14)':isCur?'rgba(49,130,246,.16)':'transparent'};border:2px solid ${col};color:${col};font-size:10px;font-weight:900;">${done?'✓':(isCur?'·':'')}</div>
+        <div style="position:relative;width:18px;height:18px;line-height:15px;border-radius:50%;margin:0 auto;background:${done?'rgba(61,220,132,.14)':isCur?'rgba(255,255,255,.16)':'transparent'};border:2px solid ${col};color:${col};font-size:10px;font-weight:900;">${done?'✓':(isCur?'·':'')}</div>
         <div style="font-size:9.5px;font-weight:${isCur?'800':'600'};color:${done?'#7ee0a8':isCur?'#3182f6':'rgba(255,255,255,.3)'};margin-top:3px;white-space:nowrap;">${m.l}</div>
         <div style="font-size:8.5px;color:#5a7e98;height:11px;">${m.t||''}</div>
       </div>`;
@@ -1591,7 +1591,7 @@ function showPrevHistModal(id){
       ${body?`<div style="font-size:11px;color:#b8d4e8;line-height:1.5;">${_esc(body)}</div>`:''}
     </div>`;
   }).join('');
-  ov.innerHTML=`<div style="background:#040a16;border-radius:14px 14px 0 0;width:100%;max-height:70vh;max-height:70dvh;overflow:hidden;display:flex;flex-direction:column;border-top:.5px solid rgba(49,130,246,.25);">
+  ov.innerHTML=`<div style="background:#040a16;border-radius:14px 14px 0 0;width:100%;max-height:70vh;max-height:70dvh;overflow:hidden;display:flex;flex-direction:column;border-top:.5px solid rgba(255,255,255,.25);">
     <div style="padding:14px 16px 10px;display:flex;align-items:center;justify-content:space-between;border-bottom:.5px solid rgba(255,255,255,.07);flex-shrink:0;">
       <span style="font-size:13px;font-weight:700;color:#e0edf8;">📋 이전 이력 (${all.length-1}건)</span>
       <button onclick="document.getElementById('prevHistOv').style.display='none'" style="background:none;border:none;color:rgba(255,255,255,.5);font-size:20px;cursor:pointer;padding:0 4px;line-height:1;">×</button>
@@ -1608,14 +1608,14 @@ function _scenePhotosHtml(r){
   if(r.injuryPhoto)pics.push({url:r.injuryPhoto,label:'부상'});
   if(r.transPhoto)pics.push({url:r.transPhoto,label:'이송'});
   (r.photos||[]).forEach(p=>pics.push({url:p.url,label:(p.time||'').slice(11,16)}));
-  return `<div style="background:#20242c;border-radius:10px;padding:11px 12px;border:.5px solid rgba(255,255,255,.07);margin-top:8px;">
+  return `<div style="background:#1c1c1e;border-radius:10px;padding:11px 12px;border:.5px solid rgba(255,255,255,.07);margin-top:8px;">
     <div style="font-size:11px;color:#3182f6;font-weight:700;margin-bottom:7px;">📷 현장 사진 <span style="color:rgba(255,255,255,.3);font-weight:400;">${pics.length}장</span></div>
     <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;">
-      ${pics.map(p=>`<div onclick="openLightbox('${p.url}')" style="aspect-ratio:1;border-radius:8px;overflow:hidden;cursor:pointer;position:relative;background:#16181d;">
+      ${pics.map(p=>`<div onclick="openLightbox('${p.url}')" style="aspect-ratio:1;border-radius:8px;overflow:hidden;cursor:pointer;position:relative;background:#0f0f11;">
         <img src="${p.url}" style="width:100%;height:100%;object-fit:cover;" loading="lazy">
         ${p.label?`<span style="position:absolute;bottom:2px;left:4px;font-size:8px;color:#fff;text-shadow:0 1px 2px #000;">${p.label}</span>`:''}
       </div>`).join('')}
-      <div onclick="addScenePhotos(${r.id})" style="aspect-ratio:1;border-radius:8px;border:1.5px dashed rgba(49,130,246,.35);display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;color:#3182f6;gap:2px;">
+      <div onclick="addScenePhotos(${r.id})" style="aspect-ratio:1;border-radius:8px;border:1.5px dashed rgba(255,255,255,.35);display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;color:#3182f6;gap:2px;">
         <span style="font-size:17px;line-height:1;">＋</span><span style="font-size:8px;">사진 추가</span>
       </div>
     </div>
@@ -1680,7 +1680,7 @@ function submitComment(resId,variant){
   DB.s('rescues',res);
   const cmts=res[ri].comments;
   inp.value='';
-  const cmtHtml=cmts.map(cm=>`<div style="background:#16181d;border-radius:7px;padding:8px 10px;margin-bottom:5px;"><div style="font-size:11px;color:#3182f6;font-weight:600;">${_esc(cm.author)} · ${cm.time}</div><div style="font-size:12px;color:#b8d4e8;margin-top:3px;line-height:1.5;">${_esc(cm.text)}</div></div>`).join('');
+  const cmtHtml=cmts.map(cm=>`<div style="background:#0f0f11;border-radius:7px;padding:8px 10px;margin-bottom:5px;"><div style="font-size:11px;color:#3182f6;font-weight:600;">${_esc(cm.author)} · ${cm.time}</div><div style="font-size:12px;color:#b8d4e8;margin-top:3px;line-height:1.5;">${_esc(cm.text)}</div></div>`).join('');
   // 댓글 목록 갱신 (두 위치 모두)
   const listEl=document.getElementById('commentList_'+resId);if(listEl)listEl.innerHTML=cmtHtml;
   const listElAdv=document.getElementById('commentList_adv_'+resId);if(listElAdv)listElAdv.innerHTML=cmtHtml;
@@ -2061,7 +2061,7 @@ function share119(rid){
       <span style="font-size:10px;color:#7a9cb8;margin-left:8px;">119 · 경찰 · 유관기관 전파용 요약</span>
       <button onclick="document.getElementById('share119Modal').remove()" style="margin-left:auto;background:none;border:none;color:rgba(255,255,255,.5);font-size:21px;cursor:pointer;padding:0 2px;">×</button>
     </div>
-    <pre class="sel-ok" style="flex:1;min-height:0;overflow-y:auto;background:#16181d;border:1px solid rgba(255,255,255,.08);border-radius:10px;padding:11px 12px;font-size:12px;line-height:1.75;color:#cfe2f2;white-space:pre-wrap;word-break:break-all;font-family:inherit;margin-bottom:11px;">${_esc(window._sh119Txt)}</pre>
+    <pre class="sel-ok" style="flex:1;min-height:0;overflow-y:auto;background:#0f0f11;border:1px solid rgba(255,255,255,.08);border-radius:10px;padding:11px 12px;font-size:12px;line-height:1.75;color:#cfe2f2;white-space:pre-wrap;word-break:break-all;font-family:inherit;margin-bottom:11px;">${_esc(window._sh119Txt)}</pre>
     <div style="display:flex;gap:7px;flex-shrink:0;">
       <button class="btn2 btn2-pri" style="flex:1.2;" onclick="_share119Send('share')">📤 공유하기</button>
       <button class="btn2 btn2-sec" style="flex:1;" onclick="_share119Send('sms')">✉️ 문자</button>
@@ -2264,7 +2264,7 @@ function render1BoForm(prefill=null){
         color:${i===0?'#3182f6':'rgba(255,255,255,.3)'};white-space:nowrap;">
         ${t.icon}<br>${t.label}<span id="dot_${t.id}" style="display:inline-block;width:5px;height:5px;border-radius:50%;background:rgba(255,255,255,.14);vertical-align:middle;margin-left:3px;"></span></div>`).join('')}
     </div>
-    ${isNbo?`<div id="nboBanner" style="background:rgba(49,130,246,.1);border:1px solid rgba(49,130,246,.25);border-radius:0;margin:0 -12px;padding:9px 13px;font-size:11px;color:#3182f6;display:flex;align-items:center;justify-content:space-between;">
+    ${isNbo?`<div id="nboBanner" style="background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.25);border-radius:0;margin:0 -12px;padding:9px 13px;font-size:11px;color:#3182f6;display:flex;align-items:center;justify-content:space-between;">
       <span>📋 <b>${p._phaseNum||2}보 작성중</b> — 변경사항만 수정</span>
       <button onclick="history.back()" style="background:rgba(255,255,255,.07);color:#c0d8ec;border:none;padding:5px 10px;border-radius:6px;font-size:11px;cursor:pointer;">✕</button>
     </div>`:''}
@@ -2304,39 +2304,39 @@ function render1BoForm(prefill=null){
         <div class="fg"><span class="fl">접수 내용 <span style="font-size:9px;color:#7a9cb8;font-weight:400;">(신고 원문 — 파악된 사고 전개는 환자·부상 탭 '사고 경위'에)</span></span>
           <textarea id="r_recv" class="fta" rows="3" placeholder="예) 119 이첩 — 천불동계곡 하산 중 발목 부상, 자력 이동 불가, 일행 1명">${p.reception||''}</textarea>
         </div>
-      </div>
-      <div class="rsec"><div class="rsec-t">🚨 사고 유형</div>
-        <div class="pills" id="typePills">
-          ${(()=>{const base=['안전사고','조난','고립','실종','기타'];const cur=p.type||'안전사고';const isCustom=!base.includes(cur);return base.map(o=>`<div class="pill${(isCustom?o==='기타':cur===o)?' on':''}" onclick="selAccType('${o}')">${o}</div>`).join('');})()}
+        <div class="fg"><span class="fl">🚨 사고 유형</span>
+          <div class="pills" id="typePills">
+            ${(()=>{const base=['안전사고','조난','고립','실종','기타'];const cur=p.type||'안전사고';const isCustom=!base.includes(cur);return base.map(o=>`<div class="pill${(isCustom?o==='기타':cur===o)?' on':''}" onclick="selAccType('${o}')">${o}</div>`).join('');})()}
+          </div>
+          <input type="text" id="r_typeCustom" class="fi" placeholder="사고 유형 직접 입력 (예: 낙석, 화재)" style="display:${(p.type&&!['안전사고','조난','고립','실종','기타'].includes(p.type))?'block':'none'};margin-top:6px;" value="${(p.type&&!['안전사고','조난','고립','실종','기타'].includes(p.type))?_esc(p.type):''}" oninput="autoGenTitle()">
+          <input type="hidden" id="r_type" value="${(p.type&&!['안전사고','조난','고립','실종','기타'].includes(p.type))?'기타':(p.type||'안전사고')}">
         </div>
-        <input type="text" id="r_typeCustom" class="fi" placeholder="사고 유형 직접 입력 (예: 낙석, 화재)" style="display:${(p.type&&!['안전사고','조난','고립','실종','기타'].includes(p.type))?'block':'none'};margin-top:6px;" value="${(p.type&&!['안전사고','조난','고립','실종','기타'].includes(p.type))?_esc(p.type):''}" oninput="autoGenTitle()">
-        <input type="hidden" id="r_type" value="${(p.type&&!['안전사고','조난','고립','실종','기타'].includes(p.type))?'기타':(p.type||'안전사고')}">
-      </div>
-      <div class="rsec"><div class="rsec-t">🧭 장소 구분</div>
-        <div style="display:flex;gap:5px;flex-wrap:wrap;" id="loctypeBtns">
-          ${['법정탐방로','비법정탐방로','암벽','빙벽'].map(o=>`<button class="tog-btn${(p.loctype||'법정탐방로')===o?' on':''}" data-val="${o}" onclick="selLoctype('${o}')">${o}</button>`).join('')}
+        <div class="fg"><span class="fl">🧭 장소 구분</span>
+          <div style="display:flex;gap:5px;flex-wrap:wrap;" id="loctypeBtns">
+            ${['법정탐방로','비법정탐방로','암벽','빙벽'].map(o=>`<button class="tog-btn${(p.loctype||'법정탐방로')===o?' on':''}" data-val="${o}" onclick="selLoctype('${o}')">${o}</button>`).join('')}
+          </div>
+          <input type="hidden" id="r_loctype" value="${p.loctype||'법정탐방로'}">
         </div>
-        <input type="hidden" id="r_loctype" value="${p.loctype||'법정탐방로'}">
       </div>
       <div class="rsec"><div class="rsec-t">📍 사고 위치</div>
+        <div class="fg"><span class="fl">사고 장소</span>
+          <input type="text" id="r_loc" class="fi" placeholder="예: 비선대 직상부 암릉 구간" value="${p.location||''}" oninput="autoGenTitle();this.dataset.userEdited='1'">
+        </div>
         <div class="fg">
           <span class="fl">GPS 좌표</span>
-          <div style="background:#16181d;border-radius:9px;border:1px solid rgba(49,130,246,.2);padding:10px 12px;margin-bottom:6px;">
+          <div style="background:#0f0f11;border-radius:9px;border:1px solid rgba(255,255,255,.2);padding:10px 12px;margin-bottom:6px;">
             <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
               <div id="r_minimap_coords" style="flex:1;font-family:monospace;font-size:11px;color:#3182f6;font-weight:600;">${p.lat&&p.lng?(+p.lat).toFixed(5)+', '+(+p.lng).toFixed(5):'📡 수신 중...'}</div>
-              <button id="gpsFormBtn" onclick="gpsToFormMap()" style="background:rgba(49,130,246,.12);border:1px solid rgba(49,130,246,.35);color:#3182f6;border-radius:7px;padding:5px 11px;font-size:11px;font-weight:600;cursor:pointer;white-space:nowrap;flex-shrink:0;">📡 GPS</button>
+              <button id="gpsFormBtn" onclick="gpsToFormMap()" style="background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.35);color:#3182f6;border-radius:7px;padding:5px 11px;font-size:11px;font-weight:600;cursor:pointer;white-space:nowrap;flex-shrink:0;">📡 GPS</button>
               <button onclick="openMapPicker()" style="background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.12);color:rgba(255,255,255,.5);border-radius:7px;padding:5px 11px;font-size:11px;font-weight:600;cursor:pointer;white-space:nowrap;flex-shrink:0;">🗺 지도</button>
             </div>
             <div id="r_gps_status" style="font-size:10px;color:rgba(255,255,255,.3);line-height:1.4;">${p.lat&&p.lng?'✅ 위치 확인':'GPS 버튼을 눌러 현재 위치를 자동으로 받거나, 🗺 지도에서 직접 선택하세요'}</div>
           </div>
           <!-- 위치 미니맵 -->
-          <div id="r_loc_mini_map" style="display:${p.lat&&p.lng?'block':'none'};height:180px;border-radius:10px;overflow:hidden;margin-bottom:8px;border:1px solid rgba(49,130,246,.2);"></div>
+          <div id="r_loc_mini_map" style="display:${p.lat&&p.lng?'block':'none'};height:180px;border-radius:10px;overflow:hidden;margin-bottom:8px;border:1px solid rgba(255,255,255,.2);"></div>
           <div class="gps-row">
             <input type="text" id="r_gps" class="fi" placeholder="위도, 경도 직접 입력" value="${p.lat&&p.lng?(+p.lat).toFixed(5)+', '+(+p.lng).toFixed(5):''}" oninput="syncFormMapFromInput()">
           </div>
-        </div>
-        <div class="fg"><span class="fl">사고 장소</span>
-          <input type="text" id="r_loc" class="fi" placeholder="예: 비선대 직상부 암릉 구간" value="${p.location||''}" oninput="autoGenTitle();this.dataset.userEdited='1'">
         </div>
         <div id="fineWrap" style="display:${p.loctype&&p.loctype.includes('비법정')?'block':'none'};" class="fg">
           <span class="fl" style="color:#e67e22;">⚠️ 과태료 여부</span>
@@ -2364,7 +2364,7 @@ function render1BoForm(prefill=null){
           <input type="number" inputmode="decimal" step="0.1" id="r_initTemp" class="fi" placeholder="자동 입력" value="${p.initTemp!=null&&p.initTemp!==''?p.initTemp:(()=>{try{const t=(document.getElementById('wTmp')||{}).textContent||'';const n=parseInt(t);return isNaN(n)?'':n;}catch(e){return '';}})()}">
         </div>
         <div class="fg"><span class="fl">기상 특보</span>
-          <div style="background:#16181d;border-radius:8px;border:1px solid rgba(255,255,255,.07);padding:10px;margin-top:4px;">
+          <div style="background:#0f0f11;border-radius:8px;border:1px solid rgba(255,255,255,.07);padding:10px;margin-top:4px;">
             <div style="font-size:10px;color:#7a9cb8;font-weight:700;margin-bottom:5px;">종류</div>
             <div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:8px;" id="wAlertTypePills">
               ${['강풍','호우','대설','건조','한파','폭염','황사','태풍'].map(t=>`<div class="pill" onclick="selWAlertType(this,'${t}')" style="font-size:11px;cursor:pointer;">${t}</div>`).join('')}
@@ -2373,7 +2373,7 @@ function render1BoForm(prefill=null){
             <div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:8px;" id="wAlertLevelPills">
               ${['주의보','경보','특보'].map(l=>`<div class="pill" onclick="selWAlertLevel(this,'${l}')" style="font-size:11px;cursor:pointer;">${l}</div>`).join('')}
             </div>
-            <button onclick="addWAlert()" style="width:100%;padding:7px;background:rgba(49,130,246,.15);border:1px solid rgba(49,130,246,.3);color:#3182f6;border-radius:7px;font-size:12px;font-weight:700;cursor:pointer;">＋ 추가</button>
+            <button onclick="addWAlert()" style="width:100%;padding:7px;background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.3);color:#3182f6;border-radius:7px;font-size:12px;font-weight:700;cursor:pointer;">＋ 추가</button>
             <div id="wAlertList" style="margin-top:6px;"></div>
           </div>
         </div>
@@ -2392,13 +2392,13 @@ function render1BoForm(prefill=null){
         </div>
         <div class="fg"><span class="fl">사고 경위 <span style="font-size:9px;color:#7a9cb8;font-weight:400;">(파악된 사실 — 접수 원문과 달라진 내용 포함)</span></span>
           <textarea id="r_sit" class="fta" rows="4" placeholder="예) 오전 09:00 비선대 주차장에서 산행 시작, 11:30경 천불동계곡 3km 지점 하산 중 실족하여 우측 발목 부상 발생">${p.situation||''}</textarea>
-          <button type="button" onclick="_copyRecvToSit()" style="margin-top:5px;background:rgba(49,130,246,.08);border:1px solid rgba(49,130,246,.25);color:#5d92bc;border-radius:7px;padding:5px 10px;font-size:10.5px;font-weight:700;cursor:pointer;">📞 접수 내용 가져와서 시작</button>
+          <button type="button" onclick="_copyRecvToSit()" style="margin-top:5px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.25);color:#5d92bc;border-radius:7px;padding:5px 10px;font-size:10.5px;font-weight:700;cursor:pointer;">📞 접수 내용 가져와서 시작</button>
         </div>
       </div>
 
       <!-- 2. 부상 현황 -->
       <div class="rsec"><div class="rsec-t">🩺 부상 현황</div>
-        <div style="background:#16181d;border-radius:8px;border:1px solid rgba(255,255,255,.07);padding:10px;margin-bottom:8px;">
+        <div style="background:#0f0f11;border-radius:8px;border:1px solid rgba(255,255,255,.07);padding:10px;margin-bottom:8px;">
           <!-- ⚡ 자주 발생 원터치 — 다발 조합 한 번에. 그 외는 아래 유형·부위 선택 -->
           <div style="font-size:10px;color:#f0c060;font-weight:700;margin-bottom:5px;">⚡ 자주 발생 — 누르면 바로 추가</div>
           <div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:10px;padding-bottom:9px;border-bottom:1px dashed rgba(255,255,255,.08);">
@@ -2429,7 +2429,7 @@ function render1BoForm(prefill=null){
               ${['좌','우','양쪽'].map(s=>`<div class="pill" onclick="selInjSide(this,'${s}')" style="font-size:11px;cursor:pointer;">${s}</div>`).join('')}
             </div>
           </div>
-          <button onclick="addInjury()" style="width:100%;padding:7px;background:rgba(49,130,246,.15);border:1px solid rgba(49,130,246,.3);color:#3182f6;border-radius:7px;font-size:12px;font-weight:700;cursor:pointer;">＋ 부상 추가</button>
+          <button onclick="addInjury()" style="width:100%;padding:7px;background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.3);color:#3182f6;border-radius:7px;font-size:12px;font-weight:700;cursor:pointer;">＋ 부상 추가</button>
           <div id="injuryList" style="margin-top:6px;"></div>
         </div>
       </div>
@@ -2515,7 +2515,7 @@ function render1BoForm(prefill=null){
         <div class="fg"><span class="fl">복용약</span><input type="text" id="r_vMed" class="fi" placeholder="없음 또는 항목" value="${p.vMeds||''}"></div>
       </div>
       <div class="rsec"><div class="rsec-t">👥 추가 사고자 <span style="font-size:9px;color:#7a9cb8;font-weight:400;">(다수 사상자 발생 시)</span></div>
-        <div id="victim2List">${(p.victims2||[]).map(v=>`<div class="victim2-item" style="background:#16181d;border-radius:8px;padding:10px;margin-bottom:6px;border:1px solid rgba(231,76,60,.15);">${_victim2CardHtml(v)}</div>`).join('')}</div>
+        <div id="victim2List">${(p.victims2||[]).map(v=>`<div class="victim2-item" style="background:#0f0f11;border-radius:8px;padding:10px;margin-bottom:6px;border:1px solid rgba(231,76,60,.15);">${_victim2CardHtml(v)}</div>`).join('')}</div>
         <button onclick="addVictim2()" style="width:100%;padding:9px;background:rgba(231,76,60,.08);border:1px dashed rgba(231,76,60,.3);color:#e9897e;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;margin-top:4px;">＋ 사고자 추가</button>
       </div>
       <div class="rsec"><div class="rsec-t">📞 신고자</div>
@@ -2559,19 +2559,19 @@ function render1BoForm(prefill=null){
         </div>
         <div id="companionWrap" style="display:${(p.companions&&p.companions.length)?'block':'none'};">
           <div id="companionList">
-            ${(p.companions||[]).map((c,i)=>`<div class="companion-item" data-idx="${i}" style="background:#16181d;border-radius:8px;padding:10px;margin-bottom:6px;border:1px solid rgba(255,255,255,.07);">
+            ${(p.companions||[]).map((c,i)=>`<div class="companion-item" data-idx="${i}" style="background:#0f0f11;border-radius:8px;padding:10px;margin-bottom:6px;border:1px solid rgba(255,255,255,.07);">
               <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;"><span style="font-size:11px;color:#3182f6;font-weight:700;">동반자 ${i+1}</span><button onclick="removeCompanion(${i})" style="background:rgba(192,57,43,.15);color:#c0392b;border:none;border-radius:5px;padding:3px 8px;font-size:10px;cursor:pointer;">삭제</button></div>
               <div class="frow"><div class="fg"><span class="fl">성명</span><input type="text" class="fi comp-name" placeholder="이름" value="${c.name||''}"></div><div class="fg"><span class="fl">연락처</span><input type="tel" class="fi comp-tel" placeholder="연락처" value="${c.tel||''}"></div></div>
             </div>`).join('')}
           </div>
-          <button onclick="addCompanion()" style="width:100%;padding:9px;background:rgba(49,130,246,.08);border:1px dashed rgba(49,130,246,.3);color:#3182f6;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;margin-top:4px;">＋ 동반자 추가</button>
+          <button onclick="addCompanion()" style="width:100%;padding:9px;background:rgba(255,255,255,.08);border:1px dashed rgba(255,255,255,.3);color:#3182f6;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;margin-top:4px;">＋ 동반자 추가</button>
         </div>
       </div>
     </div>
 
     <!-- ══ 섹터4: 기타 (순서: 응소 → 접수내용 → 제목·작성 → 동원장비) ══ -->
     <div id="repSec5" class="rep-sec" style="display:none;padding:12px;overflow-y:auto;">
-      ${!isNbo?`<div class="rsec" style="border:1px solid ${_offHrs?'rgba(231,76,60,.3)':'rgba(49,130,246,.18)'};border-radius:10px;background:${_offHrs?'rgba(231,76,60,.08)':'rgba(49,130,246,.05)'};padding:10px 12px;">
+      ${!isNbo?`<div class="rsec" style="border:1px solid ${_offHrs?'rgba(231,76,60,.3)':'rgba(255,255,255,.18)'};border-radius:10px;background:${_offHrs?'rgba(231,76,60,.08)':'rgba(255,255,255,.05)'};padding:10px 12px;">
         <div class="rsec-t" style="color:${_offHrs?'#e74c3c':'#3182f6'};">${_offHrs?'🌙 야간 출동(18~09시) — 응소 여부 선택':'🚨 응소 여부 (해당 시 선택)'}</div>
         <div class="pills" id="mobilizePills">
           ${['특구대','재난과','전직원응소'].map(o=>`<div class="pill${(p.mobilize||[]).includes(o)?' on':''}" onclick="tPill(this)">${o}</div>`).join('')}
@@ -2645,7 +2645,7 @@ function _renderFormTl(){
   const wrap=document.getElementById('formTlWrap');
   if(!wrap)return;
   wrap.innerHTML=`
-    <div style="background:#20242c;border:.5px solid rgba(49,130,246,.14);border-radius:12px;padding:11px 13px;">
+    <div style="background:#1c1c1e;border:.5px solid rgba(255,255,255,.14);border-radius:12px;padding:11px 13px;">
       <div id="tlTeamHdr" style="font-size:11px;color:#3182f6;font-weight:800;margin-bottom:4px;">${_tlTeamsHdrHtml()}</div>
       <div id="tlAllTeams">${_tlTeamRowsHtml()}</div>
       <div id="tlBuildArea" style="margin-top:9px;">${_tlBuilding?_renderBuildPanelHtml():_renderCreateBtnsHtml()}</div>
