@@ -372,6 +372,26 @@ function _stripTags(v){
   return v;
 }
 const _SANITIZE_KEYS=['rescues','hazards','pendingUsers'];
+// 정규화(키 순서 무관) 문자열 키 — Firestore 왕복 시 객체 키 순서가 바뀌어 JSON.stringify가 달라지면
+// 같은 항목(타임라인 기록 등)이 병합 시 서로 다른 키로 취급돼 중복 누적되던 버그 방지. 키를 정렬해 안정화.
+function _canonKey(o){
+  if(o===null||typeof o!=='object')return JSON.stringify(o);
+  if(Array.isArray(o))return '['+o.map(_canonKey).join(',')+']';
+  return '{'+Object.keys(o).sort().map(k=>JSON.stringify(k)+':'+_canonKey(o[k])).join(',')+'}';
+}
+// 타임라인 중복 청소(1회) — 위 병합키 버그로 timetable/wpLog/npsLog에 쌓인 동일 항목을 1개만 남김.
+// 변경된 레코드만 저장(쿼터 최소화). rescues 미로드 시엔 플래그 미설정 → 다음 호출에서 재시도.
+function _migrateDedupLogs(){
+  try{
+    if(localStorage.getItem('_logDedup_v1')==='1')return;
+    const res=DB.g('rescues');if(!Array.isArray(res))return; // 아직 로드 전 — 다음 기회에 재시도
+    const dd=arr=>{if(!Array.isArray(arr)||arr.length<2)return null;const seen=new Set();const out=[];arr.forEach(x=>{const k=_canonKey(x);if(seen.has(k))return;seen.add(k);out.push(x);});return out.length!==arr.length?out:null;};
+    let changed=false;
+    res.forEach(r=>{['timetable','wpLog','npsLog'].forEach(f=>{const nu=dd(r[f]);if(nu){r[f]=nu;changed=true;}});});
+    if(changed)DB.s('rescues',res);
+    localStorage.setItem('_logDedup_v1','1');
+  }catch(e){}
+}
 // ── 동시편집 병합: 누적 데이터(보고·댓글·타임라인·통과기록)는 합집합 보존, 단일값은 최신(로컬) 우선 ──
 function _unionBy(server,local,keyFn){
   const map=new Map();let n=0;
@@ -385,13 +405,13 @@ function _mergeRecord(local,server){
   const out=Object.assign({},local);
   const fields=[
     ['reports',r=>r&&r.rid?('rid:'+r.rid):((r&&r.repTime||'')+'|'+(r&&r.author||'')+'|'+(r&&r.update||''))],
-    ['comments',c=>(c&&c.id!=null)?('id:'+c.id):JSON.stringify(c)],
-    ['timetable',e=>JSON.stringify(e)],
-    ['wpLog',e=>JSON.stringify(e)],
-    ['npsLog',e=>JSON.stringify(e)],
-    ['photos',p=>(p&&p.url)?('url:'+p.url):JSON.stringify(p)],
-    ['mobilizeResp',m=>(m&&m.name)?('name:'+m.name):JSON.stringify(m)], // 응소 응답(이름별 1건, 본인 응답은 항상 최신 로컬값 우선)
-    ['fireTL',e=>JSON.stringify(e)] // 산불 진행 타임라인(등록 후에도 계속 추가됨)
+    ['comments',c=>(c&&c.id!=null)?('id:'+c.id):_canonKey(c)],
+    ['timetable',e=>_canonKey(e)],
+    ['wpLog',e=>_canonKey(e)],
+    ['npsLog',e=>_canonKey(e)],
+    ['photos',p=>(p&&p.url)?('url:'+p.url):_canonKey(p)],
+    ['mobilizeResp',m=>(m&&m.name)?('name:'+m.name):_canonKey(m)], // 응소 응답(이름별 1건, 본인 응답은 항상 최신 로컬값 우선)
+    ['fireTL',e=>_canonKey(e)] // 산불 진행 타임라인(등록 후에도 계속 추가됨)
   ];
   fields.forEach(([f,keyFn])=>{
     if(!Array.isArray(local[f])&&!Array.isArray(server[f]))return; // 양쪽 다 없으면 손대지 않음
@@ -424,7 +444,7 @@ function _txMergeSet(coll,id,localObj){
   }));
 }
 // 단일문서(JSON 배열) 항목 식별 키 — id 있으면 id, 없으면(문자열 등) 값 자체
-function _sdItemKey(x){return(x&&typeof x==='object'&&x.id!=null)?('id:'+x.id):JSON.stringify(x);}
+function _sdItemKey(x){return(x&&typeof x==='object'&&x.id!=null)?('id:'+x.id):_canonKey(x);}
 // 3-way 병합(base/local/server): base에는 있었지만 local에 없는 항목은 "의도적 삭제"로
 // 보고 복원하지 않는다. base에 없던 항목이 local에 새로 생겼으면 추가, server에만 있는
 // (다른 기기가 추가한) 항목은 그대로 보존 — 단순 합집합(union)과 달리 삭제가 안전하게 반영됨.

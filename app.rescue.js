@@ -782,6 +782,8 @@ var _resSortNewest=true; // 구조 목록 정렬: 기본 최신순(위가 최신
 function toggleResSort(){_resSortNewest=!_resSortNewest;try{renderResList();}catch(e){}toast(_resSortNewest?'↕ 최신순 정렬':'↕ 오래된순 정렬');}
 function renderResList(){
   try{if(typeof _mergeCustomResTypes==='function')_mergeCustomResTypes();}catch(e){}
+  try{if(typeof _migrateDedupLogs==='function')_migrateDedupLogs();}catch(e){} // 타임라인 중복 항목 1회 청소
+
   const res=DB.g('rescues')||[];const haz=DB.g('hazards')||[];
   _updateResFilterPanels();
   // 목록은 지도 필터(진행중·종류)와 무관하게 항상 진행중+종료 전부 표시 — 탭·검색·날짜만 적용
