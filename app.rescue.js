@@ -873,7 +873,17 @@ function renderResList(){
   if(_tot>_resListLimit){
     html+=`<button onclick="_moreResList()" style="width:100%;margin-top:8px;padding:11px;border-radius:10px;border:1px solid rgba(79,168,208,.3);background:rgba(79,168,208,.08);color:#4fa8d0;font-size:13px;font-weight:700;cursor:pointer;">▾ 더 보기 (${_tot-_resListLimit}건 더)</button>`;
   }
+  // 실시간 구독은 최근 90일 — 그 이전 기록은 버튼으로 지연 로드(기기 캐시 우선이라 두 번째부터는 서버 읽기 0)
+  if(typeof _ARCHIVE_COLLS!=='undefined'&&_ARCHIVE_COLLS.some(k=>(k==='rescues'||k==='hazards')&&!_archiveLoaded[k])){
+    html+=`<button onclick="_loadOldResRecords(this)" style="width:100%;margin-top:8px;padding:10px;border-radius:10px;border:1px dashed rgba(255,255,255,.18);background:rgba(255,255,255,.03);color:#8aa6bc;font-size:12px;font-weight:700;cursor:pointer;">📜 90일 이전 기록 불러오기</button>`;
+  }
   document.getElementById('resListWrap').innerHTML=html||'<div class="empty"><div class="empty-ico">📋</div><div class="empty-txt">해당 항목 없음</div><button onclick="resetResFilter()" style="margin-top:10px;padding:7px 16px;background:rgba(79,168,208,.12);border:1px solid rgba(79,168,208,.35);color:#4fa8d0;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;">🔄 필터 초기화</button></div>';
+}
+// 90일 이전 기록 지연 로드 → 목록·지도 갱신 (기기 캐시 우선이라 첫 1회만 서버 읽기)
+function _loadOldResRecords(btn){
+  if(btn){btn.disabled=true;btn.textContent='📜 불러오는 중…';}
+  Promise.all(['rescues','hazards'].filter(k=>typeof _ARCHIVE_COLLS!=='undefined'&&_ARCHIVE_COLLS.includes(k)).map(k=>_loadArchive(k)))
+    .then(()=>{try{renderResList();}catch(e){}try{renderRescueMap();}catch(e){}toast('📜 지난 기록을 불러왔습니다');});
 }
 
 // ══════════════════════════════════════════

@@ -123,10 +123,13 @@ let _legacyFacBackup=null; // appData/facilities(구버전)의 백업 — 컬렉
 let _facSeedReady=false;   // 시설물 첫 스냅샷·레거시 백업 확인 완료(시드 레이스 방지)
 let _facMigTried=false;    // 레거시→건별 이관 1회 시도 플래그
 const _SHARED=[..._SHARED_COLL,..._SHARED_DOC]; // 하위 호환용
+// 온디맨드 문서: 실시간 구독하지 않고 해당 화면을 열 때만 1회 읽음 — 관리자용 로그라 전 직원 실시간 수신이 낭비
+// (예: 푸시 1건마다 전 기기가 1읽기씩 소모하던 것 제거). append 전용만 등록할 것(제자리 수정·삭제되는 문서는 금지)
+const _ONDEMAND_DOC=['pushLog','weatherLog','trailLog'];
 // 1년 이상 지난 구조/위험상황/점검이력 기록은 실시간 동기화 대상에서 빼고, 조회 시에만 1회 불러온다.
 // (수백 명이 동시 접속해도 매번 전체 역대기록을 받지 않도록 — id가 Date.now() 기반이라 시간 필터에 그대로 쓸 수 있음)
 const _ARCHIVE_COLLS=['rescues','hazards','history'];
-const _ARCHIVE_CUTOFF_DAYS=365;
+const _ARCHIVE_CUTOFF_DAYS=90; // 실시간 구독 구간(일) — 365→90: 새 기기·새 브라우저 첫 동기화 비용 절감. 이전 기록은 통계·목록·상세에서 캐시 우선으로 지연 로드
 let _fsRecent={},_fsArchive={}; // k별: 실시간 구간 / 1회 조회한 과거 구간
 let _archiveLoaded={}; // k별: 과거 구간 로드 완료(또는 시도중) 여부
 // 실시간 구간(_fsRecent)+과거 구간(_fsArchive)을 합쳐 _fs[k]/_fsSync[k] 재구성
@@ -141,6 +144,15 @@ function _rebuildFsColl(k){
   const syncMap=new Map();
   list.forEach(r=>{syncMap.set(String(r.id),JSON.stringify(r));});
   _fsSync[k]=syncMap;
+}
+// 온디맨드 문서 1회 읽기 — 해당 화면을 열 때 호출(실시간 구독 없음). 실패 시 기존 캐시 유지
+function _refreshDoc(k){
+  if(!_fdb||!_ONDEMAND_DOC.includes(k))return Promise.resolve(_fs[k]);
+  return _fdb.collection('appData').doc(k).get().then(snap=>{
+    _fs[k]=snap.exists?(()=>{try{return JSON.parse(snap.data().d);}catch(e){return null;}})():null;
+    _fsDocBase[k]=_fs[k];
+    return _fs[k];
+  }).catch(()=>_fs[k]);
 }
 // 1년 이전 과거 기록을 1회 조회해 _fsArchive에 채운다(세션당 1회, 조회 시에만 호출)
 // 아카이브는 사실상 불변 → IndexedDB(퍼시스턴스) 캐시 우선. 캐시에 있으면 서버 읽기 0건
@@ -439,6 +451,8 @@ function _mergeSharedArray(base,local,server){
 // 예전엔 base 없는 기기가 저장하면 '로컬 우선'으로 서버 목록을 통째로 교체 →
 // climbDates 63일이 새로 업로드한 기기의 4일로 덮어써지는 사고가 실제 발생(2026-07 점검에서 복구).
 const _UNION_DOC=['climbDates'];
+// 온디맨드 로그 문서: 실시간 구독 없이 '화면 열 때만' 읽는 append 전용 로그 — 병합은 객체 합집합(항목 유실 없음)
+const _ONDEMAND_CAP={pushLog:30,weatherLog:60,trailLog:100};
 function _txMergeDoc(key,base,localVal){
   const ref=_fdb.collection('appData').doc(key);
   return _fdb.runTransaction(t=>t.get(ref).then(snap=>{
@@ -447,6 +461,12 @@ function _txMergeDoc(key,base,localVal){
     let merged;
     if(_UNION_DOC.includes(key)&&Array.isArray(localVal)){
       merged=Array.from(new Set([].concat(Array.isArray(serverVal)?serverVal:[],localVal).map(String))).sort();
+    }else if(_ONDEMAND_DOC.includes(key)&&Array.isArray(localVal)){
+      // 로그 합집합: 서버·로컬 어느 쪽이 오래됐어도 항목이 사라지지 않음(추가 전용). 최신순 정렬 후 상한 유지
+      const seen=new Set();const out=[];
+      [].concat(localVal,Array.isArray(serverVal)?serverVal:[]).forEach(x=>{const j=JSON.stringify(x);if(seen.has(j))return;seen.add(j);out.push(x);});
+      out.sort((a,b)=>(((b&&(b.at||b.atMs))||0)-((a&&(a.at||a.atMs))||0)));
+      merged=out.slice(0,_ONDEMAND_CAP[key]||100);
     }else{
       merged=(Array.isArray(localVal)&&Array.isArray(serverVal)&&Array.isArray(base))
         ?_mergeSharedArray(base,localVal,serverVal):localVal;
@@ -568,7 +588,7 @@ function initFirebase(onReady){
     setTimeout(_flushSyncQueue,3000); // 부팅 직후 대기 큐 재전송
     setTimeout(_processPhotoQueue,5000); // 이전 세션 오프라인 사진 이어서 업로드
     setTimeout(_cleanOldSharedNotis,8000); // 세션당 1회: 24h 지난 브로드캐스트 알림 정리(확률 의존 X)
-    const totalKeys=_SHARED.length;
+    const totalKeys=_SHARED.length-_ONDEMAND_DOC.length; // 온디맨드 문서는 부팅 대기 대상 아님
     const loaded=new Set();
     function _checkReady(){if(loaded.size===totalKeys){
       window._dbFirstReady=true; // 첫 전체 동기화 완료 — 홈 스켈레톤을 실데이터로 교체
@@ -654,8 +674,8 @@ function initFirebase(onReady){
         else{_onRemoteUpdate();}
       },()=>{if(!loaded.has(k)){loaded.add(k);_checkReady();}}); // 리스너 오류 시엔 시드하지 않음(빈 캐시 기준 오판 방지)
     });
-    // ── 단일 문서 리스너: appData/{key} ──
-    _SHARED_DOC.forEach(k=>{
+    // ── 단일 문서 리스너: appData/{key} ── (온디맨드 문서는 구독 제외 — 화면 열 때 _refreshDoc으로 1회 읽기)
+    _SHARED_DOC.filter(k=>!_ONDEMAND_DOC.includes(k)).forEach(k=>{
       _fdb.collection('appData').doc(k).onSnapshot(snap=>{
         _fs[k]=snap.exists?(()=>{try{return JSON.parse(snap.data().d);}catch{return null;}})():null;
         _fsDocBase[k]=_fs[k]; // 서버 확정 상태 = 다음 쓰기의 병합 기준

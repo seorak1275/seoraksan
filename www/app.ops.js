@@ -762,6 +762,10 @@ function renderInspectStats(){
 function openFacDetail(id){
   const facs=DB.g('facilities')||[];const f=facs.find(x=>x.id===id);if(!f)return;
   selFacId=id;window._selFacDetailId=id;
+  // 점검이력(history)은 최근 90일만 실시간 구독 — 상세를 열면 과거 이력을 지연 로드(캐시 우선) 후 한 번 다시 그림
+  if(typeof _ARCHIVE_COLLS!=='undefined'&&_ARCHIVE_COLLS.includes('history')&&!_archiveLoaded['history']){
+    _loadArchive('history').then(()=>{try{if(window._selFacDetailId===id)openFacDetail(id);}catch(e){}});
+  }
   // 상세 ◀▶: 목록 정렬(이름·가까운순 등)과 무관하게 트레일 순(구간→표지판 번호→인접 거리)으로 통일
   try{
     const _meta=DB.g('catFacMeta')||{};const _adm=isAdminUser();
@@ -2501,8 +2505,9 @@ function saveWeatherBrief(){
   toast('📢 기상 브리핑 게시');
   renderAlertView();
 }
-// 기상 브리핑 이력 열람
-function openWeatherLog(){
+// 기상 브리핑 이력 열람 — 온디맨드 문서: 열 때 서버에서 1회 읽음(평시 실시간 구독 없음)
+function openWeatherLog(_fresh){
+  if(!_fresh&&typeof _refreshDoc==='function'){_refreshDoc('weatherLog').then(()=>openWeatherLog(true));return;}
   const log=DB.g('weatherLog')||[];
   const modal=document.createElement('div');
   modal.id='wbLogModal';modal.className='modal on';
@@ -2637,8 +2642,9 @@ function saveTrailCtrl(){
   if(ctrlCnt>0)pushNoti(`🚧 탐방로 통제 ${ctrlCnt}구간 설정`,'🚧','trail',{app:'alert'});
   renderAlertView();updateSummary();
 }
-// 탐방로 통제 변경 이력 열람
-function openTrailLog(){
+// 탐방로 통제 변경 이력 열람 — 온디맨드 문서: 열 때 서버에서 1회 읽음
+function openTrailLog(_fresh){
+  if(!_fresh&&typeof _refreshDoc==='function'){_refreshDoc('trailLog').then(()=>openTrailLog(true));return;}
   const log=DB.g('trailLog')||[];
   const SC=TRAIL_STATUS_COLORS;
   const modal=document.createElement('div');
@@ -2692,6 +2698,11 @@ function _incidentsInOp(op){
 function openAlertHistory(opId){
   const op=(DB.g('alertOps')||[]).find(o=>o.id===opId);
   if(!op){toast('기록을 찾을 수 없습니다');return;}
+  // 90일 이전 운영이면 그 기간 안전사고(구조기록) 아카이브를 지연 로드 후 한 번 다시 그림
+  if(typeof _ARCHIVE_COLLS!=='undefined'&&_ARCHIVE_COLLS.includes('rescues')&&!_archiveLoaded['rescues']
+     &&(op.startedAtMs||0)<Date.now()-_ARCHIVE_CUTOFF_DAYS*86400000){
+    _loadArchive('rescues').then(()=>{try{const m=document.getElementById('modalAlertHistory');if(m&&m.classList.contains('on'))openAlertHistory(opId);}catch(e){}});
+  }
   document.getElementById('alertHistBody').innerHTML=_navBtns('alert',opId,'openAlertHistory')+_renderAlertOpDetail(op);
   document.getElementById('modalAlertHistory').classList.add('on');
 }
@@ -3725,6 +3736,11 @@ function _loadAllErrLogs(){
   }).catch(function(){if(el)el.innerHTML='<div style="font-size:11px;color:#e05050;">불러오기 실패(색인 생성 중일 수 있음 — 잠시 후 재시도)</div>';});
 }
 function renderAdmSys(){
+  // pushLog는 온디맨드 문서 — 화면 열 때 1회 갱신(60초 내 재렌더는 캐시 재사용)
+  if(typeof _refreshDoc==='function'&&(!window._pushLogFreshAt||Date.now()-window._pushLogFreshAt>60000)){
+    window._pushLogFreshAt=Date.now();
+    _refreshDoc('pushLog').then(()=>{try{if(document.getElementById('admSysWrap'))renderAdmSys();}catch(e){}});
+  }
   const unseenCnt=_getUnseenCount();
   document.getElementById('admSysWrap').innerHTML=`
     ${(()=>{try{ // 🗑 시설물 휴지통 — 삭제된 시설 복구(시설과·담당자), 영구삭제(개발자)

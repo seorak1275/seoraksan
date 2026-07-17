@@ -1203,32 +1203,30 @@ function renderTimeline(r,viewMode,outId){
     const locLog=(r.locLog||[]);
     const locChgHtml=locLog.length?`<div style="background:#0b1c30;border-radius:10px;padding:11px 12px;border:.5px solid rgba(20,184,166,.22);margin-bottom:8px;"><div style="font-size:10px;color:#2dd4bf;font-weight:800;margin-bottom:5px;">📍 위치 변경 이력 <span style="color:#5a7e98;font-weight:400;font-size:9px;">최초접수 ${r.origLat!=null?(+r.origLat).toFixed(5)+', '+(+r.origLng).toFixed(5):''}</span></div>${locLog.map(l=>`<div style="font-size:11px;color:#b8d4e8;line-height:1.6;padding:3px 0;border-bottom:.5px solid rgba(255,255,255,.04);">실시간 위치 채택 <span style="color:#9c8060;">${(+l.from.lat).toFixed(5)}, ${(+l.from.lng).toFixed(5)}</span> → <b style="color:#a7f3e4;">${(+l.to.lat).toFixed(5)}, ${(+l.to.lng).toFixed(5)}</b>${l.dist?' <span style="color:#5a9e94;">('+l.dist+'m)</span>':''} <span style="color:#5a7e98;font-size:9px;">${l.at||''}${l.by?' · '+_esc(l.by):''}</span></div>`).join('')}</div>`:'';
     const logHtml=_buildLogHtml(r);
-    // 한 장 보고서처럼 하나의 카드에 우선순위대로 쭉: 부상 → 위치 → 인적 → 신고자 → 접수내용 → 나머지
-    const reportSheet=`<div style="background:#0b1c30;border:1px solid rgba(231,76,60,.18);border-radius:12px;padding:13px 14px;margin-bottom:9px;">
+    // ── 접이식 보고서 + 하단 타임라인 ──
+    // 요약(부상·위치·사람+전화)은 항상 보이고, 상세(접수·경위·사진·출동인원 등)는 '보고서 펼치기'로.
+    // 상황일지(타임라인)는 맨 밑에 묻혀 있던 것을 요약 바로 아래로 승격 — 화면이 훨씬 깔끔해짐.
+    const _shOpen=!!window._repSheetOpen;
+    const reportSheet=`<div style="background:#0b1c30;border:1px solid rgba(231,76,60,.18);border-radius:12px;padding:13px 14px;margin-bottom:8px;">
       ${injurySect}
       ${locSect?_div+locSect:''}
       ${_div}${personSect}
-      ${recvSect?_div+recvSect:''}
-      ${rows.length?_div+rows.join(''):''}
-      <div style="text-align:right;font-size:9px;color:#3a5a6a;margin-top:9px;">📝 최초접수 ${r.date||''}${r.author?' · 작성 '+_esc(r.author):''}</div>
+      <button onclick="_toggleRepSheet(${r.id},'${_isBoard?_esc(outId):''}')" style="width:100%;margin-top:10px;padding:9px;border-radius:9px;border:1px dashed rgba(79,168,208,.3);background:rgba(79,168,208,.05);color:#5d92bc;font-size:12px;font-weight:700;cursor:pointer;">${_shOpen?'▲ 보고서 접기':'📄 보고서 전체 펼치기 — 접수·경위·사진·출동인원'}</button>
     </div>`;
-    w.innerHTML=tabHdr+`
-      ${reportSheet}
+    // 펼쳤을 때만 붙는 상세 묶음 (접수·기타 정보 → 추가·변경 이력 → 사진 → 출동 인원)
+    const _mkReportDetail=()=>_shOpen?`
+      <div style="background:#0b1c30;border:1px solid rgba(79,168,208,.15);border-radius:12px;padding:12px 14px;margin-bottom:8px;">
+        ${recvSect||''}
+        ${rows.length?(recvSect?_div:'')+rows.join(''):''}
+        <div style="text-align:right;font-size:9px;color:#3a5a6a;margin-top:9px;">📝 최초접수 ${r.date||''}${r.author?' · 작성 '+_esc(r.author):''}</div>
+      </div>
       ${updHtml}
       ${changeHtml}
       ${locChgHtml}
       ${_scenePhotosHtml(r)}
-
-      <div style="background:#0b1c30;border-radius:10px;padding:12px;border:.5px solid rgba(255,255,255,.07);margin-top:10px;">
-        <div style="font-size:11px;color:#4fa8d0;font-weight:700;margin-bottom:8px;">💬 댓글</div>
-        <div id="commentList_${r.id}">${renderComments(r.id)}</div>
-        <div style="display:flex;gap:6px;margin-top:8px;">
-          <input type="text" id="cmtInput_${r.id}" class="fi" placeholder="댓글 입력..." style="flex:1;">
-          <button onclick="submitComment(${r.id})" style="background:#1a4a6e;color:#fff;border:none;padding:0 12px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;">등록</button>
-        </div>
-      </div>
-
-      <div style="background:#0b1c30;border-radius:10px;padding:11px 12px;border:.5px solid rgba(79,168,208,.12);margin-top:8px;">
+      <div style="background:#0b1c30;border-radius:10px;padding:11px 12px;border:.5px solid rgba(79,168,208,.12);margin-bottom:8px;">${_teamSectHtml()}</div>`:'';
+    // 출동 인원 카드 내용을 재사용하기 위해 함수로 감쌈
+    function _teamSectHtml(){return `
         ${(()=>{
           const tot=((r.members||[]).length)+(r.teams||[]).reduce((a,t)=>a+_teamCnt(t),0)+(r.extraTeams||[]).reduce((a,t)=>a+((t.members||[]).length),0);
           return `<div style="font-size:11px;color:#4fa8d0;font-weight:700;margin-bottom:7px;">👥 출동 인원${tot?` <span style="color:#7dd3fa;">· 총 ${tot}명</span>`:''}</div>`;
@@ -1250,10 +1248,22 @@ function renderTimeline(r,viewMode,outId){
           if(ag.other)parts.push(_esc(ag.other));
           if(ag.agenciesNote)parts.push(`(${_esc(ag.agenciesNote)})`);
           return parts.length?`<div style="font-size:11px;color:#b8d4e8;margin-top:2px;"><span style="color:#4a7090;">유관기관:</span> ${parts.join(' · ')}</div>`:'';
-        })():''}
-      </div>
-      ${_mobilizeBlockHtml('rescues',r)}
-      ${logHtml?`<div style="margin-top:10px;"><div style="font-size:10px;color:#5a7e98;font-weight:700;margin:0 2px 4px;">🕘 상황일지</div>${logHtml}</div>`:''}`;
+        })():''}`;}
+    // 조립: 요약(항상) → [펼친 상세] → 응소 현황(응답 버튼이라 항상) → 🕘 타임라인(승격) → 💬 댓글
+    w.innerHTML=tabHdr
+      +reportSheet
+      +_mkReportDetail()
+      +_mobilizeBlockHtml('rescues',r)
+      +(logHtml?`<div style="margin:2px 0 8px;"><div style="font-size:11px;color:#7fb4d4;font-weight:800;margin:6px 2px 5px;">🕘 상황일지 <span style="font-size:9px;color:#4a6a84;font-weight:600;">시간순 타임라인</span></div>${logHtml}</div>`
+               :'<div style="text-align:center;font-size:11px;color:#456a85;padding:12px 0 8px;">🕘 상황일지 기록 없음 — 기록/일지 화면에서 추가</div>')
+      +`<div style="background:#0b1c30;border-radius:10px;padding:12px;border:.5px solid rgba(255,255,255,.07);margin-top:8px;">
+        <div style="font-size:11px;color:#4fa8d0;font-weight:700;margin-bottom:8px;">💬 댓글</div>
+        <div id="commentList_${r.id}">${renderComments(r.id)}</div>
+        <div style="display:flex;gap:6px;margin-top:8px;">
+          <input type="text" id="cmtInput_${r.id}" class="fi" placeholder="댓글 입력..." style="flex:1;">
+          <button onclick="submitComment(${r.id})" style="background:#1a4a6e;color:#fff;border:none;padding:0 12px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;">등록</button>
+        </div>
+      </div>`;
   }
   // sticky footer
   const _ftEl=document.getElementById(_isBoard?'boardDetailFooter':'rep1BoFooter');
@@ -1275,6 +1285,12 @@ function renderTimeline(r,viewMode,outId){
         +((mode==='write'&&!isExternal())?`<button class="btn-submit" style="width:100%;background:#1a4a6e;color:#fff;" onclick="selResId=${r.id};curResId=${r.id};addPhase();">📝 기록 수정·추가 보고 <span style="font-size:10px;font-weight:400;opacity:.75;">(사고일시·내용 수정)</span></button>`:'');
     }
   }
+}
+// 보고서 상세 접기/펼치기 — 요약·타임라인은 그대로 두고 상세 묶음만 토글 (상황판 상세에서도 동작)
+function _toggleRepSheet(rid,outId){
+  window._repSheetOpen=!window._repSheetOpen;
+  const r=getRes(rid);if(!r)return;
+  renderTimeline(r,'advanced',outId||undefined);
 }
 function showPrevHistModal(id){
   const res=DB.g('rescues')||[];

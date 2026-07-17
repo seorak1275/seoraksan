@@ -225,7 +225,12 @@ function _recordLoginLog(){
     const log=(DB.g('loginLog')||[]).slice();
     const entry={kakaoId:String(kid),name:u.realName||u.name||'',dept:u.dept||'',rank:u.rank||'',at:Date.now()};
     const i=log.findIndex(e=>String(e.kakaoId)===String(kid));
-    if(i>=0)log[i]=entry; else log.push(entry);
+    if(i>=0){
+      const old=log[i];
+      // 같은 정보로 20시간 내 재로그인이면 기록 생략 — 로그인마다 전 기기가 1읽기씩 재동기화하던 낭비 제거(하루 1회면 충분)
+      if(old.name===entry.name&&old.dept===entry.dept&&old.rank===entry.rank&&(entry.at-(old.at||0))<20*3600*1000)return;
+      log[i]=entry;
+    } else log.push(entry);
     log.sort((a,b)=>(b.at||0)-(a.at||0));
     DB.s('loginLog',log.slice(0,300)); // 최근 300명 유지
   }catch(e){}
@@ -3676,7 +3681,7 @@ function sosToRescue(id){
 // 앱 자체 업데이트 (OTA · Capgo 자체호스팅) — APK 전용. 웹/PWA는 서비스워커가 자동 갱신.
 // 번들(www)의 새 버전을 ota.json으로 알리면, 설치된 앱이 받아서 그 자리에서 교체(재빌드 불필요).
 // ══════════════════════════════════════════
-const OTA_VER='2026.07.17.201';                         // ← 현재 번들 버전 (릴리스마다 올림 · build-ota.sh가 ota.json에 반영)
+const OTA_VER='2026.07.17.202';                         // ← 현재 번들 버전 (릴리스마다 올림 · build-ota.sh가 ota.json에 반영)
 const OTA_MANIFEST='https://seorak1275.github.io/seoraksan/ota.json';
 // 업데이트 확인 폴백 소스 — 일부 기관망·통신사에서 github.io가 막혀 '확인 실패(네트워크)'가 나는 경우 대비.
 // 순서대로 시도: ① GitHub Pages(원본·즉시 반영) ② jsDelivr CDN(공개저장소 미러·거의 모든 망 통과)
