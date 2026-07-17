@@ -1013,7 +1013,7 @@ function renderRescueStats(){
   };
   const w=document.getElementById('rescueStatsWrap');
   // 엑셀 다운로드 카드: 날짜 범위 선택
-  if(!window._statExpFrom){const d=new Date();window._statExpFrom=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-01';}
+  if(!window._statExpFrom){window._statExpFrom=new Date().getFullYear()+'-01-01';} // 기본: 올해 1월 1일 ~ 오늘
   if(!window._statExpTo)window._statExpTo=today();
   const _rangeChip=(lbl,f,t)=>`<span onclick="window._statExpFrom='${f}';window._statExpTo='${t}';renderRescueStats();" style="cursor:pointer;padding:4px 10px;border-radius:12px;font-size:10.5px;font-weight:700;background:rgba(39,174,96,.1);border:1px solid rgba(39,174,96,.3);color:#5dbf8a;">${lbl}</span>`;
   const _y=new Date().getFullYear();

@@ -1,1 +1,1 @@
-{"version":"2026.07.17.241","url":"https://seorak1275.github.io/seoraksan/bundle.zip","notes":"종료 결과(사망/부상/무사) 필드 추가 — 종료하기 모달 최상단에 🚩결과 선택(부상현황과 별개), 부상 유무로 기본 추정, r.outcome 저장 → 통계에 '🚩결과' 차트 추가. 엑셀 부상유형 673종은 재오염 우려로 미도입, 앱 구조화 부상현황을 단일 소스로 유지"}
+{"version":"2026.07.17.242","url":"https://seorak1275.github.io/seoraksan/bundle.zip","notes":"재난구조관리 통계 기본 기간을 올해(1월 1일~오늘)로 변경 — 기존 이번달 1일 기본에서 확대"}
