@@ -641,11 +641,17 @@ function _buildLogHtml(r){
   const isWpPass=e=>e.type==='team'&&e.ico==='📍';
   const wpCount=logEntries.filter(isWpPass).length;
   const collapseWp=wpCount>=4; // 통과 기록이 많으면 기본 접힘 — 주요 이벤트만 한눈에
+  // 날짜 라벨(다음날 넘어감 표시용) — 자정 넘어가면 'M/D (요일)' 구분선 삽입
+  const _dLbl=d=>{try{const a=d.split('-').map(Number);const wd=['일','월','화','수','목','금','토'][new Date(a[0],a[1]-1,a[2]).getDay()];return a[1]+'/'+a[2]+' ('+wd+')';}catch(e){return d;}};
+  let _prevDate='';
   const rows=logEntries.map((e,i)=>{
     const col=TYPE_COL[e.type]||'#7a9cb8';
     const bg=TYPE_BG[e.type]||'transparent';
     const isLast=i===logEntries.length-1;
-    return `<div class="${isWpPass(e)?'log-wp':''}" style="display:${(collapseWp&&isWpPass(e))?'none':'flex'};gap:0;position:relative;">
+    // 날짜가 바뀌면(자정 경과) 구분선 — 첫 날은 표시 안 함(하루짜리 상황엔 안 나옴)
+    const _d=String(e.k||'').slice(0,10);let _dv='';
+    if(_d&&_d!==_prevDate){if(_prevDate&&/^\d{4}-\d{2}-\d{2}$/.test(_d))_dv=`<div style="display:flex;align-items:center;gap:8px;margin:8px 0 6px;"><span style="flex:1;height:1px;background:rgba(79,168,208,.22);"></span><span style="font-size:10px;color:#5d92bc;font-weight:800;white-space:nowrap;">📅 ${_dLbl(_d)}</span><span style="flex:1;height:1px;background:rgba(79,168,208,.22);"></span></div>`;_prevDate=_d;}
+    return _dv+`<div class="${isWpPass(e)?'log-wp':''}" style="display:${(collapseWp&&isWpPass(e))?'none':'flex'};gap:0;position:relative;">
       <!-- 세로 타임라인 트랙 -->
       <div style="display:flex;flex-direction:column;align-items:center;width:28px;flex-shrink:0;">
         <div style="width:8px;height:8px;border-radius:50%;background:${col};flex-shrink:0;margin-top:4px;box-shadow:0 0 4px ${col}66;"></div>
@@ -975,8 +981,11 @@ async function govReport(rid,kind,noPass){
   });
   const _fname=(kind==='status'?'안전사고처리현황'+(noPass?'(통과제외)':'(통과포함)'):'동향보고')+'_'+((r.date||'').slice(0,10)||'문서')+'.hwpx';
   // ── 올라간 사진 수집 (처리현황 전용) — 부상·이송·현장첨부를 hwpx에 실제 삽입 ──
+  // ⚠️ 사진 삽입(OWPML hp:pic)이 일부 한글 버전에서 '문서 열림 오류'를 유발 → 안정 검증 전까지 비활성.
+  //    문서는 항상 열리게 하고, 사진은 한글에서 수동 붙여넣기(부상사진/이송 사진 자리 비움).
+  const _HWPX_EMBED_PHOTOS=false;
   let _photos=[];
-  if(kind==='status'){
+  if(_HWPX_EMBED_PHOTOS&&kind==='status'){
     const list=[];
     const add=(u,slot,label)=>{if(u&&/^data:image\//.test(String(u)))list.push({u:String(u),slot,label});};
     add(r.injuryPhoto,'부상사진','부상 부위');
