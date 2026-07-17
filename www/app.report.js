@@ -1107,9 +1107,10 @@ async function govReport(rid,kind,noPass){
   <div style="border:1px dashed #999;padding:34px 12px;text-align:center;color:#999;font-size:12px;">지도 화면을 캡처해 이 자리에 붙여넣으세요 (앱 지도 → 해당 사고 확대 → 캡처)</div>`;
   // 첨부2: 현황 사진 — 앱에 등록된 부상/이송/현장 사진 자동 첨부 (2열)
   const _pics=[];
-  if(r.injuryPhoto&&String(r.injuryPhoto).startsWith('http'))_pics.push({url:r.injuryPhoto,label:'부상'});
-  if(r.transPhoto&&String(r.transPhoto).startsWith('http'))_pics.push({url:r.transPhoto,label:'이송'});
-  (r.photos||[]).forEach(p=>{if(p&&p.url&&String(p.url).startsWith('http'))_pics.push({url:p.url,label:'현장'+((p.time||'').slice(11,16)?' '+(p.time||'').slice(11,16):'')});});
+  const _isImg=u=>u&&/^(https?:|data:image\/)/.test(String(u)); // 데이터URL 사진도 포함(스토리지 미사용)
+  if(_isImg(r.injuryPhoto))_pics.push({url:r.injuryPhoto,label:'부상사진'});
+  if(_isImg(r.transPhoto))_pics.push({url:r.transPhoto,label:'이송사진'});
+  (r.photos||[]).forEach(p=>{if(p&&_isImg(p.url))_pics.push({url:p.url,label:'현장'+((p.time||'').slice(11,16)?' '+(p.time||'').slice(11,16):'')});});
   if(_pics.length){
     body+=`<p style="margin:16px 0 4px;font-size:13.5px;font-weight:700;">[첨부2 : 사진현황]</p>
     <table style="border-collapse:collapse;width:100%;">`;
@@ -1621,24 +1622,55 @@ function showPrevHistModal(id){
 }
 function getRes(id){return (DB.g('rescues')||[]).find(r=>r.id===id)||{};}
 
-// ── 현장 사진 갤러리: 구조 건에 사진 여러 장 추가/열람 ──
+// ── 현장 사진 갤러리: 구조출동 서식대로 🩹부상사진·🚑이송사진 2칸 고정 + 그 외 현장사진 ──
 function _scenePhotosHtml(r){
-  const pics=[];
-  if(r.injuryPhoto)pics.push({url:r.injuryPhoto,label:'부상'});
-  if(r.transPhoto)pics.push({url:r.transPhoto,label:'이송'});
-  (r.photos||[]).forEach(p=>pics.push({url:p.url,label:(p.time||'').slice(11,16)}));
+  const extras=(r.photos||[]).filter(p=>p&&p.url);
+  // 서식 필수 2칸(부상·이송) — 사진 있으면 썸네일(탭=크게, 교체 버튼), 없으면 업로드 자리
+  const slotTile=(slot,url,ico,lbl,col)=>`
+    <div onclick="${url?`openLightbox('${_escq(url)}')`:`addSlotPhoto(${r.id},'${slot}')`}" style="position:relative;aspect-ratio:1;border-radius:8px;overflow:hidden;cursor:pointer;background:#0f0f11;border:1.5px ${url?'solid '+col:'dashed rgba(255,255,255,.28)'};display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;">
+      ${url?`<img src="${url}" style="width:100%;height:100%;object-fit:cover;" loading="lazy">
+        <span style="position:absolute;bottom:2px;left:4px;font-size:8px;color:#fff;font-weight:700;text-shadow:0 1px 2px #000;">${lbl}</span>
+        <button onclick="event.stopPropagation();addSlotPhoto(${r.id},'${slot}')" style="position:absolute;top:2px;right:2px;background:rgba(0,0,0,.55);border:none;color:#fff;border-radius:5px;font-size:8px;padding:1px 5px;cursor:pointer;">교체</button>`
+      :`<span style="font-size:17px;line-height:1;">${ico}</span><span style="font-size:8.5px;color:${col};font-weight:800;">${lbl}</span>`}
+    </div>`;
   return `<div style="background:#1c1c1e;border-radius:10px;padding:11px 12px;border:.5px solid rgba(255,255,255,.07);margin-top:8px;">
-    <div style="font-size:11px;color:#3182f6;font-weight:700;margin-bottom:7px;">📷 현장 사진 <span style="color:rgba(255,255,255,.3);font-weight:400;">${pics.length}장</span></div>
+    <div style="font-size:11px;color:#3182f6;font-weight:700;margin-bottom:7px;">📷 현장 사진 <span style="color:rgba(255,255,255,.3);font-weight:400;">구조출동 서식: 부상·이송 + 현장</span></div>
     <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;">
-      ${pics.map(p=>`<div onclick="openLightbox('${p.url}')" style="aspect-ratio:1;border-radius:8px;overflow:hidden;cursor:pointer;position:relative;background:#0f0f11;">
+      ${slotTile('injury',r.injuryPhoto,'🩹','부상사진','#e05050')}
+      ${slotTile('trans',r.transPhoto,'🚑','이송사진','#3182f6')}
+      ${extras.map((p,i)=>`<div onclick="openLightbox('${_escq(p.url)}')" style="aspect-ratio:1;border-radius:8px;overflow:hidden;cursor:pointer;position:relative;background:#0f0f11;">
         <img src="${p.url}" style="width:100%;height:100%;object-fit:cover;" loading="lazy">
-        ${p.label?`<span style="position:absolute;bottom:2px;left:4px;font-size:8px;color:#fff;text-shadow:0 1px 2px #000;">${p.label}</span>`:''}
+        <span style="position:absolute;bottom:2px;left:4px;font-size:8px;color:#fff;text-shadow:0 1px 2px #000;">현장${(p.time||'').slice(11,16)?' '+(p.time||'').slice(11,16):''}</span>
       </div>`).join('')}
       <div onclick="addScenePhotos(${r.id})" style="aspect-ratio:1;border-radius:8px;border:1.5px dashed rgba(255,255,255,.35);display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;color:#3182f6;gap:2px;">
-        <span style="font-size:17px;line-height:1;">＋</span><span style="font-size:8px;">사진 추가</span>
+        <span style="font-size:17px;line-height:1;">＋</span><span style="font-size:8px;">현장 추가</span>
       </div>
     </div>
   </div>`;
+}
+// 서식 지정 슬롯(부상/이송) 사진 1장 저장·교체 → r.injuryPhoto / r.transPhoto
+function addSlotPhoto(resId,slot){
+  const inp=document.createElement('input');inp.type='file';inp.accept='image/*';
+  inp.onchange=async()=>{
+    const f=(inp.files||[])[0];if(!f)return;
+    const nm=slot==='injury'?'부상사진':'이송사진';
+    toast('🖼️ '+nm+' 처리 중...');
+    try{
+      const dataUrl=await _compressToDataUrl(f,900,300000);
+      if(!dataUrl){toast('⚠️ 사진 처리 실패');return;}
+      const res=DB.g('rescues')||[];const ri=res.findIndex(x=>x.id===resId);if(ri<0)return;
+      const field=slot==='injury'?'injuryPhoto':'transPhoto';
+      const prevLen=(res[ri][field]||'').length;
+      // Firestore 문서 1MB 한계 — 교체 시 기존 크기 제외하고 계산
+      if(JSON.stringify(res[ri]).length-prevLen+dataUrl.length>950000){toast('⚠️ 기록 용량 한계 — 추가 불가');return;}
+      res[ri][field]=dataUrl;
+      DB.s('rescues',res);
+      toast('✅ '+nm+' 저장');
+      if(typeof _hapt==='function')_hapt(10);
+      const r=getRes(resId);if(r&&r.id)renderTimeline(r,_tlViewMode==='write'?'write':'advanced');
+    }catch(e){toast('⚠️ 사진 처리 실패');}
+  };
+  inp.click();
 }
 function addScenePhotos(resId){
   const inp=document.createElement('input');
