@@ -3584,6 +3584,55 @@ function _telBtnsHtml(tel,resId,role,name){
   return ` <span style="display:inline-flex;gap:4px;margin-left:auto;flex-shrink:0;"><button onclick="_callTel('${t}')" style="background:rgba(39,174,96,.15);color:#5dbf8a;border:1px solid rgba(39,174,96,.35);border-radius:6px;padding:2px 8px;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap;">📞 전화</button><button onclick="_smsSosTo('${t}'${_r})" style="background:rgba(255,255,255,.15);color:#aab4c0;border:1px solid rgba(255,255,255,.35);border-radius:6px;padding:2px 8px;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap;">🆘 위치요청</button></span>`;}
 // 보고서 상세: 전화번호 탭 → 전화 / 위치요청(1회용 SOS 링크 만들어 그 번호로 문자)
 function _callTel(tel){tel=String(tel||'').replace(/[^0-9+]/g,'');if(!tel){toast('전화번호 없음');return;}if(confirm(tel+' 로 전화하겠습니까?'))location.href='tel:'+tel;}
+
+// ── 📞 유관기관 비상연락망 ── 검증된 번호만 고정(임의 번호 금지), 나머지는 관리자가 추가(전 직원 동기화)
+const EMERGENCY_FIXED=[
+  {cat:'긴급',name:'소방·구조',tel:'119'},
+  {cat:'긴급',name:'경찰',tel:'112'},
+  {cat:'병원',name:'속초의료원',tel:'033-630-6000'},
+];
+const _EM_CATS=['긴급','병원','소방','유관기관','분소','기타'];
+function openEmergencyContacts(){
+  const isAdm=(typeof isAdminUser==='function')&&isAdminUser();
+  const all=[...EMERGENCY_FIXED,...((DB.g('emergencyContacts')||[]).map(c=>({...c,_u:true})))];
+  const byCat={};all.forEach(c=>{const k=_EM_CATS.includes(c.cat)?c.cat:'기타';(byCat[k]=byCat[k]||[]).push(c);});
+  const body=_EM_CATS.filter(k=>byCat[k]).map(k=>`
+    <div class="set-hd" style="margin:14px 4px 6px;">${k}</div>
+    <div class="set-card">
+      ${byCat[k].map(c=>`<div class="set-row">
+        <div class="set-bd"><div class="set-lb">${_esc(c.name)}</div><div class="set-sb">${_esc(typeof _fmtTel==='function'?_fmtTel(c.tel):c.tel)}</div></div>
+        <button onclick="_callTel('${_escq(c.tel)}')" style="flex-shrink:0;background:rgba(39,174,96,.15);color:#5dbf8a;border:1px solid rgba(39,174,96,.35);border-radius:7px;padding:6px 13px;font-size:12px;font-weight:700;cursor:pointer;">📞 전화</button>
+        ${(isAdm&&c._u)?`<button onclick="_delEmContact('${_escq(c.name)}','${_escq(c.tel)}')" style="flex-shrink:0;background:none;border:none;color:#c0392b;font-size:17px;cursor:pointer;padding:0 2px;">×</button>`:''}
+      </div>`).join('')}
+    </div>`).join('');
+  let ov=document.getElementById('emContactsOv');if(ov)ov.remove();
+  ov=document.createElement('div');ov.id='emContactsOv';
+  ov.style.cssText='position:fixed;inset:0;z-index:9600;background:rgba(0,0,0,.72);display:flex;flex-direction:column;';
+  ov.innerHTML=`<div style="flex-shrink:0;display:flex;align-items:center;gap:8px;padding:calc(12px + env(safe-area-inset-top)) 15px 12px;background:#16161a;border-bottom:1px solid rgba(255,255,255,.08);">
+      <span style="flex:1;font-size:16px;font-weight:800;color:#eaecef;">📞 비상연락망</span>
+      ${isAdm?`<button onclick="_addEmContact()" style="background:rgba(49,130,246,.14);color:#4d9bf5;border:1px solid rgba(49,130,246,.3);border-radius:8px;padding:7px 12px;font-size:12px;font-weight:700;cursor:pointer;">＋ 추가</button>`:''}
+      <button onclick="document.getElementById('emContactsOv').remove()" style="background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);color:#c4c8ce;border-radius:8px;width:34px;height:34px;font-size:20px;cursor:pointer;">×</button>
+    </div>
+    <div style="flex:1;overflow-y:auto;padding:6px 13px calc(20px + env(safe-area-inset-bottom));">
+      ${body}
+      ${isAdm?'':'<div class="set-note" style="margin-top:16px;">※ 분소·소방서·병원 등 추가 번호는 관리자가 등록합니다.</div>'}
+    </div>`;
+  document.body.appendChild(ov);
+}
+function _addEmContact(){
+  const name=(prompt('기관·연락처 이름 (예: 속초소방서, 백담분소, 온제병원)')||'').trim();if(!name)return;
+  const tel=(prompt('전화번호 (예: 033-000-0000)')||'').trim();if(!tel)return;
+  const cat=(prompt('분류 — 병원 / 소방 / 유관기관 / 분소 / 기타','유관기관')||'기타').trim();
+  const arr=DB.g('emergencyContacts')||[];
+  arr.push({name,tel,cat:_EM_CATS.includes(cat)?cat:'기타'});
+  DB.s('emergencyContacts',arr);
+  toast('✅ 연락처 추가 — 전 직원에게 반영');openEmergencyContacts();
+}
+function _delEmContact(name,tel){
+  if(!confirm('“'+name+'” 연락처를 삭제할까요?'))return;
+  DB.s('emergencyContacts',(DB.g('emergencyContacts')||[]).filter(c=>!(c.name===name&&c.tel===tel)));
+  toast('🗑️ 삭제됨');openEmergencyContacts();
+}
 // resId 를 함께 주면: 발급 토큰을 그 사고에 역할(사고자/동반자/신고자/추가 사고자)과 함께 연결(r.sosLinks)
 // → 실시간 위치가 지도·보고서에 '누구인지' 표시. 사고자 역할 토큰은 r.sosId(대표)로도 유지(채택·거리 기준)
 function _smsSosTo(tel,resId,role,name){
@@ -3738,7 +3787,7 @@ function sosToRescue(id){
 // 앱 자체 업데이트 (OTA · Capgo 자체호스팅) — APK 전용. 웹/PWA는 서비스워커가 자동 갱신.
 // 번들(www)의 새 버전을 ota.json으로 알리면, 설치된 앱이 받아서 그 자리에서 교체(재빌드 불필요).
 // ══════════════════════════════════════════
-const OTA_VER='2026.07.17.256';                         // ← 현재 번들 버전 (릴리스마다 올림 · build-ota.sh가 ota.json에 반영)
+const OTA_VER='2026.07.17.257';                         // ← 현재 번들 버전 (릴리스마다 올림 · build-ota.sh가 ota.json에 반영)
 const OTA_MANIFEST='https://seorak1275.github.io/seoraksan/ota.json';
 // 업데이트 확인 폴백 소스 — 일부 기관망·통신사에서 github.io가 막혀 '확인 실패(네트워크)'가 나는 경우 대비.
 // 순서대로 시도: ① GitHub Pages(원본·즉시 반영) ② jsDelivr CDN(공개저장소 미러·거의 모든 망 통과)
