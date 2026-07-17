@@ -1420,7 +1420,7 @@ function renderTimeline(r,viewMode,outId){
     const recvSect=_ok(r.reception)?`<div><span style="font-size:10px;color:#565f6b;font-weight:700;">📝 접수내용</span><div style="font-size:12px;color:#d5d8dc;line-height:1.55;margin-top:2px;">${_esc(r.reception)}</div></div>`:'';
     // 나머지(컴팩트)
     const rows=[];
-    const dparts=[_ok(r.date)?r.date:'',_ok(r.dispatch)?'신고 '+r.dispatch:'',_ok(r.arrival)?'출동 '+r.arrival:''].filter(Boolean);
+    const dparts=[_ok(r.date)?r.date:'',_ok(r.dispatch)?'신고 '+r.dispatch:'',_ok(r.arrival)?'출동 '+r.arrival:'',_ok(r.completion)?'완료 '+r.completion:''].filter(Boolean);
     if(dparts.length)rows.push(_row('일시',dparts.join(' · ')));
     const wx=[_ok(r.weather)?_esc(r.weather):'',(r.initTemp!=null&&r.initTemp!=='')?_esc(r.initTemp)+'°C':'',_ok(r.weatherAlert)?_esc(r.weatherAlert):''].filter(Boolean).join(' · ');
     if(wx)rows.push(_row('기상',wx));
@@ -1430,6 +1430,10 @@ function renderTimeline(r,viewMode,outId){
     if(_ok(r.alcohol)&&r.alcohol!=='알수없음')rows.push(_row('음주',_esc(r.alcohol)+(_ok(r.alcAmount)?' · '+_esc(r.alcAmount):'')));
     if(_ok(r.situation))rows.push(_row('경위',_esc(r.situation)));
     if(r.handover&&r.handover.to)rows.push(_row('인계',_esc(r.handover.to)+(r.handover.time?' · '+r.handover.time.slice(11):'')+(r.handover.by?' ('+_esc(r.handover.by)+')':'')));
+    if(_ok(r.hospital)&&r.hospital!=='미정')rows.push(_row('이송',_esc(r.hospital)));
+    if(_ok(r.distance))rows.push(_row('출동거리',_esc(r.distance)));
+    if(_ok(r.permit)&&r.permit!=='해당없음')rows.push(_row('암빙벽 허가',_esc(r.permit)));
+    if(_ok(r.fine)&&!String(r.fine).includes('해당 없음'))rows.push(_row('과태료',_esc(r.fine)));
     if(_ok(r.extra))rows.push(_row('특이',_esc(r.extra)));
     {const vseq=[];if(r.vitals&&_vitalsStr(r.vitals))vseq.push(r.vitals);(r.reports||[]).forEach(p=>{if(p.vitals&&_vitalsStr(p.vitals))vseq.push(p.vitals);});
      if(vseq.length>1){const vhtml=vseq.map(v=>`<div style="font-size:10px;color:#a5abb3;line-height:1.6;"><span style="color:#565f6b;">${(v.at||'').slice(5,16)||'-'}</span> ${_vitalsStr(v)}</div>`).join('');rows.push(_row('활력추이',vhtml));}}
@@ -1463,16 +1467,21 @@ function renderTimeline(r,viewMode,outId){
       <button onclick="_toggleRepSheet(${r.id},'${_isBoard?_esc(outId):''}')" style="width:100%;margin-top:10px;padding:9px;border-radius:9px;border:1px dashed rgba(255,255,255,.3);background:rgba(255,255,255,.05);color:#6b7684;font-size:12px;font-weight:700;cursor:pointer;">${_shOpen?'▲ 보고서 접기':'📄 보고서 전체 펼치기 — 접수·경위·사진·출동인원'}</button>
     </div>`;
     // 펼쳤을 때만 붙는 상세 묶음 (접수·기타 정보 → 추가·변경 이력 → 사진 → 출동 인원)
+    // 변경 이력(추가 보고·위치 변경)은 평소엔 숨기고 맨 아래 '🕓 변경 이력'으로 접어둠 — 누가·언제·무엇을 바꿨는지 필요할 때만 펼침
+    const _histInner=`${updHtml}${locChgHtml}`;
+    const _histHtml=_histInner?`<div style="margin-bottom:8px;">
+        <button id="repHistBtn_${r.id}" onclick="_toggleRepHist(${r.id})" style="width:100%;padding:8px 10px;border-radius:9px;border:1px dashed rgba(255,255,255,.2);background:rgba(255,255,255,.03);color:#6b7684;font-size:11px;font-weight:700;cursor:pointer;text-align:left;">🕓 변경 이력 <span style="font-size:9px;color:#565f6b;font-weight:400;">· 누가·언제·무엇을 바꿨는지</span> <span style="float:right;">${window._repHistOpen?'▲':'▾'}</span></button>
+        <div id="repHist_${r.id}" style="display:${window._repHistOpen?'block':'none'};margin-top:6px;">${_histInner}</div>
+      </div>`:'';
     const _mkReportDetail=()=>_shOpen?`
       <div style="background:#1c1c1e;border:1px solid rgba(255,255,255,.15);border-radius:12px;padding:12px 14px;margin-bottom:8px;">
         ${recvSect||''}
         ${rows.length?(recvSect?_div:'')+rows.join(''):''}
         <div style="text-align:right;font-size:9px;color:#3a5a6a;margin-top:9px;">📝 최초접수 ${r.date||''}${r.author?' · 작성 '+_esc(r.author):''}</div>
       </div>
-      ${updHtml}
-      ${locChgHtml}
       ${_scenePhotosHtml(r)}
-      <div style="background:#1c1c1e;border-radius:10px;padding:11px 12px;border:.5px solid rgba(255,255,255,.12);margin-bottom:8px;">${_teamSectHtml()}</div>`:'';
+      <div style="background:#1c1c1e;border-radius:10px;padding:11px 12px;border:.5px solid rgba(255,255,255,.12);margin-bottom:8px;">${_teamSectHtml()}</div>
+      ${_histHtml}`:'';
     // 출동 인원 카드 내용을 재사용하기 위해 함수로 감쌈
     function _teamSectHtml(){return `
         ${(()=>{
@@ -1553,6 +1562,13 @@ function _toggleRecCard(rid,outId){
   window._tlRecOpen=!window._tlRecOpen;
   const r=getRes(rid);if(!r)return;
   renderTimeline(r,'advanced',outId||undefined);
+}
+// 변경 이력 접기/펼치기 — 재렌더 없이 그 자리에서 토글(가벼움)
+function _toggleRepHist(rid){
+  window._repHistOpen=!window._repHistOpen;
+  const e=document.getElementById('repHist_'+rid);if(e)e.style.display=window._repHistOpen?'block':'none';
+  const b=document.getElementById('repHistBtn_'+rid);if(b){const a=b.querySelector('span[style*="float"]');if(a)a.textContent=window._repHistOpen?'▲':'▾';}
+  if(typeof _hapt==='function')_hapt(6);
 }
 // ── 구조 진행 단계 판정 — 타임테이블·팀·인계 기록에서 마일스톤 도출 ──
 function _rescueMilestones(r){
