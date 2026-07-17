@@ -143,14 +143,18 @@ function _rebuildFsColl(k){
   _fsSync[k]=syncMap;
 }
 // 1년 이전 과거 기록을 1회 조회해 _fsArchive에 채운다(세션당 1회, 조회 시에만 호출)
+// 아카이브는 사실상 불변 → IndexedDB(퍼시스턴스) 캐시 우선. 캐시에 있으면 서버 읽기 0건
+// (통계 열 때마다 1,000건+ 서버 재조회로 일일 읽기쿼터를 태우던 문제의 해결)
 function _loadArchive(k){
   if(!_ARCHIVE_COLLS.includes(k)||_archiveLoaded[k]||!_fdb)return Promise.resolve();
   _archiveLoaded[k]=true;
   const cutoff=Date.now()-_ARCHIVE_CUTOFF_DAYS*86400000;
-  return _fdb.collection(k).where('id','<',cutoff).get().then(snap=>{
-    _fsArchive[k]=snap.docs.map(d=>d.data());
-    _rebuildFsColl(k);
-  }).catch(()=>{_archiveLoaded[k]=false;});
+  const ref=_fdb.collection(k).where('id','<',cutoff);
+  const apply=snap=>{_fsArchive[k]=snap.docs.map(d=>d.data());_rebuildFsColl(k);};
+  return ref.get({source:'cache'}).then(snap=>{
+    if(snap.empty)return ref.get().then(apply); // 이 기기 첫 조회만 서버에서
+    apply(snap);
+  }).catch(()=>ref.get().then(apply)).catch(()=>{_archiveLoaded[k]=false;});
 }
 var _remoteUpdateTimer=null; // module scope: shared across all Firebase listeners
 const _fs={};   // Firestore 인메모리 캐시
@@ -199,7 +203,9 @@ function _updateHomeNetStatus(){
     el.textContent='📡 오프라인'+(n?' · 저장 '+n+'건 대기':'');
     el.style.color='#e74c3c';el.style.display='inline';
   }else if(n){
-    el.textContent='⏳ 동기화 '+n+'건 ↻';
+    // 일일 서버 읽기용량 소진이면 원인을 그대로 안내 (막연한 '동기화 대기'가 고장처럼 보이던 문제)
+    const quotaHit=(window._syncQuotaUntil&&Date.now()<window._syncQuotaUntil)||_loadSyncQ().some(x=>/resource-exhausted/i.test(x._err||''));
+    el.textContent=quotaHit?('⏳ 서버 일일용량 초과 — '+n+'건 보관, 16시 이후 자동 저장'):('⏳ 동기화 '+n+'건 ↻');
     el.style.color='#f0a500';el.style.display='inline';
   }else{
     el.style.display='none';
@@ -226,8 +232,10 @@ function _removeSyncItem(it){
   const cur=_loadSyncQ();const ci=cur.findIndex(x=>x.key===it.key&&x.json===it.json);
   if(ci>=0){cur.splice(ci,1);_saveSyncQ(cur);}
 }
-function _flushSyncQueue(){
+function _flushSyncQueue(force){
   if(_syncQFlushing||!_fdb)return;
+  // 일일 읽기쿼터 소진 중엔 자동 재시도 억제(트랜잭션 읽기가 쿼터를 더 태움) — 칩 탭 등 수동 요청은 통과
+  if(!force&&window._syncQuotaUntil&&Date.now()<window._syncQuotaUntil)return;
   // 자가치유: 빈 캐시 레이스로 쌓였던 '표지판 시드' 오염 항목은 전송하지 않고 제거
   // (전송되면 서버 표지판이 시드 원본으로 되돌려지거나 복제됨 — 시드 레코드는 레거시 status:'ok'가 서명)
   const q0=_loadSyncQ();
@@ -247,10 +255,22 @@ function _flushSyncQueue(){
         else await _txMergeSet(it.coll,it.id,JSON.parse(it.json)); // 트랜잭션 병합(오프라인 변경분 재접속 시 서버 최신본과 합침)
         _removeSyncItem(it);ok++;
       }catch(e){
+        const code=(e&&e.code)||'';
+        // 일일 '읽기' 쿼터 소진(resource-exhausted): 트랜잭션(읽기 포함)만 실패하고 순수 쓰기는 살아있음(실측 확인).
+        // 컬렉션 항목은 읽기 없는 서버측 병합(set merge)으로 폴백 → 현장 기록을 쿼터 소진 중에도 즉시 서버 보존.
+        // (appData 단일문서는 병합 기준을 읽어야 안전해 폴백하지 않고 보존·대기 — 리셋 후 자동 저장)
+        if(/resource-exhausted/i.test(code)&&it.doc===undefined&&it.op!=='del'){
+          try{
+            await _fdb.collection(it.coll).doc(it.id).set(JSON.parse(it.json),{merge:true});
+            _removeSyncItem(it);ok++;
+            window._syncQuotaUntil=Date.now()+600000;
+            continue;
+          }catch(e2){}
+        }
         // 데이터 신뢰성 최우선 — 실패해도 절대 폐기하지 않고 큐에 보존, 무한 재시도.
         // 단 한 항목의 실패가 뒤 항목을 막지 않도록 break 대신 continue(head-of-line blocking 제거).
-        const code=(e&&e.code)||'';
         console.warn('[syncQ] 저장 실패(보존·재시도 예정):',it.key,'code='+code,e&&e.message);
+        if(/resource-exhausted/i.test(code))window._syncQuotaUntil=Date.now()+600000; // 10분간 자동 재시도 쉼
         _markSyncFail(it,code,e&&e.message);
       }
     }
@@ -267,9 +287,11 @@ function _markSyncFail(it,code,msg){
   const cur=_loadSyncQ();const ci=cur.findIndex(x=>x.key===it.key&&x.json===it.json);
   if(ci<0)return;
   const n=(cur[ci]._n||0)+1;
-  const terminal=/invalid-argument|not-found|failed-precondition|out-of-range/i.test(code||'')
+  // 일시적 실패(쿼터 소진·서버 불가·타임아웃)는 몇 번을 실패해도 데드레터로 보내지 않음 — 리셋·복구 후 반드시 저장돼야 함
+  const transient=/resource-exhausted|unavailable|deadline-exceeded|aborted|cancelled/i.test(code||'');
+  const terminal=!transient&&(/invalid-argument|not-found|failed-precondition|out-of-range/i.test(code||'')
     || /longer than|exceeds the maximum|maximum.*byte|1048|too large/i.test(msg||'')
-    || n>=10; // 10회 재시도해도 안 되면 사실상 저장 불가
+    || n>=10); // 10회 재시도해도 안 되면 사실상 저장 불가
   if(terminal){
     const dead=Object.assign({},cur[ci],{_n:n,_err:code||'unknown',_errMsg:(msg||'').slice(0,140),_at:Date.now()});
     cur.splice(ci,1);_saveSyncQ(cur); // 활성 큐에서 제거 → 배지·경고 중단

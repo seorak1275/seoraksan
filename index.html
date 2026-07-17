@@ -225,7 +225,7 @@ if(window.Kakao&&!Kakao.isInitialized()) Kakao.init(KAKAO_KEY);
     <!-- 날짜 왼쪽 + 네트워크/동기화 상태 칩 -->
     <div style="min-width:80px;display:flex;flex-direction:column;gap:2px;">
       <div style="font-size:10px;color:#6a9cc0;font-weight:600;" id="homeDate"></div>
-      <span id="homeNetStatus" onclick="_flushSyncQueue();_showSyncQueueInfo();" style="display:none;font-size:9px;font-weight:700;white-space:nowrap;cursor:pointer;" title="탭: 재시도 + 상세 보기"></span>
+      <span id="homeNetStatus" onclick="_flushSyncQueue(true);_showSyncQueueInfo();" style="display:none;font-size:9px;font-weight:700;white-space:nowrap;cursor:pointer;" title="탭: 재시도 + 상세 보기"></span>
     </div>
     <!-- 로고 진짜 가운데 (absolute) -->
     <div style="position:absolute;left:50%;transform:translateX(-50%);display:flex;flex-direction:column;align-items:center;gap:2px;">

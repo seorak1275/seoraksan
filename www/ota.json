@@ -1,1 +1,1 @@
-{"version":"2026.07.16.199","url":"https://seorak1275.github.io/seoraksan/bundle.zip","notes":"1보 폼 연결성 개선 — 접수(경로·내용) 첫 탭 최상단 이동, 경위에 접수 가져오기, 자주 발생 부상 원터치 칩, 동반자 있음 즉시 입력행"}
+{"version":"2026.07.17.200","url":"https://seorak1275.github.io/seoraksan/bundle.zip","notes":"동기화 쿼터 대응 — 읽기쿼터 소진 시 컬렉션 기록은 병합쓰기로 즉시 저장, 일시 실패 데드레터 제외, 원인 표시 칩, 아카이브 캐시 우선(재조회 쿼터 절약)"}
