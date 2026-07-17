@@ -763,7 +763,7 @@ if(window.Kakao&&!Kakao.isInitialized()) Kakao.init(KAKAO_KEY);
     <div class="fg"><span class="fl">상황 설명</span><textarea id="hz_desc" class="fta" rows="3" placeholder="상황을 간략히 기술"></textarea></div>
     <div class="fg"><span class="fl">현장 사진</span>
       <div class="photo-slot" onclick="document.getElementById('fileHaz').click()">
-        <input type="file" id="fileHaz" accept="image/*" capture="environment" style="display:none;" onchange="prevImg(this,'prevHaz')">
+        <input type="file" id="fileHaz" accept="image/*" style="display:none;" onchange="prevImg(this,'prevHaz')">
         <div id="prevHaz">📸 현장 사진</div>
       </div>
     </div>
@@ -830,7 +830,7 @@ if(window.Kakao&&!Kakao.isInitialized()) Kakao.init(KAKAO_KEY);
     <div class="fg"><span class="fl">등록자</span><input type="text" id="facAuthor" class="fi" style="opacity:.6;cursor:default;"></div>
     <div class="fg"><span class="fl">초기 사진</span>
       <div class="photo-slot" onclick="document.getElementById('fileFac').click()">
-        <input type="file" id="fileFac" accept="image/*" capture="environment" style="display:none;" onchange="prevImg(this,'prevFac')">
+        <input type="file" id="fileFac" accept="image/*" style="display:none;" onchange="prevImg(this,'prevFac')">
         <div id="prevFac">📸 촬영 또는 앨범</div>
       </div>
     </div>
@@ -877,7 +877,7 @@ if(window.Kakao&&!Kakao.isInitialized()) Kakao.init(KAKAO_KEY);
     <div class="fg"><span class="fl">상세 내용 <span class="muted" style="font-weight:400;">(선택)</span></span><textarea id="fiDesc" class="fta" rows="2" placeholder="예: 데크 상판 3판 파손, 통행 위험 / 이정표 도색 벗겨짐"></textarea></div>
     <div class="fg"><span class="fl">현장 사진 <span style="color:#ff8a80;font-weight:700;">필수</span></span>
       <div class="photo-slot" onclick="document.getElementById('fileFacIssue').click()">
-        <input type="file" id="fileFacIssue" accept="image/*" capture="environment" style="display:none;" onchange="prevImg(this,'prevFacIssue')">
+        <input type="file" id="fileFacIssue" accept="image/*" style="display:none;" onchange="prevImg(this,'prevFacIssue')">
         <div id="prevFacIssue">📸 촬영 또는 앨범 (필수)</div>
       </div>
     </div>
