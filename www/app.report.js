@@ -609,15 +609,20 @@ function _collectLogEntries(r){
   return logEntries;
 }
 // 📌 기록 삭제 — 작성자 본인(또는 관리자)만. 실수 입력 즉시 정정용
+// 누른 기록과 '완전히 동일한' 중복분(정규화 키 일치)을 한 번에 제거 → 중복 스택도 한 탭으로 정리.
 function _tlRecDel(rid,ti){
   const res=DB.g('rescues')||[];const idx=res.findIndex(x=>x.id===rid);if(idx<0)return;
-  const e=(res[idx].timetable||[])[ti];if(!e)return;
+  const tt=res[idx].timetable||[];
+  const e=tt[ti];if(!e)return;
   const me=getAuthor();
   if(e.by!==me&&!(typeof isAdminUser==='function'&&isAdminUser())){toast('⚠️ 본인이 작성한 기록만 삭제할 수 있습니다');return;}
-  if(!confirm('기록 삭제: '+(e.stage||'')+(e.time?' ('+String(e.time).slice(11,16)+')':'')+'\n삭제할까요?'))return;
-  res[idx].timetable.splice(ti,1);
+  const _sig=(typeof _canonKey==='function')?_canonKey(e):JSON.stringify(e);
+  const _same=x=>((typeof _canonKey==='function')?_canonKey(x):JSON.stringify(x))===_sig;
+  const dupN=tt.filter(_same).length;
+  if(!confirm('기록 삭제: '+(e.stage||'')+(e.time?' ('+String(e.time).slice(11,16)+')':'')+(dupN>1?' · 중복 '+dupN+'건 함께 삭제':'')+'\n삭제할까요?'))return;
+  res[idx].timetable=tt.filter(x=>!_same(x)); // 동일 항목 전부 제거(중복 정리)
   DB.s('rescues',res);
-  toast('🗑 기록이 삭제되었습니다');
+  toast(dupN>1?('🗑 중복 '+dupN+'건 삭제됨'):'🗑 기록이 삭제되었습니다');
   renderTimeline(res[idx],'advanced');
 }
 function _buildLogHtml(r){

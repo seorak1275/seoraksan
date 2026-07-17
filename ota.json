@@ -1,1 +1,1 @@
-{"version":"2026.07.17.221","url":"https://seorak1275.github.io/seoraksan/bundle.zip","notes":"상황일지 기록 삭제(×) 버튼 탭 영역 확대 — 손가락으로 누르기 쉽게(패딩·글자 확대, 즉시 반응, 터치 가로채기 방지)"}
+{"version":"2026.07.17.222","url":"https://seorak1275.github.io/seoraksan/bundle.zip","notes":"타임라인 삭제 부활 버그 근본 수정 — 기록 병합을 3-way(직전 동기화본 기준)로 바꿔 삭제한 항목이 서버본으로 되살아나지 않게, 삭제는 동일 중복분까지 한 번에 제거, 기존 중복 재청소"}
