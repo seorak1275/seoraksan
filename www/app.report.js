@@ -553,6 +553,13 @@ function _collectLogEntries(r){
   // type: 'victim'=요구조자 관련(빨강) | 'team'=팀 이동(파랑) | 'report'=보고(보라) | 'nps'=공단(초록)
   const logEntries=[];
   if(r.date)logEntries.push({k:_tKey(r.date),t:_tShow(r.date),ico:'🚨',label:'최초접수',sub:r.reception||'',type:'victim'});
+  // 출동·도착·완료 시각(대장 임포트·N보 입력분) — 그동안 상황일지에 안 그려지던 필드
+  {
+    const _hm=v=>{const s=String(v||'').trim();return /^\d{1,2}:\d{2}/.test(s)?(s.length>5&&/^\d{4}-/.test(s)?s.slice(11,16):s.slice(0,5)):'';};
+    if(_hm(r.dispatch))logEntries.push({k:_tKey(_hm(r.dispatch)),t:_hm(r.dispatch),ico:'🚗',label:'출동',sub:r.distance?('출동거리 '+r.distance+'km'):'',type:'team'});
+    if(_hm(r.arrival))logEntries.push({k:_tKey(_hm(r.arrival)),t:_hm(r.arrival),ico:'🏁',label:'현장 도착',sub:'',type:'team'});
+    if(_hm(r.completion))logEntries.push({k:_tKey(_hm(r.completion)),t:_hm(r.completion),ico:'✅',label:'상황 완료',sub:'',type:'nps'});
+  }
   (r.timetable||[]).forEach(e=>{
     if(!e.time)return;
     const isVictim=e.stage==='요구조자 조우'||e.stage==='심정지'||e.stage==='의식확인';
