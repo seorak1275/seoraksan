@@ -984,7 +984,66 @@ async function govReport(rid,kind,noPass){
 }
 
 // ══ 탐방객 안전지원 활동 현황 (한글용) — 업로드해주신 공단 양식 그대로 재현, 앱 기록으로 자동 채움 ══
+// ── 🧡 탐방객 안전지원 활동 현황 — 지침 원본 hwpx 서식으로 '진짜 한글파일' 생성 ──
+// 지원유형은 기록에 없는 정보라 저장 직전에 선택(다중 가능). 나머지는 기록에서 자동.
+// 서식을 못 불러오면(오프라인 초기 등) 기존 HTML 복붙본으로 폴백.
 function safetyReport(rid){
+  const r=getRes(rid);if(!r){toast('기록을 찾을 수 없습니다');return;}
+  window._sfTypes=new Set();window._sfEtc='';
+  let m=document.getElementById('sfOptSheet');
+  if(!m){m=document.createElement('div');m.id='sfOptSheet';document.body.appendChild(m);}
+  m.style.cssText='position:fixed;inset:0;z-index:99850;background:rgba(0,0,0,.6);display:flex;align-items:flex-end;justify-content:center;';
+  m.innerHTML=`<div style="background:#0a1828;border:1px solid rgba(240,140,60,.35);border-radius:16px 16px 0 0;max-width:430px;width:100%;padding:16px 16px calc(14px + env(safe-area-inset-bottom));">
+    <div style="display:flex;align-items:center;margin-bottom:4px;">
+      <b style="font-size:14px;color:#f0a05a;">🧡 안전지원활동 현황 <span style="font-size:10px;font-weight:600;opacity:.75;">지침 서식 그대로</span></b>
+      <button onclick="document.getElementById('sfOptSheet').remove()" style="margin-left:auto;background:none;border:none;color:rgba(255,255,255,.5);font-size:21px;cursor:pointer;">×</button>
+    </div>
+    <div style="font-size:10.5px;color:#7a9cb8;margin-bottom:10px;">지원유형만 고르면 일시·장소·성별·연령대·내용은 기록에서 자동 입력됩니다</div>
+    <div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:8px;" id="sfTypePills">
+      ${['구급약품지원','안전장비지원','식품지원','기타'].map(o=>`<div class="pill" onclick="this.classList.toggle('on');window._sfTypes[this.classList.contains('on')?'add':'delete']('${o}');var w=document.getElementById('sfEtcWrap');if(w)w.style.display=window._sfTypes.has('기타')?'block':'none';">${o}</div>`).join('')}
+    </div>
+    <div id="sfEtcWrap" style="display:none;margin-bottom:8px;"><input type="text" id="sfEtcTxt" class="fi" placeholder="기타 내용 (예: 비조우, 오인신고, 단순도움)" oninput="window._sfEtc=this.value;"></div>
+    <button onclick="_safetyHwpxGen(${rid})" class="btn2 btn2-blk" style="background:linear-gradient(145deg,#8a4c16,#6b3a0e);color:#ffd9b0;font-size:13.5px;padding:12px;">📄 한글파일(.hwpx)로 저장</button>
+    <button onclick="document.getElementById('sfOptSheet').remove();_safetyReportHtml(${rid});" style="width:100%;margin-top:6px;padding:9px;border:none;background:none;color:#7a9cb8;font-size:11px;cursor:pointer;text-decoration:underline;">HTML 복사본으로 만들기 (한글 붙여넣기용)</button>
+  </div>`;
+  m.onclick=e=>{if(e.target===m)m.remove();};
+}
+async function _safetyHwpxGen(rid){
+  const r0=getRes(rid);if(!r0)return;
+  const r=_mergedRescue(r0);
+  const sel=window._sfTypes||new Set();
+  const etc=(window._sfEtc||'').trim();
+  const sh=document.getElementById('sfOptSheet');if(sh)sh.remove();
+  const ck=(o,on)=>(on?'■':'□')+' '+o; // 지침 표기 그대로 ■/□
+  const typeLine=[ck('구급약품지원',sel.has('구급약품지원')),ck('안전장비지원',sel.has('안전장비지원')),ck('식품지원',sel.has('식품지원')),
+    (sel.has('기타')?'■':'□')+' 기타('+((sel.has('기타')&&etc)?' '+etc+' ':'           ')+')'].join('  ');
+  const gSel=r.vGender==='남'?'남성':r.vGender==='여'?'여성':'모름';
+  const genderLine=['남성','여성','모름'].map(o=>ck(o,o===gSel)).join('   ');
+  let age='';try{age=r.vBirth?_ageFromBirth(r.vBirth):(r.vAge!=null&&r.vAge!==''?parseInt(r.vAge):'');}catch(e){}
+  const aBand=(age===''||isNaN(age))?'모름':(age<20?'10대 이하':age<30?'20대':age<40?'30대':age<50?'40대':age<60?'50대':'60대 이상');
+  const ageLine=['10대 이하','20대','30대','40대','50대','60대 이상','모름'].map(o=>ck(o,o===aBand)).join('  ');
+  let dtStr=r.date||'';
+  try{const mm=String(r.date||'').match(/(\d{4})-(\d{2})-(\d{2})[ T]?(\d{2}:\d{2})?/);
+    if(mm){const wd=['일','월','화','수','목','금','토'][new Date(+mm[1],+mm[2]-1,+mm[3]).getDay()];
+      dtStr=mm[1]+'년 '+(+mm[2])+'월 '+(+mm[3])+'일('+wd+')'+(mm[4]?' '+mm[4]:'');}}catch(e){}
+  const lines=[];
+  if(r.situation)lines.push('- '+r.situation);
+  (r.reports||[]).forEach(p=>{if(p.update)lines.push('- '+((p.repTime||'').slice(11,16)?(p.repTime||'').slice(11,16)+'경 ':'')+p.update);});
+  const helpers=[...new Set([...(r.members||[]),r.author].filter(Boolean))].join(', ');
+  const map={'담당자':r.author||'','일시':dtStr,'장소':r.location||'','지원유형':typeLine,'성별':genderLine,'연령대':ageLine,'내용':lines.join('\n')||'- ','지원자':helpers};
+  try{
+    try{_busy('한글파일 생성 중…');}catch(e){}
+    const resp=await fetch('./tpl-safety.hwpx');
+    if(!resp.ok)throw new Error('tpl '+resp.status);
+    const buf=await resp.arrayBuffer();
+    await _hwpxGenFromBuf(buf,map,'탐방객안전지원활동현황_'+(String(r.date||'').slice(0,10).replace(/-/g,'')||'미상')+'.hwpx');
+  }catch(e){
+    try{_busyDone&&_busyDone();}catch(_){}
+    toast('⚠️ 서식을 불러오지 못해 HTML 복사본으로 대체합니다');
+    _safetyReportHtml(rid);
+  }
+}
+function _safetyReportHtml(rid){
   const r=getRes(rid);if(!r){toast('기록을 찾을 수 없습니다');return;}
   const esc=s=>String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
   const th='border:1px solid #000;padding:6px 8px;font-weight:700;text-align:center;font-size:13px;white-space:nowrap;background:#fff;width:15%;';
