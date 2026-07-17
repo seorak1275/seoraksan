@@ -950,8 +950,11 @@ function _busy(msg){
     document.body.appendChild(el);}
   var m=el.querySelector('#_busyMsg');if(m)m.textContent=msg||'처리 중…';
   el.style.display='flex';
+  // 안전장치: 작업이 실패해 _busyDone()이 안 불려도 25초 뒤 자동 해제 — 전체화면 스피너가 앱을 영구 먹통시키는 것 방지
+  if(window._busyTimer)clearTimeout(window._busyTimer);
+  window._busyTimer=setTimeout(function(){try{_busyDone();console.warn('[busy] 타임아웃 자동 해제');}catch(_){}},25000);
 }
-function _busyDone(){var el=document.getElementById('_busyOv');if(el)el.style.display='none';}
+function _busyDone(){var el=document.getElementById('_busyOv');if(el)el.style.display='none';if(window._busyTimer){clearTimeout(window._busyTimer);window._busyTimer=null;}}
 function toast(m,dur){const t=document.getElementById('toast');t.textContent=m;t.classList.add('on');clearTimeout(_toastTimer);
   // 중요 메시지(실패·경고·오류)는 자동으로 4초간 표시 — 놓치지 않도록
   if(dur===undefined){dur=(/실패|오류|⚠️|에러|불가|없습니다|권한/.test(String(m)))?4000:2200;}
@@ -1125,7 +1128,17 @@ function _ghostOverlayGuard(e){
     if(r.width<window.innerWidth*0.95||r.height<window.innerHeight*0.85)return; // 전체화면급만
     var bg=cs.backgroundColor||'',a=1,mm=bg.match(/rgba?\(([^)]+)\)/);
     if(mm){var p=mm[1].split(',');a=p.length>=4?parseFloat(p[3]):1;}else if(bg==='transparent')a=0;
-    if(cs.opacity!=='0'&&a>=0.03)return; // 보이는 레이어면 정상 모달 → 손대지 않음
+    if(cs.opacity!=='0'&&a>=0.03){
+      // 보이는 전체화면 레이어: 대개 정상 모달이라 손대지 않되, '전환용 오버레이'(스피너·로딩화면)가
+      // 작업 실패 등으로 안 사라지고 막고 있으면 → 연속 3탭(먹통이라 사용자가 반복 탭)으로 강제 복구
+      if(node.id==='_busyOv'||node.id==='loadingScreen'){
+        var _n=Date.now();
+        if(_n-(window._ghT||0)<1600)window._ghN=(window._ghN||1)+1;else window._ghN=1;
+        window._ghT=_n;
+        if(window._ghN>=3){node.style.display='none';node.style.pointerEvents='none';window._ghN=0;try{if(typeof toast==='function')toast('🔄 화면 잠금 해제됨');}catch(_){}}
+      }
+      return;
+    }
     node.style.pointerEvents='none'; // 투명 유령 → 터치 통과(요소는 남겨둬도 무해)
     try{console.warn('[ghostGuard] 투명 전체화면 레이어 무력화:',node.id||node.className||node.tagName);}catch(_){}
   }catch(_){}
