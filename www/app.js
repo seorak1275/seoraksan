@@ -1368,6 +1368,14 @@ function _canClimbView(){try{if(typeof isExternal==='function'&&isExternal())ret
 function _canClimbManage(){try{const u=DB.g('currentUser')||{};if(u.dept==='특수산악구조대')return true;if(typeof _isMasterAdmin==='function'&&_isMasterAdmin())return true;if(typeof _isDeveloper==='function'&&_isDeveloper(u.kakaoId))return true;}catch(e){}return false;}
 // 암벽 시즌(5.16~11.14) 여부
 function _climbInSeason(d){d=d||new Date();const md=(d.getMonth()+1)*100+d.getDate();return md>=516&&md<=1114;}
+// 빙벽 시즌(12~3월) 여부
+function _iceInSeason(d){d=d||new Date();const m=d.getMonth()+1;return m===12||m<=3;}
+// 장소구분 비시즌 버튼 탭 — 하드블록 대신 확인(무허가·비시즌 사고도 기록 가능해야 하므로)
+function _loctypeSeasonWarn(o){
+  const s=o==='암벽'?'암벽 시즌(5/16~11/14)':'빙벽 시즌(12~3월)';
+  if(typeof _hapt==='function')_hapt(20);
+  if(confirm('지금은 '+s+'이 아닙니다.\n그래도 '+o+'(으)로 선택할까요?')){try{selLoctype(o);}catch(e){}}
+}
 // 특보·우천 일괄취소 관리 (재업로드해도 유지 — 원본 비고1과 별개로 앱에서 취소 지정)
 function _climbCancels(){return DB.g('climbCancels')||{};}
 function _climbIsCancelled(r){return String(r&&r.bigo)==='1'||!!_climbCancels()[r&&r.useDate];}
@@ -3720,7 +3728,7 @@ function sosToRescue(id){
 // 앱 자체 업데이트 (OTA · Capgo 자체호스팅) — APK 전용. 웹/PWA는 서비스워커가 자동 갱신.
 // 번들(www)의 새 버전을 ota.json으로 알리면, 설치된 앱이 받아서 그 자리에서 교체(재빌드 불필요).
 // ══════════════════════════════════════════
-const OTA_VER='2026.07.17.247';                         // ← 현재 번들 버전 (릴리스마다 올림 · build-ota.sh가 ota.json에 반영)
+const OTA_VER='2026.07.17.248';                         // ← 현재 번들 버전 (릴리스마다 올림 · build-ota.sh가 ota.json에 반영)
 const OTA_MANIFEST='https://seorak1275.github.io/seoraksan/ota.json';
 // 업데이트 확인 폴백 소스 — 일부 기관망·통신사에서 github.io가 막혀 '확인 실패(네트워크)'가 나는 경우 대비.
 // 순서대로 시도: ① GitHub Pages(원본·즉시 반영) ② jsDelivr CDN(공개저장소 미러·거의 모든 망 통과)

@@ -2419,9 +2419,20 @@ function render1BoForm(prefill=null){
         </div>
         <div class="fg"><span class="fl">🧭 장소 구분</span>
           <div style="display:flex;gap:5px;flex-wrap:wrap;" id="loctypeBtns">
-            ${['법정탐방로','비법정탐방로','암벽','빙벽'].map(o=>`<button class="tog-btn${(p.loctype||'법정탐방로')===o?' on':''}" data-val="${o}" onclick="selLoctype('${o}')">${o}</button>`).join('')}
+            ${['법정탐방로','비법정탐방로','암벽','빙벽'].map(o=>{const off=(o==='암벽'&&typeof _climbInSeason==='function'&&!_climbInSeason())||(o==='빙벽'&&typeof _iceInSeason==='function'&&!_iceInSeason());return `<button class="tog-btn${(p.loctype||'법정탐방로')===o?' on':''}" data-val="${o}" onclick="${off?`_loctypeSeasonWarn('${o}')`:`selLoctype('${o}')`}"${off?' style="opacity:.45;"':''}>${o}${off?'<span style="font-size:8px;opacity:.85;"> ·비시즌</span>':''}</button>`;}).join('')}
           </div>
           <input type="hidden" id="r_loctype" value="${p.loctype||'법정탐방로'}">
+        </div>
+        <div id="climbLocWrap" style="display:${(p.loctype==='암벽'||p.loctype==='빙벽')?'block':'none'};" class="fg">
+          ${(p.loctype==='암벽'||p.loctype==='빙벽')?`<span class="fl">📍 ${p.loctype} 위치 선택 <span style="font-size:9px;color:#8b95a1;font-weight:400;">${p.loctype==='암벽'?'지구별':''}</span></span>${_climbLocBtnsHtml(p.loctype,p.location)}`:''}
+        </div>
+        <div id="permitWrap" style="display:${p.loctype&&(p.loctype==='암벽'||p.loctype==='빙벽')?'block':'none'};" class="fg">
+          <span class="fl">🏔️ 암빙벽 허가</span>
+          <select id="r_permit" class="fsel" onchange="chkPermit(this)">${['해당없음','허가자 있음','무허가'].map(o=>`<option${p.permit===o?' selected':''}>${o}</option>`).join('')}</select>
+        </div>
+        <div id="permitRoster" style="display:${p.permit==='허가자 있음'?'block':'none'};" class="fg">
+          <button type="button" onclick="openClimbVictimPick()" style="width:100%;background:linear-gradient(145deg,#3a2409,#5a3a12);color:#f0c88a;border:1px solid rgba(240,200,138,.35);border-radius:8px;padding:10px;font-size:12.5px;font-weight:800;cursor:pointer;">🧗 그날 암벽 신청명단 확인 · 사고자 불러오기</button>
+          <div style="font-size:9.5px;color:#8b95a1;margin-top:4px;">※ 사고자가 신청자가 아닐 수 있습니다 — 명단에서 동반자도 개별 선택됩니다</div>
         </div>
         <div class="fg"><span class="fl">접수 내용 <span style="font-size:9px;color:#8b95a1;font-weight:400;">(신고 원문 — 파악된 사고 전개는 환자·부상 탭 '사고 경위'에)</span></span>
           <textarea id="r_recv" class="fta" rows="3" placeholder="예) 119 이첩 — 천불동계곡 하산 중 발목 부상, 자력 이동 불가, 일행 1명">${p.reception||''}</textarea>
@@ -2453,17 +2464,6 @@ function render1BoForm(prefill=null){
           <select id="r_fine" class="fsel">
             ${['과태료 해당 없음','과태료 부과 예정','확인 필요'].map(o=>`<option${p.fine===o?' selected':''}>${o}</option>`).join('')}
           </select>
-        </div>
-        <div id="climbLocWrap" style="display:${(p.loctype==='암벽'||p.loctype==='빙벽')?'block':'none'};" class="fg">
-          ${(p.loctype==='암벽'||p.loctype==='빙벽')?`<span class="fl">📍 ${p.loctype} 위치 선택 <span style="font-size:9px;color:#8b95a1;font-weight:400;">${p.loctype==='암벽'?'지구별':''}</span></span>${_climbLocBtnsHtml(p.loctype,p.location)}`:''}
-        </div>
-        <div id="permitWrap" style="display:${p.loctype&&(p.loctype==='암벽'||p.loctype==='빙벽')?'block':'none'};" class="fg">
-          <span class="fl">🏔️ 암빙벽 허가</span>
-          <select id="r_permit" class="fsel" onchange="chkPermit(this)">${['해당없음','허가자 있음','무허가'].map(o=>`<option${p.permit===o?' selected':''}>${o}</option>`).join('')}</select>
-        </div>
-        <div id="permitRoster" style="display:${p.permit==='허가자 있음'?'block':'none'};" class="fg">
-          <button type="button" onclick="openClimbVictimPick()" style="width:100%;background:linear-gradient(145deg,#3a2409,#5a3a12);color:#f0c88a;border:1px solid rgba(240,200,138,.35);border-radius:8px;padding:10px;font-size:12.5px;font-weight:800;cursor:pointer;">🧗 그날 암벽 신청명단 확인 · 사고자 불러오기</button>
-          <div style="font-size:9.5px;color:#8b95a1;margin-top:4px;">※ 사고자가 신청자가 아닐 수 있습니다 — 명단에서 동반자도 개별 선택됩니다</div>
         </div>
       </div>
       <div class="rsec"><div class="rsec-t">🌤️ 기상 정보</div>
