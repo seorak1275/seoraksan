@@ -495,10 +495,7 @@ function _restoreFilters(){
     if(j.resType)resTypeF=new Set(j.resType);
     if(j.resStatus)resStatusF=new Set(j.resStatus);
     if(j.resTab)_resListTab=j.resTab;
-    if(typeof facMapStatusF!=='undefined'&&j.facStatus)facMapStatusF=new Set(j.facStatus);
-    if(typeof facMapTypeF!=='undefined'&&j.facType)facMapTypeF=new Set(j.facType);
-    if(typeof facMapLocF!=='undefined'&&j.facLoc)facMapLocF=new Set(j.facLoc);
-    if(typeof facMapGradeF!=='undefined'&&j.facGrade)facMapGradeF=new Set(j.facGrade);
+    // 시설물 지도 필터는 복원하지 않음 — 항상 '모든곳(전체)'로 시작(마지막 필터가 남아 일부만 보이던 문제 방지)
     if(typeof facListSort!=='undefined'&&j.facSort)facListSort=j.facSort;
   }catch(e){}
 }

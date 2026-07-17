@@ -136,26 +136,9 @@ var _iClusterOvs=[],_iItems=[];
 function _reclusterInspect(){
   if(!mapI)return;
   _iClusterOvs.forEach(o=>{try{o.setMap(null);}catch(e){}});_iClusterOvs=[];
-  let lv=9;try{lv=mapI.getLevel();}catch(e){}
-  if(lv>=8){
-    // 축소(첫 화면 포함): 구조지도처럼 '구간별 숫자 버블'로 뭉침 — 어디에 몇 개 있는지는 보이되
-    // 아이콘 없는 빈 원은 없음. ⚠️경고 시설은 뭉치지 않고 항상 개별 표시. 버블 탭 = 그 지점 확대.
-    const items=[];
-    iOvs.forEach(o=>{
-      if(o._warn){try{if(o.getMap()!==mapI)o.setMap(mapI);}catch(e){}return;}
-      items.push({ov:o,lat:o._lat,lng:o._lng});
-    });
-    _iClusterOvs=_clusterByPixels(mapI,items,56,function(la,ln){_clusterZoom(mapI,la,ln);},'fac-cluster');
-    // 뭉치지 못한 외딴 핀(그룹 1개)은 빈 원 대신 식별 가능한 최소 크기로
-    iOvs.forEach((o,i)=>{
-      if(o._warn)return;
-      try{
-        if(o.getMap()===mapI){const el=iEls[i];if(el){el.style.width='16px';el.style.height='16px';el.style.fontSize='9px';el.style.borderWidth='1.5px';}}
-      }catch(e){}
-    });
-    return;
-  }
-  // 확대: 전부 개별 표시(아이콘 보임). 이미 붙어 있는 핀은 재부착하지 않음(깜빡임·프레임 저하 방지)
+  // 숫자 버블로 뭉치지 않음 — 시설물 핀은 축소·확대 어느 배율에서도 항상 개별 표시(원래 방식).
+  // 겹쳐서 못 누르는 핀은 _facPinTap이 확대·목록 시트로 처리(숫자 뭉치기 아님).
+  // 이미 붙어 있는 핀은 재부착하지 않음(깜빡임·프레임 저하 방지)
   iOvs.forEach(o=>{try{if(o.getMap()!==mapI)o.setMap(mapI);}catch(e){}});
 }
 // ── 시설물 겹친 핀: 하단 목록 시트로 선택 ──────────────────────────────
