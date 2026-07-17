@@ -1340,7 +1340,7 @@ function renderTimeline(r,viewMode,outId){
     const _injList=(Array.isArray(r.injuries)?r.injuries:[]).filter(i=>i&&(i.part||i.type));
     const _injMain=_injList.length
       ? _injList.map(i=>(typeof _injLabel==='function')?_injLabel(i):((i.part||'')+(i.type||''))).filter(Boolean).join(', ')
-      : (()=>{const ip=_okA(r.injuryParts),it=_okA(r.injuryTypes);return (ip.join(', ')+(it.length?' / '+it.join(', '):'')).trim();})();
+      : (()=>{const ip=_okA(r.injuryParts),it=_okA(r.injuryTypes);return [ip.join(', '),it.join(', ')].filter(Boolean).join(' / ');})(); // 부위가 비면 '/' 없이 유형만
     const _vit0=(r.vitals&&_vitalsStr(r.vitals))?_vitalsStr(r.vitals):'';
     const injurySect=`<div style="font-size:10px;color:#ff8a73;font-weight:800;letter-spacing:.5px;margin-bottom:4px;">🤕 부상 정도</div>
       <div style="font-size:17px;font-weight:800;color:#ffd9d0;line-height:1.4;">${_injMain||'<span style="color:#9c7a72;font-weight:600;font-size:13px;">부상 정보 미입력</span>'}</div>
