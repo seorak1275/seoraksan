@@ -877,16 +877,18 @@ function _hwpxEmbedPhotos(entries,photos){
       +'<hp:outMargin left="0" right="0" top="0" bottom="0"/><hp:shapeComment/></hp:pic>';
   };
   const b64ToU8=u=>{const b=atob(u.split(',')[1]);const a=new Uint8Array(b.length);for(let i=0;i<b.length;i++)a[i]=b.charCodeAt(i);return a;};
-  const scale=(p,maxW)=>{const pw=(+p.w>0?+p.w:800),ph=(+p.h>0?+p.h:600);const w=Math.min(pw*75,maxW);const W=Math.max(1,Math.round(w));const H=Math.max(1,Math.round(w*ph/pw));return {W,H};};
+  const scale=(p,maxW,maxH)=>{const pw=(+p.w>0?+p.w:800),ph=(+p.h>0?+p.h:600);let W=Math.min(pw*75,maxW),H=W*ph/pw;if(maxH&&H>maxH){H=maxH;W=H*pw/ph;}return {W:Math.max(1,Math.round(W)),H:Math.max(1,Math.round(H))};};
   const added=[];
   photos.forEach((p,i)=>{p._bid='appimg'+(i+1);added.push({name:'BinData/'+p._bid+'.jpg',data:b64ToU8(p.u)});});
-  // ① 서식에 슬롯 자리표시자가 있으면 그 자리에 (없으면 ②로)
+  // ① 서식 표 안의 실제 자리 문구('여기에 부상 사진을 넣어주세요')에 삽입 — 없으면 {{슬롯}}도 허용, 그래도 없으면 ②
+  const SLOT_TEXT={'부상사진':'여기에 부상 사진을 넣어주세요','이송 사진':'여기에 이송 사진을 넣어주세요'};
   photos.forEach(p=>{
     if(!p.slot)return;
-    const ph='{{'+p.slot+'}}';const idx=sec.indexOf(ph);
+    let ph=null,idx=-1;
+    for(const c of [SLOT_TEXT[p.slot],'{{'+p.slot+'}}']){if(!c)continue;const j=sec.indexOf(c);if(j>=0){ph=c;idx=j;break;}}
     if(idx<0){p._noSlot=true;return;}
     const rOpen=tagBefore(sec,idx,'<hp:run ')||'<hp:run charPrIDRef="0">';
-    const {W,H}=scale(p,18000);
+    const {W,H}=scale(p,17000,15000); // 표 셀에 맞게 폭·높이 제한
     sec=sec.slice(0,idx)+'</hp:t></hp:run>'+rOpen+picXml(p._bid,W,H)+'</hp:run>'+rOpen+'<hp:t>'+sec.slice(idx+ph.length);
   });
   // ② 나머지는 문서 끝 '[현장 사진]' 부록 블록 — 사진 1장당 한 문단(라벨 병기). 섹션 루트는 hs:sec
