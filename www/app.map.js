@@ -289,7 +289,8 @@ function _drawParkBoundary(map){
 function initMaps(){
   function doInit(){
     if(mapR&&mapI)return; // Guard: don't recreate if already initialized
-    const c=new kakao.maps.LatLng(DC.lat,DC.lng),opt={center:c,level:9};
+    // tileAnimation:false → 타일 페이드인 애니메이션 제거로 지도가 즉시 그려짐(체감 속도↑). 팬·줌도 더 가벼움
+    const c=new kakao.maps.LatLng(DC.lat,DC.lng),opt={center:c,level:9,tileAnimation:false};
     mapI=new kakao.maps.Map(document.getElementById('mapInspect'),opt);
     mapR=new kakao.maps.Map(document.getElementById('mapRescue'),opt);
     mapI.setMapTypeId(kakao.maps.MapTypeId.HYBRID);
@@ -326,7 +327,10 @@ function initMaps(){
         },300);
       }catch(e){}
     }
-    kakao.maps.event.addListener(mapR,'center_changed',saveMapCenter);
+    // center_changed는 팬 중 프레임마다 여러 번 연사됨 → rAF로 프레임당 1회로 제한(레이아웃 강제·재계산 부담 완화)
+    var _smcRaf=0;
+    function _saveMapCenterT(){if(_smcRaf)return;_smcRaf=requestAnimationFrame(function(){_smcRaf=0;saveMapCenter();});}
+    kakao.maps.event.addListener(mapR,'center_changed',_saveMapCenterT);
     window._saveMapCenter=saveMapCenter;
     saveMapCenter();
     function saveInspectCenter(){
@@ -345,7 +349,9 @@ function initMaps(){
       const ci=document.getElementById('inspectCoords');
       if(ci)ci.textContent=c.getLat().toFixed(5)+', '+c.getLng().toFixed(5);
     }
-    kakao.maps.event.addListener(mapI,'center_changed',saveInspectCenter);
+    var _sicRaf=0;
+    function _saveInspectCenterT(){if(_sicRaf)return;_sicRaf=requestAnimationFrame(function(){_sicRaf=0;saveInspectCenter();});}
+    kakao.maps.event.addListener(mapI,'center_changed',_saveInspectCenterT);
     saveInspectCenter();
     // 줌 레벨에 따른 핀 크기 자동 조절
     // 핀 크기조정·재클러스터는 줌이 '멈춘 뒤' 1회만 — 핀치줌은 레벨을 지날 때마다 zoom_changed가
@@ -519,7 +525,7 @@ function _createBoardMap(el){
   try{
     if(_boardMap){_boardOvs.forEach(o=>{try{o.setMap(null);}catch(e){}});_boardOvs=[];}
     el.innerHTML='';
-    _boardMap=new kakao.maps.Map(el,{center:new kakao.maps.LatLng(DC.lat,DC.lng),level:9});
+    _boardMap=new kakao.maps.Map(el,{center:new kakao.maps.LatLng(DC.lat,DC.lng),level:9,tileAnimation:false});
     _boardMap.setMapTypeId(_boardMapType==='hybrid'?kakao.maps.MapTypeId.HYBRID:kakao.maps.MapTypeId.ROADMAP);
     _boardCreateW=el.clientWidth||0;
     try{_drawParkBoundary(_boardMap);}catch(e){}
@@ -1615,7 +1621,7 @@ function _updateMiniMapEl(containerId,lat,lng,_retry){
   if(!mm){
     try{
       el.style.display='block';
-      const map=new kakao.maps.Map(el,{center:pos,level:5});
+      const map=new kakao.maps.Map(el,{center:pos,level:5,tileAnimation:false});
       map.setMapTypeId(kakao.maps.MapTypeId.HYBRID);
       // 십자선 핀
       const pin=document.createElement('div');
@@ -1657,7 +1663,7 @@ function _updateFormMiniMap(lat,lng){
   if(!_formMap){
     try{
       el.style.position='relative';
-      _formMap=new kakao.maps.Map(el,{center:pos,level:4});
+      _formMap=new kakao.maps.Map(el,{center:pos,level:4,tileAnimation:false});
       _formMap.setMapTypeId(kakao.maps.MapTypeId.HYBRID);
       // 중앙 고정 십자선 (지도를 움직여 중심점=선택 위치)
       const cross=document.createElement('div');
@@ -1729,7 +1735,7 @@ function _updateFacFormMap(lat,lng){
   if(!_facMap){
     try{
       el.style.position='relative';
-      _facMap=new kakao.maps.Map(el,{center:pos,level:4});
+      _facMap=new kakao.maps.Map(el,{center:pos,level:4,tileAnimation:false});
       _facMap.setMapTypeId(kakao.maps.MapTypeId.HYBRID);
       const cross=document.createElement('div');
       cross.style.cssText='position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);z-index:5;pointer-events:none;width:36px;height:36px;';
