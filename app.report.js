@@ -644,7 +644,7 @@ function _buildLogHtml(r){
         <div style="display:flex;align-items:center;gap:6px;margin-bottom:${e.sub?'2':'0'}px;">
           <span style="font-size:11px;color:#7a9cb8;font-family:monospace;font-weight:600;white-space:nowrap;">${e.t}</span>
           <span style="font-size:${isWpPass(e)?'11':'12'}px;font-weight:${isWpPass(e)?'600':'700'};color:${isWpPass(e)?'rgba(255,255,255,.55)':col};">${e.ico} ${_esc(e.label)}</span>
-          ${(e.ti!=null&&(e.by===getAuthor()||(typeof isAdminUser==='function'&&isAdminUser())))?`<span onclick="_tlRecDel(${r.id},${e.ti})" style="margin-left:auto;color:rgba(255,107,91,.7);font-size:13px;font-weight:800;cursor:pointer;padding:0 6px;flex-shrink:0;" title="기록 삭제">×</span>`:''}
+          ${(e.ti!=null&&(e.by===getAuthor()||(typeof isAdminUser==='function'&&isAdminUser())))?`<span onclick="event.stopPropagation();_tlRecDel(${r.id},${e.ti})" style="margin:-8px -6px -8px auto;color:rgba(255,107,91,.9);font-size:16px;font-weight:800;cursor:pointer;padding:8px 12px;flex-shrink:0;line-height:1;touch-action:manipulation;-webkit-tap-highlight-color:rgba(255,107,91,.2);" title="기록 삭제">×</span>`:''}
         </div>
         ${e.sub?`<div style="font-size:10px;color:rgba(255,255,255,.35);padding-left:2px;line-height:1.4;">${_esc(e.sub)}</div>`:''}
       </div>

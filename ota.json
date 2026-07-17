@@ -1,1 +1,1 @@
-{"version":"2026.07.17.220","url":"https://seorak1275.github.io/seoraksan/bundle.zip","notes":"시설물 지도 성능 — 팝업 이전/다음용 O(n²) 체인 계산을 매 렌더에서 제거하고 팝업 열 때 1회만 계산·캐시(줌·필터·핀수정 시 지도 반응성 개선)"}
+{"version":"2026.07.17.221","url":"https://seorak1275.github.io/seoraksan/bundle.zip","notes":"상황일지 기록 삭제(×) 버튼 탭 영역 확대 — 손가락으로 누르기 쉽게(패딩·글자 확대, 즉시 반응, 터치 가로채기 방지)"}
