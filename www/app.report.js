@@ -1471,7 +1471,8 @@ function renderTimeline(r,viewMode,outId){
           const mem=(t.members&&t.members.length)?` <span style="color:#c4c8ce;font-weight:400;">— ${_esc(t.members.join(', '))}</span>`:'';
           return `<div style="font-size:11px;color:#c4c8ce;margin-bottom:3px;"><span style="color:#7ec8a0;font-weight:600;">${_teamIco(t)} ${_esc(_deptShort(t.name))}${cnt?` <span style="color:#aab4c0;font-size:10px;">${cnt}명</span>`:''}</span>${mem}</div>`;
         }).join(''):''}
-        ${(!r.members||!r.members.length)&&(!r.teams||!r.teams.length)?'<div style="font-size:11px;color:rgba(255,255,255,.3);">미기재 — 타임라인에서 팀을 출동시키면 자동 표시됩니다</div>':''}
+        ${(()=>{const mr=(r.mobilizeResp||[]).filter(x=>x&&x.status==='eta');return mr.length?`<div style="font-size:11px;color:#c4c8ce;margin-bottom:3px;"><span style="color:#e8b34a;font-weight:600;">🚨 응소 <span style="color:#aab4c0;font-size:10px;">${mr.length}명</span></span> <span style="color:#c4c8ce;">— ${_esc(mr.map(x=>x.name+(x.eta?' ('+x.eta+' 도착예정)':'')).join(', '))}</span></div>`:'';})()}
+        ${(!r.members||!r.members.length)&&(!r.teams||!r.teams.length)&&!(r.mobilizeResp||[]).some(x=>x&&x.status==='eta')?'<div style="font-size:11px;color:rgba(255,255,255,.3);">미기재 — 타임라인에서 팀을 출동시키면 자동 표시됩니다</div>':''}
         ${(r.extraTeams&&r.extraTeams.length)?r.extraTeams.map(t=>`<div style="font-size:11px;color:#c4c8ce;margin-bottom:3px;"><span style="color:#7ec8a0;font-weight:600;">${_esc(_deptShort(t.teamName))}${(t.members||[]).length?` <span style="color:#aab4c0;font-size:10px;">${(t.members||[]).length}명</span>`:''}</span>${(t.members||[]).length?` <span style="color:#c4c8ce;">— ${_esc((t.members||[]).join(', '))}</span>`:''}</div>`).join(''):''}
         ${(r.agencies)?(()=>{
           const ag=r.agencies;const parts=[];

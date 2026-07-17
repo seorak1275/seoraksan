@@ -910,29 +910,34 @@ function _buildRespTimeCard(res){
       if(/처치완료|상황종료|완료/.test(s)&&(!tDone||t>tDone))tDone=t;
     });
     const tHand=_parseDT(r.handover&&r.handover.time);
-    return {t0,tEnc,tDesc,tHand,tDone};
+    // 응소(mobilizeResp) 회신 — 가장 이른 '응소 가능' 회신 시각 + 인원수
+    let tResp=null,nResp=0;(r.mobilizeResp||[]).forEach(x=>{if(x&&x.status==='eta'){nResp++;const t=_parseDT(x.time);if(t&&(!tResp||t<tResp))tResp=t;}});
+    return {t0,tEnc,tDesc,tHand,tDone,tResp,nResp};
   });
   const avg=list=>{const v=list.filter(x=>x!=null&&x>=0&&x<48*60);return v.length?Math.round(v.reduce((a,b)=>a+b,0)/v.length):null;};
   const diffMin=(a,b)=>(a!=null&&b!=null&&b>=a)?Math.round((b-a)/60000):null;
   const encMins=arr.map(x=>diffMin(x.t0,x.tEnc));
   const careMins=arr.map(x=>diffMin(x.tEnc,x.tHand||x.tDone||x.tDesc));
   const totMins=arr.map(x=>diffMin(x.t0,x.tHand||x.tDone));
+  const respMins=arr.map(x=>diffMin(x.t0,x.tResp)); // B: 신고→첫 응소 회신
   const fmt=m=>m==null?'-':(m>=60?Math.floor(m/60)+'시간 '+(m%60)+'분':m+'분');
-  const aEnc=avg(encMins),aCare=avg(careMins),aTot=avg(totMins);
-  const nEnc=encMins.filter(x=>x!=null).length,nCare=careMins.filter(x=>x!=null).length,nTot=totMins.filter(x=>x!=null).length;
-  if(!nEnc&&!nCare&&!nTot)return '';
+  const aEnc=avg(encMins),aCare=avg(careMins),aTot=avg(totMins),aResp=avg(respMins);
+  const nEnc=encMins.filter(x=>x!=null).length,nCare=careMins.filter(x=>x!=null).length,nTot=totMins.filter(x=>x!=null).length,nResp=respMins.filter(x=>x!=null).length;
+  const totRespPeople=arr.reduce((a,x)=>a+(x.nResp||0),0); // C: 누적 응소 인원
+  if(!nEnc&&!nCare&&!nTot&&!nResp)return '';
   const cell=(label,val,n,col)=>`<div style="background:#0f0f11;border-radius:8px;padding:9px 6px;text-align:center;">
     <div style="font-size:15px;font-weight:800;color:${col};line-height:1.2;">${fmt(val)}</div>
     <div style="font-size:9px;color:#8b95a1;margin-top:3px;">${label}</div>
     <div style="font-size:8px;color:#454e5a;margin-top:1px;">n=${n}</div>
   </div>`;
   return `<div class="scard"><div class="stitle">⏱ 평균 대응시간</div>
-    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:5px;">
+    <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:5px;">
+      ${cell('신고→응소회신',aResp,nResp,'#e8b34a')}
       ${cell('신고→환자조우',aEnc,nEnc,'#3182f6')}
       ${cell('환자조우→인계',aCare,nCare,'#e67e22')}
       ${cell('신고→상황종료',aTot,nTot,'#27ae60')}
     </div>
-    <div style="font-size:9px;color:#454e5a;margin-top:7px;line-height:1.5;">※ 타임라인에 기록된 시각 기준. 단계 기록이 있는 건만 집계(n)됩니다.</div>
+    <div style="font-size:9px;color:#454e5a;margin-top:7px;line-height:1.5;">※ 타임라인·응소 회신 시각 기준. 단계 기록이 있는 건만 집계(n).${totRespPeople?` · 누적 응소 회신 <b style="color:#e8b34a;">${totRespPeople}명</b>`:''}</div>
   </div>`;
 }
 function renderRescueStats(){
