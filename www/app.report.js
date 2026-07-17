@@ -168,7 +168,9 @@ function submitNBoFromForm(){
     }
   }catch(e){}
   phaseData.changes=changes;
-  const diffs=changes.map(c=>`${c.label} ${c.from}→${c.to}`);
+  // update = 정형 변경 '외'의 부가 신호만(경위 갱신·타임라인 추가). 필드 변경은 changes[]에 구조화돼
+  // '추가 보고'에 라벨:이전→이후로 표시되므로, 같은 내용을 프로즈로 중복 저장하지 않음(화면 중복 제거)
+  const diffs=[];
   if(phaseData.situation&&phaseData.situation!==prev.situation)diffs.push('경위 갱신');
   if(_ttInlineEntries.length)diffs.push(`타임라인 ${_ttInlineEntries.length}건 추가`);
   phaseData.update=diffs.join(' · ');   // 변경 없으면 빈값 — '상태 유지' 같은 뭉뚱그린 문구 사용 안 함
@@ -1383,15 +1385,24 @@ function renderTimeline(r,viewMode,outId){
     if(_ok(r.extra))rows.push(_row('특이',_esc(r.extra)));
     {const vseq=[];if(r.vitals&&_vitalsStr(r.vitals))vseq.push(r.vitals);(r.reports||[]).forEach(p=>{if(p.vitals&&_vitalsStr(p.vitals))vseq.push(p.vitals);});
      if(vseq.length>1){const vhtml=vseq.map(v=>`<div style="font-size:10px;color:#9bbdd4;line-height:1.6;"><span style="color:#4a7090;">${(v.at||'').slice(5,16)||'-'}</span> ${_vitalsStr(v)}</div>`).join('');rows.push(_row('활력추이',vhtml));}}
-    // 추가내용 (1차/2차…) — 있을 때만 칸 생성
-    const updates=(r.reports||[]).map((p,i)=>({p,ci:i+1})).filter(({p})=>p.update||(p.victimChange&&p.victimChange!=='변화없음')||p.addMem||p.extra);
-    const updHtml=updates.length?`<div style="background:#0b1c30;border-radius:10px;padding:11px 12px;border:.5px solid rgba(79,168,208,.14);margin-bottom:8px;"><div style="font-size:10px;color:#4fa8d0;font-weight:800;margin-bottom:5px;">📌 추가 내용</div>${updates.map(({p,ci})=>{const pts=[];if(p.update)pts.push(_esc(p.update));if(p.victimChange&&p.victimChange!=='변화없음')pts.push('부상자 '+_esc(p.victimChange));if(p.addMem)pts.push('추가대원 '+_esc(p.addMem));if(p.extra)pts.push(_esc(p.extra));return `<div style="padding:6px 0;border-bottom:.5px solid rgba(255,255,255,.05);"><div style="font-size:11px;color:#7dd3fa;font-weight:700;">${ci}차 추가내용 <span style="color:#5a7e98;font-weight:400;font-size:9px;">${p.repTime||''}${p.author?' · '+_esc(p.author):''}</span></div><div style="font-size:11px;color:#b8d4e8;line-height:1.5;margin-top:2px;">${pts.join(' / ')}</div></div>`;}).join('')}</div>`:'';
-    // 변경 이력 — 추가보고에서 정형 항목이 바뀐 내역(최신값은 위에 떴고, 여기엔 '무엇이 어떻게 바뀌었는지')
-    const changeLog=[];(r.reports||[]).forEach((p,i)=>{(p.changes||[]).forEach(c=>changeLog.push({ci:i+1,at:p.repTime,by:p.author,...c}));});
-    const changeHtml=changeLog.length?`<div style="background:#0b1c30;border-radius:10px;padding:11px 12px;border:.5px solid rgba(230,126,34,.2);margin-bottom:8px;"><div style="font-size:10px;color:#e8943a;font-weight:800;margin-bottom:5px;">🔄 변경 이력</div>${changeLog.map(c=>`<div style="font-size:11px;color:#b8d4e8;line-height:1.6;padding:3px 0;border-bottom:.5px solid rgba(255,255,255,.04);"><span style="color:#7dd3fa;font-weight:700;">${c.ci}차</span> ${_esc(c.label)}: <span style="color:#9c8060;">${_esc(c.from)}</span> → <b style="color:#e0edf8;">${_esc(c.to)}</b> <span style="color:#5a7e98;font-size:9px;">${c.at||''}${c.by?' · '+_esc(c.by):''}</span></div>`).join('')}</div>`:'';
-    // 위치 채택 이력 — 사고자 실시간 위치로 최초접수 좌표를 옮긴 기록(최초접수 원본은 origLat/origLng 보존)
+    // ── 추가 보고(N보) — 정형 변경 이력 + 부가내용을 차수별로 한 곳에 통합 (프로즈·구조 중복 제거) ──
+    // 좌표 변경(위치좌표)은 아래 '위치 변경 이력'이 거리·최초접수 원본까지 담당하므로 여기선 제외해 삼중 중복 방지
+    const _updRep=(r.reports||[]).map((p,i)=>({p,ci:i+1,chg:(p.changes||[]).filter(c=>c.label!=='위치좌표')}))
+      .filter(({p,chg})=>chg.length||p.update||(p.victimChange&&p.victimChange!=='변화없음')||p.addMem||p.extra);
+    const updHtml=_updRep.length?`<div style="background:#0b1c30;border-radius:10px;padding:11px 12px;border:.5px solid rgba(79,168,208,.16);margin-bottom:8px;"><div style="font-size:10px;color:#4fa8d0;font-weight:800;margin-bottom:5px;">📌 추가 보고</div>${_updRep.map(({p,ci,chg})=>{
+      const chgHtml=chg.map(c=>`<div style="font-size:11px;line-height:1.55;padding:1px 0;color:#b8d4e8;">${_esc(c.label)}: <span style="color:#9c8060;">${_esc(c.from)}</span> → <b style="color:#e0edf8;">${_esc(c.to)}</b></div>`).join('');
+      const extras=[];
+      // update 프로즈는 '경위 갱신·타임라인' 부가신호만(신버전) — 구버전(→ 포함)은 chg가 있으면 중복이라 숨기고, chg가 없을 때만 폴백 표시
+      const _showUpd=p.update&&(!p.update.includes('→')||(!chg.length&&!(p.changes&&p.changes.length)));
+      if(_showUpd)extras.push(_esc(p.update));
+      if(p.victimChange&&p.victimChange!=='변화없음')extras.push('부상자 '+_esc(p.victimChange));
+      if(p.addMem)extras.push('추가대원 '+_esc(p.addMem));
+      if(p.extra)extras.push(_esc(p.extra));
+      return `<div style="padding:6px 0;border-bottom:.5px solid rgba(255,255,255,.05);"><div style="font-size:11px;color:#7dd3fa;font-weight:700;margin-bottom:2px;">${ci}차 <span style="color:#5a7e98;font-weight:400;font-size:9px;">${p.repTime||''}${p.author?' · '+_esc(p.author):''}</span></div>${chgHtml}${extras.length?`<div style="font-size:11px;color:#b8d4e8;line-height:1.5;margin-top:${chgHtml?'3px':'0'};">${extras.join(' · ')}</div>`:''}</div>`;
+    }).join('')}</div>`:'';
+    // 위치 변경 이력 — 좌표 이동 기록(N보 수정=via 표기 / 사고자 실시간 위치 채택). 최초접수 원본은 origLat/origLng 보존
     const locLog=(r.locLog||[]);
-    const locChgHtml=locLog.length?`<div style="background:#0b1c30;border-radius:10px;padding:11px 12px;border:.5px solid rgba(20,184,166,.22);margin-bottom:8px;"><div style="font-size:10px;color:#2dd4bf;font-weight:800;margin-bottom:5px;">📍 위치 변경 이력 <span style="color:#5a7e98;font-weight:400;font-size:9px;">최초접수 ${r.origLat!=null?(+r.origLat).toFixed(5)+', '+(+r.origLng).toFixed(5):''}</span></div>${locLog.map(l=>`<div style="font-size:11px;color:#b8d4e8;line-height:1.6;padding:3px 0;border-bottom:.5px solid rgba(255,255,255,.04);">실시간 위치 채택 <span style="color:#9c8060;">${(+l.from.lat).toFixed(5)}, ${(+l.from.lng).toFixed(5)}</span> → <b style="color:#a7f3e4;">${(+l.to.lat).toFixed(5)}, ${(+l.to.lng).toFixed(5)}</b>${l.dist?' <span style="color:#5a9e94;">('+l.dist+'m)</span>':''} <span style="color:#5a7e98;font-size:9px;">${l.at||''}${l.by?' · '+_esc(l.by):''}</span></div>`).join('')}</div>`:'';
+    const locChgHtml=locLog.length?`<div style="background:#0b1c30;border-radius:10px;padding:11px 12px;border:.5px solid rgba(20,184,166,.22);margin-bottom:8px;"><div style="font-size:10px;color:#2dd4bf;font-weight:800;margin-bottom:5px;">📍 위치 변경 이력 <span style="color:#5a7e98;font-weight:400;font-size:9px;">최초접수 ${r.origLat!=null?(+r.origLat).toFixed(5)+', '+(+r.origLng).toFixed(5):''}</span></div>${locLog.map(l=>`<div style="font-size:11px;color:#b8d4e8;line-height:1.6;padding:3px 0;border-bottom:.5px solid rgba(255,255,255,.04);">${l.via?'위치 수정 <span style="color:#5a7e98;font-size:9px;">('+_esc(l.via)+')</span>':'실시간 위치 채택'} <span style="color:#9c8060;">${(+l.from.lat).toFixed(5)}, ${(+l.from.lng).toFixed(5)}</span> → <b style="color:#a7f3e4;">${(+l.to.lat).toFixed(5)}, ${(+l.to.lng).toFixed(5)}</b>${l.dist?' <span style="color:#5a9e94;">('+l.dist+'m)</span>':''} <span style="color:#5a7e98;font-size:9px;">${l.at||''}${l.by?' · '+_esc(l.by):''}</span></div>`).join('')}</div>`:'';
     const logHtml=_buildLogHtml(r);
     // ── 접이식 보고서 + 하단 타임라인 ──
     // 요약(부상·위치·사람+전화)은 항상 보이고, 상세(접수·경위·사진·출동인원 등)는 '보고서 펼치기'로.
@@ -1411,7 +1422,6 @@ function renderTimeline(r,viewMode,outId){
         <div style="text-align:right;font-size:9px;color:#3a5a6a;margin-top:9px;">📝 최초접수 ${r.date||''}${r.author?' · 작성 '+_esc(r.author):''}</div>
       </div>
       ${updHtml}
-      ${changeHtml}
       ${locChgHtml}
       ${_scenePhotosHtml(r)}
       <div style="background:#0b1c30;border-radius:10px;padding:11px 12px;border:.5px solid rgba(79,168,208,.12);margin-bottom:8px;">${_teamSectHtml()}</div>`:'';
@@ -1951,11 +1961,19 @@ function _buildReportText(r){
     tlAll.sort((a,b)=>String(a.k).localeCompare(String(b.k)));
     tlAll.forEach(e=>L.push('· '+e.disp));
   }
-  // 추가 보고
-  const ups=(r.reports||[]).filter(p=>p.update||p.extra);
+  // 추가 보고 — 정형 변경 이력(라벨 이전→이후) + 부가내용. 화면과 동일 규칙으로 프로즈 중복 제거
+  const ups=(r.reports||[]).filter(p=>(p.changes&&p.changes.length)||p.update||p.extra||(p.victimChange&&p.victimChange!=='변화없음')||p.addMem);
   if(ups.length){
     L.push('');L.push('[ 추가 보고 ]');
-    ups.forEach((p,i)=>{L.push('· '+(i+1)+'보 '+(p.repTime||'')+' '+(p.author?'('+p.author+')':'')+': '+(p.update||p.extra||''));});
+    ups.forEach((p,i)=>{
+      const parts=[];
+      (p.changes||[]).forEach(c=>parts.push(c.label+' '+c.from+'→'+c.to));
+      if(p.update&&(!p.update.includes('→')||!(p.changes&&p.changes.length)))parts.push(p.update);
+      if(p.victimChange&&p.victimChange!=='변화없음')parts.push('부상자 '+p.victimChange);
+      if(p.addMem)parts.push('추가대원 '+p.addMem);
+      if(p.extra)parts.push(p.extra);
+      L.push('· '+(i+1)+'보 '+(p.repTime||'')+' '+(p.author?'('+p.author+')':'')+': '+parts.join(' · '));
+    });
   }
   if(_ok(r.extra))L.push('특이사항: '+r.extra);
   L.push('');L.push('작성자: '+(r.author||'-'));
