@@ -1748,6 +1748,24 @@ function climbRosterStep(delta){
 }
 function climbRosterPick(d){_climbRosterDate=(d||'').trim();window._climbRosterDistF='';_renderClimbRoster(_climbCache||[]);}
 function climbRosterDist(d){window._climbRosterDistF=d||'';_renderClimbRoster(_climbCache||[]);}
+// 🧗 암벽/빙벽 사고 → 그날 암벽 이용명단 자동 조회. 사고 코스가 매핑되면 그 지구로 필터.
+function openClimbRosterForRescue(rid){
+  const r=(DB.g('rescues')||[]).find(x=>String(x.id)===String(rid));if(!r)return;
+  if(typeof _canClimbView==='function'&&!_canClimbView()){toast('⚠️ 명단 열람 권한이 없습니다');return;}
+  const d=String(r.date||'').slice(0,10);
+  const dist=(typeof _climbDistrictOf==='function'&&r.location)?_climbDistrictOf(r.location):'';
+  try{openClimb();}catch(e){}
+  try{climbTab('roster');}catch(e){}
+  // 데이터 로드 완료 후 그 사고 날짜(+매칭 지구)로 이동 — 오프라인 캐시 폴백 포함
+  let tries=0;const iv=setInterval(()=>{
+    tries++;
+    if((_climbCache&&_climbCache.length)||tries>25){
+      clearInterval(iv);
+      try{if(d)climbRosterPick(d);}catch(e){}
+      try{if(dist&&dist!=='기타')climbRosterDist(dist);}catch(e){}
+    }
+  },200);
+}
 function _renderClimbRoster(all){
   const b=document.getElementById('climbInner');if(!b)return;
   const D=_climbRosterDate||_ymd(new Date());
@@ -3274,6 +3292,7 @@ function _initSosWatch(){
         }
       });
       window._sosInited=true;
+      try{_autoTrackSosRescues();}catch(e){} // 🔗 연계 SOS 위치가 움직이면 사고 위치 자동 추적
       try{_drawSosPins();}catch(e){}
       try{_updateSosFab();}catch(e){}
       try{const bv=document.getElementById('v-board');if(bv&&bv.classList.contains('on')&&_boardMap)_renderBoardPins(false);}catch(e){}
@@ -3600,6 +3619,25 @@ function _linkedSosPing(r){
   const p=(_sosPings||[]).find(x=>x.id===r.sosId);
   return (p&&p.lat&&p.lng)?p:null;
 }
+// 🔗 연계 SOS 실시간 위치 → 진행중 사고 위치 자동 추적. 25m 이상 이동 + 45초 쓰로틀(쿼터 절약), 최초접수 원본 보존·이력 기록.
+// r.sosAutoTrack===false 인 사고는 제외(수동 채택만). 사고자 이동/이송 중 위치가 저절로 따라감.
+function _autoTrackSosRescues(){
+  try{
+    if(!window._sosInited)return;
+    const res=DB.g('rescues')||[];let changed=false;const t=Date.now();
+    res.forEach(r=>{
+      if(r.status!=='ongoing'||!r.sosId||r.sosAutoTrack===false)return;
+      const p=(_sosPings||[]).find(x=>x.id===r.sosId&&x.lat&&x.lng);if(!p)return;
+      const moved=(r.lat&&r.lng&&typeof _haversineKm==='function')?_haversineKm(r.lat,r.lng,p.lat,p.lng)*1000:99999;
+      if(moved<25)return;                              // GPS 지터 무시
+      if(r._sosTrackAt&&t-r._sosTrackAt<45000)return;  // 45초 쓰로틀
+      if(r.origLat==null){r.origLat=r.lat;r.origLng=r.lng;}
+      r.locLog=(r.locLog||[]).concat([{from:{lat:r.lat||0,lng:r.lng||0},to:{lat:+(+p.lat).toFixed(6),lng:+(+p.lng).toFixed(6)},at:now(),by:'실시간추적',dist:Math.round(moved),via:'SOS 자동추적'}]);
+      r.lat=+(+p.lat).toFixed(6);r.lng=+(+p.lng).toFixed(6);r._sosTrackAt=t;changed=true;
+    });
+    if(changed){DB.s('rescues',res);try{if(window.curApp==='rescue'){renderRescueMap();renderResList();}}catch(e){}}
+  }catch(e){}
+}
 // 사고 종료 시 연계된 SOS 링크(토큰) 전부 비활성화 — 종료된 사고의 실시간 추적 잔존 방지
 function _closeLinkedSos(r){
   const links=_rescueSosLinks(r);
@@ -3682,7 +3720,7 @@ function sosToRescue(id){
 // 앱 자체 업데이트 (OTA · Capgo 자체호스팅) — APK 전용. 웹/PWA는 서비스워커가 자동 갱신.
 // 번들(www)의 새 버전을 ota.json으로 알리면, 설치된 앱이 받아서 그 자리에서 교체(재빌드 불필요).
 // ══════════════════════════════════════════
-const OTA_VER='2026.07.17.233';                         // ← 현재 번들 버전 (릴리스마다 올림 · build-ota.sh가 ota.json에 반영)
+const OTA_VER='2026.07.17.234';                         // ← 현재 번들 버전 (릴리스마다 올림 · build-ota.sh가 ota.json에 반영)
 const OTA_MANIFEST='https://seorak1275.github.io/seoraksan/ota.json';
 // 업데이트 확인 폴백 소스 — 일부 기관망·통신사에서 github.io가 막혀 '확인 실패(네트워크)'가 나는 경우 대비.
 // 순서대로 시도: ① GitHub Pages(원본·즉시 반영) ② jsDelivr CDN(공개저장소 미러·거의 모든 망 통과)
