@@ -14,39 +14,49 @@ function settingsTab(tab,el){
 function renderSettings(){
   const u=DB.g('currentUser')||{};
   if(_settingsTab==='info'){
+    const _appr=u.approvalStatus==='approved';
+    const _kakao=!!(u.kakaoImg||u.kakaoId);
+    const _tmode=(function(){try{return localStorage.getItem('_tileAutoMode')||'wifi';}catch(e){return 'wifi';}})();
+    const _mchip=(v,l)=>`<button onclick="_setTileAutoMode('${v}')" style="padding:6px 10px;border-radius:8px;border:1px solid ${_tmode===v?'rgba(94,207,143,.5)':'rgba(255,255,255,.12)'};background:${_tmode===v?'rgba(94,207,143,.14)':'none'};color:${_tmode===v?'#5fcf8f':'#8b95a1'};font-size:10.5px;font-weight:700;cursor:pointer;white-space:nowrap;">${l}</button>`;
     document.getElementById('settingsInfoWrap').innerHTML=`
-      <div class="scard" style="margin-bottom:8px;">
-        <div class="stitle">👤 내 계정</div>
-        <div style="font-size:12px;color:#c4c8ce;line-height:2.0;">이름: <b>${_esc(u.realName||u.name||'미설정')}</b><br>소속: <b>${_esc(u.dept||'미설정')}</b><br>직위: <b>${_esc(u.rank||'미설정')}</b>${u.kakaoId?`<br><span style="color:#565f6b;font-size:10px;">카카오ID: ${_esc(u.kakaoId)}</span>`:''}</div>
-        <div style="display:flex;align-items:center;gap:6px;margin-top:6px;margin-bottom:8px;">
-          <div style="font-size:11px;color:${u.approvalStatus==='approved'?'#7ec8a0':'#e67e22'};">● ${u.approvalStatus==='approved'?'승인됨':'승인 대기'}</div>
+      <div class="set-hd">계정</div>
+      <div class="set-card">
+        <div class="set-acct">
+          ${_kakao&&u.kakaoImg?`<img class="set-avt" src="${_esc(_imgHttps(u.kakaoImg||''))}" onerror="this.outerHTML='<div class=&quot;set-avt&quot;>👤</div>'">`:`<div class="set-avt">👤</div>`}
+          <div style="flex:1;min-width:0;">
+            <div class="set-anm">${_esc(u.realName||u.name||'미설정')}</div>
+            <div class="set-ade">${_esc(u.dept||'소속 미설정')}${u.rank?' · '+_esc(u.rank):''}</div>
+            <div style="font-size:11px;font-weight:700;margin-top:4px;color:${_appr?'#5fcf8f':'#e8a04a'};">● ${_appr?'승인됨':'승인 대기'}</div>
+          </div>
         </div>
-        <button onclick="openChangeUser()" style="width:100%;background:#1a4a6e;color:#fff;border:none;padding:9px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;">✏️ 계정 수정</button>
+        <button class="set-row tap" onclick="openChangeUser()"><div class="set-ic">✏️</div><div class="set-bd"><div class="set-lb">계정 정보 수정</div></div><span class="set-cv">›</span></button>
       </div>
-      <div class="scard" style="margin-bottom:8px;">
-        <div class="stitle">💬 카카오 로그인</div>
-        ${(()=>{if(u.kakaoImg||u.kakaoId){return`<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;"><img src="${_esc(_imgHttps(u.kakaoImg||''))}" style="width:36px;height:36px;border-radius:50%;object-fit:cover;background:#1a3a5a;" onerror="this.style.display='none'"><div style="font-size:12px;color:#c4c8ce;"><b style="color:#eaecef;">${_esc(u.name||'')}</b> 님으로 연결됨</div></div><button onclick="kakaoLogout()" style="width:100%;background:rgba(255,80,80,.12);color:#ff8a80;border:1px solid rgba(255,80,80,.25);padding:9px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;margin-bottom:6px;">🚪 카카오 로그아웃</button><button onclick="withdrawAccount()" style="width:100%;background:rgba(180,20,20,.12);color:#cc4444;border:1px solid rgba(180,20,20,.25);padding:8px;border-radius:8px;font-size:11px;font-weight:600;cursor:pointer;">🗑️ 회원탈퇴</button>`;}return`<div style="font-size:11px;color:#8b95a1;margin-bottom:8px;">카카오 계정으로 로그인하면 작성자 정보가 자동 설정됩니다.</div><button onclick="kakaoLogin()" style="width:100%;background:rgba(254,229,0,.18);color:#f0d900;border:1px solid rgba(254,229,0,.3);padding:9px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;">💬 카카오로 로그인</button>`;})()}
+
+      <div class="set-hd">카카오 로그인</div>
+      <div class="set-card">
+        ${_kakao?`
+        <div class="set-row"><div class="set-ic">💬</div><div class="set-bd"><div class="set-lb">${_esc(u.name||'카카오')} 님 연결됨</div>${u.kakaoId?`<div class="set-sb">${_esc(u.kakaoId)}</div>`:''}</div></div>
+        <button class="set-row tap" onclick="kakaoLogout()"><div class="set-ic">🚪</div><div class="set-bd"><div class="set-lb" style="color:#ff8a80;">카카오 로그아웃</div></div><span class="set-cv">›</span></button>
+        <button class="set-row tap" onclick="withdrawAccount()"><div class="set-ic">🗑️</div><div class="set-bd"><div class="set-lb" style="color:#cc4444;">회원탈퇴</div></div><span class="set-cv">›</span></button>`
+        :`<div class="set-row"><div class="set-ic">💬</div><div class="set-bd"><div class="set-lb">카카오 계정 연결</div><div class="set-sb">로그인하면 작성자 정보가 자동 설정됩니다</div></div></div>
+        <div style="padding:0 14px 14px;"><button class="set-btn set-btn-k" onclick="kakaoLogin()">💬 카카오로 로그인</button></div>`}
       </div>
-      <div class="scard" style="margin-bottom:8px;">
-        <div class="stitle">🔄 앱 업데이트</div>
-        <div style="font-size:11px;color:#8b95a1;margin-bottom:8px;">현재 버전 <b style="color:#d5d8dc;">${OTA_VER}</b> · 앱은 재설치 없이 최신으로 자체 업데이트됩니다. (웹은 새로고침 시 자동)</div>
-        <button onclick="_otaCheck(true)" style="width:100%;padding:11px;border-radius:8px;border:1px solid rgba(255,255,255,.4);background:rgba(255,255,255,.12);color:#3182f6;font-size:13px;font-weight:700;cursor:pointer;">🔄 업데이트 확인 / 적용</button>
+
+      <div class="set-hd">앱</div>
+      <div class="set-card">
+        <button class="set-row tap" onclick="_otaCheck(true)"><div class="set-ic">🔄</div><div class="set-bd"><div class="set-lb">업데이트 확인 · 적용</div><div class="set-sb">버전 ${OTA_VER} · 재설치 없이 자체 갱신</div></div><span class="set-cv">›</span></button>
+        <a class="set-row tap" href="https://github.com/seorak1275/seoraksan/releases/latest" target="_blank" style="text-decoration:none;"><div class="set-ic">📱</div><div class="set-bd"><div class="set-lb">안드로이드 APK 다운로드</div><div class="set-sb">최신 빌드 (GitHub Releases)</div></div><span class="set-cv">↗</span></a>
       </div>
-      <div class="scard" style="margin-bottom:8px;">
-        <div class="stitle">📴 오프라인 대비 (무통신 산악지역)</div>
-        <div style="font-size:11px;color:#8b95a1;line-height:1.6;margin-bottom:8px;">통신이 끊기는 산악지역 진입에 대비해 미리 받아두세요. 아래 버튼으로 <b style="color:#d5d8dc;">설악산 인근 지도 전체를 미리 저장</b>하면 무통신 구역에서도 지도가 바로 뜹니다. (Wi-Fi에서 실행 권장 · 1~2분)<br><span style="color:#6b7684;">※ 구조·시설물·특보 등 앱 데이터와 최근 조회한 암벽 명단은 접속 중 자동으로 기기에 저장되어, 통신이 끊겨도 마지막 상태를 볼 수 있습니다. 미리받기는 설악산 인근만 저장하며 다른 지역 열람분은 최근 1,500장(약 25MB)까지만 임시 보관됩니다.</span></div>
-        <div id="tileCacheInfo" style="font-size:10px;color:#454e5a;margin-bottom:8px;">저장 현황 확인 중...</div>
-        ${(()=>{const m=(function(){try{return localStorage.getItem('_tileAutoMode')||'wifi';}catch(e){return 'wifi';}})();
-          const chip=(v,l)=>`<button onclick="_setTileAutoMode('${v}')" style="flex:1;padding:7px 4px;border-radius:8px;border:1px solid ${m===v?'rgba(94,207,143,.5)':'rgba(255,255,255,.12)'};background:${m===v?'rgba(94,207,143,.14)':'none'};color:${m===v?'#5fcf8f':'#8b95a1'};font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap;">${l}</button>`;
-          return `<div style="display:flex;gap:5px;margin-bottom:8px;align-items:center;"><span style="font-size:10.5px;color:#8b95a1;flex-shrink:0;">🔁 자동 저장</span>${chip('wifi','📶 와이파이만')}${chip('always','항상')}${chip('off','끄기')}</div>`;})()}
-        <button onclick="preloadParkTiles()" style="width:100%;padding:11px;border-radius:8px;border:1px solid rgba(94,207,143,.35);background:rgba(94,207,143,.1);color:#5fcf8f;font-size:13px;font-weight:700;cursor:pointer;margin-bottom:6px;">⬇️ 설악산 인근 지도 미리받기</button>
-        <button onclick="clearTileCache()" style="width:100%;padding:8px;border-radius:8px;border:1px solid rgba(255,255,255,.1);background:none;color:#6b7684;font-size:11px;font-weight:600;cursor:pointer;">🗑️ 지도 캐시 비우기</button>
+
+      <div class="set-hd">오프라인 지도 · 무통신 대비</div>
+      <div class="set-card">
+        <div class="set-row" style="align-items:flex-start;"><div class="set-ic">📴</div><div class="set-bd"><div class="set-lb">산악지역 지도 미리저장</div><div class="set-sb">통신 끊긴 구역에서도 지도가 바로 뜨도록 설악산 인근을 미리 받아둡니다 (Wi-Fi 권장 · 1~2분). 앱 데이터·최근 암벽명단은 접속 중 자동 저장됩니다.</div><div id="tileCacheInfo" style="font-size:10px;color:#565f6b;margin-top:6px;">저장 현황 확인 중...</div></div></div>
+        <div class="set-row"><div class="set-ic">🔁</div><div class="set-bd"><div class="set-lb">자동 저장</div></div><div style="display:flex;gap:4px;flex-shrink:0;">${_mchip('wifi','📶 WiFi')}${_mchip('always','항상')}${_mchip('off','끄기')}</div></div>
       </div>
-      <a href="https://github.com/seorak1275/seoraksan/releases/latest" target="_blank" style="display:flex;align-items:center;gap:10px;background:#1c1c1e;border:1px solid rgba(255,255,255,.18);border-radius:10px;padding:11px 13px;text-decoration:none;flex-shrink:0;">
-        <span style="font-size:18px;">📱</span>
-        <div style="flex:1;"><div style="font-size:12px;font-weight:700;color:#eaecef;">안드로이드 APK 다운로드</div><div style="font-size:10px;color:#454e5a;margin-top:1px;">최신 빌드 받기 (GitHub Releases)</div></div>
-        <span style="font-size:11px;color:#3182f6;">↗</span>
-      </a>`;
+      <div style="padding:0 2px;margin-top:9px;display:flex;flex-direction:column;gap:7px;">
+        <button class="set-btn set-btn-g" onclick="preloadParkTiles()">⬇️ 설악산 인근 지도 미리받기</button>
+        <button class="set-btn set-btn-n" onclick="clearTileCache()">🗑️ 지도 캐시 비우기</button>
+      </div>`;
     setTimeout(function(){try{_updateTileCacheInfo();}catch(e){}},0);
   } else {
     const s=_ensureNotiDefaults();
@@ -54,22 +64,21 @@ function renderSettings(){
     const _vibe=DB.g('notiVibrate')!==false;
     const _notiPerm=('Notification' in window)?Notification.permission:'unsupported';
     document.getElementById('settingsNotiWrap').innerHTML=`
-      <div class="scard" style="margin-bottom:8px;">
-        <div class="stitle">📳 알림 동작</div>
-        ${_notiPerm==='granted'?'':`<div onclick="_reqPerm&&_reqPerm('noti')" style="cursor:pointer;background:rgba(241,196,15,.08);border:1px solid rgba(241,196,15,.3);border-radius:8px;padding:9px 11px;margin-bottom:8px;font-size:11px;color:#e8c84a;line-height:1.5;">🔔 휴대폰 알림이 꺼져 있습니다. <b>탭하여 권한 허용</b> → 꺼진 폰에도 알림이 옵니다.</div>`}
-        <div class="tog-row"><div><div class="tog-lbl">📳 진동</div><div class="tog-sub">알림이 오면 휴대폰을 진동시킵니다</div></div><div class="toggle ${_vibe?'on':'off'}" onclick="togVibrate(this)"></div></div>
-        <div class="tog-row"><div><div class="tog-lbl">💬 카카오톡 특보 알림</div><div class="tog-sub">특보 발령·변경·해제를 내 카카오톡(나와의 채팅)으로 받기</div></div><div class="toggle ${typeof _kakaoMsgOn==='function'&&_kakaoMsgOn()?'on':'off'}" onclick="togKakaoAlert(this)"></div></div>
+      <div class="set-hd">알림 동작</div>
+      <div class="set-card">
+        ${_notiPerm==='granted'?'':`<button class="set-row tap" onclick="_reqPerm&&_reqPerm('noti')"><div class="set-ic" style="background:rgba(232,200,74,.15);">🔔</div><div class="set-bd"><div class="set-lb" style="color:#e8c84a;">휴대폰 알림 권한 허용</div><div class="set-sb">꺼진 폰에도 알림이 오게 하려면 탭하세요</div></div><span class="set-cv">›</span></button>`}
+        <div class="set-row"><div class="set-ic">📳</div><div class="set-bd"><div class="set-lb">진동</div><div class="set-sb">알림이 오면 휴대폰 진동</div></div><div class="toggle ${_vibe?'on':'off'}" onclick="togVibrate(this)"></div></div>
+        <div class="set-row"><div class="set-ic">💬</div><div class="set-bd"><div class="set-lb">카카오톡 특보 알림</div><div class="set-sb">특보 발령·변경·해제를 내 카톡(나와의 채팅)으로</div></div><div class="toggle ${typeof _kakaoMsgOn==='function'&&_kakaoMsgOn()?'on':'off'}" onclick="togKakaoAlert(this)"></div></div>
       </div>
-      <div class="scard">
-        <div class="stitle" style="display:flex;align-items:center;justify-content:space-between;">🔔 알림 설정
-          <button onclick="togNotiAll(${allOn?'false':'true'})" style="font-size:10px;font-weight:700;background:rgba(255,255,255,.12);color:#3182f6;border:1px solid rgba(255,255,255,.3);border-radius:7px;padding:4px 9px;cursor:pointer;">${allOn?'전체 끄기':'전체 켜기'}</button>
+
+      <div class="set-hd" style="display:flex;justify-content:space-between;align-items:center;">알림 종류<button onclick="togNotiAll(${allOn?'false':'true'})" style="font-size:10px;font-weight:800;background:rgba(49,130,246,.14);color:#4d9bf5;border:1px solid rgba(49,130,246,.3);border-radius:7px;padding:4px 10px;cursor:pointer;">${allOn?'전체 끄기':'전체 켜기'}</button></div>
+      <div class="set-note">기본은 <b style="color:#5fcf8f;">모두에게</b> 옵니다. 받을 알림을 직접 켜고 끄세요. '(앱 내만)'은 OS 푸시 없이 앱 벨로만.</div>
+      ${NOTI_GROUPS.map(g=>`
+        <div class="set-hd">${g.title}</div>
+        <div class="set-card">
+          ${g.items.map(it=>`<div class="set-row"><div class="set-bd"><div class="set-lb">${it.l}${it.push===false?' <span style="font-size:9px;color:#565f6b;font-weight:600;">(앱 내만)</span>':''}</div><div class="set-sb">${it.sub}</div></div><div class="toggle ${_notiOn(it.k)?'on':'off'}" onclick="togNotiSet('${it.k}',this)"></div></div>`).join('')}
         </div>
-        <div class="tog-sub" style="margin:-4px 0 8px;color:#6b7684;">기본은 <b style="color:#5dbf8a;">모두에게</b> 옵니다. 아래에서 내가 받을 알림을 직접 켜고 끄세요. ('(앱 내만)'은 OS 푸시 없이 앱 벨로만)</div>
-        ${NOTI_GROUPS.map(g=>`
-          <div style="font-size:11px;font-weight:800;color:#78828e;letter-spacing:.4px;margin:14px 0 4px;border-top:1px solid rgba(255,255,255,.05);padding-top:10px;">${g.title}</div>
-          ${g.items.map(it=>`<div class="tog-row"><div><div class="tog-lbl">${it.l}${it.push===false?' <span style="font-size:9px;color:#565f6b;font-weight:600;">(앱 내만)</span>':''}</div><div class="tog-sub">${it.sub}</div></div><div class="toggle ${_notiOn(it.k)?'on':'off'}" onclick="togNotiSet('${it.k}',this)"></div></div>`).join('')}
-        `).join('')}
-      </div>`;
+      `).join('')}`;
   }
 }
 function togNotiSet(k,el){const s=DB.g('notiSetting')||{};const cur=_notiOn(k);s[k]=!cur;DB.s('notiSetting',s);el.className='toggle '+(!cur?'on':'off');_updateFcmTokenSettings();toast(!cur?'✅ 알림 켜짐':'🔕 꺼짐');}
@@ -3729,7 +3738,7 @@ function sosToRescue(id){
 // 앱 자체 업데이트 (OTA · Capgo 자체호스팅) — APK 전용. 웹/PWA는 서비스워커가 자동 갱신.
 // 번들(www)의 새 버전을 ota.json으로 알리면, 설치된 앱이 받아서 그 자리에서 교체(재빌드 불필요).
 // ══════════════════════════════════════════
-const OTA_VER='2026.07.17.252';                         // ← 현재 번들 버전 (릴리스마다 올림 · build-ota.sh가 ota.json에 반영)
+const OTA_VER='2026.07.17.253';                         // ← 현재 번들 버전 (릴리스마다 올림 · build-ota.sh가 ota.json에 반영)
 const OTA_MANIFEST='https://seorak1275.github.io/seoraksan/ota.json';
 // 업데이트 확인 폴백 소스 — 일부 기관망·통신사에서 github.io가 막혀 '확인 실패(네트워크)'가 나는 경우 대비.
 // 순서대로 시도: ① GitHub Pages(원본·즉시 반영) ② jsDelivr CDN(공개저장소 미러·거의 모든 망 통과)
