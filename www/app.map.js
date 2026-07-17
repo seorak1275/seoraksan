@@ -23,6 +23,7 @@ function _scaleOvs(els,level,off){
     if(el.classList.contains('mpin')||el.classList.contains('mpin-sm')){
       let sz=s.sz,fs=(s.fs<6?0:s.fs),bw=s.bw; // 이모지는 5px 이하 렌더 불가(원 밖으로 넘침) → 소형은 글자 숨김
       if(el.classList.contains('p-bad')){sz=Math.max(sz,16);fs=Math.max(s.fs,9);bw=Math.max(bw,1.5);} // ⚠️경고 시설은 축소해도 식별 가능한 최소 크기
+      else if(el.classList.contains('p-fac')){sz=Math.max(sz,15);fs=Math.max(fs,9);bw=Math.max(bw,1);} // 시설물 핀은 축소해도 이모지가 보이도록 최소 크기 유지
       el.style.width=sz+'px';el.style.height=sz+'px';
       el.style.fontSize=fs+'px';
       el.style.borderWidth=bw+'px';

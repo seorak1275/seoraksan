@@ -515,7 +515,8 @@ function _tlRecSave(rid){
   if(!stage){toast('무엇을 했는지 선택하거나 직접 입력하세요');return;}
   const timeRaw=document.getElementById('tlRecTime')?.value||'';
   const time=timeRaw?timeRaw.replace('T',' '):now();
-  const entry={stage,time,note:(document.getElementById('tlRecNote')?.value||'').trim(),by:getAuthor(),team:_tlRecTeam&&_tlRecTeam!=='본부'?_tlRecTeam:(_tlRecTeam==='본부'?'본부':'')};
+  // seq=입력 순서(생성 ms) — 같은 분(초 없음) 기록의 정렬 안정화용
+  const entry={stage,time,note:(document.getElementById('tlRecNote')?.value||'').trim(),by:getAuthor(),team:_tlRecTeam&&_tlRecTeam!=='본부'?_tlRecTeam:(_tlRecTeam==='본부'?'본부':''),seq:Date.now()};
   if(_tlRecStage==='심정지'){
     const cs=document.getElementById('tlRecCprStart')?.value||'';
     const ce=document.getElementById('tlRecCprEnd')?.value||'';
@@ -527,6 +528,8 @@ function _tlRecSave(rid){
   const res=DB.g('rescues')||[];const idx=res.findIndex(x=>x.id===rid);if(idx===-1)return;
   if(!res[idx].timetable)res[idx].timetable=[];
   res[idx].timetable.push(entry);
+  // 같은 서명이 예전에 삭제(툼스톤)돼 있으면 해제 — 재입력이 툼스톤에 가려 안 보이는 것 방지
+  if(Array.isArray(res[idx]._del)&&res[idx]._del.length&&typeof _logKey==='function'){const _nk=_logKey(entry);res[idx]._del=res[idx]._del.filter(k=>k!==_nk);}
   // ── 기록 ↔ 보고서 연동: 타임라인 기록이 보고서 정형 필드에도 자동 반영 (이미 있으면 건드리지 않음) ──
   const _synced=[];
   try{
@@ -554,6 +557,11 @@ function _collectLogEntries(r){
   const _tKST=v=>{const s=String(v||'').trim();if(/T\d{2}:\d{2}.*Z$/.test(s)){const d=new Date(s);if(!isNaN(d))return new Date(d.getTime()+9*3600000).toISOString().slice(0,16).replace('T',' ');}return s;};
   const _tKey=t=>{const s=_tKST(t);if(/^\d{4}-\d{2}-\d{2}/.test(s))return s;return baseDate+' '+s;};
   const _tShow=t=>{const s=_tKST(t);return s.length>5?s.slice(11,16)||s.slice(-5):s;};
+  // ── 중복·삭제 정리(화면·보고서 공용) — 저장 데이터가 아직 정리 전이어도 화면엔 항상 1건, 삭제분(_del 툼스톤)은 숨김 ──
+  const _lk=x=>(typeof _logKey==='function')?_logKey(x):JSON.stringify(x);
+  const _del=(Array.isArray(r._del))?new Set(r._del):null;
+  const _clean=arr=>{const seen=new Set();const out=[];(arr||[]).forEach(x=>{const k=_lk(x);if(_del&&_del.has(k))return;if(seen.has(k))return;seen.add(k);out.push(x);});return out;};
+  const _ttC=_clean(r.timetable),_wpC=_clean(r.wpLog),_npsC=_clean(r.npsLog);
   // type: 'victim'=요구조자 관련(빨강) | 'team'=팀 이동(파랑) | 'report'=보고(보라) | 'nps'=공단(초록)
   const logEntries=[];
   if(r.date)logEntries.push({k:_tKey(r.date),t:_tShow(r.date),ico:'🚨',label:'최초접수',sub:r.reception||'',type:'victim'});
@@ -566,7 +574,7 @@ function _collectLogEntries(r){
     if(_hm(r.arrival)&&!_hasEncounter)logEntries.push({k:_tKey(_hm(r.arrival)),t:_hm(r.arrival),ico:'🏁',label:'현장 도착',sub:'',type:'team'});
     if(_hm(r.completion))logEntries.push({k:_tKey(_hm(r.completion)),t:_hm(r.completion),ico:'✅',label:'상황 완료',sub:'',type:'nps'});
   }
-  (r.timetable||[]).forEach(e=>{
+  _ttC.forEach(e=>{
     if(!e.time)return;
     const isVictim=e.stage==='요구조자 조우'||e.stage==='심정지'||e.stage==='의식확인';
     const isCpr=e.stage==='심정지'&&(e.cprStart||e.cprEnd);
@@ -577,11 +585,11 @@ function _collectLogEntries(r){
     }
     // 누가 표기: 팀은 제목 앞에, 작성자는 서브에
     if(e.by)sub=sub?sub+' — '+e.by:e.by;
-    const _ti=(r.timetable||[]).indexOf(e); // 원본 인덱스 — 작성자 본인 삭제용
-    logEntries.push({k:_tKey(e.time),t:_tShow(e.time),ico:e.stage==='심정지'?'💔':isVictim?'🎯':'📌',label:(e.team?e.team+' · ':'')+e.stage,sub,type:isVictim?'victim':'team',ti:_ti,by:e.by||''});
+    // seq=입력 순서(생성 ms) — 같은 분(초 없음) 기록의 정렬 안정화용. 없으면 저장 순서.
+    logEntries.push({k:_tKey(e.time),t:_tShow(e.time),ico:e.stage==='심정지'?'💔':isVictim?'🎯':'📌',label:(e.team?e.team+' · ':'')+e.stage,sub,type:isVictim?'victim':'team',sig:_lk(e),seq:e.seq||0,by:e.by||''});
   });
   // 위치통과: "01-15 통과" (팀명은 서브)
-  (r.wpLog||[]).forEach(l=>{
+  _wpC.forEach(l=>{
     logEntries.push({k:_tKey(l.time),t:l.time,ico:'📍',label:(l.code||'?')+' 통과',sub:l.teamName||'',type:'team',pass:true});
   });
   (r.teams||[]).forEach(t=>{
@@ -596,31 +604,29 @@ function _collectLogEntries(r){
     if(t.boardedAt)logEntries.push({k:_tKey(t.boardedAt),t:_tShow(t.boardedAt),ico:'🚁',label:t.name+' 환자 탑승',sub:'',type:'team'});
     (t.transportLog||[]).forEach(tr=>logEntries.push({k:_tKey(tr.at),t:_tShow(tr.at),ico:'🔄',label:t.name+' 이송전환',sub:tr.from+' → '+tr.to,type:'team'}));
   });
-  (r.reports||[]).forEach((p,pi)=>{
-    if(!p.repTime)return;
-    // 사후 추가 보고(상황 종료 뒤 수정·보완용 N보)는 현장 흐름이 아니므로 상황일지에서 제외
-    const _ms=Date.parse(String(p.repTime).replace(' ','T'));
-    if(r.closedAtMs&&_ms&&_ms>r.closedAtMs)return;
-    logEntries.push({k:_tKey(p.repTime),t:_tShow(p.repTime),ico:'📋',label:(pi+2)+'보 보고'+(p.author?' · '+p.author:''),sub:p.update||'',type:'report'});
-  });
-  (r.npsLog||[]).forEach(nl=>{if(nl.time)logEntries.push({k:_tKey(nl.time),t:_tShow(nl.time),ico:'🏕️',label:'공단 공유'+(nl.author?' · '+nl.author:''),sub:nl.text||'',type:'nps'});});
+  // 'N보 보고' 마커는 상황일지에 표시하지 않음 — 현장 흐름(요구조자·팀·공단 기록)만 남겨 깔끔하게(보고서·화면 공통)
+  _npsC.forEach(nl=>{if(nl.time)logEntries.push({k:_tKey(nl.time),t:_tShow(nl.time),ico:'🏕️',label:'공단 공유'+(nl.author?' · '+nl.author:''),sub:nl.text||'',type:'nps'});});
   if(r.handover&&r.handover.to)logEntries.push({k:_tKey(r.handover.time),t:_tShow(r.handover.time),ico:'🤝',label:'환자 인계 → '+r.handover.to,sub:r.handover.by||'',type:'victim'});
-  logEntries.sort((a,b)=>a.k.localeCompare(b.k));
+  // 같은 시각(k)이면 입력 순서(seq)로 — 초 없는 같은 분 기록이 나중에 넣은 게 위로 가던 문제 방지
+  logEntries.sort((a,b)=>a.k.localeCompare(b.k)||((a.seq||0)-(b.seq||0)));
   return logEntries;
 }
-// 📌 기록 삭제 — 작성자 본인(또는 관리자)만. 실수 입력 즉시 정정용
-// 누른 기록과 '완전히 동일한' 중복분(정규화 키 일치)을 한 번에 제거 → 중복 스택도 한 탭으로 정리.
-function _tlRecDel(rid,ti){
+// 📌 기록 삭제 — 작성자 본인(또는 관리자)만. reg=삭제 레지스트리 인덱스({rid,sig}).
+// 서명(_logKey)으로 식별 → 화면상 동일한 중복분을 한 탭에 모두 제거 + _del 툼스톤 등록(병합으로 되살아나지 않음).
+function _tlRecDel(reg){
+  const R=(window._tlDelReg||[])[reg];if(!R)return;
+  const rid=R.rid,sig=R.sig;
   const res=DB.g('rescues')||[];const idx=res.findIndex(x=>x.id===rid);if(idx<0)return;
   const tt=res[idx].timetable||[];
-  const e=tt[ti];if(!e)return;
-  const me=getAuthor();
+  const _same=x=>((typeof _logKey==='function')?_logKey(x):JSON.stringify(x))===sig;
+  const hits=tt.filter(_same);
+  if(!hits.length){toast('기록을 찾을 수 없습니다');renderTimeline(res[idx],'advanced');return;}
+  const e=hits[0];const me=getAuthor();
   if(e.by!==me&&!(typeof isAdminUser==='function'&&isAdminUser())){toast('⚠️ 본인이 작성한 기록만 삭제할 수 있습니다');return;}
-  const _sig=(typeof _canonKey==='function')?_canonKey(e):JSON.stringify(e);
-  const _same=x=>((typeof _canonKey==='function')?_canonKey(x):JSON.stringify(x))===_sig;
-  const dupN=tt.filter(_same).length;
+  const dupN=hits.length;
   if(!confirm('기록 삭제: '+(e.stage||'')+(e.time?' ('+String(e.time).slice(11,16)+')':'')+(dupN>1?' · 중복 '+dupN+'건 함께 삭제':'')+'\n삭제할까요?'))return;
-  res[idx].timetable=tt.filter(x=>!_same(x)); // 동일 항목 전부 제거(중복 정리)
+  res[idx].timetable=tt.filter(x=>!_same(x)); // 동일 항목 전부 제거
+  res[idx]._del=Array.from(new Set([].concat(res[idx]._del||[],[sig]))).slice(-500); // 툼스톤 — 병합 부활 방지
   DB.s('rescues',res);
   toast(dupN>1?('🗑 중복 '+dupN+'건 삭제됨'):'🗑 기록이 삭제되었습니다');
   renderTimeline(res[idx],'advanced');
@@ -628,6 +634,7 @@ function _tlRecDel(rid,ti){
 function _buildLogHtml(r){
   const logEntries=_collectLogEntries(r);
   if(!logEntries.length)return '';
+  window._tlDelReg=[]; // 삭제 버튼 레지스트리 — 인덱스 대신 서명(_logKey)으로 정확히 삭제(중복·병합에도 안전)
   // 타입별 색상
   const TYPE_COL={victim:'#e74c3c',team:'#4fa8d0',report:'#9b59b6',nps:'#27ae60'};
   const TYPE_BG={victim:'rgba(231,76,60,.1)',team:'rgba(79,168,208,.08)',report:'rgba(155,89,182,.08)',nps:'rgba(39,174,96,.08)'};
@@ -649,7 +656,7 @@ function _buildLogHtml(r){
         <div style="display:flex;align-items:center;gap:6px;margin-bottom:${e.sub?'2':'0'}px;">
           <span style="font-size:11px;color:#7a9cb8;font-family:monospace;font-weight:600;white-space:nowrap;">${e.t}</span>
           <span style="font-size:${isWpPass(e)?'11':'12'}px;font-weight:${isWpPass(e)?'600':'700'};color:${isWpPass(e)?'rgba(255,255,255,.55)':col};">${e.ico} ${_esc(e.label)}</span>
-          ${(e.ti!=null&&(e.by===getAuthor()||(typeof isAdminUser==='function'&&isAdminUser())))?`<span onclick="event.stopPropagation();_tlRecDel(${r.id},${e.ti})" style="margin:-8px -6px -8px auto;color:rgba(255,107,91,.9);font-size:16px;font-weight:800;cursor:pointer;padding:8px 12px;flex-shrink:0;line-height:1;touch-action:manipulation;-webkit-tap-highlight-color:rgba(255,107,91,.2);" title="기록 삭제">×</span>`:''}
+          ${(e.sig&&(e.by===getAuthor()||(typeof isAdminUser==='function'&&isAdminUser())))?(()=>{const _di=window._tlDelReg.push({rid:r.id,sig:e.sig})-1;return `<span onclick="event.stopPropagation();_tlRecDel(${_di})" style="margin:-8px -6px -8px auto;color:rgba(255,107,91,.9);font-size:16px;font-weight:800;cursor:pointer;padding:8px 12px;flex-shrink:0;line-height:1;touch-action:manipulation;-webkit-tap-highlight-color:rgba(255,107,91,.2);" title="기록 삭제">×</span>`;})():''}
         </div>
         ${e.sub?`<div style="font-size:10px;color:rgba(255,255,255,.35);padding-left:2px;line-height:1.4;">${_esc(e.sub)}</div>`:''}
       </div>
@@ -1148,7 +1155,7 @@ async function _safetyHwpxGen(rid){
   if(r.situation)lines.push('- '+r.situation);
   if(r.extra&&!['','-','없음','해당없음','미상'].includes(String(r.extra).trim()))lines.push('- '+r.extra);
   const helpers=[...new Set([...(r.members||[]),r.author].filter(Boolean))].join(', ');
-  const map={'담당자':r.author||'','일시':dtStr,'장소':r.location||'','지원유형':typeLine,'성별':genderLine,'연령대':ageLine,'내용':lines.join('\n')||'- ','지원자':helpers};
+  const map={'담당자':'','일시':dtStr,'장소':r.location||'','지원유형':typeLine,'성별':genderLine,'연령대':ageLine,'내용':lines.join('\n')||'- ','지원자':helpers};
   try{
     try{_busy('한글파일 생성 중…');}catch(e){}
     const resp=await fetch('./tpl-safety.hwpx');

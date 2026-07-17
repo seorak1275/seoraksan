@@ -379,17 +379,24 @@ function _canonKey(o){
   if(Array.isArray(o))return '['+o.map(_canonKey).join(',')+']';
   return '{'+Object.keys(o).sort().map(k=>JSON.stringify(k)+':'+_canonKey(o[k])).join(',')+'}';
 }
+// 로그(타임라인·통과·공단) 의미 기반 서명 — 초·부수 필드 무시, 화면상 동일하면 같은 것으로 취급.
+// 중복 자동 제거·삭제(툼스톤) 식별 공용. (timetable: 시각|단계|메모|작성자 / wpLog: 시각|코드|팀 / npsLog: 시각|내용|작성자)
+function _logKey(e){
+  if(!e||typeof e!=='object')return String(e);
+  const t=String(e.time||e.at||e.repTime||'').replace('T',' ').slice(0,16); // 분 단위(초 무시)
+  return [t,e.stage||e.code||'',e.note||e.text||'',e.by||e.author||e.teamName||''].join('');
+}
 // 타임라인 중복 청소(1회) — 위 병합키 버그로 timetable/wpLog/npsLog에 쌓인 동일 항목을 1개만 남김.
 // 변경된 레코드만 저장(쿼터 최소화). rescues 미로드 시엔 플래그 미설정 → 다음 호출에서 재시도.
 function _migrateDedupLogs(){
   try{
-    if(localStorage.getItem('_logDedup_v2')==='1')return;
+    if(localStorage.getItem('_logDedup_v3')==='1')return;
     const res=DB.g('rescues');if(!Array.isArray(res))return; // 아직 로드 전 — 다음 기회에 재시도
-    const dd=arr=>{if(!Array.isArray(arr)||arr.length<2)return null;const seen=new Set();const out=[];arr.forEach(x=>{const k=_canonKey(x);if(seen.has(k))return;seen.add(k);out.push(x);});return out.length!==arr.length?out:null;};
+    const dd=arr=>{if(!Array.isArray(arr)||arr.length<2)return null;const seen=new Set();const out=[];arr.forEach(x=>{const k=_logKey(x);if(seen.has(k))return;seen.add(k);out.push(x);});return out.length!==arr.length?out:null;};
     let changed=false;
     res.forEach(r=>{['timetable','wpLog','npsLog'].forEach(f=>{const nu=dd(r[f]);if(nu){r[f]=nu;changed=true;}});});
     if(changed)DB.s('rescues',res);
-    localStorage.setItem('_logDedup_v2','1');
+    localStorage.setItem('_logDedup_v3','1');
   }catch(e){}
 }
 // ── 동시편집 병합: 누적 데이터(보고·댓글·타임라인·통과기록)는 합집합 보존, 단일값은 최신(로컬) 우선 ──
@@ -419,19 +426,26 @@ function _mergeRecord(local,server,base){
   const fields=[
     ['reports',r=>r&&r.rid?('rid:'+r.rid):((r&&r.repTime||'')+'|'+(r&&r.author||'')+'|'+(r&&r.update||''))],
     ['comments',c=>(c&&c.id!=null)?('id:'+c.id):_canonKey(c)],
-    ['timetable',e=>_canonKey(e)],
-    ['wpLog',e=>_canonKey(e)],
-    ['npsLog',e=>_canonKey(e)],
+    ['timetable',e=>_logKey(e)],
+    ['wpLog',e=>_logKey(e)],
+    ['npsLog',e=>_logKey(e)],
     ['photos',p=>(p&&p.url)?('url:'+p.url):_canonKey(p)],
     ['mobilizeResp',m=>(m&&m.name)?('name:'+m.name):_canonKey(m)], // 응소 응답(이름별 1건, 본인 응답은 항상 최신 로컬값 우선)
     ['fireTL',e=>_canonKey(e)] // 산불 진행 타임라인(등록 후에도 계속 추가됨)
   ];
   fields.forEach(([f,keyFn])=>{
     if(!Array.isArray(local[f])&&!Array.isArray(server[f]))return; // 양쪽 다 없으면 손대지 않음
-    // base(직전 동기화본)가 있으면 3-way — 로컬에서 지운 항목을 서버본으로 되살리지 않음(삭제 부활 버그 수정).
-    // base 없으면(신규 레코드·큐 재전송) 기존 합집합(keyFn 중복 제거 포함).
-    out[f]=(base&&Array.isArray(base[f]))?_mergeArr3(base[f],local[f],server[f],keyFn):_unionBy(server[f],local[f],keyFn);
+    // 합집합(정규화 키로 중복 자동 제거) — 절대 항목을 잃지 않음. 삭제는 아래 툼스톤(_del)으로만 반영해 '오삭제' 원천 차단.
+    out[f]=_unionBy(server[f],local[f],keyFn);
   });
+  // 삭제 툼스톤(_del): 사용자가 명시적으로 삭제한 기록의 정규화 키 목록. 합집합이 삭제분을 되살리는 것을 막되,
+  // '명시적으로 삭제 처리한 키'만 제외하므로 다른 기록이 통째로 날아가는 오삭제가 구조적으로 불가능.
+  const _delArr=Array.from(new Set([].concat(Array.isArray(local._del)?local._del:[],Array.isArray(server._del)?server._del:[])));
+  if(_delArr.length){
+    out._del=_delArr.slice(-500);
+    const _ds=new Set(out._del);
+    ['timetable','wpLog','npsLog'].forEach(f=>{if(Array.isArray(out[f]))out[f]=out[f].filter(x=>{try{return !_ds.has(_logKey(x));}catch(e){return true;}});});
+  }
   if(Array.isArray(out.reports))out.reports.sort((a,b)=>String((a&&a.repTime)||'').localeCompare(String((b&&b.repTime)||'')));
   if(Array.isArray(out.fireTL))out.fireTL.sort((a,b)=>String((a&&a.time)||'').localeCompare(String((b&&b.time)||'')));
   // 추가 사고자(victims2): 병합된 보고 중 가장 최신 보고의 값을 신뢰
