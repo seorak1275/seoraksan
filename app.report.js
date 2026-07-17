@@ -251,7 +251,7 @@ let _tlBuilding=false;
 let _tlBuildType=null;     // 'nps'|'agency'
 let _tlBuildMembers=[];
 let _tlBuildOtherOpen=false;
-let _tlBuildAgencyType='소방(구조)';
+let _tlBuildAgencyType='소방(환동해)';
 let _tlBuildRegion='';
 
 function _hideRepFooter(){const f=document.getElementById('rep1BoFooter');if(f)f.style.display='none';}
@@ -305,18 +305,26 @@ function _renderBuildPanelHtml(){
     const sel=agTypes.find(a=>a.k===_tlBuildAgencyType)||agTypes[0];
     function agChip(ag){
       const on=_tlBuildAgencyType===ag.k;
+      // 버튼엔 기관명만 — 몇 팀인지·인원은 누르면 아래에 나옴
       return `<div onclick="_selAgType('${ag.k.replace(/'/g,"\\'")}',${ag.mem||0})" class="tl-ag-chip"
         style="cursor:pointer;background:${on?'rgba(126,200,163,.2)':'rgba(255,255,255,.04)'};
         color:${on?'#7ec8a0':'rgba(255,255,255,.45)'};
         border:1px solid ${on?'rgba(126,200,163,.4)':'rgba(255,255,255,.12)'};
-        border-radius:10px;font-size:10.5px;font-weight:700;padding:6px 4px;line-height:1.3;text-align:center;">
-        ${ag.l}${ag.hwTeam?`<br><span style="font-size:9px;opacity:.75;">현재 ${ag.hwTeam}팀</span>`:''}
+        border-radius:10px;font-size:10.5px;font-weight:700;padding:7px 4px;line-height:1.3;text-align:center;">
+        ${ag.l}
       </div>`;
     }
+    const fireTypes=agTypes.filter(a=>a.grp==='fire');   // 환동해·구조·구급·소방항공 (모두 소방)
+    const etcTypes=agTypes.filter(a=>a.grp!=='fire');    // 경찰·산림청·민간·기타
     return `<div style="background:#1c1c1e;border-radius:10px;padding:12px;border:.5px solid rgba(126,200,163,.3);margin-bottom:10px;">
       <div style="font-size:11px;color:#7ec8a0;font-weight:700;margin-bottom:10px;">🚒 유관기관 팀 출동</div>
+      <div style="font-size:9.5px;color:#e0685a;font-weight:800;margin-bottom:5px;letter-spacing:.3px;">🚒 소방</div>
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:5px;margin-bottom:9px;">
+        ${fireTypes.map(agChip).join('')}
+      </div>
+      <div style="font-size:9.5px;color:#6b7684;font-weight:800;margin-bottom:5px;letter-spacing:.3px;">그 외 기관</div>
       <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:5px;margin-bottom:10px;">
-        ${agTypes.map(agChip).join('')}
+        ${etcTypes.map(agChip).join('')}
       </div>
       ${sel.sub?`<div style="font-size:10px;color:#5a8aa0;margin-bottom:8px;">${_esc(sel.sub)}</div>`:''}
       ${(sel.regions&&sel.regions.length)?`<div style="font-size:10px;color:#565f6b;font-weight:700;margin-bottom:5px;">소속 선택</div>
@@ -339,14 +347,14 @@ function _renderBuildPanelHtml(){
 // 경찰=속초/양양/인제/광역, 소방항공=2항공대(양양)/1항공대(횡성), 민간구조협력단=외설악/내설악/용대
 function _agTypeList(hw){
   return [
-    {k:'소방(환동해)',l:'🔴 환동해',sub:`환동해특수대응단 · 소방 (오늘 ${hw}팀) 기본 5명`,mem:5,hwTeam:hw},
-    {k:'소방(구조)',l:'🧗 구조',sub:'소방 구조대',mem:0,regions:['속초','양양','인제','설악']},
-    {k:'소방(구급)',l:'🚑 구급',sub:'소방 구급대 · 기본 2명',mem:2,regions:['속초','양양','인제','설악']},
-    {k:'소방(항공)',l:'🚁 소방항공',sub:'소방 항공대 (헬기)',mem:0,regions:['2항공대(양양)','1항공대(횡성)']},
-    {k:'경찰',l:'👮 경찰',sub:'경찰',mem:0,regions:['속초','양양','인제','광역']},
-    {k:'산림청(헬기)',l:'🌲 산림청',sub:'산림청 헬기 출동',mem:0},
-    {k:'민간구조협력단',l:'🤝 민간',sub:'민간구조협력단',mem:0,regions:['외설악','내설악','용대']},
-    {k:'기타',l:'➕ 기타',sub:'타 기관 — 이름 직접 입력',mem:0},
+    {k:'소방(환동해)',l:'🔴 환동해',sub:`환동해특수대응단 · 소방 (오늘 ${hw}팀) 기본 5명`,mem:5,hwTeam:hw,grp:'fire'},
+    {k:'소방(구조)',l:'🧗 구조',sub:'소방 구조대',mem:0,regions:['속초','양양','인제','설악'],grp:'fire'},
+    {k:'소방(구급)',l:'🚑 구급',sub:'소방 구급대 · 기본 2명',mem:2,regions:['속초','양양','인제','설악'],grp:'fire'},
+    {k:'소방(항공)',l:'🚁 소방항공',sub:'소방 항공대 (헬기)',mem:0,regions:['2항공대(양양)','1항공대(횡성)'],grp:'fire'},
+    {k:'경찰',l:'👮 경찰',sub:'경찰',mem:0,regions:['속초','양양','인제','광역'],grp:'etc'},
+    {k:'산림청(헬기)',l:'🌲 산림청',sub:'산림청 헬기 출동',mem:0,grp:'etc'},
+    {k:'민간구조협력단',l:'🤝 민간',sub:'민간구조협력단',mem:0,regions:['외설악','내설악','용대'],grp:'etc'},
+    {k:'기타',l:'➕ 기타',sub:'타 기관 — 이름 직접 입력',mem:0,grp:'etc'},
   ];
 }
 // 유형+지역 → 팀명 자동 생성 (팀명 입력칸에서 자유 수정 가능)
@@ -378,7 +386,7 @@ function _selAgRegion(rg){
 
 function startTlBuild(type){
   _tlBuilding=true;_tlBuildType=type;_tlBuildMembers=[];_tlBuildOtherOpen=false;
-  _tlBuildAgencyType='소방(구조)';_tlBuildRegion='';
+  _tlBuildAgencyType='소방(환동해)';_tlBuildRegion='';
   const ba=document.getElementById('tlBuildArea');
   if(ba)ba.innerHTML=_renderBuildPanelHtml();
 }
@@ -437,7 +445,7 @@ function confirmTlBuild(){
 function _initTlTeams(r){
   if(_tlWpResId===r.id&&(_tlTeams.length||_tlBuilding))return;
   _tlWpResId=r.id;_tlBuilding=false;
-  _tlBuildType=null;_tlBuildMembers=[];_tlBuildOtherOpen=false;_tlBuildAgencyType='소방(구조)';_tlBuildRegion='';
+  _tlBuildType=null;_tlBuildMembers=[];_tlBuildOtherOpen=false;_tlBuildAgencyType='소방(환동해)';_tlBuildRegion='';
   // Load persisted teams from rescue record
   _tlTeams=(r.teams&&r.teams.length)?r.teams.map(t=>({...t})):[];
 }
@@ -1318,8 +1326,10 @@ function renderTimeline(r,viewMode,outId){
   _initTlTeams(r);
   _tlRecTeam='';_tlRecStage='';
   const _canWriteTl=!isExternal();
-  // 기록 단계 버튼(조우·특이사항) — 자주 쓰는 순. '직접입력'으로 자유 작성
-  const REC_STAGES=['요구조자 조우','응급처치','심정지','하산 시작','헬기 요청','헬기 도착','휴식','기상 악화','구조 중단','구조 재개','대피소 숙박'];
+  // 기록 단계 — ⏱ 진행(시간순 핵심: 조우·처치·하산) / ⭐ 특별 내용(헬기·기상·중단 등). '직접입력'으로 자유 작성
+  // (출발·현장도착·종료 시각은 팀 출동/종료하기에서 자동 기록되므로 여기엔 중복으로 두지 않음)
+  const REC_STAGES_MAIN=['요구조자 조우','응급처치','하산 시작'];
+  const REC_STAGES_SPECIAL=['심정지','헬기 요청','헬기 도착','기상 악화','휴식','구조 중단','구조 재개','대피소 숙박'];
   if(window._tlRecOpen===undefined)window._tlRecOpen=(r.status==='ongoing'); // 진행중=기록 입력 펼침 / 종료 건=접힘
   const _mkRecCard=()=>{
     if(!_canWriteTl)return '';
@@ -1336,17 +1346,17 @@ function renderTimeline(r,viewMode,outId){
         ${_teamNames.length?`<div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:7px;" id="tlRecTeams">
           ${['본부',..._teamNames].map(n=>`<div class="pill" data-v="${_esc(n)}" onclick="_tlRecSelTeam(this)" style="font-size:11px;cursor:pointer;">${_esc(n)}</div>`).join('')}
         </div>`:''}
-        <div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:7px;" id="tlRecStages">
-          ${(()=>{ // 진행 단계 기반 추천을 맨 앞에 초록으로 — 나머지 선택지는 그대로 전부 표시
+        <div id="tlRecStages" style="margin-bottom:7px;">
+          ${(()=>{
             const sug=(r.status==='ongoing'&&typeof _recSuggest==='function')?_recSuggest(r):[];
-            const ordered=[...sug,...REC_STAGES.filter(s=>!sug.includes(s))];
-            return ordered.map(s=>{
-              const isSug=sug.includes(s);
-              const danger=(s==='요구조자 조우'||s==='심정지');
-              return `<div class="pill" data-v="${s}" onclick="_tlRecSelStage(this)" style="font-size:11px;cursor:pointer;${isSug?'border-color:rgba(61,220,132,.55);color:#7ee0a8;font-weight:800;':(danger?'border-color:rgba(231,76,60,.4);color:#e74c3c;':'')}">${isSug?'▸ ':''}${s}</div>`;
-            }).join('');
+            const pill=(s,isSug)=>{const danger=(s==='요구조자 조우'||s==='심정지');return `<div class="pill" data-v="${s}" onclick="_tlRecSelStage(this)" style="font-size:11px;cursor:pointer;${isSug?'border-color:rgba(61,220,132,.55);color:#7ee0a8;font-weight:800;':(danger?'border-color:rgba(231,76,60,.4);color:#e74c3c;':'')}">${isSug?'▸ ':''}${s}</div>`;};
+            // 진행: 추천(sug) 먼저(초록) → 나머지 핵심 단계. 특별 목록에 든 추천은 특별에서 표시
+            const mainOrder=[...sug.filter(s=>!REC_STAGES_SPECIAL.includes(s)),...REC_STAGES_MAIN.filter(s=>!sug.includes(s))];
+            return `<div style="font-size:9.5px;color:#5a8aa0;font-weight:800;margin-bottom:4px;letter-spacing:.3px;">⏱ 진행 <span style="font-weight:400;color:#565f6b;">출발·도착·종료 시각은 팀 출동·종료하기에서 자동</span></div>
+              <div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:9px;">${mainOrder.map(s=>pill(s,sug.includes(s))).join('')}</div>
+              <div style="font-size:9.5px;color:#6b7684;font-weight:800;margin-bottom:4px;letter-spacing:.3px;">⭐ 특별 내용 <span style="font-weight:400;color:#565f6b;">헬기·기상·중단 등</span></div>
+              <div style="display:flex;gap:4px;flex-wrap:wrap;">${REC_STAGES_SPECIAL.map(s=>pill(s,false)).join('')}<div class="pill" data-v="__custom" onclick="_tlRecSelStage(this)" style="font-size:11px;cursor:pointer;border-style:dashed;">✏️ 직접입력</div></div>`;
           })()}
-          <div class="pill" data-v="__custom" onclick="_tlRecSelStage(this)" style="font-size:11px;cursor:pointer;border-style:dashed;">✏️ 직접입력</div>
         </div>
         <div id="tlRecCustomWrap" style="display:none;margin-bottom:7px;"><input type="text" id="tlRecCustom" class="fi" placeholder="무엇을 했는지 직접 입력 (예: 장비 보급, 대피소 직원 합류)"></div>
         <div id="tlRecCprWrap" style="display:none;background:rgba(231,76,60,.07);border:1px solid rgba(231,76,60,.25);border-radius:9px;padding:9px 11px;margin-bottom:7px;">
