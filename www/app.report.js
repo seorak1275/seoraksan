@@ -2471,7 +2471,7 @@ function render1BoForm(prefill=null){
       </div>
       <div class="rsec" style="margin-top:12px;"><div class="rsec-t">🛠️ 동원 장비</div>
         <div class="fg"><span class="fl">구조 방법 (복수)</span>
-          <div class="pills" id="rescMeth">${['들것','부축','헬기','차량','자력하산','로프구조','기타'].map(o=>`<div class="pill${(p.rescueMethod||[]).includes(o)?' on':''}" onclick="tPill(this)">${o}</div>`).join('')}</div>
+          <div class="pills" id="rescMeth">${['들것','부축','헬기','동행하산','응급처치','119구급대','차량','자력하산','로프구조','기타'].map(o=>`<div class="pill${(p.rescueMethod||[]).includes(o)?' on':''}" onclick="tPill(this)">${o}</div>`).join('')}</div>
         </div>
         <div class="fg"><span class="fl">동원 장비</span>
           <textarea id="r_equip" class="fta" rows="2" placeholder="들것, 로프, AED, 헬기 등">${p.equipment||''}</textarea>
