@@ -564,7 +564,8 @@ function _collectLogEntries(r){
     }
     // 누가 표기: 팀은 제목 앞에, 작성자는 서브에
     if(e.by)sub=sub?sub+' — '+e.by:e.by;
-    logEntries.push({k:_tKey(e.time),t:_tShow(e.time),ico:e.stage==='심정지'?'💔':isVictim?'🎯':'📌',label:(e.team?e.team+' · ':'')+e.stage,sub,type:isVictim?'victim':'team'});
+    const _ti=(r.timetable||[]).indexOf(e); // 원본 인덱스 — 작성자 본인 삭제용
+    logEntries.push({k:_tKey(e.time),t:_tShow(e.time),ico:e.stage==='심정지'?'💔':isVictim?'🎯':'📌',label:(e.team?e.team+' · ':'')+e.stage,sub,type:isVictim?'victim':'team',ti:_ti,by:e.by||''});
   });
   // 위치통과: "01-15 통과" (팀명은 서브)
   (r.wpLog||[]).forEach(l=>{
@@ -582,11 +583,29 @@ function _collectLogEntries(r){
     if(t.boardedAt)logEntries.push({k:_tKey(t.boardedAt),t:_tShow(t.boardedAt),ico:'🚁',label:t.name+' 환자 탑승',sub:'',type:'team'});
     (t.transportLog||[]).forEach(tr=>logEntries.push({k:_tKey(tr.at),t:_tShow(tr.at),ico:'🔄',label:t.name+' 이송전환',sub:tr.from+' → '+tr.to,type:'team'}));
   });
-  (r.reports||[]).forEach((p,pi)=>{if(p.repTime)logEntries.push({k:_tKey(p.repTime),t:_tShow(p.repTime),ico:'📋',label:(pi+2)+'보 보고'+(p.author?' · '+p.author:''),sub:p.update||'',type:'report'});});
+  (r.reports||[]).forEach((p,pi)=>{
+    if(!p.repTime)return;
+    // 사후 추가 보고(상황 종료 뒤 수정·보완용 N보)는 현장 흐름이 아니므로 상황일지에서 제외
+    const _ms=Date.parse(String(p.repTime).replace(' ','T'));
+    if(r.closedAtMs&&_ms&&_ms>r.closedAtMs)return;
+    logEntries.push({k:_tKey(p.repTime),t:_tShow(p.repTime),ico:'📋',label:(pi+2)+'보 보고'+(p.author?' · '+p.author:''),sub:p.update||'',type:'report'});
+  });
   (r.npsLog||[]).forEach(nl=>{if(nl.time)logEntries.push({k:_tKey(nl.time),t:_tShow(nl.time),ico:'🏕️',label:'공단 공유'+(nl.author?' · '+nl.author:''),sub:nl.text||'',type:'nps'});});
   if(r.handover&&r.handover.to)logEntries.push({k:_tKey(r.handover.time),t:_tShow(r.handover.time),ico:'🤝',label:'환자 인계 → '+r.handover.to,sub:r.handover.by||'',type:'victim'});
   logEntries.sort((a,b)=>a.k.localeCompare(b.k));
   return logEntries;
+}
+// 📌 기록 삭제 — 작성자 본인(또는 관리자)만. 실수 입력 즉시 정정용
+function _tlRecDel(rid,ti){
+  const res=DB.g('rescues')||[];const idx=res.findIndex(x=>x.id===rid);if(idx<0)return;
+  const e=(res[idx].timetable||[])[ti];if(!e)return;
+  const me=getAuthor();
+  if(e.by!==me&&!(typeof isAdminUser==='function'&&isAdminUser())){toast('⚠️ 본인이 작성한 기록만 삭제할 수 있습니다');return;}
+  if(!confirm('기록 삭제: '+(e.stage||'')+(e.time?' ('+String(e.time).slice(11,16)+')':'')+'\n삭제할까요?'))return;
+  res[idx].timetable.splice(ti,1);
+  DB.s('rescues',res);
+  toast('🗑 기록이 삭제되었습니다');
+  renderTimeline(res[idx],'advanced');
 }
 function _buildLogHtml(r){
   const logEntries=_collectLogEntries(r);
@@ -612,6 +631,7 @@ function _buildLogHtml(r){
         <div style="display:flex;align-items:center;gap:6px;margin-bottom:${e.sub?'2':'0'}px;">
           <span style="font-size:11px;color:#7a9cb8;font-family:monospace;font-weight:600;white-space:nowrap;">${e.t}</span>
           <span style="font-size:${isWpPass(e)?'11':'12'}px;font-weight:${isWpPass(e)?'600':'700'};color:${isWpPass(e)?'rgba(255,255,255,.55)':col};">${e.ico} ${_esc(e.label)}</span>
+          ${(e.ti!=null&&(e.by===getAuthor()||(typeof isAdminUser==='function'&&isAdminUser())))?`<span onclick="_tlRecDel(${r.id},${e.ti})" style="margin-left:auto;color:rgba(255,107,91,.7);font-size:13px;font-weight:800;cursor:pointer;padding:0 6px;flex-shrink:0;" title="기록 삭제">×</span>`:''}
         </div>
         ${e.sub?`<div style="font-size:10px;color:rgba(255,255,255,.35);padding-left:2px;line-height:1.4;">${_esc(e.sub)}</div>`:''}
       </div>
@@ -1322,7 +1342,7 @@ function renderTimeline(r,viewMode,outId){
       ? _injList.map(i=>(typeof _injLabel==='function')?_injLabel(i):((i.part||'')+(i.type||''))).filter(Boolean).join(', ')
       : (()=>{const ip=_okA(r.injuryParts),it=_okA(r.injuryTypes);return (ip.join(', ')+(it.length?' / '+it.join(', '):'')).trim();})();
     const _vit0=(r.vitals&&_vitalsStr(r.vitals))?_vitalsStr(r.vitals):'';
-    const injurySect=`<div style="font-size:10px;color:#ff8a73;font-weight:800;letter-spacing:.5px;margin-bottom:4px;">🤕 부상 정도 (가장 중요)</div>
+    const injurySect=`<div style="font-size:10px;color:#ff8a73;font-weight:800;letter-spacing:.5px;margin-bottom:4px;">🤕 부상 정도</div>
       <div style="font-size:17px;font-weight:800;color:#ffd9d0;line-height:1.4;">${_injMain||'<span style="color:#9c7a72;font-weight:600;font-size:13px;">부상 정보 미입력</span>'}</div>
       <div style="display:flex;flex-wrap:wrap;gap:5px;margin-top:6px;">
         ${_ok(r.severity)?`<span style="font-size:11px;font-weight:800;color:#fff;background:#c0392b;border-radius:6px;padding:2px 8px;">${_esc(r.severity)}</span>`:''}
@@ -1332,7 +1352,7 @@ function renderTimeline(r,viewMode,outId){
     const _div='<div style="height:1px;background:rgba(255,255,255,.06);margin:9px 0;"></div>';
     const locSect=_ok(r.location)?`<div style="font-size:12px;color:#cfe2f2;line-height:1.5;">📍 ${_esc(r.location)}${(typeof _elevStr==='function'&&r.lat&&r.lng)?` <span style="color:#a7f3e4;font-size:10px;">${_elevStr(r.lat,r.lng,r.alt)}</span>`:''}${_ok(r.loctype)?` <span style="color:#7a9cb8;font-size:10px;">· ${_esc(r.loctype)}</span>`:''}</div>`:'';
     const _vAge=_ok(r.vBirth)?_ageFromBirth(r.vBirth)+'세':(_ok(r.vAge)?_esc(r.vAge)+'세':'');
-    const _vLine=[_ok(r.vName)?_esc(r.vName):'미상',_vAge,_ok(r.vGender)&&r.vGender!=='알수없음'?_esc(r.vGender):'',_ok(r.vNation)&&r.vNation==='외국인'?'외국인':'',_ok(r.vTel)?_esc(r.vTel):''].filter(Boolean).join(' · ');
+    const _vLine=[_ok(r.vName)?_esc(r.vName):'미상',_vAge,_ok(r.vGender)&&r.vGender!=='알수없음'?_esc(r.vGender):'',_ok(r.vNation)&&r.vNation==='외국인'?('외국인'+(_ok(r.vNationality)?'('+_esc(r.vNationality)+')':'')):'',_ok(r.vTel)?_esc(r.vTel):''].filter(Boolean).join(' · ');
     let personSect=`<div style="display:flex;align-items:center;flex-wrap:wrap;gap:5px;"><span style="font-size:10px;color:#4a7090;font-weight:700;min-width:40px;">사고자</span><span style="font-size:12px;color:#e0edf8;font-weight:600;">${_vLine}</span>${_ok(r.vTel)?_telBtnsHtml(r.vTel,r.id,'사고자',r.vName):''}</div>`;
     if(r.victims2&&r.victims2.length)personSect+=r.victims2.map((v,vi)=>`<div style="display:flex;align-items:center;flex-wrap:wrap;gap:5px;margin-top:6px;"><span style="font-size:10px;color:#e9897e;font-weight:700;min-width:40px;">추가${r.victims2.length>1?vi+1:''}</span><span style="font-size:12px;color:#f0d9d4;">${_esc([v.name||'미상',v.age?v.age+'세':'',(v.gender&&v.gender!=='알수없음')?v.gender:'',v.tel||''].filter(Boolean).join(' · '))}</span>${v.tel?_telBtnsHtml(v.tel,r.id,'추가 사고자',v.name):''}</div>`).join('');
     if(_ok(r.repName)||_ok(r.repTel))personSect+=`<div style="display:flex;align-items:center;flex-wrap:wrap;gap:5px;margin-top:6px;"><span style="font-size:10px;color:#4a7090;font-weight:700;min-width:40px;">신고자</span><span style="font-size:12px;color:#cfe2f2;">${[_ok(r.repName)?_esc(r.repName):'',_ok(r.repTel)?_esc(r.repTel):''].filter(Boolean).join(' · ')}</span>${_ok(r.repRel)?`<span style="font-size:10px;color:#e8b34a;background:rgba(232,179,74,.1);border:1px solid rgba(232,179,74,.3);border-radius:5px;padding:1px 6px;font-weight:700;">${_esc(r.repRel)}</span>`:''}${_ok(r.repTel)?_telBtnsHtml(r.repTel,r.id,'신고자',r.repName):''}</div>`;
@@ -1410,15 +1430,18 @@ function renderTimeline(r,viewMode,outId){
           if(ag.agenciesNote)parts.push(`(${_esc(ag.agenciesNote)})`);
           return parts.length?`<div style="font-size:11px;color:#b8d4e8;margin-top:2px;"><span style="color:#4a7090;">유관기관:</span> ${parts.join(' · ')}</div>`:'';
         })():''}`;}
-    // 조립(한 화면): 진행 스테퍼(진행중) → 요약 → [펼친 상세] → 응소 → 📌 기록(접이식) → 🕘 타임라인 → 🚑 출동팀 → 💬 댓글
+    // 조립(한 화면): [📄 보고서 구역] → [🕘 현장 기록 구역] → 💬 댓글 — 색 바 헤더로 두 구역을 명확히 구분
+    const _secHd=(col,txt,mt)=>`<div style="display:flex;align-items:center;gap:6px;margin:${mt||2}px 2px 6px;"><span style="width:3px;height:14px;border-radius:2px;background:${col};"></span><span style="font-size:11.5px;font-weight:800;color:${col};">${txt}</span><span style="flex:1;height:1px;background:${col}26;"></span></div>`;
     w.innerHTML=tabHdr
       +(r.status==='ongoing'?_rescueStepperHtml(r):'')
+      +_secHd('#ff8a73','📄 보고서')
       +reportSheet
       +_mkReportDetail()
+      +_secHd('#7fb4d4','🕘 현장 기록 · 타임라인',16)
       +_mobilizeBlockHtml('rescues',r)
       +_mkRecCard()
-      +(logHtml?`<div style="margin:2px 0 8px;"><div style="font-size:11px;color:#7fb4d4;font-weight:800;margin:6px 2px 5px;">🕘 상황일지 <span style="font-size:9px;color:#4a6a84;font-weight:600;">시간순 타임라인</span></div>${logHtml}</div>`
-               :'<div style="text-align:center;font-size:11px;color:#456a85;padding:12px 0 8px;">🕘 상황일지 기록 없음 — 위 📌 기록 추가로 입력하세요</div>')
+      +(logHtml?`<div style="margin:2px 0 8px;">${logHtml}</div>`
+               :'<div style="text-align:center;font-size:11px;color:#456a85;padding:12px 0 8px;">기록 없음 — 위 📌 기록 추가로 입력하세요</div>')
       +_mkTeamCard()
       +`<div style="background:#0b1c30;border-radius:10px;padding:12px;border:.5px solid rgba(255,255,255,.07);margin-top:8px;">
         <div style="font-size:11px;color:#4fa8d0;font-weight:700;margin-bottom:8px;">💬 댓글</div>
@@ -1918,7 +1941,7 @@ function _build119Text(r){
     L.push('■지도: https://map.kakao.com/link/map/'+encodeURIComponent('사고지점')+','+(+r.lat).toFixed(6)+','+(+r.lng).toFixed(6));
   }
   {
-    const vp=[r.vName,(r.vBirth&&typeof _ageFromBirth==='function'?_ageFromBirth(r.vBirth)+'세':(r.vAge?r.vAge+'세':'')),(r.vGender&&r.vGender!=='알수없음')?r.vGender:''].filter(Boolean).join('/');
+    const vp=[r.vName,(r.vBirth&&typeof _ageFromBirth==='function'?_ageFromBirth(r.vBirth)+'세':(r.vAge?r.vAge+'세':'')),(r.vGender&&r.vGender!=='알수없음')?r.vGender:'',(r.vNation==='외국인')?('외국인'+(r.vNationality?'('+r.vNationality+')':'')):''].filter(Boolean).join('/');
     if(vp)L.push('■사고자: '+vp+((r.victims2&&r.victims2.length)?' 외 '+r.victims2.length+'명':''));
   }
   if(r.severity)L.push('■중증도: '+r.severity);
@@ -1986,7 +2009,9 @@ function printReport(id){
 function endSit(){
   const res=DB.g('rescues')||[];const idx=res.findIndex(x=>x.id===selResId);if(idx===-1)return;
   if(!confirm('상황을 종료 처리하겠습니까?'))return;
-  res[idx].status='done';DB.s('rescues',res);
+  res[idx].status='done';
+  res[idx].closedAtMs=Date.now();res[idx].closedAt=now(); // 종료 시각 — 이후 추가 보고는 '사후 보완'으로 구분(상황일지 제외)
+  DB.s('rescues',res);
   try{if(typeof _closeLinkedSos==='function')_closeLinkedSos(res[idx]);}catch(e){} // 연계 SOS 링크도 종료
   pushNoti(`✅ 종료: ${res[idx].title}`,'✅','rescue_close',{app:'rescue',tab:2,id:res[idx].id});
   try{renderRescueMap();}catch(e){}try{renderResList();}catch(e){}closeDB();toast('✅ 상황 종료');updateSummary();
