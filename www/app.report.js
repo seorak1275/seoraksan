@@ -766,8 +766,9 @@ function _docPreviewOverlay(docHtml,title){
   document.getElementById('docPrevBack').onclick=function(){ov.remove();};
   document.getElementById('docPrevPrint').onclick=function(){try{fr.contentWindow.focus();fr.contentWindow.print();}catch(e){toast('⚠️ 인쇄 실패 — 파일 저장 후 인쇄하세요');}};
 }
-async function _hwpxGenFromBuf(buf,map,fname){
-  const entries=await _zipRead(buf);
+async function _hwpxGenFromBuf(buf,map,fname,photos){
+  let entries=await _zipRead(buf);
+  if(photos&&photos.length){try{entries=_hwpxEmbedPhotos(entries,photos);}catch(e){console.warn('사진 삽입 실패(문서는 사진 없이 생성):',e);}}
   const blob=_zipWrite(_hwpxFill(entries,map));
   const a=document.createElement('a');
   a.href=URL.createObjectURL(blob);a.download=fname;
@@ -775,11 +776,73 @@ async function _hwpxGenFromBuf(buf,map,fname){
   try{_busyDone&&_busyDone();}catch(e){}
   toast('📄 한글파일(hwpx) 생성 완료 — 한글에서 열어 확인하세요',5000);
 }
-async function _hwpxGenerate(tpl,map,fname){
+async function _hwpxGenerate(tpl,map,fname,photos){
   const bin=atob(tpl.b64);
   const buf=new Uint8Array(bin.length);
   for(let i=0;i<bin.length;i++)buf[i]=bin.charCodeAt(i);
-  await _hwpxGenFromBuf(buf.buffer,map,fname);
+  await _hwpxGenFromBuf(buf.buffer,map,fname,photos);
+}
+// 데이터URL 이미지의 원본 픽셀 크기 (hwpx 삽입 비율 계산용)
+function _imgDataDims(url){return new Promise((res,rej)=>{const im=new Image();im.onload=()=>res({w:im.naturalWidth||im.width,h:im.naturalHeight||im.height});im.onerror=rej;im.src=url;});}
+// ── hwpx에 사진 실제 삽입 (OWPML hp:pic) ──
+// photos: [{u:dataURL(jpeg), w,h(픽셀), slot:'부상사진'|'', label:'현장 1'}]
+// slot이 서식 자리표시자({{부상사진}})와 일치하면 그 자리에, 아니면 문서 끝 '[현장 사진]' 블록으로.
+function _hwpxEmbedPhotos(entries,photos){
+  const dec=new TextDecoder(),enc=new TextEncoder();
+  const si=entries.findIndex(e=>/section0\.xml$/i.test(e.name));
+  const hi=entries.findIndex(e=>/content\.hpf$/i.test(e.name));
+  if(si<0||hi<0)return entries;
+  let sec=dec.decode(entries[si].data);
+  let hpf=dec.decode(entries[hi].data);
+  const tagBefore=(s,idx,open)=>{var at=s.lastIndexOf(open,idx);if(at<0)return null;var gt=s.indexOf('>',at);return (gt>=0&&gt<idx)?s.slice(at,gt+1):null;};
+  // OWPML(KS X 6101) 그림 요소 — 표시 크기 W×H (HWPUNIT=1/7200인치, 96dpi 픽셀×75)
+  const picXml=(bid,W,H)=>{
+    const iid=Math.floor(Math.random()*2000000000)+1;
+    return '<hp:pic reverse="0" id="'+iid+'" zOrder="'+(iid%100000)+'" numberingType="PICTURE" textWrap="TOP_AND_BOTTOM" textFlow="BOTH_SIDES" lock="0" dropcapstyle="None" href="" groupLevel="0" instid="'+(iid+7)+'">'
+      +'<hp:offset x="0" y="0"/><hp:orgSz width="'+W+'" height="'+H+'"/><hp:curSz width="'+W+'" height="'+H+'"/><hp:flip horizontal="0" vertical="0"/>'
+      +'<hp:rotationInfo angle="0" centerX="'+Math.round(W/2)+'" centerY="'+Math.round(H/2)+'" rotateimage="1"/>'
+      +'<hp:renderingInfo><hc:transMatrix e1="1" e2="0" e3="0" e4="0" e5="1" e6="0"/><hc:scaMatrix e1="1" e2="0" e3="0" e4="0" e5="1" e6="0"/><hc:rotMatrix e1="1" e2="0" e3="0" e4="0" e5="1" e6="0"/></hp:renderingInfo>'
+      +'<hp:lineShape color="#000000" width="0" style="NONE" endCap="FLAT" headStyle="NORMAL" tailStyle="NORMAL" headfill="1" tailfill="1" headSz="SMALL_SMALL" tailSz="SMALL_SMALL" outlineStyle="NORMAL" alpha="0"/>'
+      +'<hp:imgRect><hc:pt0 x="0" y="0"/><hc:pt1 x="'+W+'" y="0"/><hc:pt2 x="'+W+'" y="'+H+'"/><hc:pt3 x="0" y="'+H+'"/></hp:imgRect>'
+      +'<hp:imgClip left="0" right="'+W+'" top="0" bottom="'+H+'"/><hp:inMargin left="0" right="0" top="0" bottom="0"/><hp:imgDim dircx="'+W+'" dircy="'+H+'"/>'
+      +'<hp:img binaryItemIDRef="'+bid+'" bright="0" contrast="0" effect="REAL_PIC" alpha="0"/><hp:effects/>'
+      +'<hp:sz width="'+W+'" height="'+H+'" widthRelTo="ABSOLUTE" heightRelTo="ABSOLUTE" protect="0"/>'
+      +'<hp:pos treatAsChar="1" affectLSpacing="0" flowWithText="1" allowOverlap="0" holdAnchorAndSO="0" vertRelTo="PARA" horzRelTo="COLUMN" vertAlign="TOP" horzAlign="LEFT" vertOffset="0" horzOffset="0"/>'
+      +'<hp:outMargin left="0" right="0" top="0" bottom="0"/><hp:shapeComment/></hp:pic>';
+  };
+  const b64ToU8=u=>{const b=atob(u.split(',')[1]);const a=new Uint8Array(b.length);for(let i=0;i<b.length;i++)a[i]=b.charCodeAt(i);return a;};
+  const scale=(p,maxW)=>{const w=Math.min((p.w||800)*75,maxW);return {W:Math.round(w),H:Math.round(w*(p.h||600)/(p.w||800))};};
+  const added=[];
+  photos.forEach((p,i)=>{p._bid='appimg'+(i+1);added.push({name:'BinData/'+p._bid+'.jpg',data:b64ToU8(p.u)});});
+  // ① 서식에 슬롯 자리표시자가 있으면 그 자리에 (없으면 ②로)
+  photos.forEach(p=>{
+    if(!p.slot)return;
+    const ph='{{'+p.slot+'}}';const idx=sec.indexOf(ph);
+    if(idx<0){p._noSlot=true;return;}
+    const rOpen=tagBefore(sec,idx,'<hp:run ')||'<hp:run charPrIDRef="0">';
+    const {W,H}=scale(p,18000);
+    sec=sec.slice(0,idx)+'</hp:t></hp:run>'+rOpen+picXml(p._bid,W,H)+'</hp:run>'+rOpen+'<hp:t>'+sec.slice(idx+ph.length);
+  });
+  // ② 나머지는 문서 끝 '[현장 사진]' 부록 블록 — 사진 1장당 한 문단(라벨 병기). 섹션 루트는 hs:sec
+  const rest=photos.filter(p=>!p.slot||p._noSlot);
+  if(rest.length&&sec.indexOf('</hs:sec>')>=0){
+    const pOpen=(sec.match(/<hp:p [^>]*>/)||['<hp:p>'])[0];
+    const rOpen2='<hp:run charPrIDRef="0">';
+    let blk=pOpen+rOpen2+'<hp:t> </hp:t></hp:run></hp:p>'
+      +pOpen+rOpen2+'<hp:t>[현장 사진]</hp:t></hp:run></hp:p>';
+    rest.forEach(p=>{
+      const {W,H}=scale(p,21000);
+      blk+=pOpen+rOpen2+picXml(p._bid,W,H)+'</hp:run>'+rOpen2+'<hp:t> '+String(p.label||'').replace(/[<>&]/g,'')+'</hp:t></hp:run></hp:p>';
+    });
+    sec=sec.replace('</hs:sec>',blk+'</hs:sec>');
+  }
+  // ③ 패키지 매니페스트(content.hpf) 등록
+  added.forEach((f,i)=>{
+    hpf=hpf.replace('</opf:manifest>','<opf:item id="appimg'+(i+1)+'" href="'+f.name+'" media-type="image/jpg" isEmbeded="1"/></opf:manifest>');
+  });
+  entries[si]={name:entries[si].name,data:enc.encode(sec)};
+  entries[hi]={name:entries[hi].name,data:enc.encode(hpf)};
+  return entries.concat(added);
 }
 // ══════════════════════════════════════════
 // 관공서 양식 보고서 (한글용) — 등록된 hwpx 서식이 있으면 그걸로 진짜 한글파일 생성(우선),
@@ -864,6 +927,18 @@ async function govReport(rid,kind,noPass){
     '사고원인분석':['- '+(nb(r.cause)||'-')+(injStr?' / '+injStr:'')+(nb(r.severity)?' ('+r.severity+')':''),nb(r.situation)?'- '+r.situation:''].filter(Boolean).join('\n'),
   });
   const _fname=(kind==='status'?'안전사고처리현황'+(noPass?'(통과제외)':'(통과포함)'):'동향보고')+'_'+((r.date||'').slice(0,10)||'문서')+'.hwpx';
+  // ── 올라간 사진 수집 (처리현황 전용) — 부상·이송·현장첨부를 hwpx에 실제 삽입 ──
+  let _photos=[];
+  if(kind==='status'){
+    const list=[];
+    const add=(u,slot,label)=>{if(u&&/^data:image\//.test(String(u)))list.push({u:String(u),slot,label});};
+    add(r.injuryPhoto,'부상사진','부상 부위');
+    add(r.transPhoto,'이송 사진','이송');
+    (r.photos||[]).slice(0,4).forEach((p,i)=>add(p&&p.url,'','현장 '+(i+1)+((p&&p.time)?' · '+String(p.time).slice(5,16):'')));
+    if(list.length){
+      _photos=(await Promise.all(list.map(async p=>{try{const d=await _imgDataDims(p.u);return Object.assign(p,{w:d.w,h:d.h});}catch(e){return null;}}))).filter(Boolean);
+    }
+  }
   try{
     _busy('📄 한글파일 생성 중…\n잠시만 기다려 주세요'); // 완료(미리보기/다운로드)까지 유지
     // 1) 관리자 업로드 서식(Firestore) 우선 — 오프라인이면 건너뛰고 내장 서식으로
@@ -871,7 +946,7 @@ async function govReport(rid,kind,noPass){
       try{
         const tdoc=await _fdb.collection('tpl').doc(kind).get();
         if(tdoc.exists&&tdoc.data()&&tdoc.data().b64){
-          await _hwpxGenerate(tdoc.data(),dataMap,_fname);
+          await _hwpxGenerate(tdoc.data(),dataMap,_fname,_photos);
           return;
         }
       }catch(e){}
@@ -879,7 +954,7 @@ async function govReport(rid,kind,noPass){
     // 2) 앱 내장 서식 (실제 결재 서식 기반 — 처리현황·동향보고)
     const resp=await fetch(kind==='status'?'./tpl-status.hwpx':'./tpl-trend.hwpx');
     if(resp.ok){
-      await _hwpxGenFromBuf(await resp.arrayBuffer(),dataMap,_fname);
+      await _hwpxGenFromBuf(await resp.arrayBuffer(),dataMap,_fname,_photos);
       return;
     }
   }catch(e){try{_busyDone&&_busyDone();}catch(_){}try{toast('⚠️ 서식 생성 실패('+(e&&e.message||e)+') — HTML 방식으로 대체');}catch(_){}}
@@ -929,7 +1004,9 @@ async function govReport(rid,kind,noPass){
           <td style="${th}">병원후송</td><td colspan="3" style="${td}text-align:center;">${esc(nb(r.hospital))}</td></tr>
       <tr><td style="${th}">특이사항</td><td colspan="3" style="${td}">${esc(nb(r.extra))}</td>
           <td style="${th}">음주여부</td><td colspan="3" style="${td}text-align:center;">${esc(nb(r.alcohol)==='없음'||!nb(r.alcohol)?'X':nb(r.alcohol)+(nb(r.alcAmount)?' ('+r.alcAmount+')':''))}</td></tr>
-    </table>`;
+    </table>
+    ${_photos.length?`<div style="margin-top:14px;"><div style="font-size:13px;font-weight:700;margin-bottom:6px;">[현장 사진]</div>
+      <div style="display:flex;flex-wrap:wrap;gap:8px;">${_photos.map(p=>`<figure style="margin:0;max-width:48%;"><img src="${p.u}" style="max-width:100%;border:1px solid #999;"><figcaption style="font-size:11px;color:#555;margin-top:2px;">${esc(p.label||'')}</figcaption></figure>`).join('')}</div></div>`:''}`;
   }else{
     const d=(r.date||'').slice(0,16);
     title='설악산 탐방객 구조출동 동향보고';
