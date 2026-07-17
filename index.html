@@ -1048,7 +1048,11 @@ if(window.Kakao&&!Kakao.isInitialized()) Kakao.init(KAKAO_KEY);
       <div class="fg" style="flex:1;"><span class="fl">직원 (명)</span><input type="number" inputmode="numeric" id="occStaff" class="fi" placeholder="0" min="0"></div>
       <div class="fg" style="flex:1;"><span class="fl">탐방객 (명)</span><input type="number" inputmode="numeric" id="occVisitors" class="fi" placeholder="0" min="0"></div>
     </div>
-    <div class="fg"><span class="fl">비고</span><input type="text" id="occNote" class="fi" placeholder="특이사항 (예: 출퇴근중, 하산지시 등)"></div>
+    <div style="display:flex;gap:8px;">
+      <div class="fg" style="flex:1;"><span class="fl">🌙 숙박객 (명)</span><input type="number" inputmode="numeric" id="occLodging" class="fi" placeholder="야간 숙박" min="0"></div>
+      <div class="fg" style="flex:1;"><span class="fl">🚶 익일 출퇴근 (명)</span><input type="number" inputmode="numeric" id="occCommute" class="fi" placeholder="다음날 예정" min="0"></div>
+    </div>
+    <div class="fg"><span class="fl">비고</span><input type="text" id="occNote" class="fi" placeholder="특이사항 (예: 하산지시, 탐방로 통제 등)"></div>
     <input type="hidden" id="occOpId"><input type="hidden" id="occLoc">
     <button class="btn btn-red" onclick="addAlertOccupancy()">👥 체류인원 보고</button>
   </div>

@@ -1,1 +1,1 @@
-{"version":"2026.07.17.251","url":"https://seorak1275.github.io/seoraksan/bundle.zip","notes":"①사진 라이트박스에 ⬇다운로드 버튼 추가(데이터URL·http 모두, 배경탭에서만 닫힘) ②구조 기록카드 팀 선택의 '본부'를 '본소'로 변경(전 과 통칭)"}
+{"version":"2026.07.17.252","url":"https://seorak1275.github.io/seoraksan/bundle.zip","notes":"특보 체류인원에 🌙숙박객·🚶익일 출퇴근 인원 분리 입력 추가(대피소 전용, 예비특보 포함 상시) + 카드에 표시. 전화·위치요청 버튼 우측 정렬(margin-left:auto)로 인적사항 줄 길어도 깔끔하게. 탐방로 통제는 기존 '통제/개방 관리' 사용"}

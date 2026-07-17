@@ -2147,7 +2147,7 @@ function _renderAlertInput(active){
       const cnt=(active.responders||[]).filter(r=>(r.loc||'사무소')===st.loc).length;
       const occ=isShelter?_latestOccupancy(active,st.loc):null;
       // 대피소: 직원+탐방객 체류인원 표시 / 분소: 당직자(응소인원)만 표시
-      const occLine=occ?`<div style="font-size:11px;color:#7ec8a0;margin:2px 0 4px;">⛺ 직원 ${occ.staff??'-'}명 · 탐방객 ${occ.visitors??'-'}명 <span style="color:#565f6b;">${(occ.time||'').slice(11,16)}</span>${occ.note?' · '+_esc(occ.note):''}</div>`:'';
+      const occLine=occ?`<div style="font-size:11px;color:#7ec8a0;margin:2px 0 4px;">⛺ 직원 ${occ.staff??'-'}명 · 탐방객 ${occ.visitors??'-'}명${occ.lodging!=null?` · 🌙 숙박 ${occ.lodging}명`:''}${occ.commute!=null?` · 🚶 출퇴근 ${occ.commute}명`:''} <span style="color:#565f6b;">${(occ.time||'').slice(11,16)}</span>${occ.note?' · '+_esc(occ.note):''}</div>`:'';
       const base=_dutyOf(st.loc);
       const cntChip=_mtIn
         ?`<span class="ao-loc-cnt ${(cnt+base)?'ok':''}">👤 ${base?`상시 ${base}`:''}${base&&cnt?' + ':''}${cnt?`응소 ${cnt}`:(base?'':'응소 0')}명</span>`
@@ -2540,7 +2540,7 @@ function openAlertOcc(opId,presetLoc){
   if($('occOpId'))$('occOpId').value=opId;
   if($('occLoc'))$('occLoc').value=presetLoc||'';
   if($('occLocDisplay'))$('occLocDisplay').textContent=presetLoc?_stationLabel(presetLoc):'관측소 미지정';
-  ['occStaff','occVisitors','occNote'].forEach(id=>{if($(id))$(id).value='';});
+  ['occStaff','occVisitors','occLodging','occCommute','occNote'].forEach(id=>{if($(id))$(id).value='';});
   $('modalAlertOcc').classList.add('on');
   setTimeout(()=>{const el=$('occStaff');if(el)el.focus();},200);
 }
@@ -2550,7 +2550,9 @@ function addAlertOccupancy(){
   if(!loc){toast('거점 정보가 없습니다');return;}
   const staff=document.getElementById('occStaff').value.trim();
   const visitors=document.getElementById('occVisitors').value.trim();
-  if(staff===''&&visitors===''){toast('직원 또는 탐방객 수를 입력하세요');return;}
+  const lodging=(document.getElementById('occLodging')?.value||'').trim();
+  const commute=(document.getElementById('occCommute')?.value||'').trim();
+  if(staff===''&&visitors===''&&lodging===''&&commute===''){toast('직원·탐방객·숙박객·출퇴근 중 하나 이상 입력하세요');return;}
   const ops=DB.g('alertOps')||[];
   const idx=ops.findIndex(o=>o.id===opId);
   if(idx===-1){toast('운영 기록을 찾을 수 없습니다');return;}
@@ -2559,6 +2561,8 @@ function addAlertOccupancy(){
     id:Date.now(),loc,
     staff:staff!==''?parseInt(staff):null,
     visitors:visitors!==''?parseInt(visitors):null,
+    lodging:lodging!==''?parseInt(lodging):null,
+    commute:commute!==''?parseInt(commute):null,
     note:document.getElementById('occNote').value.trim(),
     time:now(),at:Date.now(),by:getAuthor()
   });
