@@ -972,6 +972,53 @@ function _causeCanon(s){
   if(cat==='심정지'&&!/심정지|심장|돌연사|의식|호흡|사망/.test(k))cat='질환';
   return cat;
 }
+// ── 부상유형 정규화 ── 앱 실제 데이터(injuryTypes)엔 '실족 발목염좌'·'미끄러져 발목부상'처럼 경위(실족·미끄러짐·추락)가 섞임.
+// 경위는 떼고 실제 부상만 임상 종류로 통합(발목염좌·발목 접질림→염좌 등). 순수 사고원인(고립·조난·변사)은 부상 아님으로 제외(사고원인·결과에 이미 잡힘).
+function _injKind(s){
+  const t=String(s||'').replace(/\s+/g,'');
+  if(!t)return '';
+  if(/사망/.test(t))return '사망';
+  if(/심정지|의식불명|의식없음|의식소실|의식저하|호흡없음/.test(t))return '심정지·의식';
+  if(/탈골|탈구/.test(t))return '탈구';
+  if(/골절|다발성골/.test(t))return '골절';
+  if(/염좌|접질림|접지름|삠|삐끗|삐긋/.test(t))return '염좌';
+  if(/열상|찢/.test(t))return '열상';
+  if(/찰과|까짐|쓸림/.test(t))return '찰과상';
+  if(/타박/.test(t))return '타박상';
+  if(/출혈|유혈/.test(t))return '출혈';
+  if(/마비|파열/.test(t))return '기타외상';
+  if(/탈진|체력저하|기진|무기력/.test(t))return '탈진';
+  if(/저체온/.test(t))return '저체온증';
+  if(/열사병|일사병|온열/.test(t))return '온열질환';
+  if(/경련|쥐/.test(t))return '경련';
+  if(/어지럼|현기|어지러|현훈/.test(t))return '어지럼증';
+  if(/호흡곤란|과호흡/.test(t))return '호흡곤란';
+  if(/벌쏘|벌에|뱀물|뱀에|물림|쏘임/.test(t))return '벌쏘임·교상';
+  if(/화상/.test(t))return '화상';
+  if(/흉통|가슴통증|심장/.test(t))return '흉통';
+  if(/복통|배아픔/.test(t))return '복통';
+  if(/저혈당|고혈당|저혈압|고혈압|지병|기저질환|질환|당뇨|통풍|알러지|알레르기|부정맥|디스크|급체|구토|메스꺼|울렁|이석/.test(t))return '질환';
+  if(/통증|아픔|결림|근육통|두통|부어오름|부음|불편|거동불가|저림/.test(t))return '통증';
+  if(/부상|외상|손상|다침/.test(t))return '기타외상';
+  if(/변사|자살|수색|실종|고립|길잃음|길을잃음|조난|미귀가|귀가신고|랜턴|방전|장비미숙|로프|미끄러짐|실족|추락|넘어짐|부주의|미상|무리한산행/.test(t))return ''; // 부상 아닌 상황
+  return '기타';
+}
+// 부상부위 추출(경위·부상종류 섞인 원문에서 신체 부위만)
+function _injPartOf(s){
+  const t=String(s||'').replace(/\s+/g,'');
+  if(/발목/.test(t))return '발목';
+  if(/무릎|슬관절/.test(t))return '무릎';
+  if(/골반/.test(t))return '골반';
+  if(/허리|요추/.test(t))return '허리';
+  if(/두부|머리|안면|얼굴|이마|코뼈|광대|턱/.test(t))return '머리·안면';
+  if(/어깨|쇄골/.test(t))return '어깨';
+  if(/손목|손가락|손등|팔꿈치|팔|상완|전완/.test(t))return /손/.test(t)?'손·손목':'팔';
+  if(/갈비|늑골|흉부|가슴/.test(t))return '가슴';
+  if(/종아리|정강|허벅지|다리|하퇴|대퇴/.test(t))return '다리';
+  if(/발(?!목)/.test(t))return '발';
+  if(/전신|다발성/.test(t))return '전신';
+  return '';
+}
 function renderRescueStats(){
   document.getElementById('topTitle').textContent='재난/구조 관리';
   // 기간을 과거·전체로 넓힌 통계를 위해 1년 이전 기록도 1회 로드(평소엔 최근 1년만 구독) — 로드되면 자동 재집계
@@ -1039,16 +1086,17 @@ function renderRescueStats(){
     const injMap={},injPartMap={},sevMap={},cauMap={},methodMap={},ageMap={},timeMap={},genderMap={},loctypeMap={},weatherMap={},outcomeMap={};
     res.forEach(r=>{
       if(r.outcome){outcomeMap[r.outcome]=(outcomeMap[r.outcome]||0)+1;}
-      // 부상: 구조화 r.injuries[{type,part}] 우선, 없으면 레거시 injuryTypes/injuryParts
+      // 부상: 구조화 r.injuries[{type,part}] 우선, 없으면 레거시 injuryTypes/injuryParts.
+      // _injKind로 경위(실족·미끄러짐) 떼고 임상 종류로 통합, _injPart로 부위 추출(순수 사고원인은 제외)
       if(Array.isArray(r.injuries)&&r.injuries.length){
         r.injuries.forEach(i=>{
           if(!i)return;
-          const t=_statBase(i.type);if(t)injMap[t]=(injMap[t]||0)+1;
-          const pt=_statBase(i.part);if(pt&&pt!=='전신')injPartMap[pt]=(injPartMap[pt]||0)+1;
+          const t=_injKind(i.type);if(t)injMap[t]=(injMap[t]||0)+1;
+          const pt=_injPartOf(i.part)||_injPartOf(i.type);if(pt)injPartMap[pt]=(injPartMap[pt]||0)+1;
         });
       } else {
-        (r.injuryTypes||[]).forEach(t=>{const k=_statBase(t);if(k)injMap[k]=(injMap[k]||0)+1;});
-        (r.injuryParts||[]).forEach(p=>{const k=_statBase(p);if(k)injPartMap[k]=(injPartMap[k]||0)+1;});
+        (r.injuryTypes||[]).forEach(v=>{const t=_injKind(v);if(t)injMap[t]=(injMap[t]||0)+1;const pt=_injPartOf(v);if(pt)injPartMap[pt]=(injPartMap[pt]||0)+1;});
+        (r.injuryParts||[]).forEach(p=>{const pt=_injPartOf(p)||_statBase(p);if(pt)injPartMap[pt]=(injPartMap[pt]||0)+1;});
       }
       if(r.severity){const k=_statBase(r.severity);if(k)sevMap[k]=(sevMap[k]||0)+1;}
       if(r.cause){const k=_causeCanon(r.cause);if(k)cauMap[k]=(cauMap[k]||0)+1;}
