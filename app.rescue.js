@@ -783,6 +783,7 @@ function toggleResSort(){_resSortNewest=!_resSortNewest;try{renderResList();}cat
 function renderResList(){
   try{if(typeof _mergeCustomResTypes==='function')_mergeCustomResTypes();}catch(e){}
   try{if(typeof _migrateDedupLogs==='function')_migrateDedupLogs();}catch(e){} // 타임라인 중복 항목 1회 청소
+  try{if(typeof _migrateGender==='function')_migrateGender();}catch(e){} // 성별 남성/여성→남/여 1회 정규화
 
   const res=DB.g('rescues')||[];const haz=DB.g('hazards')||[];
   _updateResFilterPanels();
@@ -1001,15 +1002,18 @@ function renderRescueStats(){
     </button>
   </div>`;
   if(tab==='rescue'){
+    // ── 통계 정규화 — 흩어진 표기 합치기: 성별(남성/남→남, 여성/여→여), 괄호 부가설명 제거(추락(비탐)→추락) ──
+    const _statBase=s=>String(s||'').replace(/\s*\([^)]*\)\s*/g,' ').replace(/\s+/g,' ').trim();
+    const _statGender=g=>{const s=String(g||'').trim();return /^남/.test(s)?'남':/^여/.test(s)?'여':'';};
     const injMap={},sevMap={},cauMap={},methodMap={},ageMap={},timeMap={},genderMap={},loctypeMap={},weatherMap={};
     res.forEach(r=>{
-      (r.injuryParts||[]).forEach(p=>{injMap[p]=(injMap[p]||0)+1;});
-      if(r.severity)sevMap[r.severity]=(sevMap[r.severity]||0)+1;
-      if(r.cause)cauMap[r.cause]=(cauMap[r.cause]||0)+1;
-      (r.rescueMethod||[]).forEach(m=>{methodMap[m]=(methodMap[m]||0)+1;});
-      if(r.vGender&&r.vGender!=='알수없음')genderMap[r.vGender]=(genderMap[r.vGender]||0)+1; // 미상은 차트에서 제외(타 화면과 일관)
-      if(r.loctype)loctypeMap[r.loctype]=(loctypeMap[r.loctype]||0)+1;
-      if(r.weather)weatherMap[r.weather]=(weatherMap[r.weather]||0)+1;
+      (r.injuryParts||[]).forEach(p=>{const k=_statBase(p);if(k)injMap[k]=(injMap[k]||0)+1;});
+      if(r.severity){const k=_statBase(r.severity);if(k)sevMap[k]=(sevMap[k]||0)+1;}
+      if(r.cause){const k=_statBase(r.cause);if(k)cauMap[k]=(cauMap[k]||0)+1;}
+      (r.rescueMethod||[]).forEach(m=>{const k=_statBase(m);if(k)methodMap[k]=(methodMap[k]||0)+1;});
+      {const g=_statGender(r.vGender);if(g)genderMap[g]=(genderMap[g]||0)+1;} // 남성/남→남, 여성/여→여, 미상 제외
+      if(r.loctype){const k=_statBase(r.loctype);if(k)loctypeMap[k]=(loctypeMap[k]||0)+1;}
+      if(r.weather){const k=_statBase(r.weather);if(k)weatherMap[k]=(weatherMap[k]||0)+1;}
       {let age=r.vBirth?_ageFromBirth(r.vBirth):(r.vAge!=null&&r.vAge!==''?parseInt(r.vAge):'');if(age!==''&&!isNaN(age)){const ag=age<20?'10대 이하':age<30?'20대':age<40?'30대':age<50?'40대':age<60?'50대':age<70?'60대':'70대+';ageMap[ag]=(ageMap[ag]||0)+1;}}
       // 발생 시각: r.date("YYYY-MM-DD HH:MM" 또는 "...THH:MM")에서 시(時) 추출 (r.time 필드는 존재하지 않음)
       {const _tm=(r.date||'').match(/[ T](\d{1,2}):/);if(_tm){const h=parseInt(_tm[1],10);const b=Math.floor(h/2)*2;const k=String(b).padStart(2,'0')+'~'+String(b+2).padStart(2,'0')+'시';timeMap[k]=(timeMap[k]||0)+1;}}

@@ -1157,7 +1157,7 @@ async function _safetyHwpxGen(rid){
   const ck=(o,on)=>(on?'■':'□')+' '+o; // 지침 표기 그대로 ■/□
   const typeLine=[ck('구급약품지원',sel.has('구급약품지원')),ck('안전장비지원',sel.has('안전장비지원')),ck('식품지원',sel.has('식품지원')),
     (sel.has('기타')?'■':'□')+' 기타('+((sel.has('기타')&&etc)?' '+etc+' ':'           ')+')'].join('  ');
-  const gSel=r.vGender==='남'?'남성':r.vGender==='여'?'여성':'모름';
+  const gSel=/^남/.test(r.vGender||'')?'남성':/^여/.test(r.vGender||'')?'여성':'모름'; // 남/남성·여/여성 모두 인식
   const genderLine=['남성','여성','모름'].map(o=>ck(o,o===gSel)).join('   ');
   let age='';try{age=r.vBirth?_ageFromBirth(r.vBirth):(r.vAge!=null&&r.vAge!==''?parseInt(r.vAge):'');}catch(e){}
   const aBand=(age===''||isNaN(age))?'모름':(age<20?'10대 이하':age<30?'20대':age<40?'30대':age<50?'40대':age<60?'50대':'60대 이상');
@@ -1207,7 +1207,7 @@ function _safetyReportHtml(rid){
   if(/통증/.test(injAll+(r.situation||'')))injSel.add('통증');
   if(!injSel.size&&injAll)injSel.add('기타(    )');
   // 성별·연령대
-  const gSel=new Set();if(r.vGender==='남')gSel.add('남성');else if(r.vGender==='여')gSel.add('여성');else gSel.add('모름');
+  const gSel=new Set();if(/^남/.test(r.vGender||''))gSel.add('남성');else if(/^여/.test(r.vGender||''))gSel.add('여성');else gSel.add('모름');
   const aSel=new Set();
   {let age='';try{age=r.vBirth?_ageFromBirth(r.vBirth):(r.vAge!=null&&r.vAge!==''?parseInt(r.vAge):'');}catch(e){}
     if(age===''||isNaN(age))aSel.add('모름');

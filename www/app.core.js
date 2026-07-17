@@ -399,6 +399,21 @@ function _migrateDedupLogs(){
     localStorage.setItem('_logDedup_v3','1');
   }catch(e){}
 }
+// 성별 표기 통일(1회) — 엑셀 임포트 등으로 '남성/여성'으로 저장된 것을 폼 표준 '남/여'로 정규화(통계·서식·표시 일관)
+function _migrateGender(){
+  try{
+    if(localStorage.getItem('_genderNorm_v1')==='1')return;
+    const res=DB.g('rescues');if(!Array.isArray(res))return;
+    const nz=g=>{var s=String(g==null?'':g).trim();return s==='남성'?'남':s==='여성'?'여':g;};
+    var changed=false;
+    res.forEach(function(r){
+      var ng=nz(r.vGender);if(ng!==r.vGender){r.vGender=ng;changed=true;}
+      if(Array.isArray(r.victims2))r.victims2.forEach(function(v){if(v){var nv=nz(v.gender);if(nv!==v.gender){v.gender=nv;changed=true;}}});
+    });
+    if(changed)DB.s('rescues',res);
+    localStorage.setItem('_genderNorm_v1','1');
+  }catch(e){}
+}
 // ── 동시편집 병합: 누적 데이터(보고·댓글·타임라인·통과기록)는 합집합 보존, 단일값은 최신(로컬) 우선 ──
 function _unionBy(server,local,keyFn){
   const map=new Map();let n=0;
