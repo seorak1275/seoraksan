@@ -1,1 +1,1 @@
-{"version":"2026.07.17.211","url":"https://seorak1275.github.io/seoraksan/bundle.zip","notes":"위험상황 기능 비활성화(등록·목록·핀·통계·상황판·관제 — 데이터 보존, 플래그 복원 가능) + AI 지령서 스캔 개선(2.5-flash 폴백, 신고자·좌표·출동/도착 추출, 결과 요약, 오류 안내)"}
+{"version":"2026.07.17.212","url":"https://seorak1275.github.io/seoraksan/bundle.zip","notes":"특보 훈련(리허설) 시작 버튼 제거 · 상황일지 타임라인 응소·공단공유 시각 KST 정규화(과거 UTC 기록 9시간 밀림 수정)"}

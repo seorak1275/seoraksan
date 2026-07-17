@@ -408,7 +408,7 @@ function confirmTlBuild(){
     const _dept=_deptShort(_user.dept||'공단');
     const _npsNum=_tlTeams.filter(t=>t.id&&t.id.startsWith('nps_')).length+1;
     const name=(nameEl&&nameEl.value.trim())||(_dept+' '+_npsNum+'팀');
-    _tlTeams.push({id:'nps_'+Date.now(),name,type:'foot',members:_tlBuildMembers.slice(),requestedAt:now(),arrivedAt:null,createdAt:new Date().toISOString()});
+    _tlTeams.push({id:'nps_'+Date.now(),name,type:'foot',members:_tlBuildMembers.slice(),requestedAt:now(),arrivedAt:null,createdAt:now()});
   }else{
     const memCount=parseInt(document.getElementById('tlBuildMemCount')?.value||'0')||0;
     // 환동해는 3교대 — 오늘 당직팀 번호를 팀명에 반영해 현장 혼선 방지
@@ -418,7 +418,7 @@ function confirmTlBuild(){
     const isVehicle=!isHeli&&['소방','경찰'].some(k=>_tlBuildAgencyType===k||_tlBuildAgencyType.startsWith(k));
     const type=isHeli?'heli':isVehicle?'vehicle':'foot';
     // requestedAt=출동요청 시각(생성시점), arrivedAt=현장도착(별도 기록)
-    _tlTeams.push({id:'agency_'+Date.now(),name,type,agType:_tlBuildAgencyType,agRegion:_tlBuildRegion||'',hwTeam:_tlBuildAgencyType==='소방(환동해)'?hw:null,memberCount:memCount,requestedAt:now(),arrivedAt:null,createdAt:new Date().toISOString()});
+    _tlTeams.push({id:'agency_'+Date.now(),name,type,agType:_tlBuildAgencyType,agRegion:_tlBuildRegion||'',hwTeam:_tlBuildAgencyType==='소방(환동해)'?hw:null,memberCount:memCount,requestedAt:now(),arrivedAt:null,createdAt:now()});
   }
   _tlBuilding=false;
   _persistTeams(); // save to Firestore so rescue map can show team chips
@@ -548,8 +548,10 @@ function _tlRecSave(rid){
 // 상황일지 엔트리 수집(공용) — 화면(_buildLogHtml)과 한글 보고서 생성이 함께 사용
 function _collectLogEntries(r){
   const baseDate=(r.date||'').slice(0,10);
-  const _tKey=t=>{const s=String(t||'').trim();if(/^\d{4}-\d{2}-\d{2}/.test(s))return s;return baseDate+' '+s;};
-  const _tShow=t=>{const s=String(t||'').trim();return s.length>5?s.slice(11,16)||s.slice(-5):s;};
+  // 과거 기록 일부가 UTC ISO(…T…Z)로 저장돼 응소·출동 시각이 9시간 밀려 보이던 것 → KST 벽시계로 정규화
+  const _tKST=v=>{const s=String(v||'').trim();if(/T\d{2}:\d{2}.*Z$/.test(s)){const d=new Date(s);if(!isNaN(d))return new Date(d.getTime()+9*3600000).toISOString().slice(0,16).replace('T',' ');}return s;};
+  const _tKey=t=>{const s=_tKST(t);if(/^\d{4}-\d{2}-\d{2}/.test(s))return s;return baseDate+' '+s;};
+  const _tShow=t=>{const s=_tKST(t);return s.length>5?s.slice(11,16)||s.slice(-5):s;};
   // type: 'victim'=요구조자 관련(빨강) | 'team'=팀 이동(파랑) | 'report'=보고(보라) | 'nps'=공단(초록)
   const logEntries=[];
   if(r.date)logEntries.push({k:_tKey(r.date),t:_tShow(r.date),ico:'🚨',label:'최초접수',sub:r.reception||'',type:'victim'});
@@ -1820,7 +1822,7 @@ function submitNpsResponse(resId,text){
   if(idx===-1){toast('⚠️ 사고 정보 없음');return;}
   if(!res[idx].npsLog)res[idx].npsLog=[];
   const author=getAuthor();
-  res[idx].npsLog.push({time:new Date().toISOString(),author,text});
+  res[idx].npsLog.push({time:now(),author,text});
   DB.s('rescues',res);
   toast('🏕️ 공단 응소 기록됨');
   if(document.getElementById('v-report').classList.contains('on')){
@@ -1922,8 +1924,9 @@ function _buildReportText(r){
   if(teamParts.length)L.push('출동인원: '+teamParts.join(' / '));
   // 통합 타임라인 (타임테이블 + 위치통과 + 팀 출동/도착/탑승/이송전환 + CPR 상세)
   const baseDate=(r.date||'').slice(0,10);
-  const _tKey=t=>{const s=String(t||'').trim();if(/^\d{4}-\d{2}-\d{2}/.test(s))return s;return baseDate+' '+s;};
-  const _hm=t=>{const s=String(t||'').trim();return s.length>5?s.slice(11,16):s;};
+  const _tKST=v=>{const s=String(v||'').trim();if(/T\d{2}:\d{2}.*Z$/.test(s)){const d=new Date(s);if(!isNaN(d))return new Date(d.getTime()+9*3600000).toISOString().slice(0,16).replace('T',' ');}return s;};
+  const _tKey=t=>{const s=_tKST(t);if(/^\d{4}-\d{2}-\d{2}/.test(s))return s;return baseDate+' '+s;};
+  const _hm=t=>{const s=_tKST(t);return s.length>5?s.slice(11,16):s;};
   const tlAll=[];
   (r.timetable||[]).forEach(e=>{
     if(!e.time&&!e.stage)return;

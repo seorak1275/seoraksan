@@ -1894,8 +1894,7 @@ function renderAlertView(){
     activeHtml=`<div class="ao-empty">
       <div class="ao-empty-ico">🌀</div>
       <div class="ao-empty-msg">현재 진행 중인 특보운영이 없습니다</div>
-      ${isAdminUser()?`<button onclick="alertTab(3)" class="ao-start-btn">🌀 특보운영 시작</button>
-      <div style="margin-top:10px;"><button onclick="openAlertStart(true)" class="btn2 btn2-sec btn2-sm">🎯 훈련(리허설)로 시작 — 실제와 동일 흐름 · 통계 제외</button></div>`:'<div style="font-size:11px;color:#456a85;">관리자가 특보운영을 시작하면 표시됩니다</div>'}
+      ${isAdminUser()?`<button onclick="alertTab(3)" class="ao-start-btn">🌀 특보운영 시작</button>`:'<div style="font-size:11px;color:#456a85;">관리자가 특보운영을 시작하면 표시됩니다</div>'}
     </div>
     ${_renderDutyBaseline()}`;
   }
@@ -2083,8 +2082,7 @@ function _renderAlertInput(active){
     html+=`<div class="ao-card" style="text-align:center;padding:22px 16px;">
       <div style="font-size:34px;margin-bottom:8px;">🌀</div>
       <div style="font-size:13px;color:#9fc0da;margin-bottom:14px;">진행 중인 특보운영이 없습니다</div>
-      ${admin?`<button onclick="openAlertStart()" class="ao-start-btn" style="margin:0 auto;">🌀 특보운영 시작</button>
-      <div style="margin-top:10px;"><button onclick="openAlertStart(true)" class="btn2 btn2-sec btn2-sm">🎯 훈련(리허설)로 시작 — 발령→응소→관측→종료 연습 · 통계 제외</button></div>`
+      ${admin?`<button onclick="openAlertStart()" class="ao-start-btn" style="margin:0 auto;">🌀 특보운영 시작</button>`
              :`<div style="font-size:11px;color:#456a85;">관리자가 특보운영을 시작하면<br>여기서 응소·관측을 입력할 수 있습니다</div>`}
     </div>`;
     return html+'</div>';
