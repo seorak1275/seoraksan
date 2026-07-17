@@ -398,6 +398,10 @@ img{-webkit-user-drag:none;}
 .btn-submit:active,.mbtn:active,.map-ctrl:active,.fab2:active,.dbbtns .btn:active,.tog-btn:active,.sm-btn:active{transform:scale(.96);opacity:.85;}
 .tog-btn{padding:9px 15px;border-radius:8px;border:1px solid rgba(255,255,255,.15);background:rgba(255,255,255,.04);color:rgba(255,255,255,.55);font-size:12px;cursor:pointer;min-height:40px;transition:all .15s var(--qt);}
 .tog-btn.on{background:rgba(255,255,255,.18);border-color:rgba(255,255,255,.4);color:#3182f6;font-weight:700;}
+/* 상황 종료 — 처리방법/병원 선택 토글 */
+.endm,.endh{padding:8px 12px;border-radius:9px;border:1px solid rgba(255,255,255,.15);background:rgba(255,255,255,.04);color:#c4c8ce;font-size:12px;font-weight:700;cursor:pointer;transition:all .15s var(--qt);}
+.endm.on,.endh.on{border-color:#3182f6;background:rgba(49,130,246,.16);color:#3182f6;}
+.endm:active,.endh:active{transform:scale(.96);}
 /* ── 체크박스 / 체크아이템 ── */
 .chk-item{transition:transform .1s var(--qt),background .14s ease,border-color .14s ease;}
 .chk-item:active{transform:scale(.94);}

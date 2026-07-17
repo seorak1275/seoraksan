@@ -1477,13 +1477,14 @@ function renderTimeline(r,viewMode,outId){
           return parts.length?`<div style="font-size:11px;color:#c4c8ce;margin-top:2px;"><span style="color:#565f6b;">유관기관:</span> ${parts.join(' · ')}</div>`:'';
         })():''}`;}
     // 조립(한 화면): [📄 보고서 구역] → [🕘 현장 기록 구역] → 💬 댓글 — 색 바 헤더로 두 구역을 명확히 구분
-    const _secHd=(col,txt,mt)=>`<div style="display:flex;align-items:center;gap:6px;margin:${mt||2}px 2px 6px;"><span style="width:3px;height:14px;border-radius:2px;background:${col};"></span><span style="font-size:11.5px;font-weight:800;color:${col};">${txt}</span><span style="flex:1;height:1px;background:${col}26;"></span></div>`;
+    // 두 구역을 색 밴드(칸)로 명확히 구분 — 📄 보고서(코랄) vs 🕘 현장기록·타임라인(블루)
+    const _secHd=(col,txt,mt)=>`<div style="display:flex;align-items:center;gap:7px;margin:${mt||6}px 0 9px;padding:8px 12px;border-radius:9px;background:${col}1f;border-left:3px solid ${col};"><span style="font-size:12.5px;font-weight:800;color:${col};letter-spacing:.2px;">${txt}</span></div>`;
     w.innerHTML=tabHdr
       +(r.status==='ongoing'?_rescueStepperHtml(r):'')
       +_secHd('#ff8a73','📄 보고서')
       +reportSheet
       +_mkReportDetail()
-      +_secHd('#7fb4d4','🕘 현장 기록 · 타임라인',16)
+      +_secHd('#3182f6','🕘 현장 기록 · 타임라인',16)
       +_mobilizeBlockHtml('rescues',r)
       +_mkRecCard()
       +(logHtml?`<div style="margin:2px 0 8px;">${logHtml}</div>`
@@ -2101,24 +2102,68 @@ function printReport(id){
     +'<h1>🏔️ 설악산 구조 보고서</h1><pre>'+esc(txt)+'</pre></body></html>';
   _docPreviewOverlay(html,(r.title||'구조 보고서')+' — 인쇄/PDF');
 }
+// ✅ 상황 종료 — 처리·이송 방법 + 병원 선택을 받아 보고서(구조방법·병원)에 바로 연계
+const _END_METHODS=[['🚁','헬기 이송'],['🚑','구급대 이송'],['🚙','구조대차량 이송'],['🚗','자차 귀가'],['🥾','도보 하산'],['✍️','기타']];
+const _END_HOSPS=['온제병원(구 보광병원)','속초의료원','강릉아산병원','직접입력','추후입력','해당없음'];
 function endSit(){
   const res=DB.g('rescues')||[];const idx=res.findIndex(x=>x.id===selResId);if(idx===-1)return;
-  if(!confirm('상황을 종료 처리하겠습니까?'))return;
-  res[idx].status='done';
-  res[idx].closedAtMs=Date.now();res[idx].closedAt=now(); // 종료 시각 — 이후 추가 보고는 '사후 보완'으로 구분(상황일지 제외)
+  const r=res[idx];
+  window._endMethods=new Set(Array.isArray(r.rescueMethod)?r.rescueMethod.filter(Boolean):(r.rescueMethod?[r.rescueMethod]:[]));
+  window._endHosp=_END_HOSPS.includes(r.hospital)?r.hospital:(r.hospital?'직접입력':'');
+  let ov=document.getElementById('endSitOv');if(ov)ov.remove();
+  ov=document.createElement('div');ov.id='endSitOv';
+  ov.style.cssText='position:fixed;inset:0;z-index:9500;background:rgba(0,0,0,.62);display:flex;align-items:flex-end;justify-content:center;';
+  const _hospCustom=(!_END_HOSPS.includes(r.hospital)&&r.hospital)?_esc(r.hospital):'';
+  ov.innerHTML=`<div style="background:#16161a;width:100%;max-width:480px;max-height:88vh;overflow-y:auto;border-radius:14px 14px 0 0;padding:16px 16px calc(20px + env(safe-area-inset-bottom));box-shadow:0 -4px 20px rgba(0,0,0,.7);">
+    <div style="font-size:16px;font-weight:800;color:#eaecef;">✅ 상황 종료</div>
+    <div style="font-size:12px;color:#8b95a1;margin:3px 0 16px;">${_esc(r.title)}</div>
+    <div style="font-size:11px;color:#3182f6;font-weight:800;margin-bottom:7px;">🚑 처리·이송 방법 <span style="color:#565f6b;font-weight:400;">복수 선택</span></div>
+    <div style="display:flex;flex-wrap:wrap;gap:6px;">${_END_METHODS.map(([i,m])=>`<button type="button" class="endm${window._endMethods.has(m)?' on':''}" data-m="${m}" onclick="_endToggleMethod('${m}')">${i} ${m}</button>`).join('')}</div>
+    <input type="text" id="endMethodCustom" class="fi" placeholder="기타 방법 직접 입력" style="margin-top:7px;display:${window._endMethods.has('기타')?'block':'none'};" value="">
+    <div style="font-size:11px;color:#3182f6;font-weight:800;margin:16px 0 7px;">🏥 병원 이송</div>
+    <div style="display:flex;flex-wrap:wrap;gap:6px;">${_END_HOSPS.map(h=>`<button type="button" class="endh${window._endHosp===h?' on':''}" data-h="${_escq(h)}" onclick="_endSetHosp('${_escq(h)}')">${_esc(h)}</button>`).join('')}</div>
+    <input type="text" id="endHospCustom" class="fi" placeholder="병원명 직접 입력" style="margin-top:7px;display:${window._endHosp==='직접입력'?'block':'none'};" value="${_hospCustom}">
+    <div style="display:flex;gap:8px;margin-top:20px;">
+      <button onclick="document.getElementById('endSitOv').remove()" style="flex:1;padding:12px;border-radius:9px;border:1px solid rgba(255,255,255,.15);background:rgba(255,255,255,.04);color:#c4c8ce;font-size:13px;font-weight:700;cursor:pointer;">취소</button>
+      <button onclick="_endConfirm()" style="flex:2;padding:12px;border-radius:9px;border:none;background:#0d5040;color:#fff;font-size:13px;font-weight:800;cursor:pointer;">✅ 종료 확정</button>
+    </div>
+  </div>`;
+  document.body.appendChild(ov);
+  ov.onclick=e=>{if(e.target===ov)ov.remove();};
+}
+function _endToggleMethod(m){
+  if(!window._endMethods)window._endMethods=new Set();
+  if(window._endMethods.has(m))window._endMethods.delete(m);else window._endMethods.add(m);
+  const b=document.querySelector('.endm[data-m="'+m+'"]');if(b)b.classList.toggle('on',window._endMethods.has(m));
+  if(m==='기타'){const c=document.getElementById('endMethodCustom');if(c)c.style.display=window._endMethods.has('기타')?'block':'none';}
+}
+function _endSetHosp(h){
+  window._endHosp=(window._endHosp===h)?'':h; // 재탭 = 해제
+  document.querySelectorAll('.endh').forEach(b=>b.classList.toggle('on',b.dataset.h===window._endHosp));
+  const c=document.getElementById('endHospCustom');if(c)c.style.display=(window._endHosp==='직접입력')?'block':'none';
+}
+function _endConfirm(){
+  const res=DB.g('rescues')||[];const idx=res.findIndex(x=>x.id===selResId);if(idx===-1)return;
+  const r=res[idx];
+  let methods=[...(window._endMethods||[])];
+  const mc=(document.getElementById('endMethodCustom')?.value||'').trim();
+  if(methods.includes('기타')){methods=methods.filter(x=>x!=='기타');if(mc)methods.push(mc);}
+  let hosp=window._endHosp||'';
+  if(hosp==='직접입력')hosp=(document.getElementById('endHospCustom')?.value||'').trim();
+  // ── 보고서 연계: 구조방법·병원 필드에 바로 반영 ──
+  if(methods.length)r.rescueMethod=Array.from(new Set([].concat(Array.isArray(r.rescueMethod)?r.rescueMethod:[],methods).filter(Boolean)));
+  if(hosp&&hosp!=='추후입력')r.hospital=hosp; // 추후입력은 비워둠(나중에 보고서에서 입력)
+  r.status='done';r.closedAtMs=Date.now();r.closedAt=now();
+  if(!r.completion)r.completion=now().slice(11,16); // 완료 시각(없으면 지금)
   DB.s('rescues',res);
-  try{if(typeof _closeLinkedSos==='function')_closeLinkedSos(res[idx]);}catch(e){} // 연계 SOS 링크도 종료
-  pushNoti(`✅ 종료: ${res[idx].title}`,'✅','rescue_close',{app:'rescue',tab:2,id:res[idx].id});
-  try{renderRescueMap();}catch(e){}try{renderResList();}catch(e){}closeDB();toast('✅ 상황 종료');updateSummary();
-  // 타임라인 뷰에 있으면 갱신
-  if(document.getElementById('v-report').classList.contains('on')){
-    renderTimeline(res[idx],_tlViewMode||'brief');
-  }
-  // 상황판 상세 패널이 열려 있으면 갱신
-  if(_boardDetailId===res[idx].id){
-    const bd=document.getElementById('boardDetail');
-    if(bd&&bd.style.display!=='none')renderTimeline(res[idx],_tlViewMode||'advanced','boardDetailContent');
-  }
+  try{if(typeof _closeLinkedSos==='function')_closeLinkedSos(r);}catch(e){}
+  try{pushNoti('✅ 종료: '+r.title+(methods.length?' · '+methods.join(', '):''),'✅','rescue_close',{app:'rescue',tab:2,id:r.id});}catch(e){}
+  const ov=document.getElementById('endSitOv');if(ov)ov.remove();
+  try{renderRescueMap();}catch(e){}try{renderResList();}catch(e){}closeDB();
+  toast('✅ 상황 종료'+(methods.length?' — '+methods.join(', '):'')+(hosp&&hosp!=='추후입력'&&hosp!=='해당없음'?' · '+hosp:''));
+  updateSummary();
+  if(document.getElementById('v-report').classList.contains('on'))renderTimeline(r,_tlViewMode||'brief');
+  if(_boardDetailId===r.id){const bd=document.getElementById('boardDetail');if(bd&&bd.style.display!=='none')renderTimeline(r,_tlViewMode||'advanced','boardDetailContent');}
 }
 
 function submitNBo(){

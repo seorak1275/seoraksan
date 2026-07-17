@@ -1279,9 +1279,8 @@ function openRescueOverlay(id){
     ${_navBtns('rescue',id,'openResListDetail')}
     ${_resPopMetaHtml(data)}
     <div style="display:flex;gap:8px;margin-top:12px;">
-      <button onclick="var e=document.getElementById('resOverlay');if(e)e.remove();selResId=${id};curResId=${id};viewReport();" style="flex:1;padding:11px;border-radius:9px;border:1px solid rgba(255,255,255,.35);background:rgba(255,255,255,.1);color:#3182f6;font-size:13px;font-weight:700;cursor:pointer;">📄 보고서</button>
-      <button onclick="var e=document.getElementById('resOverlay');if(e)e.remove();selResId=${id};curResId=${id};viewTimeline();" style="flex:1;padding:11px;border-radius:9px;border:1px solid rgba(255,255,255,.35);background:rgba(255,255,255,.1);color:#3182f6;font-size:13px;font-weight:700;cursor:pointer;">📍 타임라인</button>
-      ${data.lat&&data.lng?`<button onclick="var e=document.getElementById('resOverlay');if(e)e.remove();viewOnMap(${data.lat},${data.lng})" style="flex:none;padding:11px 13px;border-radius:9px;border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.04);color:#c4c8ce;font-size:13px;font-weight:700;cursor:pointer;">🗺️</button>`:''}
+      <button onclick="var e=document.getElementById('resOverlay');if(e)e.remove();selResId=${id};curResId=${id};viewReport();" style="flex:1;padding:12px;border-radius:9px;border:1px solid rgba(49,130,246,.45);background:rgba(49,130,246,.14);color:#3182f6;font-size:13px;font-weight:800;cursor:pointer;">📋 보고서 · 타임라인 보기</button>
+      ${data.lat&&data.lng?`<button onclick="var e=document.getElementById('resOverlay');if(e)e.remove();viewOnMap(${data.lat},${data.lng})" style="flex:none;padding:12px 14px;border-radius:9px;border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.04);color:#c4c8ce;font-size:13px;font-weight:700;cursor:pointer;">🗺️</button>`:''}
     </div>
   </div>`;
   m.onclick=function(e){if(e.target===m)m.remove();};
@@ -1294,7 +1293,7 @@ function openResPopup(id,type='rescue'){
     document.getElementById('resPopTitle').textContent=ti.ico+' '+data.title;
     document.getElementById('resPopMeta').innerHTML=_resPopMetaHtml(data);
     document.getElementById('btnViewRep').style.display='block';
-    document.getElementById('btnViewTl').style.display='block';
+    {const _tl=document.getElementById('btnViewTl');if(_tl)_tl.style.display='none';} // 보고서·타임라인 버튼 통합 — 타임라인 단독버튼 폐지
     const _bt=document.getElementById('btnViewTeams');if(_bt)_bt.style.display=(data.teams&&data.teams.length)?'block':'none';
     // 출동 거점·좌표복사(라우트) 블록 제거 — 팝업에 불필요
     const rEl=document.getElementById('resPopRoutes');
