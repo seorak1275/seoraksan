@@ -123,6 +123,9 @@ let _legacyFacBackup=null; // appData/facilities(구버전)의 백업 — 컬렉
 let _facSeedReady=false;   // 시설물 첫 스냅샷·레거시 백업 확인 완료(시드 레이스 방지)
 let _facMigTried=false;    // 레거시→건별 이관 1회 시도 플래그
 const _SHARED=[..._SHARED_COLL,..._SHARED_DOC]; // 하위 호환용
+// ⚠️ 위험상황(hazard) 기능 임시 비활성화 — UI(등록 버튼·목록·핀·통계·관제)만 숨김, 데이터·동기화는 보존.
+// 재활성화: 이 값만 false 로.
+const _HAZ_OFF=true;
 // 온디맨드 문서: 실시간 구독하지 않고 해당 화면을 열 때만 1회 읽음 — 관리자용 로그라 전 직원 실시간 수신이 낭비
 // (예: 푸시 1건마다 전 기기가 1읽기씩 소모하던 것 제거). append 전용만 등록할 것(제자리 수정·삭제되는 문서는 금지)
 const _ONDEMAND_DOC=['pushLog','weatherLog','trailLog'];

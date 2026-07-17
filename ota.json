@@ -1,1 +1,1 @@
-{"version":"2026.07.17.210","url":"https://seorak1275.github.io/seoraksan/bundle.zip","notes":"상황일지에 출동·도착·완료 시각 표시(대장 임포트 필드 — 그동안 안 그려지던 것), 출동거리 병기"}
+{"version":"2026.07.17.211","url":"https://seorak1275.github.io/seoraksan/bundle.zip","notes":"위험상황 기능 비활성화(등록·목록·핀·통계·상황판·관제 — 데이터 보존, 플래그 복원 가능) + AI 지령서 스캔 개선(2.5-flash 폴백, 신고자·좌표·출동/도착 추출, 결과 요약, 오류 안내)"}

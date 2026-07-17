@@ -88,6 +88,7 @@ function delHazFireTL(id,i){
   if(blk)blk.outerHTML=_hazFireTLHtml(haz[idx]);
 }
 function openNewHazard(){
+  if(typeof _HAZ_OFF!=='undefined'&&_HAZ_OFF){toast('⚠️ 위험상황 기능은 현재 비활성화되어 있습니다');return;}
   _hazFireTL=[];
   document.getElementById('hz_dt').value=nowDT();
   document.getElementById('hz_loc').value='';document.getElementById('hz_gps').value='';
@@ -431,7 +432,7 @@ function _updateResFilterPanels(){
     <span style="color:rgba(255,255,255,.3);font-size:11px;flex-shrink:0;">~</span>
     <input type="date" value="${resDateTo}" style="${inpSt}" onchange="setResDate('to',this.value)">
   </div>`;
-  const typeHtml=_filterAllChip(resTypeF,`_srfAll('t')`)+[{v:'🚨구조',l:'🚨 구조보고'},{v:'⚠️위험상황',l:'⚠️ 위험상황'}].map(({v,l})=>_filterChip(l,resTypeF,v,`setResTypeF('${v}')`)).join('');
+  const typeHtml=_filterAllChip(resTypeF,`_srfAll('t')`)+[{v:'🚨구조',l:'🚨 구조보고'}].concat((typeof _HAZ_OFF!=='undefined'&&_HAZ_OFF)?[]:[{v:'⚠️위험상황',l:'⚠️ 위험상황'}]).map(({v,l})=>_filterChip(l,resTypeF,v,`setResTypeF('${v}')`)).join('');
   const stHtml=_filterAllChip(resStatusF,`_srfAll('s')`)+[{v:'진행중',l:'🔴 진행중/미조치'},{v:'종료',l:'✅ 종료/완료'}].map(({v,l})=>_filterChip(l,resStatusF,v,`setResStatusF('${v}')`)).join('');
   ['resMFP_date','resLFP_date'].forEach(id=>_filterSec(id,'📅 날짜',dateHtml,null,dateActive));
   _filterSec('resMFP_type','종류',typeHtml,resTypeF);
@@ -3082,7 +3083,7 @@ function admTab(tab,el){
 let _admResLimit=15; // 관리자 구조이력 표시 개수(더보기로 증가)
 // ── 관제: 서브탭(현황/구조/시설물/위험상황)으로 분리 — 한 화면에 전부 쏟아붓지 않고 필터·페이지로 관리
 let _admFacLimit=50;
-function admCtrlTab(t){window._admCtrlTab=t;_admResLimit=15;_admFacLimit=50;renderAdmCtrl();}
+function admCtrlTab(t){if(t==='haz'&&typeof _HAZ_OFF!=='undefined'&&_HAZ_OFF){toast('⚠️ 위험상황 기능은 비활성화되어 있습니다');return;}window._admCtrlTab=t;_admResLimit=15;_admFacLimit=50;renderAdmCtrl();}
 function renderAdmCtrl(){
   const facs=DB.g('facilities')||[];const res=DB.g('rescues')||[];const haz=DB.g('hazards')||[];
   const t=window._admCtrlTab||'dash';
@@ -3102,7 +3103,7 @@ function renderAdmCtrl(){
         <div class="stat-box" onclick="admCtrlTab('res')" style="cursor:pointer;"><div class="stat-num">${res.length}</div><div class="stat-lbl">구조이력</div></div>
         <div class="stat-box" onclick="window._admResF='진행중';admCtrlTab('res')" style="cursor:pointer;border-color:#c0392b;"><div class="stat-num bad">${ongoing.length}</div><div class="stat-lbl">진행중</div></div>
       </div>
-      <div onclick="admCtrlTab('haz')" style="cursor:pointer;margin-top:8px;font-size:11px;color:#7a9cb8;">위험상황 보고 ${haz.length}건 · <span style="color:${hazOpen.length?'#e67e22':'#5dbf8a'};font-weight:700;">미조치·조치중 ${hazOpen.length}건</span> ›</div>
+      ${(typeof _HAZ_OFF!=='undefined'&&_HAZ_OFF)?'':`<div onclick="admCtrlTab('haz')" style="cursor:pointer;margin-top:8px;font-size:11px;color:#7a9cb8;">위험상황 보고 ${haz.length}건 · <span style="color:${hazOpen.length?'#e67e22':'#5dbf8a'};font-weight:700;">미조치·조치중 ${hazOpen.length}건</span> ›</div>`}
     </div>
     <div style="font-size:10px;color:#5a7e98;margin:4px 2px 0;">숫자를 누르면 해당 탭으로 이동합니다. 긴급 항목만 아래에 표시됩니다.</div>
     <div class="sec-label">⚠️ 경고표시 시설물 (${warned.length})</div>

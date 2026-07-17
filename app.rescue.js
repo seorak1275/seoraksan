@@ -582,7 +582,7 @@ function renderRescueMap(){
   _rTeamOvs.forEach(o=>{try{o.setMap(null);}catch(e){}});_rTeamOvs=[];_rTeamEls=[];
   _updateResFilterPanels();
   const _showRes=resTypeF.size===0||resTypeF.has('🚨구조');
-  const _showHaz=resTypeF.size===0||resTypeF.has('⚠️위험상황');
+  const _showHaz=(resTypeF.size===0||resTypeF.has('⚠️위험상황'))&&!(typeof _HAZ_OFF!=='undefined'&&_HAZ_OFF);
   const _stOkRes=s=>resStatusF.size===0||(resStatusF.has('진행중')&&s==='ongoing')||(resStatusF.has('종료')&&s==='done');
   const _stOkHaz=s=>{const active=!s||s==='미조치'||s==='조치중';return resStatusF.size===0||(resStatusF.has('진행중')&&active)||(resStatusF.has('종료')&&!active);};
   // 구조 이력 핀
@@ -789,7 +789,7 @@ function renderResList(){
   _updateResFilterPanels();
   // 목록은 지도 필터(진행중·종류)와 무관하게 항상 진행중+종료 전부 표시 — 탭·검색·날짜만 적용
   const _showRes=(_resListTab==='all'||_resListTab==='rescue');
-  const _showHaz=(_resListTab==='all'||_resListTab==='haz');
+  const _showHaz=(_resListTab==='all'||_resListTab==='haz')&&!(typeof _HAZ_OFF!=='undefined'&&_HAZ_OFF);
   const _dateOkL=d=>_resDateOk(d);
   // 검색·탭·날짜가 바뀌면 페이지 한도를 처음(50)으로 리셋. '더 보기' 재호출 땐 유지.
   const _sig=_resListTab+'|'+resDateFrom+'|'+resDateTo+'|'+(_resSearchQ||'');
@@ -935,6 +935,7 @@ function renderRescueStats(){
     Promise.all(_ARCHIVE_COLLS.map(_loadArchive)).then(()=>{try{if(window._rescueTab===3||document.getElementById('rescueStatsWrap'))renderRescueStats();}catch(e){}});
   }
   if(!window._rescueStatTab)window._rescueStatTab='rescue';
+  if(typeof _HAZ_OFF!=='undefined'&&_HAZ_OFF)window._rescueStatTab='rescue'; // 위험상황 비활성화 — 통계도 구조만
   const tab=window._rescueStatTab;
   const rsTabR=document.getElementById('rsTabRescue');
   const rsTabH=document.getElementById('rsTabHaz');

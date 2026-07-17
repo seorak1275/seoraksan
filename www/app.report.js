@@ -1684,33 +1684,55 @@ async function aiScanDispatch(input){
   "vTel": "사고자 또는 신고자 연락처",
   "severity": "중증도 (경증/중증/중경증/사망/알수없음)",
   "situation": "사고 경위 및 상황 요약 (2-3문장)",
-  "reception": "최초 신고 내용 요약",
+  "reception": "최초 신고 내용 — 요약하지 말고 문서의 신고내용 원문에 최대한 가깝게",
+  "repName": "신고자 이름 (사고자와 다른 사람일 때만)",
+  "repTel": "신고자 연락처 (사고자 연락처와 다를 때만)",
+  "repRel": "신고자와 사고자의 관계 (본인/일행/가족/목격자 등, 있으면)",
+  "lat": "위도 숫자 (문서에 좌표가 있으면, 예: 38.1234)",
+  "lng": "경도 숫자 (문서에 좌표가 있으면, 예: 128.4567)",
   "weather": "기상 정보 (있으면)",
   "injuries": [{"type":"부상 유형 — 외상이면 골절/탈구/염좌/열상/타박상/두부손상/절단/화상 중, 내상·질환이면 저혈당/심정지/저체온증/열사병/탈진·탈수/호흡곤란/흉통/복통/경련/의식저하/익수 중, 없으면 원문 그대로","part":"부상 부위 — 머리/목/어깨/팔꿈치/손목/손/흉부/복부/허리/골반/무릎/발목/발 중 하나, 전신·질환이면 null","side":"좌/우/양쪽 중 하나, 불명확하면 null"}]
 }`;
   try{
-    const resp=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${encodeURIComponent(apiKey)}`,{
-      method:'POST',
-      headers:{'content-type':'application/json'},
-      body:JSON.stringify({
-        contents:[{parts:[
-          {inline_data:{mime_type:file.type,data:b64}},
-          {text:prompt}
-        ]}],
-        generationConfig:{responseMimeType:'application/json'}
-      })
-    });
-    if(!resp.ok){const err=await resp.json().catch(()=>({}));throw new Error(err.error?.message||resp.status);}
-    const data=await resp.json();
-    const raw=(data.candidates?.[0]?.content?.parts?.[0]?.text)||'';
+    // 최신 모델 우선, 미지원 키·구모델 계정은 자동 폴백
+    const models=['gemini-2.5-flash','gemini-2.0-flash'];
+    let data=null,lastErr=null;
+    for(const m of models){
+      try{
+        const resp=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${m}:generateContent?key=${encodeURIComponent(apiKey)}`,{
+          method:'POST',
+          headers:{'content-type':'application/json'},
+          body:JSON.stringify({
+            contents:[{parts:[
+              {inline_data:{mime_type:file.type,data:b64}},
+              {text:prompt}
+            ]}],
+            generationConfig:{responseMimeType:'application/json'}
+          })
+        });
+        if(!resp.ok){
+          const err=await resp.json().catch(()=>({}));
+          const msg=err.error?.message||String(resp.status);
+          if(resp.status===404||/not found|unsupported/i.test(msg)){lastErr=new Error(msg);continue;} // 모델 미지원 → 다음 모델
+          if(resp.status===429||/quota|exhausted/i.test(msg))throw new Error('AI 사용량 한도 초과 — 잠시 후 다시 시도하세요');
+          throw new Error(msg);
+        }
+        data=await resp.json();break;
+      }catch(e){if(/한도 초과/.test(e.message))throw e;lastErr=e;}
+    }
+    if(!data)throw lastErr||new Error('AI 응답 없음');
+    const cand=data.candidates&&data.candidates[0];
+    if(!cand||!cand.content){throw new Error(cand&&cand.finishReason==='SAFETY'?'이미지 인식이 거부되었습니다 — 문서만 나오게 다시 촬영해보세요':'AI가 내용을 읽지 못했습니다');}
+    const raw=(cand.content.parts?.[0]?.text)||'';
     let parsed;
     try{parsed=JSON.parse(raw.replace(/```json|```/g,'').trim());}
-    catch(e){throw new Error('JSON 파싱 실패: '+raw.slice(0,80));}
+    catch(e){throw new Error('AI 응답 해석 실패 — 다시 시도해보세요');}
     _applyAiScanResult(parsed);
-    const filled=Object.values(parsed).filter(v=>v!==null).length;
-    if(statusEl)statusEl.textContent=`✅ ${filled}개 항목 자동 입력 완료 — 확인 후 저장하세요`;
+    // 핵심 추출값 요약 — 뭐가 읽혔는지 바로 검수 가능
+    const sum=[parsed.date?String(parsed.date).replace('T',' '):'',parsed.location,parsed.vName?('사고자 '+parsed.vName):'',parsed.repName?('신고자 '+parsed.repName):'',(parsed.lat&&parsed.lng)?'좌표✓':''].filter(Boolean).join(' · ');
+    if(statusEl)statusEl.textContent='✅ 자동 입력 완료'+(sum?' — '+sum:'')+' · 각 탭에서 확인 후 저장하세요';
   }catch(e){
-    if(statusEl)statusEl.textContent='❌ 오류: '+e.message;
+    if(statusEl)statusEl.textContent='❌ '+e.message;
     toast('❌ AI 스캔 실패: '+e.message);
   }finally{
     if(spinner)spinner.style.display='none';
@@ -1749,6 +1771,24 @@ function _applyAiScanResult(d){
   }
   if(d.situation)_set('r_sit',d.situation);
   if(d.reception)_set('r_recv',d.reception);
+  // 신고자 정보 → 신고자 있음 토글 후 채움
+  if(d.repName||d.repTel){
+    try{selHasRep('y');}catch(e){}
+    if(d.repName)_set('r_repName',d.repName);
+    if(d.repTel)_set('r_repTel',d.repTel);
+    if(d.repRel&&d.repRel!=='본인')_set('r_repRel',d.repRel);
+  }
+  // 문서의 좌표 → GPS 칸 + 미니맵 (범위 검증)
+  if(d.lat&&d.lng){
+    const la=parseFloat(d.lat),ln=parseFloat(d.lng);
+    if(!isNaN(la)&&!isNaN(ln)&&la>37&&la<39&&ln>127&&ln<129.5){
+      _set('r_gps',la.toFixed(5)+', '+ln.toFixed(5));
+      try{syncFormMapFromInput();}catch(e){}
+    }
+  }
+  // 출동·도착 시각 — 1보 폼엔 입력칸이 없어 제출 시 기록에 실림 (상황일지에 표시됨)
+  if(d.dispatch)window._aiDispatch=String(d.dispatch).slice(0,5);
+  if(d.arrival)window._aiArrival=String(d.arrival).slice(0,5);
   // 부상 내역 → 부상 목록에 자동 추가 (외상/내상 자동 분류)
   if(Array.isArray(d.injuries)&&d.injuries.length&&typeof _injuries!=='undefined'){
     d.injuries.forEach(it=>{
@@ -2154,6 +2194,7 @@ function render1BoForm(prefill=null){
   const isNbo=prefill!==null&&!!prefill._phaseNum;
   const p=prefill||{};
   const w=document.getElementById('repContent');
+  window._aiDispatch='';window._aiArrival=''; // 새 폼 — 이전 스캔의 출동·도착 시각 초기화
   // 상단 '1보' phase 바 제거 — 자리만 차지. 섹터 탭이 최상단 고정으로 대체
   try{document.getElementById('phaseBar').innerHTML='';}catch(e){}
 
@@ -2652,6 +2693,7 @@ function submit1Bo(){
     date:nowStr,
     reception:document.getElementById('r_recv')?.value||'',
     recvRoute:document.getElementById('r_recvRoute')?.value||'119',
+    dispatch:window._aiDispatch||'',arrival:window._aiArrival||'', // AI 지령서 스캔 추출분(폼 입력칸 없음) — 상황일지에 표시
     weather:getSelPills('weatherPills')[0]||'',
     initTemp:document.getElementById('r_initTemp')?.value||'',
     weatherAlert:getWeatherAlertStr()||'',

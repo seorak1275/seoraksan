@@ -1267,7 +1267,7 @@ function renderHomeActive(){
   if(isExternal()){el.style.display='none';el.innerHTML='';return;}
   el.style.display='block';
   const og=(DB.g('rescues')||[]).filter(r=>r.status==='ongoing');
-  const haz=(DB.g('hazards')||[]).filter(h=>!h.hazStatus||h.hazStatus==='미조치'||h.hazStatus==='조치중');
+  const haz=(typeof _HAZ_OFF!=='undefined'&&_HAZ_OFF)?[]:(DB.g('hazards')||[]).filter(h=>!h.hazStatus||h.hazStatus==='미조치'||h.hazStatus==='조치중');
   const badFac=(DB.g('facilities')||[]).filter(f=>f.status==='bad');
   const total=og.length+haz.length+badFac.length;
   try{_updateClimbMenu();}catch(e){}
@@ -3681,7 +3681,7 @@ function sosToRescue(id){
 // 앱 자체 업데이트 (OTA · Capgo 자체호스팅) — APK 전용. 웹/PWA는 서비스워커가 자동 갱신.
 // 번들(www)의 새 버전을 ota.json으로 알리면, 설치된 앱이 받아서 그 자리에서 교체(재빌드 불필요).
 // ══════════════════════════════════════════
-const OTA_VER='2026.07.17.210';                         // ← 현재 번들 버전 (릴리스마다 올림 · build-ota.sh가 ota.json에 반영)
+const OTA_VER='2026.07.17.211';                         // ← 현재 번들 버전 (릴리스마다 올림 · build-ota.sh가 ota.json에 반영)
 const OTA_MANIFEST='https://seorak1275.github.io/seoraksan/ota.json';
 // 업데이트 확인 폴백 소스 — 일부 기관망·통신사에서 github.io가 막혀 '확인 실패(네트워크)'가 나는 경우 대비.
 // 순서대로 시도: ① GitHub Pages(원본·즉시 반영) ② jsDelivr CDN(공개저장소 미러·거의 모든 망 통과)
@@ -4053,6 +4053,8 @@ window.onload=function(){
       try{_initSosWatch();}catch(e){} // 🆘 조난·사고자 위치 실시간 구독
       try{setTimeout(_climbPrefetchToday,8000);}catch(e){} // 🧗 출동 대비: 오늘·내일 암벽 명단 자동 저장(음영지역 진입 대비)
       try{setTimeout(_autoPreloadParkTiles,25000);}catch(e){} // 🗺️ 설악산 타일 자동 미리받기(7일마다, 요금 배려) — 깜빡임 없는 지도
+      // 위험상황 비활성화: 정적 버튼(지도 FAB·통계 탭) 숨김
+      try{if(typeof _HAZ_OFF!=='undefined'&&_HAZ_OFF){['hazFab','rsTabHaz'].forEach(function(id){var el=document.getElementById(id);if(el)el.style.display='none';});}}catch(e){}
       // 스켈레톤 안전장치: 12초가 지나도 동기화·날씨가 안 오면(오프라인 등) 자리표시를 정리해 영원히 반짝이지 않게
       try{setTimeout(function(){
         if(!window._dbFirstReady){window._dbFirstReady=true;try{renderHomeActive();}catch(e){}}

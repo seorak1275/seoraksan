@@ -326,7 +326,7 @@ if(window.Kakao&&!Kakao.isInitialized()) Kakao.init(KAKAO_KEY);
       <div id="rescueCoords" style="background:rgba(0,0,0,.65);color:#8ab4cc;font-size:10px;padding:4px 8px;border-radius:7px;font-family:monospace;backdrop-filter:blur(4px);letter-spacing:.3px;line-height:1.5;border:1px solid rgba(255,255,255,.07);"><span id="rescueCoordsLat">--</span></div>
     </div>
     <button class="fab" style="background:#7a1818;color:#fff;" onclick="openNewRescue()">🚨</button>
-    <button class="fab2" onclick="openNewHazard()">⚠️ 위험상황 보고</button>
+    <button class="fab2" id="hazFab" onclick="openNewHazard()">⚠️ 위험상황 보고</button>
     <!-- 재난/구조 필터 패널 -->
     <div id="resMapFilterPanel" style="display:none;position:absolute;bottom:0;left:0;right:0;z-index:20;background:#0a1828;border-radius:11px 11px 0 0;box-shadow:0 -3px 18px rgba(0,0,0,.7);max-height:52%;flex-direction:column;transition:transform .22s cubic-bezier(.4,0,.2,1);touch-action:none;">
       <div id="resMFPHandle" style="padding:7px 0 3px;flex-shrink:0;cursor:grab;user-select:none;"><div class="sheet-handle"></div></div>

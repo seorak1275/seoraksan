@@ -610,7 +610,7 @@ function _renderBoardPins(fit){
   let _sig='';
   try{
     const _og=(DB.g('rescues')||[]).filter(r=>r.status==='ongoing').map(r=>r.id+':'+r.lat+','+r.lng+','+(r.status||''));
-    const _hz=(DB.g('hazards')||[]).filter(h=>!h.hazStatus||h.hazStatus==='미조치'||h.hazStatus==='조치중').map(h=>h.id+':'+h.lat+','+h.lng);
+    const _hz=((typeof _HAZ_OFF!=='undefined'&&_HAZ_OFF)?[]:(DB.g('hazards')||[]).filter(h=>!h.hazStatus||h.hazStatus==='미조치'||h.hazStatus==='조치중')).map(h=>h.id+':'+h.lat+','+h.lng);
     const _ss=(window._sosPings||[]).map(p=>p.id+':'+(p.ts||''));
     _sig=_og.join('|')+'#'+_hz.join('|')+'#'+_ss.join('|');
   }catch(e){_sig='err'+Date.now();}
@@ -629,7 +629,7 @@ function _renderBoardPins(fit){
     const ov=new kakao.maps.CustomOverlay({position:pos,content:el,yAnchor:1,zIndex:5,clickable:true});
     ov.setMap(_boardMap);_boardOvs.push(ov);bounds.extend(pos);n++;
   });
-  (DB.g('hazards')||[]).filter(h=>h.lat&&h.lng&&(!h.hazStatus||h.hazStatus==='미조치'||h.hazStatus==='조치중')).forEach(h=>{
+  ((typeof _HAZ_OFF!=='undefined'&&_HAZ_OFF)?[]:(DB.g('hazards')||[])).filter(h=>h.lat&&h.lng&&(!h.hazStatus||h.hazStatus==='미조치'||h.hazStatus==='조치중')).forEach(h=>{
     const el=document.createElement('div');
     el.innerHTML=`<div style="background:#e67e22;border:2px solid #fff;border-radius:50%;width:28px;height:28px;display:flex;align-items:center;justify-content:center;font-size:14px;box-shadow:0 2px 6px rgba(0,0,0,.6);">⚠️</div>`;
     const pos=new kakao.maps.LatLng(h.lat,h.lng);
@@ -727,7 +727,7 @@ function renderBoard(){
   const body=document.getElementById('boardBody');if(!body)return;
   const res=DB.g('rescues')||[];
   const ongoing=res.filter(r=>r.status==='ongoing');
-  const haz=(DB.g('hazards')||[]).filter(h=>!h.hazStatus||h.hazStatus==='미조치'||h.hazStatus==='조치중');
+  const haz=(typeof _HAZ_OFF!=='undefined'&&_HAZ_OFF)?[]:(DB.g('hazards')||[]).filter(h=>!h.hazStatus||h.hazStatus==='미조치'||h.hazStatus==='조치중');
   const hazUnhandled=haz.filter(h=>!h.hazStatus||h.hazStatus==='미조치').length; // 손도 안 댄 미조치 — 강조 대상
   const _td=today();
   const todayList=res.filter(r=>(r.date||'').slice(0,10)===_td).sort((a,b)=>(b.date||'').localeCompare(a.date||''));
@@ -750,11 +750,11 @@ function renderBoard(){
       <div class="bd-num" style="font-size:30px;font-weight:900;color:${ongoing.length?'#e05050':'#27ae60'};">${ongoing.length}</div>
       <div class="bd-lbl" style="font-size:12px;color:${rescueActive?'#e0edf8':'rgba(255,255,255,.5)'};font-weight:${rescueActive?'700':'400'};">🚨 진행중 구조${rescueActive?' ▾':''}</div>
     </div>
-    <div onclick="setBoardView('hazard')" class="bd-stat" style="position:relative;flex:1;min-width:0;background:${hazUnhandled?'rgba(231,76,60,.12)':'rgba(230,126,34,.08)'};border:1px solid ${hazActive?(hazUnhandled?'rgba(231,76,60,.9)':'rgba(230,126,34,.9)'):(hazUnhandled?'rgba(231,76,60,.5)':'rgba(230,126,34,.25)')};border-radius:12px;padding:12px 16px;text-align:center;cursor:pointer;transition:all .15s;${hazActive?'box-shadow:inset 0 0 0 2px rgba(230,126,34,.3);':''}">
+    ${(typeof _HAZ_OFF!=='undefined'&&_HAZ_OFF)?'':`<div onclick="setBoardView('hazard')" class="bd-stat" style="position:relative;flex:1;min-width:0;background:${hazUnhandled?'rgba(231,76,60,.12)':'rgba(230,126,34,.08)'};border:1px solid ${hazActive?(hazUnhandled?'rgba(231,76,60,.9)':'rgba(230,126,34,.9)'):(hazUnhandled?'rgba(231,76,60,.5)':'rgba(230,126,34,.25)')};border-radius:12px;padding:12px 16px;text-align:center;cursor:pointer;transition:all .15s;${hazActive?'box-shadow:inset 0 0 0 2px rgba(230,126,34,.3);':''}">
       ${hazUnhandled?`<span style="position:absolute;top:6px;right:6px;background:#e74c3c;color:#fff;font-size:10px;font-weight:800;border-radius:10px;padding:1px 7px;box-shadow:0 0 0 2px rgba(231,76,60,.25);animation:blink 1.2s infinite;">미조치 ${hazUnhandled}</span>`:''}
       <div class="bd-num" style="font-size:30px;font-weight:900;color:${hazUnhandled?'#e05050':'#e67e22'};">${haz.length}</div>
       <div class="bd-lbl" style="font-size:12px;color:${hazActive?'#e0edf8':'rgba(255,255,255,.5)'};font-weight:${hazActive?'700':'400'};">⚠️ 미조치 위험상황${hazActive?' ▾':''}</div>
-    </div>
+    </div>`}
     <div onclick="setBoardView('alert')" class="bd-stat" style="flex:1;min-width:0;background:${activeOp?'rgba(79,168,208,.12)':'rgba(39,174,96,.08)'};border:1px solid ${alertActive?(activeOp?'rgba(79,168,208,.9)':'rgba(39,174,96,.75)'):(activeOp?'rgba(79,168,208,.45)':'rgba(39,174,96,.25)')};border-radius:12px;padding:12px 16px;text-align:center;cursor:pointer;transition:all .15s;${alertActive?'box-shadow:inset 0 0 0 2px rgba(79,168,208,.3);':''}">
       <div class="bd-num" style="font-size:30px;font-weight:900;color:${activeOp?'#4fa8d0':'#27ae60'};">${activeOp?(opMt?opRespCnt:opAlertCnt):0}</div>
       <div class="bd-lbl" style="font-size:12px;color:${alertActive?'#e0edf8':'rgba(255,255,255,.5)'};font-weight:${alertActive?'700':'400'};">🌀 ${activeOp?(opMt?'특보 응소':'발효 특보'):'특보운영'}${alertActive?' ▾':''}</div>
