@@ -36,7 +36,7 @@ function renderHazFireTL(){
   const el=document.getElementById('hazFireTLList');
   if(!el)return;
   el.innerHTML=_hazFireTL.length?_hazFireTL.map((t,i)=>`<div style="display:flex;align-items:center;gap:7px;padding:5px 0;border-bottom:1px solid rgba(255,255,255,.05);">
-    <span style="font-size:10px;color:#4fa8d0;flex-shrink:0;">${t.time.slice(11)||t.time}</span>
+    <span style="font-size:10px;color:#3182f6;flex-shrink:0;">${t.time.slice(11)||t.time}</span>
     <span style="font-size:11px;color:#e0edf8;flex:1;">${_esc(t.note)}</span>
     <button onclick="_hazFireTL.splice(${i},1);renderHazFireTL()" style="background:none;border:none;color:#c0392b;font-size:13px;cursor:pointer;">✕</button>
   </div>`).join(''):'<div style="font-size:11px;color:rgba(255,255,255,.25);padding:4px 0;">타임라인 항목 없음</div>';
@@ -46,11 +46,11 @@ function _hazFireTLHtml(h){
   if(!h.hazType||!h.hazType.includes('산불'))return '';
   const tl=h.fireTL||[];
   const stages=['최초 발화 확인','소방 신고','소방 도착','진화 시작','진화 완료','재발화','완전 진화'];
-  return `<div id="fireTLBlk_${h.id}" style="background:#0b1c30;border-radius:10px;padding:11px 12px;border:.5px solid rgba(192,57,43,.25);margin-top:8px;">
+  return `<div id="fireTLBlk_${h.id}" style="background:#20242c;border-radius:10px;padding:11px 12px;border:.5px solid rgba(192,57,43,.25);margin-top:8px;">
     <div style="font-size:11px;color:#c0392b;font-weight:700;margin-bottom:7px;">🔥 산불 진행 타임라인</div>
     <div style="margin-bottom:6px;">
       ${tl.length?tl.map((t,i)=>`<div style="display:flex;align-items:center;gap:7px;padding:5px 0;border-bottom:1px solid rgba(255,255,255,.05);">
-        <span style="font-size:10px;color:#4fa8d0;flex-shrink:0;">${_esc((t.time||'').slice(11)||t.time||'-')}</span>
+        <span style="font-size:10px;color:#3182f6;flex-shrink:0;">${_esc((t.time||'').slice(11)||t.time||'-')}</span>
         <span style="font-size:11px;color:#e0edf8;flex:1;">${_esc(t.note)}</span>
         <button onclick="delHazFireTL(${h.id},${i})" style="background:none;border:none;color:#c0392b;font-size:13px;cursor:pointer;">✕</button>
       </div>`).join(''):'<div style="font-size:11px;color:rgba(255,255,255,.25);padding:4px 0;">타임라인 항목 없음</div>'}
@@ -185,7 +185,7 @@ function renderInspectMap(){
     const el=document.createElement('div');el.className='mpin '+(_facWarn(f)?'p-bad blink':'p-fac');el.innerHTML=f.type.split(' ')[0];
     el._facId=f.id;
     // 종류별 색 — 테두리+바탕 틴트로 한눈에 구분 (경고표시는 빨간 깜빡임 유지)
-    if(!_facWarn(f)){const _tc=_facTypeColor(f.type);el.style.borderColor=_tc;el.style.background=`linear-gradient(0deg,${_tc}44,${_tc}44),#0b1c30`;}
+    if(!_facWarn(f)){const _tc=_facTypeColor(f.type);el.style.borderColor=_tc;el.style.background=`linear-gradient(0deg,${_tc}44,${_tc}44),#20242c`;}
     if(f.hidden)el.style.opacity='.4'; // 권한자에게만 보이는 숨김 시설 — 흐리게
     let _ts=null;
     el.addEventListener('touchstart',e=>{_ts={x:e.touches[0].clientX,y:e.touches[0].clientY};},{passive:true});
@@ -252,7 +252,7 @@ function _showNearFacs(la,ln){
   const old=document.getElementById('nearFacOv');if(old)old.remove();
   const ov=document.createElement('div');ov.id='nearFacOv';
   // 하단바(z20) 위로 — facPopup과 동일하게 화면 맨 아래까지 사용
-  ov.style.cssText='position:absolute;bottom:0;left:0;right:0;z-index:30;background:#0b1c30;border:1px solid rgba(79,168,208,.2);border-radius:16px 16px 0 0;box-shadow:0 -4px 20px rgba(0,0,0,.7);max-height:56vh;display:flex;flex-direction:column;padding-bottom:calc(8px + env(safe-area-inset-bottom));';
+  ov.style.cssText='position:absolute;bottom:0;left:0;right:0;z-index:30;background:#20242c;border:1px solid rgba(49,130,246,.2);border-radius:16px 16px 0 0;box-shadow:0 -4px 20px rgba(0,0,0,.7);max-height:56vh;display:flex;flex-direction:column;padding-bottom:calc(8px + env(safe-area-inset-bottom));';
   const rows=near.map(n=>{
     const col=_facTypeColor(n.f.type);
     const cg=_facCurGrade(n.f);
@@ -263,7 +263,7 @@ function _showNearFacs(la,ln){
         <span style="display:block;font-size:12px;font-weight:700;color:#dceaf6;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${_esc(n.f.name)} ${cg?`<span style="color:${_gColor(cg.g)};font-size:10.5px;font-weight:900;">${_esc(cg.g)}</span>`:''}</span>
         <span style="display:block;font-size:9.5px;color:#5d86a3;">${_esc(n.f.type.split(' ').slice(1).join(' ')||'')} · <b style="color:#7fc4e0;">${dist}</b>${n.chk?` · <span style="color:#5fcf8f;">✓ ${new Date(n.chk).toLocaleDateString('ko-KR',{month:'2-digit',day:'2-digit'})} 점검</span>`:''}</span>
       </span>
-      <button onclick="document.getElementById('nearFacOv').remove();openFacIssueReport(${n.f.id})" style="flex-shrink:0;padding:6px 11px;border-radius:8px;border:1px solid rgba(79,168,208,.35);background:rgba(79,168,208,.12);color:#4fa8d0;font-size:11px;font-weight:800;cursor:pointer;-webkit-appearance:none;appearance:none;">🔧 점검</button>
+      <button onclick="document.getElementById('nearFacOv').remove();openFacIssueReport(${n.f.id})" style="flex-shrink:0;padding:6px 11px;border-radius:8px;border:1px solid rgba(49,130,246,.35);background:rgba(49,130,246,.12);color:#3182f6;font-size:11px;font-weight:800;cursor:pointer;-webkit-appearance:none;appearance:none;">🔧 점검</button>
     </div>`;
   }).join('');
   ov.innerHTML=`
@@ -322,7 +322,7 @@ function _filterAllChip(set,onclick){
 // 필터 패널 공용 헬퍼 (시설물지도/시설물목록/구조필터 3곳에서 동일 템플릿 사용)
 function _filterChip(label,set,val,onclick,col){
   const on=set.has(val);
-  const c=col||(on?'#4fa8d0':'rgba(255,255,255,.5)');
+  const c=col||(on?'#3182f6':'rgba(255,255,255,.5)');
   return `<span onclick="${onclick}" style="display:inline-block;margin:2px 2px;padding:3px 8px;border-radius:20px;font-size:10px;font-weight:600;cursor:pointer;border:1.5px solid ${on?c:'rgba(255,255,255,.12)'};color:${on?c:'rgba(255,255,255,.35)'};background:${on?c+'22':'transparent'};">${label}</span>`;
 }
 function _filterSec(id,title,html,set,extraCnt){
@@ -342,7 +342,7 @@ function _updateInspFilterPanel(types,locs){
   _filterSec('inspFP_grade','안전등급',
     _filterAllChip(facMapGradeF,`_smfsAll('g')`)+['A','B','C','D','E'].map(g=>_filterChip(g+' '+_gLabel(g),facMapGradeF,g,`_smfs('g','${g}')`,_gColor(g))).join(''),facMapGradeF);
   _filterSec('inspFP_type','종류',
-    _filterAllChip(facMapTypeF,`_smfsAll('t')`)+types.filter(t=>t!=='전체').map(v=>_filterChip(v,facMapTypeF,v,`_smfs('t','${v.replace(/'/g,"\\'")}')`,'#4fa8d0')).join(''),facMapTypeF);
+    _filterAllChip(facMapTypeF,`_smfsAll('t')`)+types.filter(t=>t!=='전체').map(v=>_filterChip(v,facMapTypeF,v,`_smfs('t','${v.replace(/'/g,"\\'")}')`,'#3182f6')).join(''),facMapTypeF);
   _filterSec('inspFP_loc','위치 (구간)',
     _filterAllChip(facMapLocF,`_smfsAll('l')`)+locs.filter(v=>v!=='전체').map(v=>_filterChip(_zoneLbl(v),facMapLocF,v,`_smfs('l','${v.replace(/'/g,"\\'")}')`,'#9b59b6')).join(''),facMapLocF);
   // 배지/카운트 업데이트
@@ -418,7 +418,7 @@ function _updateFacListFilterPanel(types,locs){
   {const _se=document.getElementById('facLFP_sort');if(_se)_se.innerHTML='';} // 점검 정렬 제거
   _filterSec('facLFP_status','경고표시',_filterChip('⚠️ 경고표시만',facMapStatusF,'warn',`_smfs('s','warn');renderFacList();`,'#e05050'),facMapStatusF);
   _filterSec('facLFP_grade','안전등급',_filterAllChip(facMapGradeF,`_smfsAll('g')`)+['A','B','C','D','E'].map(g=>_filterChip(g+' '+_gLabel(g),facMapGradeF,g,`_smfs('g','${g}');renderFacList();`,_gColor(g))).join(''),facMapGradeF);
-  _filterSec('facLFP_type','종류',_filterAllChip(facMapTypeF,`_smfsAll('t')`)+(types||[]).map(v=>_filterChip(v,facMapTypeF,v,`_smfs('t','${v.replace(/'/g,"\\'")}');renderFacList();`,'#4fa8d0')).join(''),facMapTypeF);
+  _filterSec('facLFP_type','종류',_filterAllChip(facMapTypeF,`_smfsAll('t')`)+(types||[]).map(v=>_filterChip(v,facMapTypeF,v,`_smfs('t','${v.replace(/'/g,"\\'")}');renderFacList();`,'#3182f6')).join(''),facMapTypeF);
   _filterSec('facLFP_loc','위치 (구간)',_filterAllChip(facMapLocF,`_smfsAll('l')`)+(locs||[]).map(v=>_filterChip(_zoneLbl(v),facMapLocF,v,`_smfs('l','${v.replace(/'/g,"\\'")}');renderFacList();`,'#9b59b6')).join(''),facMapLocF);
   const total=facMapStatusF.size+facMapTypeF.size+facMapLocF.size;
   ['facListFilterBadge'].forEach(id=>{const el=document.getElementById(id);if(!el)return;el.style.display=total?'inline-flex':'none';if(total)el.textContent=total;});
@@ -433,7 +433,7 @@ function _updateResFilterPanels(){
   {const el=document.getElementById('resMapFilterCount');if(el)el.textContent=totalMap?`(${totalMap})`:'';}
   {const el=document.getElementById('resListFilterBadge');if(el){el.style.display=dateActive?'inline-flex':'none';if(dateActive)el.textContent=dateActive;}}
   {const el=document.getElementById('resListFilterCount');if(el)el.textContent=dateActive?`(${dateActive})`:'';}
-  const inpSt='background:#0a1828;color:#4fa8d0;border:1px solid rgba(79,168,208,.3);border-radius:6px;padding:5px 6px;font-size:11px;width:100%;box-sizing:border-box;';
+  const inpSt='background:#0a1828;color:#3182f6;border:1px solid rgba(49,130,246,.3);border-radius:6px;padding:5px 6px;font-size:11px;width:100%;box-sizing:border-box;';
   const dateHtml=`<div style="display:flex;gap:6px;align-items:center;margin-top:4px;">
     <input type="date" value="${resDateFrom}" style="${inpSt}" onchange="setResDate('from',this.value)">
     <span style="color:rgba(255,255,255,.3);font-size:11px;flex-shrink:0;">~</span>
@@ -488,7 +488,7 @@ function _updateResCatFilterPanel(){
   if(cntEl)cntEl.textContent=catBadge?`(${catBadge})`:'';
   const mkRow=(c,isDefault)=>{
     const active=isDefault?!resFacCatH.has(c):resFacCatF.has(c);
-    const col=active?'#4fa8d0':'rgba(255,255,255,.25)';
+    const col=active?'#3182f6':'rgba(255,255,255,.25)';
     return `<div onclick="toggleResFacCat('${c.replace(/'/g,"\\'")}',${isDefault})" style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid rgba(255,255,255,.04);cursor:pointer;">
       <div style="width:22px;height:22px;border-radius:50%;border:2px solid ${col};display:flex;align-items:center;justify-content:center;font-size:10px;color:${col};flex-shrink:0;">${active?'✓':''}</div>
       <span style="font-size:12px;color:${active?'#e0edf8':'rgba(255,255,255,.35)'};">${c}</span>
@@ -543,12 +543,12 @@ function _closeResListFilter(){
   setTimeout(()=>{p.style.display='none';p.style.transform='translateY(0)';},220);
 }
 // ── 시설물 종류별 고정 색 (핀·목록·팝업 공통 — 종류를 색으로 즉시 구분) ──
-const FAC_TYPE_COLORS={'다목적위치표지판':'#5a7e98','교량':'#4fa8d0','데크/계단':'#e67e22','안전난간':'#46ad5f','대피소':'#7ec8a0','탐방지원센터':'#f0c060','사찰':'#c8845a','건축물':'#d4699b','목재계단':'#a5912c','계곡시설':'#2fa3c4','장소':'#b055c9'};
+const FAC_TYPE_COLORS={'다목적위치표지판':'#5a7e98','교량':'#3182f6','데크/계단':'#e67e22','안전난간':'#46ad5f','대피소':'#7ec8a0','탐방지원센터':'#f0c060','사찰':'#c8845a','건축물':'#d4699b','목재계단':'#a5912c','계곡시설':'#2fa3c4','장소':'#b055c9'};
 function _facTypeColor(t){
   const label=(String(t||'').split(' ').slice(1).join(' ')||t||'').trim();
   if(FAC_TYPE_COLORS[label])return FAC_TYPE_COLORS[label];
   let h=0;for(let i=0;i<label.length;i++)h=(h*31+label.charCodeAt(i))>>>0; // 사용자 정의 종류도 항상 같은 색
-  return ['#4fa8d0','#e67e22','#b055c9','#46ad5f','#f0c060','#2fa3c4','#d4699b','#a5912c'][h%8];
+  return ['#3182f6','#e67e22','#b055c9','#46ad5f','#f0c060','#2fa3c4','#d4699b','#a5912c'][h%8];
 }
 // ── 시설물 현재 안전등급: 최신 점검(조치후>재평가>점검) 등급 우선, 없으면 시설물 자체 등급(관리대장) ──
 function _facCurGrade(f){
@@ -609,9 +609,9 @@ function _facInfoHtml(f){
     ${w?`<div style="background:rgba(224,80,80,.1);border:1px solid rgba(224,80,80,.4);border-radius:9px;padding:7px 10px;margin-bottom:8px;font-size:11px;color:#ffb0a5;line-height:1.6;"><b style="color:#ff5a45;">⚠️ 경고표시</b>${w.reason?' — '+_esc(w.reason):''} <span style="color:#c98;font-size:10px;">${_esc(_warnPeriodStr(w))}</span></div>`:''}
     <div style="display:flex;gap:9px;margin-bottom:${rows.length||issHtml?'8px':'0'};align-items:stretch;">
       ${f.photo?`<img src="${_esc(f.photo)}" loading="lazy" onclick="_facPhotoView('${_escq(f.photo)}')" style="width:42%;max-width:150px;aspect-ratio:4/3;object-fit:cover;border-radius:10px;cursor:pointer;flex-shrink:0;align-self:center;display:block;" alt="">`:''}
-      <div style="flex:1;min-width:0;background:#060d1a;border-radius:10px;padding:7px 9px;display:flex;flex-direction:column;justify-content:center;">${shortRows}</div>
+      <div style="flex:1;min-width:0;background:#16181d;border-radius:10px;padding:7px 9px;display:flex;flex-direction:column;justify-content:center;">${shortRows}</div>
     </div>
-    ${rows.length?`<div style="background:#060d1a;border-radius:10px;padding:7px 11px;">${rows.join('')}</div>`:''}
+    ${rows.length?`<div style="background:#16181d;border-radius:10px;padding:7px 11px;">${rows.join('')}</div>`:''}
     ${issHtml?`<div style="font-size:10px;color:#5d86a3;font-weight:800;margin-top:8px;">🔧 최근 점검</div>${issHtml}`:''}`;
 }
 // 선택된 시설 핀 강조 — 팝업이 어떤 핀을 가리키는지 물결 링으로 표시
@@ -636,7 +636,7 @@ function openFacFromMap(id){
       <button class="navbtn" ${_nx?`onclick="_facMapNav(${_nx})"`:'disabled'} style="padding:7px 4px;font-size:11.5px;">다음 ▶</button>
     </div>`:'';
   if(_bw)_bw.innerHTML=_navRow
-    +`<button class="btn" style="width:100%;padding:11px;background:rgba(79,168,208,.16);color:#4fa8d0;border:1px solid rgba(79,168,208,.4);font-weight:800;" onclick="openFacIssueReport(${f.id})">🔧 점검 등록</button>`
+    +`<button class="btn" style="width:100%;padding:11px;background:rgba(49,130,246,.16);color:#3182f6;border:1px solid rgba(49,130,246,.4);font-weight:800;" onclick="openFacIssueReport(${f.id})">🔧 점검 등록</button>`
     +(mng?`<div style="display:flex;gap:5px;">
       <button onclick="openFacWarn(${f.id})" style="${_mBtnS('#f0a500')}">⚠️ 경고</button>
       <button onclick="toggleFacHide(${f.id})" style="${_mBtnS(f.hidden?'#f0a500':'#8aa6bc')}">${f.hidden?'👁️ 표시':'🙈 숨김'}</button>
@@ -717,9 +717,9 @@ function renderFacList(){
     </div>`;
   }).join('');
   if(_tot>_facListLimit){
-    html+=`<button onclick="_moreFacList()" style="width:100%;margin-top:8px;padding:11px;border-radius:10px;border:1px solid rgba(79,168,208,.3);background:rgba(79,168,208,.08);color:#4fa8d0;font-size:13px;font-weight:700;cursor:pointer;">▾ 더 보기 (${_tot-_facListLimit}건 더)</button>`;
+    html+=`<button onclick="_moreFacList()" style="width:100%;margin-top:8px;padding:11px;border-radius:10px;border:1px solid rgba(49,130,246,.3);background:rgba(49,130,246,.08);color:#3182f6;font-size:13px;font-weight:700;cursor:pointer;">▾ 더 보기 (${_tot-_facListLimit}건 더)</button>`;
   }
-  document.getElementById('facListWrap').innerHTML=html||'<div class="empty"><div class="empty-ico">🛠️</div><div class="empty-txt">해당 조건 없음</div><button onclick="resetFacListFilter()" style="margin-top:10px;padding:7px 16px;background:rgba(79,168,208,.12);border:1px solid rgba(79,168,208,.35);color:#4fa8d0;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;">🔄 필터 초기화</button></div>';
+  document.getElementById('facListWrap').innerHTML=html||'<div class="empty"><div class="empty-ico">🛠️</div><div class="empty-txt">해당 조건 없음</div><button onclick="resetFacListFilter()" style="margin-top:10px;padding:7px 16px;background:rgba(49,130,246,.12);border:1px solid rgba(49,130,246,.35);color:#3182f6;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;">🔄 필터 초기화</button></div>';
 }
 
 function renderInspectStats(){
@@ -750,7 +750,7 @@ function renderInspectStats(){
   {// 종류별 분포 — 안전등급 분포와 같은 색 막대 스타일. 탭하면 그 종류만 지도에서 필터
     const rows=Object.entries(tm).sort((a,b)=>b[1]-a[1]);
     const tmax=Math.max(...rows.map(r=>r[1]),1);
-    const PAL=['#4fa8d0','#5fcf8f','#f0c050','#e8879c','#b08ae8','#f0965a','#7dd3fa','#9fb6c8'];
+    const PAL=['#3182f6','#5fcf8f','#f0c050','#e8879c','#b08ae8','#f0965a','#7dd3fa','#9fb6c8'];
     document.getElementById('facTypeStatWrap').innerHTML=rows.map(([k,v],i)=>{
       const c=PAL[i%PAL.length];const lbl=k.split(' ').slice(1).join(' ')||k;
       return `<div class="type-row" onclick="facMapTypeF=new Set(['${_escq(lbl)}']);_persistFilters();switchTab(2,document.getElementById('nv2'));">
@@ -762,7 +762,7 @@ function renderInspectStats(){
   try{renderFacIssues();}catch(e){}
   const wr=document.getElementById('facWarnWrap');
   if(wr)wr.innerHTML=warned.length?warned.map(f=>{const w=_facWarn(f);
-    return `<div onclick="openFacDetail(${f.id})" style="background:#060d1a;border-radius:8px;padding:9px 11px;margin-bottom:5px;cursor:pointer;border-left:3px solid #e05050;"><div style="font-size:12px;font-weight:700;color:#ff7a6e;">⚠️ ${_esc(f.type.split(' ')[0])} ${_esc(f.name)}</div>${w.reason?`<div style="font-size:11px;color:rgba(255,255,255,.55);margin-top:2px;">${_esc(w.reason)}</div>`:''}<div style="font-size:10px;color:#8a6;margin-top:2px;">${_esc(_warnPeriodStr(w))}</div></div>`;
+    return `<div onclick="openFacDetail(${f.id})" style="background:#16181d;border-radius:8px;padding:9px 11px;margin-bottom:5px;cursor:pointer;border-left:3px solid #e05050;"><div style="font-size:12px;font-weight:700;color:#ff7a6e;">⚠️ ${_esc(f.type.split(' ')[0])} ${_esc(f.name)}</div>${w.reason?`<div style="font-size:11px;color:rgba(255,255,255,.55);margin-top:2px;">${_esc(w.reason)}</div>`:''}<div style="font-size:10px;color:#8a6;margin-top:2px;">${_esc(_warnPeriodStr(w))}</div></div>`;
   }).join(''):'<div class="muted" style="font-size:12px;padding:5px 0;">경고표시된 시설 없음</div>';
 }
 
@@ -797,7 +797,7 @@ function openFacDetail(id){
       </div>
     </div>
     ${_facInfoHtml(f)}
-    <button class="btn" style="width:100%;margin-top:10px;background:rgba(79,168,208,.16);color:#4fa8d0;border:1px solid rgba(79,168,208,.4);font-weight:800;" onclick="openFacIssueReport(${f.id})">🔧 점검 등록 (사진·등급·점검내용)</button>
+    <button class="btn" style="width:100%;margin-top:10px;background:rgba(49,130,246,.16);color:#3182f6;border:1px solid rgba(49,130,246,.4);font-weight:800;" onclick="openFacIssueReport(${f.id})">🔧 점검 등록 (사진·등급·점검내용)</button>
     ${canMng?`<div style="display:flex;gap:5px;margin-top:7px;">
       <button onclick="openFacWarn(${f.id})" style="${_mBtnS('#f0a500')}">⚠️ 경고 ${w?'수정/해제':''}</button>
       <button onclick="toggleFacHide(${f.id})" style="${_mBtnS(f.hidden?'#f0a500':'#8aa6bc')}">${f.hidden?'👁️ 표시':'🙈 숨김'}</button>
@@ -896,7 +896,7 @@ const FAC_GRADES={
   E:{l:'E 불량',c:'#e05050',d:'심각 — 즉시 사용제한·조치'},
 };
 const FAC_ISTAGE={
-  1:{l:'접수',ico:'📥',c:'#4fa8d0',who:'시설물 담당자 검토 대기'},
+  1:{l:'접수',ico:'📥',c:'#3182f6',who:'시설물 담당자 검토 대기'},
   2:{l:'담당자 검토',ico:'🔎',c:'#f0a500',who:'시설물 담당자 재평가 중'},
   3:{l:'구역 현장확인',ico:'🥾',c:'#9b59b6',who:'지역담당구역자 현장확인 중'},
   4:{l:'시설과 조치',ico:'🔧',c:'#e67e22',who:'탐방시설과 현장확인·조치 중'},
@@ -943,16 +943,16 @@ function _toggleInspTag(t){
   if(_facIssueTags.has(t))_facIssueTags.delete(t);else _facIssueTags.add(t);
   const el=document.getElementById('fiTag_'+t);
   if(el){const on=_facIssueTags.has(t);
-    el.style.background=on?'rgba(79,168,208,.2)':'rgba(255,255,255,.03)';
-    el.style.color=on?'#4fa8d0':'rgba(255,255,255,.5)';
-    el.style.borderColor=on?'rgba(79,168,208,.5)':'rgba(255,255,255,.12)';
+    el.style.background=on?'rgba(49,130,246,.2)':'rgba(255,255,255,.03)';
+    el.style.color=on?'#3182f6':'rgba(255,255,255,.5)';
+    el.style.borderColor=on?'rgba(49,130,246,.5)':'rgba(255,255,255,.12)';
     el.style.fontWeight=on?'800':'700';
   }
 }
 function _renderInspTags(){
   const wrap=document.getElementById('fiTagRow');if(!wrap)return;
   wrap.innerHTML=INSPECT_TAGS.map(t=>{const on=_facIssueTags.has(t);
-    return `<div id="fiTag_${t}" onclick="_toggleInspTag('${_escq(t)}')" style="cursor:pointer;border-radius:18px;font-size:11px;font-weight:${on?'800':'700'};padding:6px 12px;border:1px solid ${on?'rgba(79,168,208,.5)':'rgba(255,255,255,.12)'};background:${on?'rgba(79,168,208,.2)':'rgba(255,255,255,.03)'};color:${on?'#4fa8d0':'rgba(255,255,255,.5)'};">${_esc(t)}</div>`;
+    return `<div id="fiTag_${t}" onclick="_toggleInspTag('${_escq(t)}')" style="cursor:pointer;border-radius:18px;font-size:11px;font-weight:${on?'800':'700'};padding:6px 12px;border:1px solid ${on?'rgba(49,130,246,.5)':'rgba(255,255,255,.12)'};background:${on?'rgba(49,130,246,.2)':'rgba(255,255,255,.03)'};color:${on?'#3182f6':'rgba(255,255,255,.5)'};">${_esc(t)}</div>`;
   }).join('');
 }
 function _pickIssueGrade(g){
@@ -1055,9 +1055,9 @@ function openFacIssueDetail(id){
     ${closed?'':`<div style="font-size:11px;color:${FAC_ISTAGE[stage].c};text-align:center;margin-bottom:8px;">▶ ${FAC_ISTAGE[stage].who}</div>`}`;
 
   // 1) 점검 내용
-  const _tagChips=(it.tags&&it.tags.length)?`<div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:6px;">${it.tags.map(t=>`<span style="background:rgba(79,168,208,.15);color:#4fa8d0;font-size:11px;font-weight:700;border-radius:14px;padding:3px 10px;">${_esc(t)}</span>`).join('')}</div>`:'';
-  h+=`<div style="background:#060d1a;border-radius:10px;padding:11px;margin-bottom:9px;">
-    <div style="font-size:11px;font-weight:800;color:#4fa8d0;margin-bottom:6px;">📥 1. 점검 등록 <span style="color:#5a7e98;font-weight:400;">· ${_esc(it.reporter||'-')} · ${_fmtWhen(it.createdAt)}</span></div>
+  const _tagChips=(it.tags&&it.tags.length)?`<div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:6px;">${it.tags.map(t=>`<span style="background:rgba(49,130,246,.15);color:#3182f6;font-size:11px;font-weight:700;border-radius:14px;padding:3px 10px;">${_esc(t)}</span>`).join('')}</div>`:'';
+  h+=`<div style="background:#16181d;border-radius:10px;padding:11px;margin-bottom:9px;">
+    <div style="font-size:11px;font-weight:800;color:#3182f6;margin-bottom:6px;">📥 1. 점검 등록 <span style="color:#5a7e98;font-weight:400;">· ${_esc(it.reporter||'-')} · ${_fmtWhen(it.createdAt)}</span></div>
     ${it.photo?`<img src="${_esc(it.photo)}" style="width:100%;border-radius:8px;margin-bottom:7px;max-height:240px;object-fit:cover;cursor:pointer;" onclick="_facPhotoView('${_escq(it.photo)}')">`:''}
     ${_tagChips}
     <div style="font-size:12px;color:#cfe2f2;line-height:1.6;">${it.desc?_esc(it.desc):(it.tags&&it.tags.length?'':'<span style="color:#5a7e98;">상세 설명 없음</span>')}</div>
@@ -1067,7 +1067,7 @@ function openFacIssueDetail(id){
   // 2) 담당자 검토
   if(it.mgr){
     const mg=it.mgr;const mgc=_gColor(mg.grade);
-    h+=`<div style="background:#060d1a;border-radius:10px;padding:11px;margin-bottom:9px;border-left:3px solid ${mg.decision==='ok'?'#27ae60':'#f0a500'};">
+    h+=`<div style="background:#16181d;border-radius:10px;padding:11px;margin-bottom:9px;border-left:3px solid ${mg.decision==='ok'?'#27ae60':'#f0a500'};">
       <div style="font-size:11px;font-weight:800;color:#f0a500;margin-bottom:6px;">🔎 2. 담당자 검토 <span style="color:#5a7e98;font-weight:400;">· ${_esc(mg.by||'-')} · ${_fmtWhen(mg.at)}</span></div>
       <div style="font-size:12px;color:#cfe2f2;margin-bottom:4px;">재평가 등급: <b style="color:${mgc};">${_gLabel(mg.grade)}</b> · 판정: <b style="color:${mg.decision==='ok'?'#7ec8a0':'#ff9a6e'};">${mg.decision==='ok'?'이상없음 회신·종료':'D·E 판정 → 현장확인'}</b></div>
       ${mg.opinion?`<div style="font-size:12px;color:#cfe2f2;line-height:1.6;">💬 ${_esc(mg.opinion)}</div>`:''}
@@ -1088,7 +1088,7 @@ function openFacIssueDetail(id){
 
   // 3) 지역담당구역자 현장확인
   if(it.zone){
-    h+=`<div style="background:#060d1a;border-radius:10px;padding:11px;margin-bottom:9px;border-left:3px solid #9b59b6;">
+    h+=`<div style="background:#16181d;border-radius:10px;padding:11px;margin-bottom:9px;border-left:3px solid #9b59b6;">
       <div style="font-size:11px;font-weight:800;color:#b07cd0;margin-bottom:6px;">🥾 3. 구역 현장확인 <span style="color:#5a7e98;font-weight:400;">· ${_esc(it.zone.by||'-')} · ${_fmtWhen(it.zone.at)}</span></div>
       <div style="font-size:12px;color:#cfe2f2;line-height:1.6;">${it.zone.note?_esc(it.zone.note):'<span style="color:#5a7e98;">확인 완료</span>'}</div>
     </div>`;
@@ -1104,13 +1104,13 @@ function openFacIssueDetail(id){
 
   // 4) 시설과 조치 — 완료 시 조치 후 등급(A~E) 선택, 오래 걸리면 조치 예정일 등록
   const planBanner=(!closed&&it.plan&&it.plan.until)?(()=>{const od=it.plan.until<Date.now();
-    return `<div style="background:${od?'rgba(224,80,80,.08)':'rgba(79,168,208,.07)'};border:1px solid ${od?'rgba(224,80,80,.35)':'rgba(79,168,208,.25)'};border-radius:9px;padding:8px 11px;margin-bottom:8px;">
-      <div style="font-size:11px;font-weight:800;color:${od?'#ff7a6e':'#4fa8d0'};">🗓️ ${_fmtDateK(it.plan.until)}까지 조치 예정${od?' — 예정일 지남':''}</div>
+    return `<div style="background:${od?'rgba(224,80,80,.08)':'rgba(49,130,246,.07)'};border:1px solid ${od?'rgba(224,80,80,.35)':'rgba(49,130,246,.25)'};border-radius:9px;padding:8px 11px;margin-bottom:8px;">
+      <div style="font-size:11px;font-weight:800;color:${od?'#ff7a6e':'#3182f6'};">🗓️ ${_fmtDateK(it.plan.until)}까지 조치 예정${od?' — 예정일 지남':''}</div>
       ${it.plan.note?`<div style="font-size:11px;color:#9bbdd4;margin-top:3px;">${_esc(it.plan.note)}</div>`:''}
       <div style="font-size:9px;color:#5a7e98;margin-top:2px;">${_esc(it.plan.by||'')} · ${_fmtWhen(it.plan.at)}</div>
     </div>`;})():'';
   if(it.dept){
-    h+=`<div style="background:#060d1a;border-radius:10px;padding:11px;margin-bottom:9px;border-left:3px solid #27ae60;">
+    h+=`<div style="background:#16181d;border-radius:10px;padding:11px;margin-bottom:9px;border-left:3px solid #27ae60;">
       <div style="font-size:11px;font-weight:800;color:#7ec8a0;margin-bottom:6px;">🔧 4. 시설과 조치 <span style="color:#5a7e98;font-weight:400;">· ${_esc(it.dept.by||'-')} · ${_fmtWhen(it.dept.at)}</span></div>
       ${it.dept.grade?`<div style="font-size:12px;color:#cfe2f2;margin-bottom:4px;">조치 후 등급: <b style="color:${_gColor(it.dept.grade)};">${_gLabel(it.dept.grade)}</b></div>`:''}
       <div style="font-size:12px;color:#cfe2f2;line-height:1.6;">${it.dept.note?_esc(it.dept.note):'<span style="color:#5a7e98;">조치 완료</span>'}</div>
@@ -1128,7 +1128,7 @@ function openFacIssueDetail(id){
       <div style="display:flex;align-items:center;gap:8px;margin:10px 0 7px;"><div style="flex:1;height:1px;background:rgba(255,255,255,.08);"></div><span style="font-size:10px;color:#5a7e98;white-space:nowrap;">고치는 데 시간이 오래 걸리면</span><div style="flex:1;height:1px;background:rgba(255,255,255,.08);"></div></div>
       <div style="display:flex;gap:6px;">
         <input type="date" id="fiDeptUntil" class="fi" style="flex:1;box-sizing:border-box;" value="${planVal}">
-        <button onclick="facIssueDeptPlan(${it.id})" style="flex-shrink:0;background:rgba(79,168,208,.15);color:#4fa8d0;border:1px solid rgba(79,168,208,.4);border-radius:8px;padding:0 13px;font-size:11px;font-weight:800;cursor:pointer;">🗓️ ${it.plan?'예정 변경':'예정 등록'}</button>
+        <button onclick="facIssueDeptPlan(${it.id})" style="flex-shrink:0;background:rgba(49,130,246,.15);color:#3182f6;border:1px solid rgba(49,130,246,.4);border-radius:8px;padding:0 13px;font-size:11px;font-weight:800;cursor:pointer;">🗓️ ${it.plan?'예정 변경':'예정 등록'}</button>
       </div>
       <div style="font-size:9px;color:#5a7e98;margin-top:4px;">예정 등록 시 종료되지 않고 '${'~'}까지 조치 예정'으로 표시됩니다</div>
     </div>`;
@@ -1307,12 +1307,12 @@ function renderFacIssues(){
   }else{
     h+=open.map(it=>{
       const st=FAC_ISTAGE[Number(it.stage||1)]||FAC_ISTAGE[1];const gc=_gColor(it.grade);
-      return `<div onclick="openFacIssueDetail(${it.id})" style="background:#060d1a;border-radius:9px;padding:9px 11px;margin-bottom:6px;cursor:pointer;border-left:3px solid ${gc};display:flex;align-items:center;gap:9px;">
+      return `<div onclick="openFacIssueDetail(${it.id})" style="background:#16181d;border-radius:9px;padding:9px 11px;margin-bottom:6px;cursor:pointer;border-left:3px solid ${gc};display:flex;align-items:center;gap:9px;">
         <div style="background:${gc};color:#08121e;font-weight:900;border-radius:6px;padding:2px 7px;font-size:12px;flex-shrink:0;">${_esc(it.grade)}</div>
         <div style="flex:1;min-width:0;">
           <div style="font-size:12px;font-weight:700;color:#e0edf8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${_esc(it.facName)}</div>
-          <div style="font-size:10px;color:#7a9cb8;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${it.tags&&it.tags.length?'<span style="color:#4fa8d0;">'+_esc(it.tags.join(', '))+'</span> · ':''}${_esc(it.loc||'')}${it.reporter?' · '+_esc(it.reporter):''}</div>
-          ${it.plan&&it.plan.until?`<div style="font-size:9px;font-weight:700;color:${it.plan.until<Date.now()?'#ff7a6e':'#4fa8d0'};margin-top:2px;">🗓️ ${_fmtDateK(it.plan.until)}까지 조치 예정${it.plan.until<Date.now()?' — 지남':''}</div>`:''}
+          <div style="font-size:10px;color:#7a9cb8;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${it.tags&&it.tags.length?'<span style="color:#3182f6;">'+_esc(it.tags.join(', '))+'</span> · ':''}${_esc(it.loc||'')}${it.reporter?' · '+_esc(it.reporter):''}</div>
+          ${it.plan&&it.plan.until?`<div style="font-size:9px;font-weight:700;color:${it.plan.until<Date.now()?'#ff7a6e':'#3182f6'};margin-top:2px;">🗓️ ${_fmtDateK(it.plan.until)}까지 조치 예정${it.plan.until<Date.now()?' — 지남':''}</div>`:''}
         </div>
         <span style="background:${st.c}22;color:${st.c};font-size:9px;font-weight:800;border-radius:6px;padding:3px 7px;flex-shrink:0;">${st.ico} ${st.l}</span>
       </div>`;
@@ -1320,7 +1320,7 @@ function renderFacIssues(){
   }
   if(closed.length){
     h+=`<div style="font-size:10px;color:#5a7e98;margin-top:9px;">✅ 종료 ${closed.length}건`+
-      (closed.length?` <span onclick="_toggleClosedIssues()" id="fiClosedToggle" style="color:#4fa8d0;cursor:pointer;">· 보기</span>`:'')+`</div>`
+      (closed.length?` <span onclick="_toggleClosedIssues()" id="fiClosedToggle" style="color:#3182f6;cursor:pointer;">· 보기</span>`:'')+`</div>`
       +`<div id="fiClosedList" style="display:none;margin-top:5px;">`+closed.slice(0,30).map(it=>{
         const gc=_gColor(it.grade);
         return `<div onclick="openFacIssueDetail(${it.id})" style="background:rgba(255,255,255,.02);border-radius:8px;padding:7px 10px;margin-bottom:4px;cursor:pointer;opacity:.7;display:flex;align-items:center;gap:8px;">
@@ -1391,12 +1391,12 @@ function renderFacWork(){
     const gc=_gColor(it.grade);
     return `<div style="background:#0a1828;border:1px solid rgba(255,255,255,.06);border-left:3px solid ${gc};border-radius:11px;padding:11px;margin-bottom:9px;">
       <div style="display:flex;align-items:center;gap:9px;cursor:pointer;" onclick="openFacIssueDetail(${it.id})">
-        ${it.photo?`<img src="${_esc(it.photo)}" style="width:44px;height:44px;border-radius:8px;object-fit:cover;flex-shrink:0;">`:`<div style="width:44px;height:44px;border-radius:8px;background:#060d1a;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;">🏗️</div>`}
+        ${it.photo?`<img src="${_esc(it.photo)}" style="width:44px;height:44px;border-radius:8px;object-fit:cover;flex-shrink:0;">`:`<div style="width:44px;height:44px;border-radius:8px;background:#16181d;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;">🏗️</div>`}
         <div style="flex:1;min-width:0;">
           <div style="font-size:12px;font-weight:700;color:#e0edf8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;"><span style="color:${gc};font-weight:900;">${_esc(it.grade)}</span> · ${_esc(it.facName)}</div>
-          <div style="font-size:10px;color:#7a9cb8;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${it.tags&&it.tags.length?'<span style="color:#4fa8d0;">'+_esc(it.tags.join(', '))+'</span> · ':''}${_esc(it.reporter||'')} · ${_fmtWhen(it.createdAt)}</div>
+          <div style="font-size:10px;color:#7a9cb8;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${it.tags&&it.tags.length?'<span style="color:#3182f6;">'+_esc(it.tags.join(', '))+'</span> · ':''}${_esc(it.reporter||'')} · ${_fmtWhen(it.createdAt)}</div>
         </div>
-        <span style="font-size:10px;color:#4fa8d0;flex-shrink:0;">상세 ›</span>
+        <span style="font-size:10px;color:#3182f6;flex-shrink:0;">상세 ›</span>
       </div>
       ${it.desc?`<div style="font-size:11px;color:#9bbdd4;margin-top:6px;line-height:1.5;">${_esc(it.desc)}</div>`:''}
       ${body||''}
@@ -1433,7 +1433,7 @@ function renderFacWork(){
   if(!s4.length)h+=`<div class="muted" style="font-size:11px;">조치 대기 없음</div>`;
   else h+=s4.map(it=>{
     const pb=(it.plan&&it.plan.until)?(()=>{const od=it.plan.until<Date.now();
-      return `<div style="font-size:10px;font-weight:800;color:${od?'#ff7a6e':'#4fa8d0'};margin-bottom:6px;">🗓️ ${_fmtDateK(it.plan.until)}까지 조치 예정${od?' — 예정일 지남':''}${it.plan.note?` <span style="color:#7a9cb8;font-weight:400;">· ${_esc(it.plan.note)}</span>`:''}</div>`;})():'';
+      return `<div style="font-size:10px;font-weight:800;color:${od?'#ff7a6e':'#3182f6'};margin-bottom:6px;">🗓️ ${_fmtDateK(it.plan.until)}까지 조치 예정${od?' — 예정일 지남':''}${it.plan.note?` <span style="color:#7a9cb8;font-weight:400;">· ${_esc(it.plan.note)}</span>`:''}</div>`;})():'';
     if(!canDept)return card(it,formWrap(`${pb}<div style="font-size:10px;color:#5a7e98;">탐방시설과 조치 대기 중${it.zone&&it.zone.note?' · 🥾 '+_esc(it.zone.note):''}</div>`));
     const defG=(it.mgr&&it.mgr.grade)||it.grade;
     const planVal=it.plan&&it.plan.until?new Date(it.plan.until-new Date().getTimezoneOffset()*60000).toISOString().slice(0,10):'';
@@ -1445,7 +1445,7 @@ function renderFacWork(){
       <button onclick="fwDept(${it.id})" style="width:100%;background:#0c4838;color:#fff;border:none;border-radius:8px;padding:9px;font-size:12px;font-weight:800;cursor:pointer;">✅ 조치 완료 → 종료</button>
       <div style="display:flex;gap:6px;margin-top:7px;">
         <input type="date" id="fwDeptUntil_${it.id}" class="fi" style="flex:1;box-sizing:border-box;" value="${planVal}">
-        <button onclick="fwDeptPlan(${it.id})" style="flex-shrink:0;background:rgba(79,168,208,.15);color:#4fa8d0;border:1px solid rgba(79,168,208,.4);border-radius:8px;padding:0 12px;font-size:11px;font-weight:800;cursor:pointer;">🗓️ ${it.plan?'예정 변경':'예정 등록'}</button>
+        <button onclick="fwDeptPlan(${it.id})" style="flex-shrink:0;background:rgba(49,130,246,.15);color:#3182f6;border:1px solid rgba(49,130,246,.4);border-radius:8px;padding:0 12px;font-size:11px;font-weight:800;cursor:pointer;">🗓️ ${it.plan?'예정 변경':'예정 등록'}</button>
       </div>`));
   }).join('');
 
@@ -1785,15 +1785,15 @@ function renderAlertView(){
       ${_rxAt?`마지막 수신 <b style="color:#9fc4de;">${_alertMsShort(_rxAt)}</b> <span style="color:#46708f;">(${_rxAgo})</span>`:'아직 기상청 응답을 받은 적이 없습니다 — 🔄 지금 확인을 눌러보세요'}${_rxSrc?` · ${_rxSrc}`:''} · 10분마다 자동 확인
     </div>
     ${kmaLive.length
-      ?`<div style="display:flex;flex-wrap:wrap;gap:4px 12px;margin-top:8px;padding-top:8px;border-top:1px solid rgba(79,168,208,.12);">${kmaLive.map(a=>`<div class="ao-wx-chip" style="margin:0;"><span class="ao-level-badge ao-level-${a.stage.indexOf('Ⅱ')>=0?'Ⅱ단계':'Ⅰ단계'}">${_stageShort(a.stage)}</span> <span style="color:#dceaf6;">${_esc(a.type||'')}</span></div>`).join('')}</div>`
-      :`<div style="font-size:11px;color:#6a94b0;margin-top:7px;padding-top:7px;border-top:1px solid rgba(79,168,208,.1);">☀️ 현재 설악산 관할(속초·고성·양양·인제·산지) 발효 특보 없음</div>`}
+      ?`<div style="display:flex;flex-wrap:wrap;gap:4px 12px;margin-top:8px;padding-top:8px;border-top:1px solid rgba(49,130,246,.12);">${kmaLive.map(a=>`<div class="ao-wx-chip" style="margin:0;"><span class="ao-level-badge ao-level-${a.stage.indexOf('Ⅱ')>=0?'Ⅱ단계':'Ⅰ단계'}">${_stageShort(a.stage)}</span> <span style="color:#dceaf6;">${_esc(a.type||'')}</span></div>`).join('')}</div>`
+      :`<div style="font-size:11px;color:#6a94b0;margin-top:7px;padding-top:7px;border-top:1px solid rgba(49,130,246,.1);">☀️ 현재 설악산 관할(속초·고성·양양·인제·산지) 발효 특보 없음</div>`}
   </div>`;
 
   // 활성 특보운영 — 분소별 응소 현황 + 시간별 기상관측
   let activeHtml='';
   if(active){
     const opLevel=_opLevel(active);
-    const lvColor=ALERT_LEVEL_COLORS[opLevel]||'#4fa8d0';
+    const lvColor=ALERT_LEVEL_COLORS[opLevel]||'#3182f6';
     const itv=active.reportInterval||60;
     const mt=_alertMeasureType(active);
     // 경과 시간
@@ -1815,7 +1815,7 @@ function renderAlertView(){
       const when=a.issuedAt?String(a.issuedAt).slice(5,16):'';
       const fc=a.announcedAt?String(a.announcedAt).slice(5,16):''; // 발표시각(TM_FC)
       const rg=(a.regions&&a.regions.length)?a.regions.join(' · '):'';
-      const acol=ALERT_LEVEL_COLORS[a.stage]||'#4fa8d0';
+      const acol=ALERT_LEVEL_COLORS[a.stage]||'#3182f6';
       return `<div style="background:rgba(255,255,255,.03);border:1px solid ${acol}44;border-radius:10px;padding:8px 11px;margin-bottom:6px;">
         <div style="display:flex;align-items:center;gap:7px;flex-wrap:wrap;">
           <span style="font-size:9px;color:#6a94b0;flex-shrink:0;">${a.drill?'🎯훈련':a.source==='auto'?'📡자동':'✋수동'}</span>
@@ -2030,7 +2030,7 @@ function _renderAlertStats(ops){
       <span style="font-size:11px;color:#e0edf8;font-weight:800;min-width:30px;text-align:right;">${v}일</span>
     </div>`;
   }).join('');
-  const mini=(label,val,col,sub)=>`<div style="background:#060d1a;border-radius:10px;padding:11px 8px;text-align:center;"><div style="font-size:19px;font-weight:800;color:${col||'#e0edf8'};line-height:1.15;">${val}</div><div style="font-size:9.5px;color:#7a9cb8;margin-top:3px;">${label}</div>${sub?`<div style="font-size:8.5px;color:#4a7090;margin-top:1px;">${sub}</div>`:''}</div>`;
+  const mini=(label,val,col,sub)=>`<div style="background:#16181d;border-radius:10px;padding:11px 8px;text-align:center;"><div style="font-size:19px;font-weight:800;color:${col||'#e0edf8'};line-height:1.15;">${val}</div><div style="font-size:9.5px;color:#7a9cb8;margin-top:3px;">${label}</div>${sub?`<div style="font-size:8.5px;color:#4a7090;margin-top:1px;">${sub}</div>`:''}</div>`;
   const fmtH=h=>h>=48?(h/24).toFixed(h>=240?0:1)+'일':Math.round(h)+'시간';
   // 특보 발효 이력 목록 (선택 연도) — 자동해제·삭제분까지 로그에서 전부, 최신순
   const _logY=log.filter(r=>{const f=r.issuedAtMs||_alertTimeMs(r.issuedAt)||0;return f&&new Date(f).getFullYear()===sel;}).sort((a,b)=>(b.issuedAtMs||0)-(a.issuedAtMs||0));
@@ -2055,7 +2055,7 @@ function _renderAlertStats(ops){
     <div class="scard" style="margin-bottom:10px;">
       <div class="stitle">📊 ${sel}년 특보 발효 현황 <span style="font-size:9px;font-weight:400;color:#5a7e98;">· 일수 기준</span></div>
       <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:6px;">
-        ${mini('특보 발효일',y.days.size+'일','#4fa8d0','연중 '+Math.round(y.days.size/yearDen*100)+'%')}
+        ${mini('특보 발효일',y.days.size+'일','#3182f6','연중 '+Math.round(y.days.size/yearDen*100)+'%')}
         ${top?mini('최다 특보','<span style="display:inline-flex;align-items:center;gap:5px;"><span style="width:8px;height:8px;border-radius:50%;background:'+_alertTypeColor(top.t)+';"></span>'+_esc(top.t)+'</span>','#e0edf8',top.d+'일 발효'):mini('최다 특보','-','#e0edf8')}
         ${mini('경보 이상',warnDays+'일',warnDays?'#ff6b5b':'#27ae60',warnDays?'':'경보 발효 없음')}
         ${mini('비상근무',fmtH(totalHr),'#7ee0a8',opsY.length?opsY.length+'회 운영':'')}
@@ -2109,7 +2109,7 @@ function _renderAlertInput(active){
   // 위기경보·탐방로 통제 빠른 버튼 (관리자)
   if(admin){
     const cl=DB.g('crisisLevel')||{};const clv=cl.level||'';
-    const clColor=clv==='관심'?'#3498db':clv==='주의'?'#e6b800':clv==='경계'?'#e67e22':clv==='심각'?'#c0392b':'rgba(79,168,208,.5)';
+    const clColor=clv==='관심'?'#3498db':clv==='주의'?'#e6b800':clv==='경계'?'#e67e22':clv==='심각'?'#c0392b':'rgba(49,130,246,.5)';
     html+=`<div class="ao-card" style="margin-bottom:12px;">
       <div class="ao-sec-hd" style="margin-top:0;"><span class="bar" style="background:${clColor};"></span>🚨 재난위기경보${clv?` <span style="background:${clColor}26;color:${clColor};font-size:10px;font-weight:800;border-radius:6px;padding:1px 7px;margin-left:6px;">${CRISIS_LABEL[clv]||clv}${cl.type?' — '+cl.type:''}</span>`:'<span style="font-size:10px;color:#4a7090;margin-left:6px;">미설정</span>'}</div>
       <button onclick="openCrisisLevelModal()" class="ao-loc-btn" style="width:100%;border-color:${clColor}55;color:${clColor};">🚨 위기경보 단계 설정</button>
@@ -2128,10 +2128,10 @@ function _renderAlertInput(active){
     const wb=DB.g('weatherBrief')||{};
     const fresh=wb.text&&wb.atMs&&(Date.now()-wb.atMs<6*3600*1000);
     html+=`<div class="ao-card" style="margin-bottom:12px;">
-      <div class="ao-sec-hd" style="margin-top:0;"><span class="bar" style="background:#4fa8d0;"></span>🌦️ 기상 브리핑${wb.time?` <span style="font-size:10px;color:#6a94b0;font-weight:700;margin-left:6px;">${_esc(wb.time)} 기준</span>`:''}</div>
+      <div class="ao-sec-hd" style="margin-top:0;"><span class="bar" style="background:#3182f6;"></span>🌦️ 기상 브리핑${wb.time?` <span style="font-size:10px;color:#6a94b0;font-weight:700;margin-left:6px;">${_esc(wb.time)} 기준</span>`:''}</div>
       ${wb.text?`<div style="font-size:12.5px;line-height:1.6;color:${fresh?'#cfe2f2':'#8aa6bc'};white-space:pre-wrap;padding:2px 0 4px;">${_esc(wb.text)}</div><div style="font-size:10px;color:#5a7a92;margin-bottom:6px;">— ${_esc(wb.by||'')}${fresh?'':' · ⚠️ 6시간 경과(갱신 필요)'}</div>`:`<div style="font-size:11px;color:#5a7a92;padding:2px 0 6px;">등록된 브리핑이 없습니다.</div>`}
       <div style="display:flex;gap:6px;">
-        ${admin?`<button onclick="openWeatherBrief()" class="ao-loc-btn" style="flex:1;border-color:#4fa8d055;color:#4fa8d0;">✍️ 작성/갱신</button>`:''}
+        ${admin?`<button onclick="openWeatherBrief()" class="ao-loc-btn" style="flex:1;border-color:#3182f655;color:#3182f6;">✍️ 작성/갱신</button>`:''}
         <button onclick="openWeatherLog()" class="ao-loc-btn" style="${admin?'':'width:100%;'}border-color:rgba(255,255,255,.12);color:#8aa6bc;">🕑 이력</button>
       </div>
     </div>`;
@@ -2519,8 +2519,8 @@ function openWeatherLog(_fresh){
   modal.id='wbLogModal';modal.className='modal on';
   modal.innerHTML=`<div class="mbox"><div class="mhdr"><span class="mtitle">🌦️ 기상 브리핑 이력 <span style="font-size:11px;color:#6a94b0;font-weight:600;">(${log.length}건)</span></span><button class="mclose" onclick="document.getElementById('wbLogModal').remove()">×</button></div>
     <div style="max-height:60vh;overflow-y:auto;">
-    ${log.length?log.map(e=>`<div style="background:#060d1a;border-radius:9px;padding:10px 12px;margin-bottom:7px;border:1px solid rgba(79,168,208,.12);">
-      <div style="font-size:10px;color:#4fa8d0;font-weight:700;margin-bottom:5px;">${_esc(e.time||'')}${e.by?` · ${_esc(e.by)}`:''}</div>
+    ${log.length?log.map(e=>`<div style="background:#16181d;border-radius:9px;padding:10px 12px;margin-bottom:7px;border:1px solid rgba(49,130,246,.12);">
+      <div style="font-size:10px;color:#3182f6;font-weight:700;margin-bottom:5px;">${_esc(e.time||'')}${e.by?` · ${_esc(e.by)}`:''}</div>
       <div style="font-size:12px;color:#cfe2f2;line-height:1.6;white-space:pre-wrap;">${_esc(e.text||'')}</div>
     </div>`).join(''):'<div style="text-align:center;color:#6a94b0;font-size:12px;padding:24px;">기록된 브리핑이 없습니다.</div>'}
     </div>
@@ -2657,7 +2657,7 @@ function openTrailLog(_fresh){
   modal.id='trailLogModal';modal.className='modal on';
   modal.innerHTML=`<div class="mbox"><div class="mhdr"><span class="mtitle">🚧 통제 변경 이력 <span style="font-size:11px;color:#6a94b0;font-weight:600;">(${log.length}건)</span></span><button class="mclose" onclick="document.getElementById('trailLogModal').remove()">×</button></div>
     <div style="max-height:60vh;overflow-y:auto;">
-    ${log.length?log.map(e=>`<div style="background:#060d1a;border-radius:9px;padding:10px 12px;margin-bottom:7px;border:1px solid rgba(230,126,34,.15);">
+    ${log.length?log.map(e=>`<div style="background:#16181d;border-radius:9px;padding:10px 12px;margin-bottom:7px;border:1px solid rgba(230,126,34,.15);">
       <div style="font-size:10px;color:#e67e22;font-weight:700;margin-bottom:5px;">${_esc(e.time||'')} · ${_esc(e.by||'')}${e.note?` <span style="color:#8aa6bc;font-weight:400;">— ${_esc(e.note)}</span>`:''}</div>
       ${(e.changes||[]).map(c=>`<div style="font-size:11.5px;color:#cfe2f2;line-height:1.7;">${_esc(c.name)}: <span style="color:${SC[c.from]||'#888'};">${_esc(c.from)}</span> → <span style="color:${SC[c.to]||'#888'};font-weight:700;">${_esc(c.to)}</span></div>`).join('')}
     </div>`).join(''):'<div style="text-align:center;color:#6a94b0;font-size:12px;padding:24px;">변경 이력이 없습니다.</div>'}
@@ -2714,7 +2714,7 @@ function openAlertHistory(opId){
 }
 function _renderAlertOpDetail(op){
   const opLevel=_opLevel(op);
-  const lvColor=ALERT_LEVEL_COLORS[opLevel]||'#4fa8d0';
+  const lvColor=ALERT_LEVEL_COLORS[opLevel]||'#3182f6';
   const alertChips=(op.alerts||_opAlerts(op)).map(a=>`<span class="ao-alert-chip ${a.source==='auto'?'auto':'manual'}">${a.drill||op.drill?'🎯훈련':a.source==='auto'?'📡자동':'✋수동'} <b>${_esc(a.type)}${_stageShort(a.stage)}</b></span>`).join('')||'<span style="font-size:11px;color:#456a85;">-</span>';
   // 응소자: 관측소별 그룹
   const resps=op.responders||[];
@@ -2771,7 +2771,7 @@ function openAddResponder(id,presetLoc){
   // 분소 카드에서 호출 시 소속 고정, 그렇지 않으면 선택 가능
   const locWrap=document.getElementById('respLocPills');
   if(presetLoc){
-    locWrap.innerHTML=`<span style="font-size:12px;font-weight:700;color:#e0edf8;background:rgba(79,168,208,.15);border:1px solid rgba(79,168,208,.3);border-radius:20px;padding:4px 12px;">${_esc(_stationLabel(presetLoc))}</span>`;
+    locWrap.innerHTML=`<span style="font-size:12px;font-weight:700;color:#e0edf8;background:rgba(49,130,246,.15);border:1px solid rgba(49,130,246,.3);border-radius:20px;padding:4px 12px;">${_esc(_stationLabel(presetLoc))}</span>`;
   }else{
     _renderStationPills('respLocPills',_respLoc,'selRespLoc');
   }
@@ -2784,7 +2784,7 @@ function openAddResponder(id,presetLoc){
   });
   // 등록된 직원 빠른선택
   const users=(DB.g('pendingUsers')||[]).filter(u=>u.approvalStatus==='approved');
-  document.getElementById('respNameQuickWrap').innerHTML=users.map(u=>`<div onclick="document.getElementById('respNameIn').value='${_escq(u.realName||u.name||'')}'" style="cursor:pointer;background:rgba(79,168,208,.08);border:1px solid rgba(79,168,208,.2);color:#7db8d8;border-radius:20px;padding:3px 9px;font-size:10px;font-weight:600;">${_esc(u.realName||u.name||'')}</div>`).join('');
+  document.getElementById('respNameQuickWrap').innerHTML=users.map(u=>`<div onclick="document.getElementById('respNameIn').value='${_escq(u.realName||u.name||'')}'" style="cursor:pointer;background:rgba(49,130,246,.08);border:1px solid rgba(49,130,246,.2);color:#7db8d8;border-radius:20px;padding:3px 9px;font-size:10px;font-weight:600;">${_esc(u.realName||u.name||'')}</div>`).join('');
   document.getElementById('modalAlertResp').classList.add('on');
 }
 function selRespLoc(el,v){document.querySelectorAll('#respLocPills .pill').forEach(p=>p.classList.remove('on'));el.classList.add('on');_respLoc=v;}
@@ -2990,7 +2990,7 @@ function openAlertReport(opId,presetLoc){
   // 특정 관측소(대피소·본소·분소)에서 보고하면 그 관측소로 고정 — 다른 관측소 재선택 차단
   const _rlw=document.getElementById('reportLocPills');
   if(presetLoc&&_rlw){
-    _rlw.innerHTML=`<span style="font-size:12px;font-weight:700;color:#e0edf8;background:rgba(79,168,208,.15);border:1px solid rgba(79,168,208,.3);border-radius:20px;padding:4px 12px;">📍 ${_esc(_stationLabel(presetLoc))}</span>`;
+    _rlw.innerHTML=`<span style="font-size:12px;font-weight:700;color:#e0edf8;background:rgba(49,130,246,.15);border:1px solid rgba(49,130,246,.3);border-radius:20px;padding:4px 12px;">📍 ${_esc(_stationLabel(presetLoc))}</span>`;
   }else{
     _renderStationPills('reportLocPills',_reportLoc,'selReportLoc');
   }
@@ -3002,7 +3002,7 @@ function openAlertReport(opId,presetLoc){
   // 해당 관측소 응소자 빠른선택
   const op=(DB.g('alertOps')||[]).find(o=>o.id===opId);
   const resps=op?(op.responders||[]).filter(r=>!_reportLoc||(r.loc||'사무소')===_reportLoc):[];
-  document.getElementById('reportObsQuick').innerHTML=resps.map(r=>`<div onclick="document.getElementById('reportObserver').value='${_escq(r.name)}'" style="cursor:pointer;background:rgba(79,168,208,.08);border:1px solid rgba(79,168,208,.2);color:#7db8d8;border-radius:20px;padding:3px 9px;font-size:10px;font-weight:600;">${_esc(r.name)}</div>`).join('');
+  document.getElementById('reportObsQuick').innerHTML=resps.map(r=>`<div onclick="document.getElementById('reportObserver').value='${_escq(r.name)}'" style="cursor:pointer;background:rgba(49,130,246,.08);border:1px solid rgba(49,130,246,.2);color:#7db8d8;border-radius:20px;padding:3px 9px;font-size:10px;font-weight:600;">${_esc(r.name)}</div>`).join('');
   // 특보 종류에 따라 입력 필드 표시·숨김 및 모달 제목 변경
   const mt=_alertMeasureType(op||{});
   const snowEl=document.getElementById('reportSnow');
@@ -3095,10 +3095,10 @@ function renderAdmCtrl(){
   const ongoing=res.filter(r=>r.status==='ongoing');
   const warned=facs.filter(f=>_facWarn(f));
   const hazOpen=haz.filter(h=>!h.hazStatus||h.hazStatus==='미조치'||h.hazStatus==='조치중');
-  const seg=(lbl,k,n,col)=>`<button onclick="admCtrlTab('${k}')" style="flex:1;padding:9px 4px;border:none;border-radius:8px;font-size:11.5px;font-weight:800;cursor:pointer;white-space:nowrap;background:${t===k?'rgba(79,168,208,.18)':'transparent'};color:${t===k?'#7fc4e0':'#6a8296'};">${lbl}${n?` <span style="background:${col||'#e05050'};color:#fff;border-radius:8px;padding:0 5px;font-size:9px;">${n}</span>`:''}</button>`;
-  const chip=(lbl,on,onclick,col)=>`<span onclick="${onclick}" style="cursor:pointer;display:inline-block;padding:5px 11px;margin:0 4px 4px 0;border-radius:13px;font-size:11px;font-weight:700;border:1px solid ${on?(col||'#4fa8d0'):'rgba(255,255,255,.12)'};background:${on?'rgba(79,168,208,.16)':'transparent'};color:${on?(col||'#7fc4e0'):'#6a8296'};">${lbl}</span>`;
-  const inp='background:#060d1a;border:1px solid rgba(255,255,255,.12);color:#cfe2f2;border-radius:8px;padding:7px 9px;font-size:12px;width:100%;box-sizing:border-box;margin-bottom:7px;';
-  let html=`<div style="display:flex;gap:3px;background:#0a1626;border:1px solid rgba(79,168,208,.15);border-radius:10px;padding:3px;margin-bottom:11px;">${seg('📊 현황','dash')}${seg('🚨 구조','res',ongoing.length)}${seg('🛠️ 시설물','fac',warned.length,'#e67e22')}${seg('⚠️ 위험','haz',hazOpen.length,'#e67e22')}</div>`;
+  const seg=(lbl,k,n,col)=>`<button onclick="admCtrlTab('${k}')" style="flex:1;padding:9px 4px;border:none;border-radius:8px;font-size:11.5px;font-weight:800;cursor:pointer;white-space:nowrap;background:${t===k?'rgba(49,130,246,.18)':'transparent'};color:${t===k?'#7fc4e0':'#6a8296'};">${lbl}${n?` <span style="background:${col||'#e05050'};color:#fff;border-radius:8px;padding:0 5px;font-size:9px;">${n}</span>`:''}</button>`;
+  const chip=(lbl,on,onclick,col)=>`<span onclick="${onclick}" style="cursor:pointer;display:inline-block;padding:5px 11px;margin:0 4px 4px 0;border-radius:13px;font-size:11px;font-weight:700;border:1px solid ${on?(col||'#3182f6'):'rgba(255,255,255,.12)'};background:${on?'rgba(49,130,246,.16)':'transparent'};color:${on?(col||'#7fc4e0'):'#6a8296'};">${lbl}</span>`;
+  const inp='background:#16181d;border:1px solid rgba(255,255,255,.12);color:#cfe2f2;border-radius:8px;padding:7px 9px;font-size:12px;width:100%;box-sizing:border-box;margin-bottom:7px;';
+  let html=`<div style="display:flex;gap:3px;background:#0a1626;border:1px solid rgba(49,130,246,.15);border-radius:10px;padding:3px;margin-bottom:11px;">${seg('📊 현황','dash')}${seg('🚨 구조','res',ongoing.length)}${seg('🛠️ 시설물','fac',warned.length,'#e67e22')}${seg('⚠️ 위험','haz',hazOpen.length,'#e67e22')}</div>`;
   if(t==='dash'){
     html+=`<div class="scard" style="margin-bottom:8px;">
       <div class="stitle">📊 전체 현황</div>
@@ -3238,7 +3238,7 @@ function renderAdmMembers(){
     </div>
   </div>
   <div style="font-size:11px;color:#7a9cb8;margin-bottom:8px;line-height:1.6;">카카오 로그인 이력 + DB 접근 권한을 한 곳에서 관리합니다. 역할을 지정하면 즉시 적용됩니다.</div>
-  <div style="font-size:11px;color:#9bbdd4;margin-bottom:8px;">총 <b style="color:#e0edf8;">${fu.length}</b>명 · 관리자 <b style="color:#5dbf8a;">${adminCnt}</b> · 멤버 <b style="color:#4fa8d0;">${memberCnt}</b>${facMgrCnt?` · 🔧담당 <b style="color:#f0a500;">${facMgrCnt}</b>`:''}${pendingNew.length?` · <b style="color:#e67e22;">신규 ${pendingNew.length}</b>`:''}</div>
+  <div style="font-size:11px;color:#9bbdd4;margin-bottom:8px;">총 <b style="color:#e0edf8;">${fu.length}</b>명 · 관리자 <b style="color:#5dbf8a;">${adminCnt}</b> · 멤버 <b style="color:#3182f6;">${memberCnt}</b>${facMgrCnt?` · 🔧담당 <b style="color:#f0a500;">${facMgrCnt}</b>`:''}${pendingNew.length?` · <b style="color:#e67e22;">신규 ${pendingNew.length}</b>`:''}</div>
   <div style="font-size:10px;color:#7a9cb8;background:rgba(240,165,0,.06);border:1px solid rgba(240,165,0,.18);border-radius:8px;padding:7px 9px;margin-bottom:10px;line-height:1.55;">🔧 <b style="color:#f0a500;">시설물 담당자</b>: 순찰자가 올린 <b>시설물 점검</b>을 재평가·회신하는 사람입니다. 지정된 담당자에게만 점검 알림이 갑니다. 이름 옆 🔧 버튼으로 지정하세요.</div>`;
 
   // ── 신규 승인 대기 섹션 (최상단 강조) ──
@@ -3259,7 +3259,7 @@ function renderAdmMembers(){
 
   html+=`
   <div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:10px;">
-    ${chips.map(d=>`<div onclick="setAdmMemberFilter('${d}')" style="padding:4px 10px;border-radius:20px;font-size:10px;font-weight:700;cursor:pointer;${d===_admMemberFilter?'background:#1a4a6e;color:#4fa8d0;':'background:#0b1c30;color:#4a7090;border:1px solid #1a3a5a;'}">${d}</div>`).join('')}
+    ${chips.map(d=>`<div onclick="setAdmMemberFilter('${d}')" style="padding:4px 10px;border-radius:20px;font-size:10px;font-weight:700;cursor:pointer;${d===_admMemberFilter?'background:#1a4a6e;color:#3182f6;':'background:#20242c;color:#4a7090;border:1px solid #1a3a5a;'}">${d}</div>`).join('')}
   </div>`;
 
   if(!fu.length){
@@ -3267,7 +3267,7 @@ function renderAdmMembers(){
   } else {
     html+=fu.map(u=>{
       const role=roleOf(u.kakaoId);
-      const roleBadge=role==='admin'?'<span style="color:#5dbf8a;font-size:10px;font-weight:700;">관리자</span>':role==='member'?'<span style="color:#4fa8d0;font-size:10px;font-weight:700;">멤버</span>':'<span style="color:#7a5040;font-size:10px;">미등록</span>';
+      const roleBadge=role==='admin'?'<span style="color:#5dbf8a;font-size:10px;font-weight:700;">관리자</span>':role==='member'?'<span style="color:#3182f6;font-size:10px;font-weight:700;">멤버</span>':'<span style="color:#7a5040;font-size:10px;">미등록</span>';
       const isFacMgr=facMgrs.indexOf(String(u.kakaoId))>=0;
       const facMgrBadge=isFacMgr?'<span style="color:#f0a500;font-size:10px;font-weight:700;">🔧담당</span>':'';
       const appBadge=u.approvalStatus==='approved'?'<span style="color:#7ec8a0;font-size:9px;">✅승인</span>':(u.approvalStatus?'<span style="color:#e67e22;font-size:9px;">⏳대기</span>':'');
@@ -3283,13 +3283,13 @@ function renderAdmMembers(){
           <div style="display:flex;align-items:center;gap:4px;flex-shrink:0;">
             ${_isDeveloper(u.kakaoId)
               ?`<span style="font-size:10px;color:#5dbf8a;font-weight:800;background:rgba(39,174,96,.12);border:1px solid rgba(39,174,96,.3);border-radius:7px;padding:4px 8px;">👨‍💻 개발자</span>`
-              :`<select onchange="_aclSetRole('${_escq(u.kakaoId)}',this.value)" style="background:#0a1626;color:#cfe2f2;border:1px solid rgba(79,168,208,.25);border-radius:7px;padding:4px 5px;font-size:10px;cursor:pointer;">
+              :`<select onchange="_aclSetRole('${_escq(u.kakaoId)}',this.value)" style="background:#0a1626;color:#cfe2f2;border:1px solid rgba(49,130,246,.25);border-radius:7px;padding:4px 5px;font-size:10px;cursor:pointer;">
               <option value="none"${role==='none'?' selected':''}>미등록</option>
               <option value="member"${role==='member'?' selected':''}>멤버</option>
               <option value="admin"${role==='admin'?' selected':''}>관리자</option>
             </select>`}
             <button onclick="_toggleFacManager('${_escq(u.kakaoId)}')" title="시설물 점검 담당자 지정/해제" style="background:${isFacMgr?'rgba(240,165,0,.18)':'rgba(255,255,255,.04)'};color:${isFacMgr?'#f0a500':'#6a8296'};border:1px solid ${isFacMgr?'rgba(240,165,0,.4)':'rgba(255,255,255,.12)'};border-radius:6px;padding:4px 7px;font-size:10px;cursor:pointer;">🔧</button>
-            <button onclick="_toggleAdmMemberEdit('${_escq(editId)}')" style="background:rgba(79,168,208,.12);color:#4fa8d0;border:1px solid rgba(79,168,208,.25);border-radius:6px;padding:4px 7px;font-size:10px;cursor:pointer;">수정</button>
+            <button onclick="_toggleAdmMemberEdit('${_escq(editId)}')" style="background:rgba(49,130,246,.12);color:#3182f6;border:1px solid rgba(49,130,246,.25);border-radius:6px;padding:4px 7px;font-size:10px;cursor:pointer;">수정</button>
             ${role==='none'&&!_isDeveloper(u.kakaoId)?`<button onclick="grantMember('${_escq(u.kakaoId)}')" style="background:rgba(39,174,96,.15);color:#7ec8a0;border:1px solid rgba(39,174,96,.3);border-radius:6px;padding:4px 7px;font-size:10px;cursor:pointer;">승인</button>`:''}
             ${!_isDeveloper(u.kakaoId)?`<button onclick="removeStaff('${_escq(u.kakaoId)}')" style="background:rgba(192,57,43,.15);color:#ff8a80;border:1px solid rgba(192,57,43,.25);border-radius:6px;padding:4px 7px;font-size:10px;cursor:pointer;">탈퇴</button>`:''}
           </div>
@@ -3301,7 +3301,7 @@ function renderAdmMembers(){
             ${deptOpts.map(d=>`<option value="${d}"${u.dept===d?' selected':''}>${d}</option>`).join('')}
           </select>
           <div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:8px;" id="admME_ranks_${editId}">
-            ${rankOpts.map(r=>`<div onclick="_toggleAdmRank('${_escq(editId)}','${r}')" id="admMER_${editId}_${r}" style="cursor:pointer;border-radius:20px;font-size:10px;font-weight:700;padding:4px 10px;border:1px solid;${u.rank===r?'background:rgba(79,168,208,.2);color:#4fa8d0;border-color:rgba(79,168,208,.5);':'background:rgba(255,255,255,.04);color:rgba(255,255,255,.4);border-color:rgba(255,255,255,.12);'}">${r}</div>`).join('')}
+            ${rankOpts.map(r=>`<div onclick="_toggleAdmRank('${_escq(editId)}','${r}')" id="admMER_${editId}_${r}" style="cursor:pointer;border-radius:20px;font-size:10px;font-weight:700;padding:4px 10px;border:1px solid;${u.rank===r?'background:rgba(49,130,246,.2);color:#3182f6;border-color:rgba(49,130,246,.5);':'background:rgba(255,255,255,.04);color:rgba(255,255,255,.4);border-color:rgba(255,255,255,.12);'}">${r}</div>`).join('')}
           </div>
           <div style="display:flex;gap:6px;">
             <button onclick="_saveAdmMemberByKakao('${_escq(u.kakaoId)}','${_escq(editId)}')" style="flex:1;background:#1a4a6e;color:#fff;border:none;padding:7px;border-radius:7px;font-size:11px;font-weight:700;cursor:pointer;">저장</button>
@@ -3355,9 +3355,9 @@ function _toggleAdmRank(uid,rank){
     const el=document.getElementById(`admMER_${uid}_${r}`);
     if(!el)return;
     const on=r===rank;
-    el.style.background=on?'rgba(79,168,208,.2)':'rgba(255,255,255,.04)';
-    el.style.color=on?'#4fa8d0':'rgba(255,255,255,.4)';
-    el.style.borderColor=on?'rgba(79,168,208,.5)':'rgba(255,255,255,.12)';
+    el.style.background=on?'rgba(49,130,246,.2)':'rgba(255,255,255,.04)';
+    el.style.color=on?'#3182f6':'rgba(255,255,255,.4)';
+    el.style.borderColor=on?'rgba(49,130,246,.5)':'rgba(255,255,255,.12)';
     el.dataset.sel=on?'1':'';
   });
 }
@@ -3367,7 +3367,7 @@ function renderAdmCat(){
   const togHtml=(id,label,checked)=>`<label style="display:flex;align-items:center;gap:6px;font-size:11px;color:#7a9cb8;cursor:pointer;margin-top:5px;"><input type="checkbox" id="${id}"${checked?' checked':''}> ${label}</label>`;
   const rowsHtml=cats.map((c,i)=>{
     const m=meta[c]||{};
-    const badges=(m.rescue?'<span style="font-size:9px;background:rgba(79,168,208,.15);color:#4fa8d0;border:1px solid rgba(79,168,208,.3);border-radius:3px;padding:1px 5px;margin-right:3px;">🗺 재난</span>':'')+(m.adminOnly?'<span style="font-size:9px;background:rgba(192,57,43,.12);color:#e05050;border:1px solid rgba(192,57,43,.3);border-radius:3px;padding:1px 5px;">🔒 관리자</span>':'');
+    const badges=(m.rescue?'<span style="font-size:9px;background:rgba(49,130,246,.15);color:#3182f6;border:1px solid rgba(49,130,246,.3);border-radius:3px;padding:1px 5px;margin-right:3px;">🗺 재난</span>':'')+(m.adminOnly?'<span style="font-size:9px;background:rgba(192,57,43,.12);color:#e05050;border:1px solid rgba(192,57,43,.3);border-radius:3px;padding:1px 5px;">🔒 관리자</span>':'');
     return `<div style="border-bottom:1px solid rgba(255,255,255,.05);padding:6px 0;">
       <div class="adm-row" style="margin-bottom:0;">
         <div class="adm-info" style="flex:1;min-width:0;">
@@ -3456,7 +3456,7 @@ function renderAdmSheets(){
     <div class="scard" style="margin-bottom:8px;">
       <div class="stitle">🎯 커스텀 사고유형 아이콘</div>
       <div style="font-size:11px;color:#7a9cb8;margin-bottom:8px;">'기타'로 직접 입력해 쓰는 사고유형(예: 낙석, 화재)에 전용 지도 아이콘을 지정. 등록하면 전 기기에 공유됩니다.</div>
-      <div id="customTypeList">${(DB.g('customResTypes')||[]).map((t,i)=>`<div style="display:flex;align-items:center;gap:8px;padding:6px 10px;background:#0b1c30;border-radius:7px;margin-bottom:4px;border:1px solid rgba(255,255,255,.07);">
+      <div id="customTypeList">${(DB.g('customResTypes')||[]).map((t,i)=>`<div style="display:flex;align-items:center;gap:8px;padding:6px 10px;background:#20242c;border-radius:7px;margin-bottom:4px;border:1px solid rgba(255,255,255,.07);">
         <span style="font-size:16px;">${_esc(t.ico||'⚠️')}</span><span style="flex:1;font-size:12px;color:#e0edf8;font-weight:600;">${_esc(t.name||'')}</span>
         <button onclick="delCustomResType(${i})" style="background:rgba(192,57,43,.15);color:#c0392b;border:none;border-radius:5px;padding:3px 9px;font-size:11px;cursor:pointer;">삭제</button>
       </div>`).join('')||'<div style="font-size:11px;color:#3a4a6a;padding:4px 2px;">등록된 커스텀 유형 없음</div>'}</div>
@@ -3787,7 +3787,7 @@ function renderAdmSys(){
     <div class="scard" style="margin-bottom:8px;display:none;">
       <div class="stitle">🔄 앱 업데이트</div>
       <div style="font-size:11px;color:#7a9cb8;margin-bottom:8px;">현재 버전 <b style="color:#cfe2f2;">${OTA_VER}</b> · 앱(APK)은 재설치 없이 최신 코드로 자체 업데이트됩니다. (웹은 새로고침 시 자동)</div>
-      <button onclick="_otaCheck(true)" style="width:100%;padding:11px;border-radius:8px;border:1px solid rgba(79,168,208,.4);background:rgba(79,168,208,.12);color:#4fa8d0;font-size:13px;font-weight:700;cursor:pointer;">🔄 업데이트 확인 / 적용</button>
+      <button onclick="_otaCheck(true)" style="width:100%;padding:11px;border-radius:8px;border:1px solid rgba(49,130,246,.4);background:rgba(49,130,246,.12);color:#3182f6;font-size:13px;font-weight:700;cursor:pointer;">🔄 업데이트 확인 / 적용</button>
     </div>
     <div class="scard" style="margin-bottom:8px;">
       <div class="stitle">🆘 조난·사고자 위치 접수</div>
@@ -3801,7 +3801,7 @@ function renderAdmSys(){
       <div style="display:flex;justify-content:space-between;align-items:center;margin:9px 0 3px;">
         <span style="font-size:10px;color:#5a8aaa;font-weight:700;">🌐 전체 기기 (누가·웹/앱)</span>
         <span style="display:flex;gap:5px;">
-          <button onclick="_loadAllErrLogs()" style="background:rgba(79,168,208,.12);color:#4fa8d0;border:1px solid rgba(79,168,208,.28);border-radius:14px;padding:3px 10px;font-size:10px;font-weight:700;cursor:pointer;">불러오기 ↻</button>
+          <button onclick="_loadAllErrLogs()" style="background:rgba(49,130,246,.12);color:#3182f6;border:1px solid rgba(49,130,246,.28);border-radius:14px;padding:3px 10px;font-size:10px;font-weight:700;cursor:pointer;">불러오기 ↻</button>
           <button onclick="_clearAllErrLogs()" style="background:rgba(192,57,43,.1);color:#e0857a;border:1px solid rgba(192,57,43,.28);border-radius:14px;padding:3px 10px;font-size:10px;font-weight:700;cursor:pointer;">전체 비우기</button>
         </span>
       </div>
@@ -3814,7 +3814,7 @@ function renderAdmSys(){
         <div style="font-size:12px;font-weight:800;color:#5dbf8a;margin-bottom:5px;">👥 모두에게</div>
         <div style="font-size:11px;color:#b8d4e8;line-height:1.85;">안전사고·낙석·위험수목·화재 등 현장 위험상황 · 응소 요청 · 진행중 경과/상황 종료 · 위험 시설물 · 기상특보·재난위기경보·탐방로 통제·기상 브리핑</div>
       </div>
-      <div style="background:rgba(79,168,208,.06);border:1px solid rgba(79,168,208,.25);border-radius:9px;padding:10px 11px;">
+      <div style="background:rgba(49,130,246,.06);border:1px solid rgba(49,130,246,.25);border-radius:9px;padding:10px 11px;">
         <div style="font-size:12px;font-weight:800;color:#7dd3fa;margin-bottom:5px;">🔑 관리자에게만</div>
         <div style="font-size:11px;color:#b8d4e8;line-height:1.85;">새 직원 가입 승인 요청 · 관리자 권한 요청 · 정보 정정 요청</div>
       </div>
@@ -3826,10 +3826,10 @@ function renderAdmSys(){
         ${(()=>{
           const depts=new Set();
           [].concat(DB.g('loginLog')||[],DB.g('pendingUsers')||[]).forEach(e=>{if(e&&e.dept)depts.add(e.dept);});
-          const lbl='display:inline-flex;align-items:center;gap:5px;background:#0b1c30;border:1px solid rgba(79,168,208,.25);border-radius:18px;padding:7px 12px;font-size:12px;color:#cfe2f2;cursor:pointer;';
+          const lbl='display:inline-flex;align-items:center;gap:5px;background:#20242c;border:1px solid rgba(49,130,246,.25);border-radius:18px;padding:7px 12px;font-size:12px;color:#cfe2f2;cursor:pointer;';
           const chips=[...depts].sort().map(d=>`<label style="${lbl}"><input type="checkbox" class="pushDept" value="${_esc(d)}" onchange="_pushDeptChanged()" style="width:15px;height:15px;">${_esc(d)}</label>`).join('');
           return `<div id="pushTargetChips" style="display:flex;flex-wrap:wrap;gap:7px;">
-            <label style="${lbl}background:rgba(79,168,208,.12);"><input type="checkbox" id="pushAll" checked onchange="_pushToggleAll(this)" style="width:15px;height:15px;">📢 전체</label>
+            <label style="${lbl}background:rgba(49,130,246,.12);"><input type="checkbox" id="pushAll" checked onchange="_pushToggleAll(this)" style="width:15px;height:15px;">📢 전체</label>
             ${chips}
           </div>`;
         })()}
@@ -3864,7 +3864,7 @@ function renderAdmSys(){
       <div style="font-size:11px;color:#7a9cb8;margin-bottom:10px;">시설물·구조이력·위키 전체를 JSON 파일로 내보내거나 복원합니다</div>
       <div style="display:flex;flex-direction:column;gap:7px;">
         <button onclick="exportAllData()" style="width:100%;background:rgba(39,174,96,.12);color:#5dbf8a;border:1px solid rgba(39,174,96,.3);padding:10px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;">📤 JSON 내보내기 (백업)</button>
-        <label style="width:100%;background:rgba(79,168,208,.1);color:#4fa8d0;border:1px solid rgba(79,168,208,.28);padding:10px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;text-align:center;display:block;">
+        <label style="width:100%;background:rgba(49,130,246,.1);color:#3182f6;border:1px solid rgba(49,130,246,.28);padding:10px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;text-align:center;display:block;">
           📥 JSON 가져오기 (복원)
           <input type="file" accept=".json" style="display:none;" onchange="importAllData(this)">
         </label>

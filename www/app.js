@@ -30,7 +30,7 @@ function renderSettings(){
       <div class="scard" style="margin-bottom:8px;">
         <div class="stitle">🔄 앱 업데이트</div>
         <div style="font-size:11px;color:#7a9cb8;margin-bottom:8px;">현재 버전 <b style="color:#cfe2f2;">${OTA_VER}</b> · 앱은 재설치 없이 최신으로 자체 업데이트됩니다. (웹은 새로고침 시 자동)</div>
-        <button onclick="_otaCheck(true)" style="width:100%;padding:11px;border-radius:8px;border:1px solid rgba(79,168,208,.4);background:rgba(79,168,208,.12);color:#4fa8d0;font-size:13px;font-weight:700;cursor:pointer;">🔄 업데이트 확인 / 적용</button>
+        <button onclick="_otaCheck(true)" style="width:100%;padding:11px;border-radius:8px;border:1px solid rgba(49,130,246,.4);background:rgba(49,130,246,.12);color:#3182f6;font-size:13px;font-weight:700;cursor:pointer;">🔄 업데이트 확인 / 적용</button>
       </div>
       <div class="scard" style="margin-bottom:8px;">
         <div class="stitle">📴 오프라인 대비 (무통신 산악지역)</div>
@@ -42,10 +42,10 @@ function renderSettings(){
         <button onclick="preloadParkTiles()" style="width:100%;padding:11px;border-radius:8px;border:1px solid rgba(94,207,143,.35);background:rgba(94,207,143,.1);color:#5fcf8f;font-size:13px;font-weight:700;cursor:pointer;margin-bottom:6px;">⬇️ 설악산 인근 지도 미리받기</button>
         <button onclick="clearTileCache()" style="width:100%;padding:8px;border-radius:8px;border:1px solid rgba(255,255,255,.1);background:none;color:#5a7e98;font-size:11px;font-weight:600;cursor:pointer;">🗑️ 지도 캐시 비우기</button>
       </div>
-      <a href="https://github.com/seorak1275/seoraksan/releases/latest" target="_blank" style="display:flex;align-items:center;gap:10px;background:#0b1c30;border:1px solid rgba(79,168,208,.18);border-radius:10px;padding:11px 13px;text-decoration:none;flex-shrink:0;">
+      <a href="https://github.com/seorak1275/seoraksan/releases/latest" target="_blank" style="display:flex;align-items:center;gap:10px;background:#20242c;border:1px solid rgba(49,130,246,.18);border-radius:10px;padding:11px 13px;text-decoration:none;flex-shrink:0;">
         <span style="font-size:18px;">📱</span>
         <div style="flex:1;"><div style="font-size:12px;font-weight:700;color:#e0edf8;">안드로이드 APK 다운로드</div><div style="font-size:10px;color:#3a6a8a;margin-top:1px;">최신 빌드 받기 (GitHub Releases)</div></div>
-        <span style="font-size:11px;color:#4fa8d0;">↗</span>
+        <span style="font-size:11px;color:#3182f6;">↗</span>
       </a>`;
     setTimeout(function(){try{_updateTileCacheInfo();}catch(e){}},0);
   } else {
@@ -62,7 +62,7 @@ function renderSettings(){
       </div>
       <div class="scard">
         <div class="stitle" style="display:flex;align-items:center;justify-content:space-between;">🔔 알림 설정
-          <button onclick="togNotiAll(${allOn?'false':'true'})" style="font-size:10px;font-weight:700;background:rgba(79,168,208,.12);color:#4fa8d0;border:1px solid rgba(79,168,208,.3);border-radius:7px;padding:4px 9px;cursor:pointer;">${allOn?'전체 끄기':'전체 켜기'}</button>
+          <button onclick="togNotiAll(${allOn?'false':'true'})" style="font-size:10px;font-weight:700;background:rgba(49,130,246,.12);color:#3182f6;border:1px solid rgba(49,130,246,.3);border-radius:7px;padding:4px 9px;cursor:pointer;">${allOn?'전체 끄기':'전체 켜기'}</button>
         </div>
         <div class="tog-sub" style="margin:-4px 0 8px;color:#5a7e98;">기본은 <b style="color:#5dbf8a;">모두에게</b> 옵니다. 아래에서 내가 받을 알림을 직접 켜고 끄세요. ('(앱 내만)'은 OS 푸시 없이 앱 벨로만)</div>
         ${NOTI_GROUPS.map(g=>`
@@ -640,7 +640,7 @@ function kmaWarnDiag(){
     var ov=document.getElementById('kmaDiagOv');if(ov)ov.remove();
     ov=document.createElement('div');ov.id='kmaDiagOv';
     ov.style.cssText='position:fixed;inset:0;z-index:9800;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;padding:16px;';
-    ov.innerHTML='<div style="background:#0a1828;border:1px solid rgba(79,168,208,.3);border-radius:14px;max-width:420px;width:100%;max-height:82vh;overflow-y:auto;padding:15px;">'
+    ov.innerHTML='<div style="background:#0a1828;border:1px solid rgba(49,130,246,.3);border-radius:14px;max-width:420px;width:100%;max-height:82vh;overflow-y:auto;padding:15px;">'
       +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;"><b style="font-size:14px;color:#e0edf8;">📡 기상청 특보 수신 진단</b><button onclick="document.getElementById(\'kmaDiagOv\').remove()" style="background:none;border:none;color:rgba(255,255,255,.5);font-size:20px;cursor:pointer;">×</button></div>'
       +'<div style="font-size:10px;color:#5d92bc;font-weight:800;margin-bottom:4px;">연결 경로</div>'+srcHtml
       +((rows[0]&&!rows[0].ok&&rows.some(function(r){return r&&r.ok;}))?'<div style="margin-top:8px;font-size:11px;color:#ffb04d;background:rgba(240,165,0,.08);border:1px solid rgba(240,165,0,.3);border-radius:8px;padding:8px;line-height:1.6;">⚠️ 전용 프록시(Cloudflare)가 응답하지 않습니다. 지금은 공개 프록시로 수신되어 동작엔 문제없지만, 공개 프록시는 언제든 막힐 수 있으니 Cloudflare 대시보드에서 워커(seoraksan-kma) 상태를 확인하세요.</div>':'')
@@ -648,7 +648,7 @@ function kmaWarnDiag(){
       +'<div style="font-size:10px;color:#5d92bc;font-weight:800;margin:12px 0 4px;">파싱 결과 (강원 영동 필터)</div>'+parseHtml
       +'<div style="font-size:10px;color:#5d92bc;font-weight:800;margin:12px 0 4px;">응답 원문 (앞 600자)</div>'
       +'<pre style="font-size:9px;color:#8fb4cc;background:rgba(255,255,255,.03);border-radius:8px;padding:8px;white-space:pre-wrap;word-break:break-all;max-height:180px;overflow-y:auto;">'+String(prev).replace(/</g,'&lt;')+'</pre>'
-      +'<button onclick="document.getElementById(\'kmaDiagOv\').remove();_kmaWrnCache=null;_kmaWrnCacheAt=0;kmaWarnDiag();" style="margin-top:10px;width:100%;padding:9px;border-radius:9px;border:1px solid rgba(79,168,208,.35);background:rgba(79,168,208,.1);color:#4fa8d0;font-size:12px;font-weight:700;cursor:pointer;">🔄 다시 진단</button></div>';
+      +'<button onclick="document.getElementById(\'kmaDiagOv\').remove();_kmaWrnCache=null;_kmaWrnCacheAt=0;kmaWarnDiag();" style="margin-top:10px;width:100%;padding:9px;border-radius:9px;border:1px solid rgba(49,130,246,.35);background:rgba(49,130,246,.1);color:#3182f6;font-size:12px;font-weight:700;cursor:pointer;">🔄 다시 진단</button></div>';
     ov.onclick=function(e){if(e.target===ov)ov.remove();};
     document.body.appendChild(ov);
   });
@@ -1705,9 +1705,9 @@ function openClimb(){
   ov=document.createElement('div');ov.id='climbPanel';
   // #app 안에 절대배치 — 재난/구조 등 다른 화면과 같은 프레임(최대 430px 중앙정렬·같은 높이)을 그대로 상속.
   // 예전엔 body에 fixed로 붙여 넓은 화면에서 전체폭으로 퍼져 규격이 달라 보였음.
-  ov.style.cssText='position:absolute;inset:0;z-index:9600;background:#060d1a;display:flex;flex-direction:column;';
+  ov.style.cssText='position:absolute;inset:0;z-index:9600;background:#16181d;display:flex;flex-direction:column;';
   const canMng=_canClimbManage();
-  ov.innerHTML=`<div style="display:flex;align-items:center;gap:8px;padding:calc(6px + env(safe-area-inset-top)) 10px 8px;border-bottom:1px solid rgba(79,168,208,.15);flex-shrink:0;">
+  ov.innerHTML=`<div style="display:flex;align-items:center;gap:8px;padding:calc(6px + env(safe-area-inset-top)) 10px 8px;border-bottom:1px solid rgba(49,130,246,.15);flex-shrink:0;">
       <button class="back-btn" onclick="history.back()">← 뒤로</button>
       <span style="font-size:16px;font-weight:800;color:#eaf2fa;">🧗 암벽 이용관리</span>
       ${canMng?`<label title="파일 선택 또는 화면으로 끌어다 놓기" style="margin-left:auto;background:rgba(94,207,143,.14);color:#5fcf8f;border:1px solid rgba(94,207,143,.35);border-radius:9px;padding:7px 12px;font-size:12px;font-weight:800;cursor:pointer;white-space:nowrap;">⬆️ 업로드<input type="file" accept=".xlsx,.xlsm,.xls" onchange="climbUpload(this)" style="display:none;"></label>`:''}
@@ -1732,8 +1732,8 @@ function openClimb(){
 function climbTab(t){_climbTab=t;_renderClimbActive();}
 function _renderClimbActive(){
   const b=document.getElementById('climbBody');if(!b)return;
-  const tb=(lbl,t)=>`<button onclick="climbTab('${t}')" style="flex:1;padding:9px 6px;border:none;border-radius:8px;font-size:12.5px;font-weight:800;cursor:pointer;background:${_climbTab===t?'rgba(79,168,208,.18)':'transparent'};color:${_climbTab===t?'#7fc4e0':'#6a8296'};">${lbl}</button>`;
-  b.innerHTML=`<div style="display:flex;gap:4px;background:#0a1626;border:1px solid rgba(79,168,208,.15);border-radius:10px;padding:3px;margin-bottom:12px;">${tb('📋 당일 명단','roster')}${tb('📊 통계·관리','stats')}</div><div id="climbInner"></div>`;
+  const tb=(lbl,t)=>`<button onclick="climbTab('${t}')" style="flex:1;padding:9px 6px;border:none;border-radius:8px;font-size:12.5px;font-weight:800;cursor:pointer;background:${_climbTab===t?'rgba(49,130,246,.18)':'transparent'};color:${_climbTab===t?'#7fc4e0':'#6a8296'};">${lbl}</button>`;
+  b.innerHTML=`<div style="display:flex;gap:4px;background:#0a1626;border:1px solid rgba(49,130,246,.15);border-radius:10px;padding:3px;margin-bottom:12px;">${tb('📋 당일 명단','roster')}${tb('📊 통계·관리','stats')}</div><div id="climbInner"></div>`;
   const all=_climbCache||[];
   if(_climbTab==='stats')_renderClimbStats(all);else _renderClimbRoster(all);
 }
@@ -1764,7 +1764,7 @@ function _renderClimbRoster(all){
   const callBtn=(ph,nm)=>ph?`<a href="tel:${_esc(String(ph).replace(/[^0-9+]/g,''))}" onclick="event.stopPropagation();" style="color:#7dd3fa;text-decoration:none;font-size:10.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">📞 ${_esc(ph)}</a>`:'';
   // 경력: 숫자만 뽑아 'N년' 표기 / 성별: 연한 색 칩(남=하늘·여=분홍)으로 우측 표시
   const expStr=e=>{const n=parseInt(String(e==null?'':e).replace(/[^\d]/g,''));return isNaN(n)?'':(n+'년');};
-  const gChip=g=>g==='남'?'<span style="flex-shrink:0;background:rgba(79,168,208,.16);color:#7fc4e0;border-radius:6px;padding:1px 7px;font-size:10px;font-weight:800;">남</span>'
+  const gChip=g=>g==='남'?'<span style="flex-shrink:0;background:rgba(49,130,246,.16);color:#7fc4e0;border-radius:6px;padding:1px 7px;font-size:10px;font-weight:800;">남</span>'
     :g==='여'?'<span style="flex-shrink:0;background:rgba(232,120,150,.16);color:#e8a0ba;border-radius:6px;padding:1px 7px;font-size:10px;font-weight:800;">여</span>':'';
   const person=(nm,gender,age,exp,ph,lead,acc)=>`<div style="display:flex;align-items:center;gap:7px;padding:3.5px 0;">
       <span style="font-size:12.5px;font-weight:${lead?'800':'600'};color:${acc?'#ff9a90':(lead?'#eaf2fa':'#cfe2f2')};flex-shrink:0;">${lead?'👤 ':'└ '}${_esc(nm||'-')}${acc?' <span style="font-size:9.5px;background:rgba(255,107,91,.16);color:#ff8a80;border-radius:5px;padding:1px 5px;font-weight:800;">🚨사고자</span>':''}</span>
@@ -1772,14 +1772,14 @@ function _renderClimbRoster(all){
       <span style="margin-left:auto;font-size:10px;color:#8fb4cc;flex-shrink:0;">${[age!=null?age+'세':'',expStr(exp)].filter(Boolean).join(' · ')}</span>
       ${gChip(gender)}</div>`;
   let html=`<div style="display:flex;align-items:center;gap:6px;margin-bottom:10px;">
-      <button onclick="climbRosterStep(-1)" ${idx<=0?'disabled':''} style="background:#0e2436;border:1px solid rgba(79,168,208,.25);color:#7fc4e0;border-radius:9px;padding:8px 11px;font-size:14px;font-weight:800;cursor:pointer;${idx<=0?'opacity:.35;':''}">◀</button>
+      <button onclick="climbRosterStep(-1)" ${idx<=0?'disabled':''} style="background:#0e2436;border:1px solid rgba(49,130,246,.25);color:#7fc4e0;border-radius:9px;padding:8px 11px;font-size:14px;font-weight:800;cursor:pointer;${idx<=0?'opacity:.35;':''}">◀</button>
       <div style="flex:1;text-align:center;">
         <div style="font-size:15px;font-weight:800;color:#eaf2fa;">${_esc(D)} <span style="font-size:12px;color:#7fc4e0;">(${wd})</span></div>
         <div style="font-size:11px;color:#8ab4cc;margin-top:1px;">${cancel?`<span style="color:#f0a44a;font-weight:800;">🚫 ${_esc(cancel.reason)} 취소</span>`:(day.length?`${day.length}팀 · ${people}명`:'예약 없음')}</div>
       </div>
-      <button onclick="climbRosterStep(1)" ${idx>=dates.length-1?'disabled':''} style="background:#0e2436;border:1px solid rgba(79,168,208,.25);color:#7fc4e0;border-radius:9px;padding:8px 11px;font-size:14px;font-weight:800;cursor:pointer;${idx>=dates.length-1?'opacity:.35;':''}">▶</button>
+      <button onclick="climbRosterStep(1)" ${idx>=dates.length-1?'disabled':''} style="background:#0e2436;border:1px solid rgba(49,130,246,.25);color:#7fc4e0;border-radius:9px;padding:8px 11px;font-size:14px;font-weight:800;cursor:pointer;${idx>=dates.length-1?'opacity:.35;':''}">▶</button>
     </div>
-    <input type="date" value="${_esc(D)}" onchange="climbRosterPick(this.value)" style="width:100%;background:#0a1626;color:#cfe2f2;border:1px solid rgba(79,168,208,.2);border-radius:8px;padding:8px;font-size:12px;margin-bottom:10px;">`;
+    <input type="date" value="${_esc(D)}" onchange="climbRosterPick(this.value)" style="width:100%;background:#0a1626;color:#cfe2f2;border:1px solid rgba(49,130,246,.2);border-radius:8px;padding:8px;font-size:12px;margin-bottom:10px;">`;
   // 오프라인(통신 음영지역)에서 저장본으로 보는 중이면 명확히 표시 — 언제 받은 명단인지 알 수 있게
   if(window._climbFromOffline||!navigator.onLine){
     html+=`<div style="display:flex;align-items:center;gap:7px;background:rgba(240,165,0,.09);border:1px solid rgba(240,165,0,.3);border-radius:9px;padding:8px 11px;margin-bottom:10px;">
@@ -1790,7 +1790,7 @@ function _renderClimbRoster(all){
   const distF=window._climbRosterDistF||'';
   const distsPresent=DORDER.filter(dist=>byDist[dist]&&byDist[dist].length);
   if(day.length&&distsPresent.length>1){
-    const chip=(lbl,val)=>`<span onclick="climbRosterDist('${val}')" style="display:inline-block;padding:6px 12px;margin:0 5px 5px 0;border-radius:15px;font-size:11.5px;font-weight:700;cursor:pointer;border:1px solid ${distF===val?'#7fc4e0':'rgba(79,168,208,.25)'};background:${distF===val?'rgba(79,168,208,.22)':'#0a1626'};color:${distF===val?'#aed8ee':'#8ab4cc'};white-space:nowrap;">${_esc(lbl)}</span>`;
+    const chip=(lbl,val)=>`<span onclick="climbRosterDist('${val}')" style="display:inline-block;padding:6px 12px;margin:0 5px 5px 0;border-radius:15px;font-size:11.5px;font-weight:700;cursor:pointer;border:1px solid ${distF===val?'#7fc4e0':'rgba(49,130,246,.25)'};background:${distF===val?'rgba(49,130,246,.22)':'#0a1626'};color:${distF===val?'#aed8ee':'#8ab4cc'};white-space:nowrap;">${_esc(lbl)}</span>`;
     html+=`<div style="display:flex;flex-wrap:wrap;margin-bottom:12px;">${chip('전체 '+people+'명','')}${distsPresent.map(dist=>chip(dist.replace('지구','')+' '+byDist[dist].reduce((s,r)=>s+(r.total||1),0),dist)).join('')}</div>`;
   }
   if(!day.length){
@@ -1802,7 +1802,7 @@ function _renderClimbRoster(all){
     const teams=byDist[dist];if(!teams||!teams.length)return;
     const byCourse={};teams.forEach(r=>{(byCourse[r.course||'-']=byCourse[r.course||'-']||[]).push(r);});
     const dPpl=teams.reduce((s,r)=>s+(r.total||1),0);
-    html+=`<div style="margin-bottom:12px;"><div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;"><span style="font-size:13.5px;font-weight:800;color:#7fc4e0;">🏔️ ${_esc(dist)}</span><span style="font-size:10px;color:#5a7e98;">${teams.length}팀 · ${dPpl}명</span><span style="flex:1;height:1px;background:rgba(79,168,208,.18);"></span></div>`;
+    html+=`<div style="margin-bottom:12px;"><div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;"><span style="font-size:13.5px;font-weight:800;color:#7fc4e0;">🏔️ ${_esc(dist)}</span><span style="font-size:10px;color:#5a7e98;">${teams.length}팀 · ${dPpl}명</span><span style="flex:1;height:1px;background:rgba(49,130,246,.18);"></span></div>`;
     Object.keys(byCourse).forEach(course=>{
       const cts=byCourse[course];const cPpl=cts.reduce((s,r)=>s+(r.total||1),0);
       html+=`<div class="scard" style="margin-bottom:7px;padding:9px 11px;">
@@ -1811,7 +1811,7 @@ function _renderClimbRoster(all){
         const a=r.applicant||{};
         const accMark=r.accident?(r.rescueId?` <span onclick="_climbOpenRescue(${r.rescueId})" style="color:#ff6b5b;font-weight:800;cursor:pointer;text-decoration:underline;text-underline-offset:2px;">🚨사고 · 구조기록 ›</span>`:' <span style="color:#ff6b5b;font-weight:800;">🚨사고</span>'):'';
         html+=`<div style="border-top:1px solid rgba(255,255,255,.05);padding:6px 0 4px;">
-          <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:2px;"><span style="font-size:9.5px;color:#6a94b0;background:rgba(79,168,208,.1);border-radius:5px;padding:1px 6px;">${r.total||'-'}명</span>${accMark}</div>
+          <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:2px;"><span style="font-size:9.5px;color:#6a94b0;background:rgba(49,130,246,.1);border-radius:5px;padding:1px 6px;">${r.total||'-'}명</span>${accMark}</div>
           ${person(a.name,a.gender,_climbAge(a.dob),a.exp,a.phone,true,a.acc)}
           ${(r.companions||[]).map(c=>person(c.name,c.gender,_climbAge(c.dob),c.exp,c.phone,false,c.acc)).join('')}
         </div>`;
@@ -1844,12 +1844,12 @@ function openClimbVictimPick(){
   ov=document.createElement('div');ov.id='climbVictimPick';
   ov.style.cssText='position:fixed;inset:0;z-index:9800;background:rgba(4,8,14,.78);display:flex;padding:14px;';
   ov.innerHTML='<div style="background:#0a1626;max-width:460px;width:100%;margin:auto;border-radius:14px;display:flex;flex-direction:column;max-height:86vh;overflow:hidden;border:1px solid rgba(240,200,138,.2);">'
-    +'<div style="display:flex;align-items:center;gap:8px;padding:12px 14px;border-bottom:1px solid rgba(79,168,208,.15);flex-shrink:0;">'
+    +'<div style="display:flex;align-items:center;gap:8px;padding:12px 14px;border-bottom:1px solid rgba(49,130,246,.15);flex-shrink:0;">'
     +'<span style="font-size:14px;font-weight:800;color:#f0c88a;">🧗 암벽 명단에서 사고자 선택</span>'
     +'<button onclick="var e=document.getElementById(\'climbVictimPick\');if(e)e.remove();" style="margin-left:auto;background:none;border:none;color:rgba(255,255,255,.5);font-size:22px;cursor:pointer;line-height:1;">×</button></div>'
     +'<div style="padding:10px 14px;display:flex;gap:6px;flex-wrap:wrap;border-bottom:1px solid rgba(255,255,255,.05);flex-shrink:0;">'
-    +'<input type="date" value="'+window._climbVicDate+'" onchange="window._climbVicDate=this.value;_renderClimbVicPick();" style="flex:1;min-width:130px;background:#0e1c2e;color:#cfe2f2;border:1px solid rgba(79,168,208,.25);border-radius:8px;padding:8px;font-size:12px;">'
-    +'<input type="text" placeholder="🔍 이름 검색" oninput="window._climbVicQ=this.value;_renderClimbVicPick();" style="flex:2;min-width:110px;background:#0e1c2e;color:#cfe2f2;border:1px solid rgba(79,168,208,.25);border-radius:8px;padding:8px;font-size:12px;"></div>'
+    +'<input type="date" value="'+window._climbVicDate+'" onchange="window._climbVicDate=this.value;_renderClimbVicPick();" style="flex:1;min-width:130px;background:#0e1c2e;color:#cfe2f2;border:1px solid rgba(49,130,246,.25);border-radius:8px;padding:8px;font-size:12px;">'
+    +'<input type="text" placeholder="🔍 이름 검색" oninput="window._climbVicQ=this.value;_renderClimbVicPick();" style="flex:2;min-width:110px;background:#0e1c2e;color:#cfe2f2;border:1px solid rgba(49,130,246,.25);border-radius:8px;padding:8px;font-size:12px;"></div>'
     +'<div id="cvpBody" style="flex:1;overflow-y:auto;padding:10px 14px;"><div style="text-align:center;color:#5a7e98;padding:30px;">불러오는 중…</div></div></div>';
   document.body.appendChild(ov);
   _climbLoadAll().then(function(){_renderClimbVicPick();}).catch(function(){var b=document.getElementById('cvpBody');if(b)b.innerHTML='<div style="text-align:center;color:#ff8a73;padding:30px;">명단 불러오기 실패(오프라인?)</div>';});
@@ -1946,8 +1946,8 @@ function _renderClimbStats(all){
     html+=`<div class="scard" style="margin-bottom:10px;">
       <div class="stitle">🛠️ 이용 처리 <span style="font-size:9px;font-weight:400;color:#5a7e98;">해당 날짜를 통계·미업로드에서 제외</span></div>
       <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
-        <input type="date" id="climbCxDate" value="${todayV}" style="flex:1;min-width:120px;background:#0a1626;color:#cfe2f2;border:1px solid rgba(79,168,208,.25);border-radius:8px;padding:8px;font-size:12px;">
-        ${cbtn('특보','🌩️','rgba(240,165,0,.14)','#f0c050')}${cbtn('우천','🌧️','rgba(79,168,208,.14)','#7fc4e0')}${cbtn('이용없음','🈳','rgba(120,140,160,.12)','#9fb6c8')}
+        <input type="date" id="climbCxDate" value="${todayV}" style="flex:1;min-width:120px;background:#0a1626;color:#cfe2f2;border:1px solid rgba(49,130,246,.25);border-radius:8px;padding:8px;font-size:12px;">
+        ${cbtn('특보','🌩️','rgba(240,165,0,.14)','#f0c050')}${cbtn('우천','🌧️','rgba(49,130,246,.14)','#7fc4e0')}${cbtn('이용없음','🈳','rgba(120,140,160,.12)','#9fb6c8')}
       </div>
       ${cxDates.length?(()=>{ // 취소일이 시즌 내내 쌓여도 지저분하지 않게: 평소 한 줄 요약, 펼치면 개별 관리(×)
         const open=window._climbCxOpen;
@@ -1984,17 +1984,17 @@ function _renderClimbStats(all){
     .concat(autoAcc.filter(a=>!manualAcc.some(m=>m.date===a.date&&(m.name===a.name||m.name===a.team))))
     .sort((a,b)=>String(b.date).localeCompare(String(a.date)));
   const accN=accList.length;
-  const mini=(lbl,val,col,sub)=>`<div style="background:#060d1a;border-radius:10px;padding:11px 8px;text-align:center;"><div style="font-size:18px;font-weight:800;color:${col||'#e0edf8'};line-height:1.15;">${val}</div><div style="font-size:9.5px;color:#7a9cb8;margin-top:3px;">${lbl}</div>${sub?`<div style="font-size:8.5px;color:#4a7090;margin-top:1px;">${sub}</div>`:''}</div>`;
-  const bar=(rows,unit,colf)=>{const max=Math.max.apply(null,[1].concat(rows.map(x=>x.v)));return rows.map(x=>`<div style="display:flex;align-items:center;gap:8px;padding:4px 0;"><span style="font-size:11px;color:#c0d8ec;width:92px;flex-shrink:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${_esc(x.k)}</span><div style="flex:1;height:9px;background:rgba(255,255,255,.05);border-radius:5px;overflow:hidden;"><div style="height:100%;width:${Math.max(3,Math.round(x.v/max*100))}%;background:${colf?colf(x):'#4fa8d0'};border-radius:5px;"></div></div><span style="font-size:11px;color:#e0edf8;font-weight:800;min-width:64px;text-align:right;">${x.v}${unit||'명'}${x.team!=null?` <span style="color:#5a7e98;font-weight:600;font-size:9px;">${x.team}팀</span>`:''}</span></div>`).join('');};
+  const mini=(lbl,val,col,sub)=>`<div style="background:#16181d;border-radius:10px;padding:11px 8px;text-align:center;"><div style="font-size:18px;font-weight:800;color:${col||'#e0edf8'};line-height:1.15;">${val}</div><div style="font-size:9.5px;color:#7a9cb8;margin-top:3px;">${lbl}</div>${sub?`<div style="font-size:8.5px;color:#4a7090;margin-top:1px;">${sub}</div>`:''}</div>`;
+  const bar=(rows,unit,colf)=>{const max=Math.max.apply(null,[1].concat(rows.map(x=>x.v)));return rows.map(x=>`<div style="display:flex;align-items:center;gap:8px;padding:4px 0;"><span style="font-size:11px;color:#c0d8ec;width:92px;flex-shrink:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${_esc(x.k)}</span><div style="flex:1;height:9px;background:rgba(255,255,255,.05);border-radius:5px;overflow:hidden;"><div style="height:100%;width:${Math.max(3,Math.round(x.v/max*100))}%;background:${colf?colf(x):'#3182f6'};border-radius:5px;"></div></div><span style="font-size:11px;color:#e0edf8;font-weight:800;min-width:64px;text-align:right;">${x.v}${unit||'명'}${x.team!=null?` <span style="color:#5a7e98;font-weight:600;font-size:9px;">${x.team}팀</span>`:''}</span></div>`).join('');};
   // 세로 막대(컬럼) 차트 — 월별·요일별처럼 항목 적은 건 한 줄에 세로 막대로(공간 절약)
-  const colChart=(rows,colf)=>{const max=Math.max.apply(null,[1].concat(rows.map(x=>x.v)));return `<div style="display:flex;align-items:flex-end;gap:5px;height:78px;">${rows.map(x=>`<div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;min-width:0;"><span style="font-size:10px;color:#e0edf8;font-weight:800;line-height:1;">${x.v}</span><div style="width:66%;max-width:24px;height:${Math.max(3,Math.round(x.v/max*44))}px;background:${colf?colf(x):'#4fa8d0'};border-radius:4px 4px 0 0;margin-top:3px;"></div><span style="font-size:10px;color:#8fb4cc;margin-top:3px;white-space:nowrap;">${_esc(x.k)}</span></div>`).join('')}</div>`;};
+  const colChart=(rows,colf)=>{const max=Math.max.apply(null,[1].concat(rows.map(x=>x.v)));return `<div style="display:flex;align-items:flex-end;gap:5px;height:78px;">${rows.map(x=>`<div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;min-width:0;"><span style="font-size:10px;color:#e0edf8;font-weight:800;line-height:1;">${x.v}</span><div style="width:66%;max-width:24px;height:${Math.max(3,Math.round(x.v/max*44))}px;background:${colf?colf(x):'#3182f6'};border-radius:4px 4px 0 0;margin-top:3px;"></div><span style="font-size:10px;color:#8fb4cc;margin-top:3px;white-space:nowrap;">${_esc(x.k)}</span></div>`).join('')}</div>`;};
   // ── 총 통계 요약 (모드 토글: 실제 이용 / 신청 전체) ──
-  const modeBtn=(lbl,m)=>`<button onclick="climbStatMode('${m}')" style="flex:1;padding:8px 6px;border:none;border-radius:8px;font-size:12px;font-weight:800;cursor:pointer;background:${statMode===m?'rgba(79,168,208,.2)':'transparent'};color:${statMode===m?'#7fc4e0':'#6a8296'};">${lbl}</button>`;
-  html+=`<div style="display:flex;gap:4px;background:#0a1626;border:1px solid rgba(79,168,208,.15);border-radius:10px;padding:3px;margin-bottom:10px;">${modeBtn('✅ 실제 이용 (취소 제외)','used')}${modeBtn('📝 신청 전체 (취소 포함)','all')}</div>`;
+  const modeBtn=(lbl,m)=>`<button onclick="climbStatMode('${m}')" style="flex:1;padding:8px 6px;border:none;border-radius:8px;font-size:12px;font-weight:800;cursor:pointer;background:${statMode===m?'rgba(49,130,246,.2)':'transparent'};color:${statMode===m?'#7fc4e0':'#6a8296'};">${lbl}</button>`;
+  html+=`<div style="display:flex;gap:4px;background:#0a1626;border:1px solid rgba(49,130,246,.15);border-radius:10px;padding:3px;margin-bottom:10px;">${modeBtn('✅ 실제 이용 (취소 제외)','used')}${modeBtn('📝 신청 전체 (취소 포함)','all')}</div>`;
   html+=`<div class="scard" style="margin-bottom:10px;">
     <div class="stitle">📊 총 통계 <span style="font-size:9px;font-weight:400;color:#5a7e98;">${statMode==='all'?'신청 전체(특보·우천취소 포함)':'특보·우천취소 제외 실이용'}</span></div>
     <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:6px;">
-      ${mini(statMode==='all'?'신청 인원':'실이용 인원',people.toLocaleString()+'명','#4fa8d0',usedTeams+'팀')}
+      ${mini(statMode==='all'?'신청 인원':'실이용 인원',people.toLocaleString()+'명','#3182f6',usedTeams+'팀')}
       ${mini('성별','<span style="font-size:14px;">남 '+gender['남']+' · 여 '+gender['여']+'</span>','#e0edf8','신청자+동반자')}
       ${mini('취소·이용없음',cancelled.length+'팀',cancelled.length?'#f0a44a':'#27ae60','')}
       ${mini('안전사고',accN+'건',accN?'#ff6b5b':'#27ae60',accN?'':'없음')}
@@ -2019,12 +2019,12 @@ function _renderClimbStats(all){
   const expB={'1년↓':0,'2-5년':0,'6-10년':0,'11-20년':0,'20년↑':0};let expN=0;
   used.forEach(r=>{const e=_num(r.applicant&&r.applicant.exp);if(e==null||e>80)return;expN++;expB[e<=1?'1년↓':e<=5?'2-5년':e<=10?'6-10년':e<=20?'11-20년':'20년↑']++;});
   if(monRows.length)html+=`<div class="scard" style="margin-bottom:10px;"><div class="stitle">🗓️ 월별 이용</div>${colChart(monRows)}</div>`;
-  html+=`<div class="scard" style="margin-bottom:10px;"><div class="stitle">📆 요일별 이용 <span style="font-size:9px;font-weight:400;color:#5a7e98;">⭐주말</span></div>${colChart(dowRows,x=>x.k.indexOf('⭐')>=0?'#ff8a73':'#4fa8d0')}</div>`;
-  if(topDays.length)html+=`<div class="scard" style="margin-bottom:10px;"><div class="stitle">🔝 최다 이용일 TOP 5</div>${topDays.map((x,i)=>`<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid rgba(255,255,255,.04);"><span style="font-size:11px;font-weight:800;color:${i===0?'#f0c060':'#7a9cb8'};min-width:18px;">${i+1}</span><span style="flex:1;font-size:12px;color:#dceaf6;">${_esc(x.d)} (${_wd[Math.max(0,_dow(x.d))]})</span><b style="font-size:12.5px;color:#4fa8d0;">${x.v}명</b></div>`).join('')}</div>`;
+  html+=`<div class="scard" style="margin-bottom:10px;"><div class="stitle">📆 요일별 이용 <span style="font-size:9px;font-weight:400;color:#5a7e98;">⭐주말</span></div>${colChart(dowRows,x=>x.k.indexOf('⭐')>=0?'#ff8a73':'#3182f6')}</div>`;
+  if(topDays.length)html+=`<div class="scard" style="margin-bottom:10px;"><div class="stitle">🔝 최다 이용일 TOP 5</div>${topDays.map((x,i)=>`<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid rgba(255,255,255,.04);"><span style="font-size:11px;font-weight:800;color:${i===0?'#f0c060':'#7a9cb8'};min-width:18px;">${i+1}</span><span style="flex:1;font-size:12px;color:#dceaf6;">${_esc(x.d)} (${_wd[Math.max(0,_dow(x.d))]})</span><b style="font-size:12.5px;color:#3182f6;">${x.v}명</b></div>`).join('')}</div>`;
   html+=`<div class="scard" style="margin-bottom:10px;"><div class="stitle">🏔️ 지구별 이용</div>${bar(distRank.map(x=>({k:x.d,v:x.ppl,team:x.team})),'명')}</div>`;
   html+=`<div class="scard" style="margin-bottom:10px;"><div class="stitle">🧗 코스별 이용 (전체 ${courseRank.length}개)</div>${bar(courseRank.map(x=>({k:x.c,v:x.ppl,team:x.team})),'명')}</div>`;
   if(expN)html+=`<div class="scard" style="margin-bottom:10px;"><div class="stitle">🧗 신청자 등반경력 <span style="font-size:9px;font-weight:400;color:#5a7e98;">${expN}명</span></div>${bar(Object.keys(expB).map(k=>({k,v:expB[k]})).filter(x=>x.v),'명',x=>x.k==='1년↓'?'#ff8a73':'#5fcf8f')}</div>`;
-  if(ageN)html+=`<div class="scard" style="margin-bottom:10px;"><div class="stitle">👥 연령대 <span style="font-size:9px;font-weight:400;color:#5a7e98;">${ageN}명</span></div>${bar(Object.keys(ageB).map(k=>({k,v:ageB[k]})).filter(x=>x.v),'명',x=>(x.k==='60대'||x.k==='70↑')?'#f0a44a':'#4fa8d0')}</div>`;
+  if(ageN)html+=`<div class="scard" style="margin-bottom:10px;"><div class="stitle">👥 연령대 <span style="font-size:9px;font-weight:400;color:#5a7e98;">${ageN}명</span></div>${bar(Object.keys(ageB).map(k=>({k,v:ageB[k]})).filter(x=>x.v),'명',x=>(x.k==='60대'||x.k==='70↑')?'#f0a44a':'#3182f6')}</div>`;
   b.innerHTML=html;
 }
 function climbStatMode(m){window._climbStatMode=m;_renderClimbActive();}
@@ -2101,22 +2101,22 @@ function renderFullStats(){
   const topN=(obj,n=5)=>Object.entries(obj).sort((a,b)=>b[1]-a[1]).slice(0,n);
   const safe_max=obj=>Math.max(...Object.values(obj),1);
   const barRow=(k,v,max,col)=>`<div style="margin-bottom:4px;"><div style="display:flex;justify-content:space-between;font-size:10px;margin-bottom:1px;"><span style="color:#c0d8ec;">${_esc(k)}</span><span style="color:${col};font-weight:700;">${v}</span></div><div style="height:3px;background:rgba(255,255,255,.06);border-radius:2px;overflow:hidden;"><div style="height:100%;width:${Math.round(v/max*100)}%;background:${col};border-radius:2px;"></div></div></div>`;
-  const mini=(label,val,col='#e0edf8')=>`<div style="background:#060d1a;border-radius:7px;padding:5px 4px;text-align:center;"><div style="font-size:14px;font-weight:800;color:${col};line-height:1.2;">${val}</div><div style="font-size:8px;color:#7a9cb8;margin-top:1px;">${label}</div></div>`;
+  const mini=(label,val,col='#e0edf8')=>`<div style="background:#16181d;border-radius:7px;padding:5px 4px;text-align:center;"><div style="font-size:14px;font-weight:800;color:${col};line-height:1.2;">${val}</div><div style="font-size:8px;color:#7a9cb8;margin-top:1px;">${label}</div></div>`;
   const pill_tab=p=>`<div onclick="window._statPeriod='${p}';renderFullStats();" style="flex:1;padding:5px 2px;text-align:center;font-size:11px;font-weight:600;border-radius:7px;cursor:pointer;${p===period?'background:#1a4a6e;color:#e0edf8;':'color:rgba(255,255,255,.6);'}">${p}</div>`;
   const row2=(a,b)=>`<div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;">${a}${b}</div>`;
   const w=document.getElementById('statsWrap');
   w.innerHTML=`
-    <div style="display:flex;background:#0b1c30;border-radius:9px;padding:3px;gap:2px;margin-bottom:2px;">
+    <div style="display:flex;background:#20242c;border-radius:9px;padding:3px;gap:2px;margin-bottom:2px;">
       ${['오늘','이번주','이번달','올해','전체'].map(pill_tab).join('')}
     </div>
     ${row2(
       `<div class="scard">
         <div class="stitle">🚨 구조 · ${period} ${pRes.length}건</div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:3px;margin-bottom:${Object.keys(typeMap).length?'6':'0'}px;">
-          ${mini(period,pRes.length,'#4fa8d0')}${mini('진행중',res.filter(r=>r.status==='ongoing').length,'#c0392b')}
+          ${mini(period,pRes.length,'#3182f6')}${mini('진행중',res.filter(r=>r.status==='ongoing').length,'#c0392b')}
           ${mini('전년대비',diffStr,diffCol)}${mini('누적',res.length)}
         </div>
-        ${Object.keys(typeMap).length?topN(typeMap,3).map(([k,v])=>barRow(k,v,safe_max(typeMap),'#4fa8d0')).join(''):''}
+        ${Object.keys(typeMap).length?topN(typeMap,3).map(([k,v])=>barRow(k,v,safe_max(typeMap),'#3182f6')).join(''):''}
       </div>`,
       `<div class="scard">
         <div class="stitle">⚠️ 위험상황 · ${pHaz.length}건</div>
@@ -2148,7 +2148,7 @@ function renderFullStats(){
         return `<div class="scard">
           <div class="stitle">🧗 암벽 이용 <span style="font-size:9px;font-weight:400;color:#5a7e98;">시즌 5.16~11.14 · 상세는 홈→암벽 이용관리</span></div>
           <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:3px;">
-            ${mini('실이용 인원',up?up.toLocaleString()+'명':'—','#4fa8d0')}${mini('특보·우천 취소',cx+'일',cx?'#e67e22':'#27ae60')}${mini('안전사고',ac+'건',ac?'#c0392b':'#27ae60')}
+            ${mini('실이용 인원',up?up.toLocaleString()+'명':'—','#3182f6')}${mini('특보·우천 취소',cx+'일',cx?'#e67e22':'#27ae60')}${mini('안전사고',ac+'건',ac?'#c0392b':'#27ae60')}
           </div>
           ${ut?`<div style="font-size:9px;color:#5a8aaa;margin-top:4px;">${ut.toLocaleString()}팀 · 취소일 제외</div>`:''}
         </div>`;
@@ -2164,13 +2164,13 @@ function renderFullStats(){
       const closedOps=pAlertOps.filter(o=>o.closedAtMs&&o.startedAtMs);
       const avgHrs=closedOps.length?Math.round(closedOps.reduce((s,o)=>s+((o.closedAtMs||0)-(o.startedAtMs||0)),0)/closedOps.length/3600000):0;
       const lvlColor={'예비특보':'#27ae60','Ⅰ단계(주의보)':'#e67e22','Ⅱ단계(경보)':'#c0392b','Ⅲ단계':'#7d3c98'};
-      const lvlRows=Object.entries(lvlMap).sort((a,b)=>(['예비특보','Ⅰ단계(주의보)','Ⅱ단계(경보)','Ⅲ단계'].indexOf(b[0])||0)-(['예비특보','Ⅰ단계(주의보)','Ⅱ단계(경보)','Ⅲ단계'].indexOf(a[0])||0)).map(([k,v])=>barRow(k,v,Math.max(...Object.values(lvlMap),1),lvlColor[k]||'#4fa8d0')).join('');
-      const typeRows=Object.entries(typeAlertMap).sort((a,b)=>b[1]-a[1]).slice(0,4).map(([k,v])=>barRow(k,v,Math.max(...Object.values(typeAlertMap),1),'#4fa8d0')).join('');
+      const lvlRows=Object.entries(lvlMap).sort((a,b)=>(['예비특보','Ⅰ단계(주의보)','Ⅱ단계(경보)','Ⅲ단계'].indexOf(b[0])||0)-(['예비특보','Ⅰ단계(주의보)','Ⅱ단계(경보)','Ⅲ단계'].indexOf(a[0])||0)).map(([k,v])=>barRow(k,v,Math.max(...Object.values(lvlMap),1),lvlColor[k]||'#3182f6')).join('');
+      const typeRows=Object.entries(typeAlertMap).sort((a,b)=>b[1]-a[1]).slice(0,4).map(([k,v])=>barRow(k,v,Math.max(...Object.values(typeAlertMap),1),'#3182f6')).join('');
       if(!pAlertOps.length&&!activeAlertOps.length)return '';
       return `<div class="scard">
         <div class="stitle">🌀 특보운영 · ${period} ${pAlertOps.length}건</div>
         <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:3px;margin-bottom:6px;">
-          ${mini(period,pAlertOps.length,'#4fa8d0')}${mini('운영중',activeAlertOps.length,activeAlertOps.length?'#c0392b':'#4fa8d0')}
+          ${mini(period,pAlertOps.length,'#3182f6')}${mini('운영중',activeAlertOps.length,activeAlertOps.length?'#c0392b':'#3182f6')}
           ${mini('응소인원',totResponders,'#e67e22')}${mini('관측보고',totReports,'#27ae60')}
         </div>
         ${pAlertOps.length?`<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
@@ -2326,7 +2326,7 @@ function _mobilizeBlockHtml(coll,r){
     return (multiDept?`<div style="font-size:10px;font-weight:700;color:#7ec8a0;margin:6px 0 2px;padding-top:6px;border-top:.5px solid rgba(255,255,255,.05);display:flex;justify-content:space-between;"><span>${_esc(dk)}</span><span style="color:#4a7090;">🟢${dOk} 🔴${dNo} / ${members.length}명</span></div>`:'')
       +members.map(personRow).join('');
   }).join('');
-  return `<div id="mobBlk_${coll}_${r.id}" style="background:#0b1c30;border-radius:10px;padding:11px 12px;border:.5px solid rgba(231,76,60,.25);margin-top:8px;">
+  return `<div id="mobBlk_${coll}_${r.id}" style="background:#20242c;border-radius:10px;padding:11px 12px;border:.5px solid rgba(231,76,60,.25);margin-top:8px;">
     <div style="font-size:11px;color:#e74c3c;font-weight:700;margin-bottom:7px;">🚨 응소 현황 (${_esc(r.mobilize.join('·'))})</div>
     ${roster.length>1?`<div style="display:flex;gap:10px;font-size:10.5px;font-weight:700;margin-bottom:7px;padding-bottom:7px;border-bottom:.5px solid rgba(255,255,255,.07);">
       <span style="color:#3ad17a;">🟢 ${okCnt}명</span><span style="color:#e74c3c;">🔴 ${noCnt}명</span><span style="color:rgba(255,255,255,.4);">⚪ ${pendCnt}명</span><span style="color:#4a7090;margin-left:auto;">총 ${roster.length}명</span>
@@ -2480,7 +2480,7 @@ let _ttFoundVictim=false;
 function selectPhaseChoice(choice,el){
   _phaseChoice=choice;
   document.querySelectorAll('#phaseChoiceWrap button').forEach(b=>{b.style.background='transparent';b.style.color='#c0d8ec';b.style.borderColor='rgba(255,255,255,.1)';});
-  el.style.background='rgba(79,168,208,.12)';el.style.color='#4fa8d0';el.style.borderColor='rgba(79,168,208,.5)';
+  el.style.background='rgba(49,130,246,.12)';el.style.color='#3182f6';el.style.borderColor='rgba(49,130,246,.5)';
   document.getElementById('phaseChoiceWrap').style.display='none';
   document.getElementById('phaseFormWrap').style.display='block';
   const _ra=document.getElementById('r_repAuthor');if(_ra){_ra.value=getAuthor();_ra.disabled=true;}
@@ -2494,8 +2494,8 @@ function selectPhaseChoice(choice,el){
     // 예: 전보 내용 먼저 보여주고, 변경사항 입력
     if(prev){
       prevWrap.style.display='block';
-      prevWrap.innerHTML=`<div style="background:#060d1a;border-radius:9px;padding:10px 12px;margin-bottom:8px;border:1px solid rgba(79,168,208,.15);">
-        <div style="font-size:10px;color:#4fa8d0;font-weight:700;margin-bottom:6px;">📋 전보 (${phaseIdx}보) 내용</div>
+      prevWrap.innerHTML=`<div style="background:#16181d;border-radius:9px;padding:10px 12px;margin-bottom:8px;border:1px solid rgba(49,130,246,.15);">
+        <div style="font-size:10px;color:#3182f6;font-weight:700;margin-bottom:6px;">📋 전보 (${phaseIdx}보) 내용</div>
         <div style="font-size:11px;color:#7a9cb8;line-height:1.8;">
           <b>시간:</b> ${prev.repTime||'-'}<br>
           <b>상황:</b> ${prev.update||'-'}<br>
@@ -2506,14 +2506,14 @@ function selectPhaseChoice(choice,el){
   } else {
     // 아니오: 1보에서 작성 안 한 항목만 보여줌 + 기존 작성내용은 readonly
     prevWrap.style.display='block';
-    prevWrap.innerHTML=`<div style="background:#060d1a;border-radius:9px;padding:10px 12px;margin-bottom:8px;border:1px solid rgba(39,174,96,.15);">
+    prevWrap.innerHTML=`<div style="background:#16181d;border-radius:9px;padding:10px 12px;margin-bottom:8px;border:1px solid rgba(39,174,96,.15);">
       <div style="font-size:10px;color:#27ae60;font-weight:700;margin-bottom:4px;">✅ 기존 작성 내용 (수정불가)</div>
       <div style="font-size:11px;color:#5a8070;line-height:1.8;">
         유형: ${r.type} · 사고자: ${r.vName||'미상'}<br>
         중증도: ${r.severity||'-'} · 구조방법: ${(r.rescueMethod||[]).join(', ')||'-'}
       </div>
     </div>
-    <div style="font-size:10px;color:#4fa8d0;font-weight:700;margin-bottom:6px;">📝 미작성 항목 추가입력</div>`;
+    <div style="font-size:10px;color:#3182f6;font-weight:700;margin-bottom:6px;">📝 미작성 항목 추가입력</div>`;
   }
 }
 
@@ -2529,9 +2529,9 @@ function renderTimetableList(){
   listEl.innerHTML=`
     <div style="margin-bottom:8px;">
       ${_timetableEntries.map((e,i)=>`
-        <div style="background:#060d1a;border-radius:8px;padding:10px 12px;margin-bottom:5px;border:1px solid rgba(79,168,208,.12);">
+        <div style="background:#16181d;border-radius:8px;padding:10px 12px;margin-bottom:5px;border:1px solid rgba(49,130,246,.12);">
           <div style="display:flex;align-items:center;gap:8px;">
-            <div style="width:8px;height:8px;border-radius:50%;background:${e.stage==='요구조자 조우'?'#c0392b':'#4fa8d0'};flex-shrink:0;"></div>
+            <div style="width:8px;height:8px;border-radius:50%;background:${e.stage==='요구조자 조우'?'#c0392b':'#3182f6'};flex-shrink:0;"></div>
             <div style="flex:1;">
               <div style="font-size:12px;font-weight:700;color:#e0edf8;">${e.stage}</div>
               <div style="font-size:10px;color:#4a7090;">${e.time||'-'}</div>
@@ -2541,15 +2541,15 @@ function renderTimetableList(){
           </div>
         </div>`).join('')}
     </div>
-    <div style="font-size:10px;color:#4fa8d0;font-weight:700;margin-bottom:6px;">단계 선택 <span style="color:rgba(255,255,255,.3);font-weight:400;">· 없으면 직접입력</span></div>
+    <div style="font-size:10px;color:#3182f6;font-weight:700;margin-bottom:6px;">단계 선택 <span style="color:rgba(255,255,255,.3);font-weight:400;">· 없으면 직접입력</span></div>
     <div style="display:flex;flex-wrap:wrap;gap:5px;">
       ${stages.filter(s=>!_timetableEntries.find(e=>e.stage===s&&s!=='지점통과'&&s!=='휴식')).map(s=>{
         const isVic=s==='요구조자 조우'||s==='심정지';
-        return `<div onclick="selectTTStage('${s}')" style="padding:6px 12px;border-radius:20px;border:1.5px solid ${isVic?'rgba(231,76,60,.4)':'rgba(79,168,208,.3)'};color:${isVic?'#e74c3c':'#4fa8d0'};font-size:11px;font-weight:600;cursor:pointer;background:${isVic?'rgba(231,76,60,.07)':'rgba(79,168,208,.06)'};">${s}</div>`;}).join('')}
+        return `<div onclick="selectTTStage('${s}')" style="padding:6px 12px;border-radius:20px;border:1.5px solid ${isVic?'rgba(231,76,60,.4)':'rgba(49,130,246,.3)'};color:${isVic?'#e74c3c':'#3182f6'};font-size:11px;font-weight:600;cursor:pointer;background:${isVic?'rgba(231,76,60,.07)':'rgba(49,130,246,.06)'};">${s}</div>`;}).join('')}
       <div onclick="selectTTStageCustom()" style="padding:6px 12px;border-radius:20px;border:1.5px dashed rgba(255,255,255,.3);color:rgba(255,255,255,.55);font-size:11px;font-weight:600;cursor:pointer;background:transparent;">✏️ 직접입력</div>
     </div>
     <div id="ttInputWrap" style="display:none;margin-top:10px;">
-      <div style="font-size:11px;color:#4fa8d0;font-weight:700;margin-bottom:6px;" id="ttStageLabel"></div>
+      <div style="font-size:11px;color:#3182f6;font-weight:700;margin-bottom:6px;" id="ttStageLabel"></div>
       <div class="frow">
         <div class="fg"><span class="fl">시간</span><input type="datetime-local" id="ttTime" class="fi" value="NOWDT"></div>
       </div>
@@ -2565,7 +2565,7 @@ function renderTimetableList(){
           <div class="fg"><span class="fl">AED 사용</span>
             <div style="display:flex;gap:6px;margin-top:4px;">
               <button id="ttAedY" onclick="this.style.background='rgba(231,76,60,.25)';this.style.color='#e74c3c';document.getElementById('ttAedN').style.background='transparent';document.getElementById('ttAedN').style.color='rgba(255,255,255,.4)';this._v=1;" style="flex:1;padding:6px;border-radius:7px;border:1px solid rgba(231,76,60,.3);background:transparent;color:rgba(255,255,255,.4);font-size:11px;font-weight:700;cursor:pointer;">사용함</button>
-              <button id="ttAedN" onclick="this.style.background='rgba(79,168,208,.15)';this.style.color='#4fa8d0';document.getElementById('ttAedY').style.background='transparent';document.getElementById('ttAedY').style.color='rgba(255,255,255,.4)';" style="flex:1;padding:6px;border-radius:7px;border:1px solid rgba(79,168,208,.25);background:rgba(79,168,208,.1);color:#4fa8d0;font-size:11px;font-weight:700;cursor:pointer;">미사용</button>
+              <button id="ttAedN" onclick="this.style.background='rgba(49,130,246,.15)';this.style.color='#3182f6';document.getElementById('ttAedY').style.background='transparent';document.getElementById('ttAedY').style.color='rgba(255,255,255,.4)';" style="flex:1;padding:6px;border-radius:7px;border:1px solid rgba(49,130,246,.25);background:rgba(49,130,246,.1);color:#3182f6;font-size:11px;font-weight:700;cursor:pointer;">미사용</button>
             </div>
           </div>
         </div>
@@ -2647,9 +2647,9 @@ function renderExtraDispatch(){
     return;
   }
   el.innerHTML = `
-    <div style="font-size:10px;color:#4fa8d0;font-weight:700;margin:8px 0 5px;">추가 출동 인원</div>
+    <div style="font-size:10px;color:#3182f6;font-weight:700;margin:8px 0 5px;">추가 출동 인원</div>
     ${_extraDispatch.map((d,i)=>`
-      <div style="display:flex;align-items:center;gap:8px;background:#060d1a;border-radius:7px;padding:7px 10px;margin-bottom:4px;border:1px solid rgba(79,168,208,.12);">
+      <div style="display:flex;align-items:center;gap:8px;background:#16181d;border-radius:7px;padding:7px 10px;margin-bottom:4px;border:1px solid rgba(49,130,246,.12);">
         <div style="flex:1;">
           <div style="font-size:12px;color:#e0edf8;font-weight:600;">${d.name}</div>
           <div style="font-size:10px;color:#4a7090;">${d.type}${d.note?' · '+d.note:''}</div>
@@ -2700,18 +2700,18 @@ function renderTTInline(){
 
   listEl.innerHTML = _ttInlineEntries.length
     ? _ttInlineEntries.map((e,i)=>`
-      <div style="display:flex;align-items:center;gap:8px;padding:8px 10px;background:#060d1a;border-radius:8px;margin-bottom:5px;border:1px solid rgba(79,168,208,.12);">
+      <div style="display:flex;align-items:center;gap:8px;padding:8px 10px;background:#16181d;border-radius:8px;margin-bottom:5px;border:1px solid rgba(49,130,246,.12);">
         <div style="width:8px;height:8px;border-radius:50%;background:${
           e.stage==='요구조자 조우'?'#c0392b':
           e.stage==='처치완료'?'#27ae60':
-          e.stage==='하산시작'?'#4fa8d0':'#4a7090'
+          e.stage==='하산시작'?'#3182f6':'#4a7090'
         };flex-shrink:0;margin-top:2px;"></div>
         <div style="flex:1;min-width:0;">
           <div style="font-size:12px;font-weight:700;color:#e0edf8;">${e.actor?`<span style="font-size:10px;color:#7ec8e3;font-weight:600;margin-right:5px;">[${e.actor}]</span>`:''}${e.stage}</div>
           <div style="font-size:10px;color:#4a7090;">${e.time||'시간미기재'}${e.note?' · '+e.note:''}</div>
         </div>
         <div style="display:flex;gap:4px;flex-shrink:0;">
-          <button onclick="editTTInline(${i})" style="background:rgba(79,168,208,.08);border:1px solid rgba(79,168,208,.2);color:#4fa8d0;font-size:10px;padding:3px 8px;border-radius:5px;cursor:pointer;">✏️</button>
+          <button onclick="editTTInline(${i})" style="background:rgba(49,130,246,.08);border:1px solid rgba(49,130,246,.2);color:#3182f6;font-size:10px;padding:3px 8px;border-radius:5px;cursor:pointer;">✏️</button>
           <button onclick="removeTTInline(${i})" style="background:rgba(192,57,43,.12);border:1px solid rgba(192,57,43,.3);color:#e05050;font-size:13px;font-weight:700;width:36px;height:36px;flex-shrink:0;border-radius:8px;cursor:pointer;display:flex;align-items:center;justify-content:center;">✕</button>
         </div>
       </div>`).join('')
@@ -3011,16 +3011,16 @@ function _sosBuildUI(){
     <button id="sosStartBtn" onclick="_sosRequest()" style="margin-top:14px;width:100%;max-width:420px;padding:18px;border:none;border-radius:14px;background:linear-gradient(180deg,#e74c3c,#c0392b);color:#fff;font-size:18px;font-weight:800;cursor:pointer;box-shadow:0 4px 14px rgba(192,57,43,.5);">${_st('start')}</button>
     <div style="margin-top:16px;width:100%;max-width:420px;">
       <div style="font-size:12px;color:#8ab4cc;font-weight:700;margin-bottom:6px;">${_st('info')}</div>
-      <input id="sosName" placeholder="${_st('name')}" value="${_esc(_nm)}" oninput="_sosPushInfo()" style="width:100%;box-sizing:border-box;background:#0b1c30;border:1px solid rgba(255,255,255,.15);color:#fff;border-radius:9px;padding:12px;font-size:15px;margin-bottom:7px;">
-      ${_sosLang!=='ko'?`<input id="sosCountry" placeholder="${_st('country')}" value="${_esc(_ct)}" oninput="_sosPushInfo()" style="width:100%;box-sizing:border-box;background:#0b1c30;border:1px solid rgba(255,255,255,.15);color:#fff;border-radius:9px;padding:12px;font-size:15px;margin-bottom:7px;">`:''}
-      <textarea id="sosMsg" placeholder="${_st('msg')}" oninput="_sosPushInfo()" rows="3" style="width:100%;box-sizing:border-box;background:#0b1c30;border:1px solid rgba(255,255,255,.15);color:#fff;border-radius:9px;padding:12px;font-size:15px;resize:vertical;">${_esc(_mg)}</textarea>
+      <input id="sosName" placeholder="${_st('name')}" value="${_esc(_nm)}" oninput="_sosPushInfo()" style="width:100%;box-sizing:border-box;background:#20242c;border:1px solid rgba(255,255,255,.15);color:#fff;border-radius:9px;padding:12px;font-size:15px;margin-bottom:7px;">
+      ${_sosLang!=='ko'?`<input id="sosCountry" placeholder="${_st('country')}" value="${_esc(_ct)}" oninput="_sosPushInfo()" style="width:100%;box-sizing:border-box;background:#20242c;border:1px solid rgba(255,255,255,.15);color:#fff;border-radius:9px;padding:12px;font-size:15px;margin-bottom:7px;">`:''}
+      <textarea id="sosMsg" placeholder="${_st('msg')}" oninput="_sosPushInfo()" rows="3" style="width:100%;box-sizing:border-box;background:#20242c;border:1px solid rgba(255,255,255,.15);color:#fff;border-radius:9px;padding:12px;font-size:15px;resize:vertical;">${_esc(_mg)}</textarea>
     </div>
     <div id="sosTip" style="margin-top:16px;font-size:12px;color:#5a7e98;text-align:center;line-height:1.6;max-width:420px;">${_st('tip')}</div>
     <div style="width:100%;max-width:420px;margin-top:18px;">
       <div style="font-size:12px;color:#8ab4cc;font-weight:700;margin-bottom:6px;">💬 ${_sct('chat')}</div>
-      <div id="sosChat" style="background:#0b1c30;border:1px solid rgba(255,255,255,.1);border-radius:12px;padding:10px;min-height:60px;max-height:260px;overflow-y:auto;"></div>
+      <div id="sosChat" style="background:#20242c;border:1px solid rgba(255,255,255,.1);border-radius:12px;padding:10px;min-height:60px;max-height:260px;overflow-y:auto;"></div>
       <div style="display:flex;gap:6px;margin-top:7px;">
-        <input id="sosChatIn" placeholder="${_sct('chatPh')}" style="flex:1;min-width:0;box-sizing:border-box;background:#0b1c30;border:1px solid rgba(255,255,255,.15);color:#fff;border-radius:9px;padding:11px;font-size:15px;" onkeydown="if(event.key==='Enter')_sosVictimSend()">
+        <input id="sosChatIn" placeholder="${_sct('chatPh')}" style="flex:1;min-width:0;box-sizing:border-box;background:#20242c;border:1px solid rgba(255,255,255,.15);color:#fff;border-radius:9px;padding:11px;font-size:15px;" onkeydown="if(event.key==='Enter')_sosVictimSend()">
         <button onclick="_sosVictimSend()" style="flex-shrink:0;background:#1a6e9e;color:#fff;border:none;border-radius:9px;padding:0 16px;font-size:14px;font-weight:700;cursor:pointer;">${_sct('send')}</button>
       </div>
     </div>`;
@@ -3363,7 +3363,7 @@ function openSosRequest(){
     const _rh=Math.floor(_remMs/3600000),_rm=Math.floor((_remMs%3600000)/60000);
     const _remStr=_remMs<=0?'만료됨':(_rh>0?_rh+'시간 '+_rm+'분':_rm+'분')+' 남음';
     const _remCol=_remMs<=0?'#e05050':(_remMs<6*3600000?'#ffd24d':'#7ee0a0');
-    return `<div style="background:#0b1c30;border:1px solid ${has?'rgba(231,76,60,.4)':'rgba(255,255,255,.12)'};border-radius:11px;padding:11px 12px;margin-bottom:8px;">
+    return `<div style="background:#20242c;border:1px solid ${has?'rgba(231,76,60,.4)':'rgba(255,255,255,.12)'};border-radius:11px;padding:11px 12px;margin-bottom:8px;">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;gap:6px;flex-wrap:wrap;">
         <span style="font-size:12px;">${status}</span>
         <span style="font-size:9px;color:#5a7e98;font-family:monospace;">🔗 1회용 · ${p.id}</span>
@@ -3379,11 +3379,11 @@ function openSosRequest(){
         <div style="font-size:10px;color:#5a7e98;font-family:monospace;margin-top:2px;">${(+p.lat).toFixed(5)}, ${(+p.lng).toFixed(5)} · 탭하면 지도 이동</div>
       </div>`:''}
       <div style="display:flex;gap:5px;margin-bottom:6px;">
-        <input readonly value="${url}" onclick="this.select()" style="flex:1;min-width:0;background:#060d1a;border:1px solid rgba(79,168,208,.3);color:#7dd3fa;border-radius:7px;padding:8px;font-size:11px;font-family:monospace;">
+        <input readonly value="${url}" onclick="this.select()" style="flex:1;min-width:0;background:#16181d;border:1px solid rgba(49,130,246,.3);color:#7dd3fa;border-radius:7px;padding:8px;font-size:11px;font-family:monospace;">
         <button onclick="_sosCopyUrl('${p.id}',this)" style="flex-shrink:0;background:#1a4a6e;color:#fff;border:none;border-radius:7px;padding:0 13px;font-size:12px;font-weight:700;cursor:pointer;transition:background .15s;">복사</button>
       </div>
       <div style="display:flex;gap:5px;">
-        ${navigator.share?`<button onclick="_sosShareUrl('${p.id}')" style="flex:1;background:rgba(39,174,96,.12);color:#27ae60;border:1px solid rgba(39,174,96,.35);border-radius:7px;padding:8px;font-size:12px;font-weight:700;cursor:pointer;">📤 보내기</button>`:`<button onclick="_sosSms('${p.id}')" style="flex:1;background:rgba(79,168,208,.1);color:#4fa8d0;border:1px solid rgba(79,168,208,.3);border-radius:7px;padding:8px;font-size:12px;font-weight:700;cursor:pointer;">✉️ 문자</button>`}
+        ${navigator.share?`<button onclick="_sosShareUrl('${p.id}')" style="flex:1;background:rgba(39,174,96,.12);color:#27ae60;border:1px solid rgba(39,174,96,.35);border-radius:7px;padding:8px;font-size:12px;font-weight:700;cursor:pointer;">📤 보내기</button>`:`<button onclick="_sosSms('${p.id}')" style="flex:1;background:rgba(49,130,246,.1);color:#3182f6;border:1px solid rgba(49,130,246,.3);border-radius:7px;padding:8px;font-size:12px;font-weight:700;cursor:pointer;">✉️ 문자</button>`}
         <button onclick="_sosPinPopup('${p.id}')" style="flex:1;background:rgba(125,211,250,.1);color:#7dd3fa;border:1px solid rgba(125,211,250,.3);border-radius:7px;padding:8px;font-size:12px;font-weight:700;cursor:pointer;">💬 대화${(p.msgs&&p.msgs.length)?' '+p.msgs.length:''}</button>
         ${has?`<button onclick="sosToRescue('${p.id}')" style="flex:1;background:rgba(231,76,60,.15);color:#ff6b5e;border:1px solid rgba(231,76,60,.4);border-radius:7px;padding:8px;font-size:12px;font-weight:700;cursor:pointer;">🚨 구조등록</button>`:''}
         <button onclick="_sosCloseToken('${p.id}')" style="flex-shrink:0;background:rgba(192,57,43,.1);color:#c0392b;border:1px solid rgba(192,57,43,.3);border-radius:7px;padding:8px 11px;font-size:12px;font-weight:700;cursor:pointer;">종료</button>
@@ -3500,21 +3500,21 @@ function _sosPinPopup(id){
   const has=p.lat&&p.lng;
   const mm=p.ts?Math.round((Date.now()-(p.ts||0))/60000):null;
   const html=`
-    <div style="background:#0b1c30;border:1px solid rgba(231,76,60,.4);border-radius:11px;padding:13px 15px;margin-bottom:10px;">
+    <div style="background:#20242c;border:1px solid rgba(231,76,60,.4);border-radius:11px;padding:13px 15px;margin-bottom:10px;">
       <div style="font-size:16px;font-weight:800;color:#ff8a73;">🆘 ${_esc(p.name||'익명 조난자')}</div>
       ${_sosForeignBadge(p)?`<div style="margin-top:5px;">${_sosForeignBadge(p)}</div>`:''}
       ${p.msg?`<div style="font-size:13px;color:#e0edf8;margin-top:6px;line-height:1.5;">${_esc(p.msg)}</div>`:''}
       ${has?`<div style="font-size:11px;color:#8ab4cc;margin-top:8px;font-family:monospace;">📍 ${(+p.lat).toFixed(6)}, ${(+p.lng).toFixed(6)}${(typeof _elevStr==='function')?' <span style="color:#a7f3e4;">'+_elevStr(p.lat,p.lng,p.alt)+'</span>':''}<br>정확도 ±${p.acc||'?'}m · ${mm}분 전 수신 · ${_sosAtStr(p)}</div>`:`<div style="font-size:11px;color:#ffd24d;margin-top:8px;">⚪ 아직 위치 미수신 — 대화는 가능합니다</div>`}
     </div>
     ${has?`<div style="display:flex;gap:6px;">
-      <button onclick="_sosFocus('${p.id}')" style="flex:1;background:rgba(79,168,208,.12);color:#4fa8d0;border:1px solid rgba(79,168,208,.35);border-radius:8px;padding:11px;font-size:13px;font-weight:700;cursor:pointer;">🗺️ 위치로 이동</button>
+      <button onclick="_sosFocus('${p.id}')" style="flex:1;background:rgba(49,130,246,.12);color:#3182f6;border:1px solid rgba(49,130,246,.35);border-radius:8px;padding:11px;font-size:13px;font-weight:700;cursor:pointer;">🗺️ 위치로 이동</button>
       <button onclick="sosToRescue('${p.id}')" style="flex:1;background:linear-gradient(180deg,#e74c3c,#c0392b);color:#fff;border:none;border-radius:8px;padding:11px;font-size:13px;font-weight:800;cursor:pointer;">🚨 구조 사고로 등록</button>
     </div>`:''}
-    <div style="margin-top:10px;background:#0b1c30;border:1px solid rgba(255,255,255,.08);border-radius:11px;padding:10px;">
+    <div style="margin-top:10px;background:#20242c;border:1px solid rgba(255,255,255,.08);border-radius:11px;padding:10px;">
       <div style="font-size:12px;font-weight:700;color:#7dd3fa;margin-bottom:7px;">💬 조난자와 대화 <span style="font-size:10px;color:#5a7e98;font-weight:400;">상대 화면에 실시간 표시</span></div>
       <div id="sosTeamChat" style="max-height:230px;overflow-y:auto;margin-bottom:8px;">${_sosChatBubbles(p.msgs||[],'t')}</div>
       <div style="display:flex;gap:6px;">
-        <input id="sosTeamChatIn" placeholder="메시지 입력" style="flex:1;min-width:0;box-sizing:border-box;background:#060d1a;border:1px solid rgba(255,255,255,.15);color:#fff;border-radius:8px;padding:10px;font-size:14px;" onkeydown="if(event.key==='Enter')_sosTeamSend('${p.id}')">
+        <input id="sosTeamChatIn" placeholder="메시지 입력" style="flex:1;min-width:0;box-sizing:border-box;background:#16181d;border:1px solid rgba(255,255,255,.15);color:#fff;border-radius:8px;padding:10px;font-size:14px;" onkeydown="if(event.key==='Enter')_sosTeamSend('${p.id}')">
         <button onclick="_sosTeamSend('${p.id}')" style="flex-shrink:0;background:#1a6e9e;color:#fff;border:none;border-radius:8px;padding:0 15px;font-size:13px;font-weight:700;cursor:pointer;">전송</button>
       </div>
     </div>
@@ -3543,7 +3543,7 @@ function _telBtnsHtml(tel,resId,role,name){
   const t=String(tel||'').replace(/[^0-9+]/g,'');if(!t)return '';
   const _q=s=>String(s||'').replace(/[\\']/g,'').slice(0,20);
   const _r=(resId!==undefined&&resId!==null&&resId!=='')?","+resId+",'"+_q(role||'사고자')+"','"+_q(name)+"'":'';
-  return ` <span style="display:inline-flex;gap:4px;"><button onclick="_callTel('${t}')" style="background:rgba(39,174,96,.15);color:#5dbf8a;border:1px solid rgba(39,174,96,.35);border-radius:6px;padding:2px 8px;font-size:11px;font-weight:700;cursor:pointer;">📞 전화</button><button onclick="_smsSosTo('${t}'${_r})" style="background:rgba(79,168,208,.15);color:#7dd3fa;border:1px solid rgba(79,168,208,.35);border-radius:6px;padding:2px 8px;font-size:11px;font-weight:700;cursor:pointer;">🆘 위치요청</button></span>`;}
+  return ` <span style="display:inline-flex;gap:4px;"><button onclick="_callTel('${t}')" style="background:rgba(39,174,96,.15);color:#5dbf8a;border:1px solid rgba(39,174,96,.35);border-radius:6px;padding:2px 8px;font-size:11px;font-weight:700;cursor:pointer;">📞 전화</button><button onclick="_smsSosTo('${t}'${_r})" style="background:rgba(49,130,246,.15);color:#7dd3fa;border:1px solid rgba(49,130,246,.35);border-radius:6px;padding:2px 8px;font-size:11px;font-weight:700;cursor:pointer;">🆘 위치요청</button></span>`;}
 // 보고서 상세: 전화번호 탭 → 전화 / 위치요청(1회용 SOS 링크 만들어 그 번호로 문자)
 function _callTel(tel){tel=String(tel||'').replace(/[^0-9+]/g,'');if(!tel){toast('전화번호 없음');return;}if(confirm(tel+' 로 전화하겠습니까?'))location.href='tel:'+tel;}
 // resId 를 함께 주면: 발급 토큰을 그 사고에 역할(사고자/동반자/신고자/추가 사고자)과 함께 연결(r.sosLinks)
@@ -3681,7 +3681,7 @@ function sosToRescue(id){
 // 앱 자체 업데이트 (OTA · Capgo 자체호스팅) — APK 전용. 웹/PWA는 서비스워커가 자동 갱신.
 // 번들(www)의 새 버전을 ota.json으로 알리면, 설치된 앱이 받아서 그 자리에서 교체(재빌드 불필요).
 // ══════════════════════════════════════════
-const OTA_VER='2026.07.17.226';                         // ← 현재 번들 버전 (릴리스마다 올림 · build-ota.sh가 ota.json에 반영)
+const OTA_VER='2026.07.17.227';                         // ← 현재 번들 버전 (릴리스마다 올림 · build-ota.sh가 ota.json에 반영)
 const OTA_MANIFEST='https://seorak1275.github.io/seoraksan/ota.json';
 // 업데이트 확인 폴백 소스 — 일부 기관망·통신사에서 github.io가 막혀 '확인 실패(네트워크)'가 나는 경우 대비.
 // 순서대로 시도: ① GitHub Pages(원본·즉시 반영) ② jsDelivr CDN(공개저장소 미러·거의 모든 망 통과)
@@ -3748,12 +3748,12 @@ function _otaBanner(){
   if(el)return;                      // 이미 떠 있음
   el=document.createElement('div');el.id='otaModal';
   el.style.cssText='position:fixed;inset:0;z-index:100002;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;padding:24px;';
-  el.innerHTML='<div style="background:#0f2034;border:1px solid rgba(79,168,208,.3);border-radius:18px;max-width:340px;width:100%;padding:24px 20px;text-align:center;box-shadow:0 12px 40px rgba(0,0,0,.6);">'
+  el.innerHTML='<div style="background:#0f2034;border:1px solid rgba(49,130,246,.3);border-radius:18px;max-width:340px;width:100%;padding:24px 20px;text-align:center;box-shadow:0 12px 40px rgba(0,0,0,.6);">'
     +'<div style="font-size:40px;">🔄</div>'
     +'<div style="font-size:18px;font-weight:800;color:#e0edf8;margin-top:8px;">새 버전이 있습니다</div>'
     +(_otaInfo.notes?'<div style="font-size:12px;color:#9bbdd4;margin-top:8px;line-height:1.6;">'+_esc(_otaInfo.notes)+'</div>':'')
     +'<div id="otaCountTxt" style="font-size:11px;color:#5a8aaa;margin-top:12px;"><b style="color:#7dd3fa;">5초</b> 후 자동으로 업데이트됩니다</div>'
-    +'<button onclick="_otaApply()" style="width:100%;margin-top:16px;padding:14px;border:none;border-radius:12px;background:linear-gradient(180deg,#4fa8d0,#1a6e9e);color:#fff;font-size:15px;font-weight:800;cursor:pointer;">지금 업데이트</button>'
+    +'<button onclick="_otaApply()" style="width:100%;margin-top:16px;padding:14px;border:none;border-radius:12px;background:linear-gradient(180deg,#3182f6,#1a6e9e);color:#fff;font-size:15px;font-weight:800;cursor:pointer;">지금 업데이트</button>'
     +'<button onclick="_otaDismiss()" style="width:100%;margin-top:8px;padding:12px;border:1px solid rgba(255,255,255,.14);border-radius:12px;background:none;color:#9bbdd4;font-size:13px;font-weight:600;cursor:pointer;">나중에 하기</button>'
     +'</div>';
   document.body.appendChild(el);
@@ -3954,13 +3954,13 @@ window.onload=function(){
       :{ico:'🔔',title:'알림 권한',desc:state==='denied'?'설정에서 알림 권한을 허용해 주세요':'구조 발생 시 알림 수신 허용'};
     var div=document.createElement('div');
     div.id=id;
-    div.style.cssText='display:flex;align-items:center;gap:8px;background:rgba(79,168,208,.08);border:1px solid rgba(79,168,208,.18);border-radius:9px;padding:8px 10px;flex-shrink:0;';
+    div.style.cssText='display:flex;align-items:center;gap:8px;background:rgba(49,130,246,.08);border:1px solid rgba(49,130,246,.18);border-radius:9px;padding:8px 10px;flex-shrink:0;';
     div.innerHTML='<span style="font-size:15px;">'+cfg.ico+'</span>'
       +'<div style="flex:1;min-width:0;">'
-        +'<div style="font-size:11px;font-weight:700;color:#4fa8d0;">'+cfg.title+'</div>'
+        +'<div style="font-size:11px;font-weight:700;color:#3182f6;">'+cfg.title+'</div>'
         +'<div style="font-size:10px;color:#3a6a8a;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+cfg.desc+'</div>'
       +'</div>'
-      +(state!=='denied'?'<button onclick="_reqPerm(\''+type+'\')" style="flex-shrink:0;background:#1a3d5c;color:#4fa8d0;border:1px solid rgba(79,168,208,.3);border-radius:6px;padding:5px 11px;font-size:10px;font-weight:700;cursor:pointer;">허용</button>':'')
+      +(state!=='denied'?'<button onclick="_reqPerm(\''+type+'\')" style="flex-shrink:0;background:#1a3d5c;color:#3182f6;border:1px solid rgba(49,130,246,.3);border-radius:6px;padding:5px 11px;font-size:10px;font-weight:700;cursor:pointer;">허용</button>':'')
       +'<button onclick="document.getElementById(\'pb-'+type+'\').remove()" style="flex-shrink:0;background:none;border:none;color:rgba(255,255,255,.2);font-size:16px;line-height:1;cursor:pointer;padding:0 2px;">×</button>';
     wrap.appendChild(div);
   }
