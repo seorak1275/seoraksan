@@ -1298,20 +1298,78 @@ function _sunTimes(lat,lng,date){
   const toDate=J=>new Date((J-2440587.5)*86400000);
   return {sunrise:toDate(Jt-H/360),sunset:toDate(Jt+H/360)};
 }
-// 진행 중 구조의 일몰 카운트다운 배지 (좌표 필요). 종료 건·좌표 없으면 '' — 밤이 다가올수록 주황→빨강 경고
+const _opChip=(col,txt)=>`<span style="display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:800;color:${col};background:${col}1a;border:1px solid ${col}55;border-radius:7px;padding:3px 9px;">${txt}</span>`;
+// 진행 중 구조의 일몰 카운트다운 (좌표 필요) — 밤이 다가올수록 주황→빨강. 종료·좌표없음이면 ''
 function _sunsetBadge(r){
   if(!r||r.status!=='ongoing'||!(r.lat&&r.lng))return '';
   const t=_sunTimes(+r.lat,+r.lng);if(!t)return '';
   const hhmm=d=>('0'+d.getHours()).slice(-2)+':'+('0'+d.getMinutes()).slice(-2);
   const remMin=Math.round((t.sunset.getTime()-Date.now())/60000);
-  let col,txt;
-  if(remMin<=0){col='#c0392b';txt=`🌙 일몰 지남 ${hhmm(t.sunset)} · 야간구조`;}
-  else{
-    const h=Math.floor(remMin/60),m=remMin%60,rem=(h?h+'시간 ':'')+(m?m+'분 ':'')+'남음';
-    col=remMin<=60?'#c0392b':remMin<=120?'#e67e22':'#5fa86f';
-    txt=(remMin<=60?'🌅 일몰 임박 ':'🌅 일몰 ')+hhmm(t.sunset)+' · '+rem;
-  }
-  return `<div style="display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:800;color:${col};background:${col}1a;border:1px solid ${col}55;border-radius:7px;padding:3px 9px;margin-top:6px;">${txt}</div>`;
+  if(remMin<=0)return _opChip('#c0392b',`🌙 일몰 지남 ${hhmm(t.sunset)} · 야간구조`);
+  const h=Math.floor(remMin/60),m=remMin%60,rem=(h?h+'시간 ':'')+(m?m+'분 ':'')+'남음';
+  const col=remMin<=60?'#c0392b':remMin<=120?'#e67e22':'#5fa86f';
+  return _opChip(col,(remMin<=60?'🌅 일몰 임박 ':'🌅 일몰 ')+hhmm(t.sunset)+' · '+rem);
+}
+// 진행 중 구조의 신고 후 경과시간 (골든타임 인식) — 길어질수록 파랑→주황→빨강. 종료건이면 ''
+function _elapsedBadge(r){
+  if(!r||r.status!=='ongoing'||!r.date)return '';
+  const m=String(r.date).match(/(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})/);if(!m)return '';
+  let min=Math.round((Date.now()-new Date(+m[1],+m[2]-1,+m[3],+m[4],+m[5]).getTime())/60000);
+  if(min<0||!isFinite(min))return '';
+  const h=Math.floor(min/60),mm=min%60,txt=(h?h+'시간 ':'')+mm+'분';
+  const col=min<60?'#5fa86f':min<180?'#3182f6':min<360?'#e67e22':'#c0392b';
+  return _opChip(col,`⏱️ 신고 후 ${txt} 경과`);
+}
+// 사고지점 접근 안내 — 가장 가까운 거점·직선거리·방위·추정 도보시간 (좌표 있으면 종료건도 표시)
+function _accessBadge(r){
+  if(!r||!(r.lat&&r.lng)||typeof SEORAK_BASES==='undefined'||typeof _haversineKm!=='function')return '';
+  let best=null,bd=1e9;
+  for(const k in SEORAK_BASES){const b=SEORAK_BASES[k];const d=_haversineKm(+r.lat,+r.lng,b.lat,b.lng);if(d<bd){bd=d;best=b;}}
+  if(!best)return '';
+  const dirs=['북','북동','동','남동','남','남서','서','북서'];
+  const ang=(Math.atan2(+r.lng-best.lng,+r.lat-best.lat)*180/Math.PI+360)%360;
+  const dir=dirs[Math.round(ang/45)%8];
+  const wm=Math.round(bd*1.4/2.5*60); // 직선×1.4 사행보정 · 산악 2.5km/h
+  const walk=wm>=60?Math.floor(wm/60)+'시간'+(wm%60?' '+(wm%60)+'분':''):wm+'분';
+  return _opChip('#6b8299',`🚶 ${_esc(best.name)} 기준 직선 ${bd.toFixed(1)}km ${dir}쪽 · 도보 약 ${walk}`);
+}
+// 진행중 구조 운영 배지 묶음(경과·일몰·접근) — 한 줄 flex
+function _opBadges(r){
+  const b=[_elapsedBadge(r),_sunsetBadge(r),_accessBadge(r)].filter(Boolean);
+  return b.length?`<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:6px;">${b.join('')}</div>`:'';
+}
+// ── 좌표 공유 (119·타 기관 전달용) — 십진수·도분초·카카오맵 링크 ──
+function _coordFormats(lat,lng){
+  lat=+lat;lng=+lng;
+  const dms=(v,pos,neg)=>{const a=Math.abs(v),deg=Math.floor(a),mf=(a-deg)*60,mi=Math.floor(mf),se=Math.round((mf-mi)*60);return (v>=0?pos:neg)+deg+'° '+mi+"' "+se+'"';};
+  return {dec:lat.toFixed(6)+', '+lng.toFixed(6),dms:dms(lat,'N','S')+' '+dms(lng,'E','W'),kakao:'https://map.kakao.com/link/map/사고지점,'+lat.toFixed(6)+','+lng.toFixed(6)};
+}
+function openCoordShare(lat,lng,title){
+  if(!(lat&&lng)){toast('좌표 없음');return;}
+  const f=_coordFormats(lat,lng);
+  const t=title?String(title).slice(0,40):'설악산 사고지점';
+  const shareText=`[${t}]\n좌표 ${f.dec}\n${f.dms}\n카카오맵: ${f.kakao}`;
+  const row=(lbl,val,cp)=>`<div style="display:flex;align-items:center;gap:8px;background:#0f0f11;border:1px solid rgba(255,255,255,.1);border-radius:9px;padding:9px 11px;margin-bottom:7px;"><div style="flex:1;min-width:0;"><div style="font-size:9px;color:#6b7684;font-weight:700;">${lbl}</div><div style="font-size:12.5px;color:#eaecef;font-weight:600;word-break:break-all;">${_esc(val)}</div></div><button onclick="_copyText('${_escq(cp)}')" style="flex-shrink:0;background:rgba(49,130,246,.14);color:#4d9bf5;border:1px solid rgba(49,130,246,.3);border-radius:7px;padding:5px 10px;font-size:11px;font-weight:700;cursor:pointer;">복사</button></div>`;
+  let ov=document.getElementById('coordShareOv');if(ov)ov.remove();
+  ov=document.createElement('div');ov.id='coordShareOv';
+  ov.style.cssText='position:fixed;inset:0;z-index:9600;background:rgba(0,0,0,.62);display:flex;align-items:flex-end;justify-content:center;';
+  ov.innerHTML=`<div style="background:#16161a;width:100%;max-width:480px;border-radius:14px 14px 0 0;padding:16px 16px calc(18px + env(safe-area-inset-bottom));box-shadow:0 -4px 20px rgba(0,0,0,.7);">
+    <div style="font-size:15px;font-weight:800;color:#eaecef;margin-bottom:3px;">📍 사고지점 좌표 공유</div>
+    <div style="font-size:11px;color:#8b95a1;margin-bottom:13px;">119·타 기관 전달용 — 복사하거나 아래로 바로 공유</div>
+    ${row('위도, 경도 (십진수)',f.dec,f.dec)}
+    ${row('도분초 (DMS)',f.dms,f.dms)}
+    ${row('카카오맵 링크',f.kakao,f.kakao)}
+    <div style="display:flex;gap:8px;margin-top:12px;">
+      <button onclick="document.getElementById('coordShareOv').remove()" style="flex:1;padding:12px;border-radius:9px;border:1px solid rgba(255,255,255,.15);background:rgba(255,255,255,.04);color:#c4c8ce;font-size:13px;font-weight:700;cursor:pointer;">닫기</button>
+      <button onclick="_sysShareCoord('${_escq(shareText)}')" style="flex:2;padding:12px;border-radius:9px;border:none;background:#1a4a6e;color:#fff;font-size:13px;font-weight:800;cursor:pointer;">📤 공유 / 문자</button>
+    </div>
+  </div>`;
+  document.body.appendChild(ov);ov.onclick=e=>{if(e.target===ov)ov.remove();};
+}
+function _copyText(s){try{navigator.clipboard.writeText(s);toast('📋 복사됨');}catch(e){try{const t=document.createElement('textarea');t.value=s;document.body.appendChild(t);t.select();document.execCommand('copy');t.remove();toast('📋 복사됨');}catch(_){toast('복사 실패 — 길게 눌러 복사하세요');}}}
+function _sysShareCoord(text){
+  if(navigator.share){navigator.share({title:'사고지점 좌표',text}).catch(()=>{});}
+  else{location.href='sms:?&body='+encodeURIComponent(text);}
 }
 
 // Zone 뱃지: "ZZ-NN → 거점명 (Xm)" 표지판 코드 최우선
