@@ -687,6 +687,23 @@ function initFirebase(onReady){
             if(_vw&&!_vw.classList.contains('on'))renderFacWork();else _updateFacWorkBadge();}catch(e){}}
         else if(window.curApp==='alert')renderAlertView();
         else if(window.curApp==='stats')renderFullStats();
+        // 상황판(모니터): 열려 있으면 원격 변경 '즉시' 반영 — 10초 폴링 대기 없이 실시간 동기화.
+        // (핀은 데이터 서명 가드로 변경분만 다시 그림 · 상세 패널은 댓글 입력 중이면 건너뛰어 타이핑 보호)
+        try{
+          var _bv=document.getElementById('v-board');
+          if(_bv&&_bv.classList.contains('on')){
+            if(typeof renderBoard==='function')renderBoard();
+            try{if(typeof _renderBoardPins==='function')_renderBoardPins(false);}catch(e){}
+            if(typeof _boardDetailId!=='undefined'&&_boardDetailId!=null){
+              var _bd=document.getElementById('boardDetail');
+              var _br=(DB.g('rescues')||[]).find(function(x){return x.id===_boardDetailId;});
+              var _ae=document.activeElement;
+              var _typing=_ae&&_bd&&_bd.contains(_ae)&&/INPUT|TEXTAREA/.test(_ae.tagName||'');
+              if(_br&&_bd&&_bd.style.display!=='none'&&!_typing&&typeof renderTimeline==='function')
+                renderTimeline(_br,(typeof _tlViewMode!=='undefined'&&_tlViewMode)||'advanced','boardDetailContent');
+            }
+          }
+        }catch(e){}
       },400);
     }
     // ── 컬렉션 리스너: 항목마다 개별 문서 (rescues, hazards) ──

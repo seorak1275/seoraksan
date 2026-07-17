@@ -1,1 +1,1 @@
-{"version":"2026.07.17.263","url":"https://seorak1275.github.io/seoraksan/bundle.zip","notes":"보안 보강 — 입력 새니타이즈(_SANITIZE_KEYS)를 사용자 자유입력이 담기는 전 컬렉션(facilities·facIssues·history)으로 확대: 저장 시점에 <> 전각 치환으로 스크립트 주입 원천 차단"}
+{"version":"2026.07.17.264","url":"https://seorak1275.github.io/seoraksan/bundle.zip","notes":"상황판 실시간 동기화 — Firestore 원격 수신 훅(_onRemoteUpdate)에 상황판 분기 추가: 구조·위험·특보·탐방로 변경이 10초 폴링 대기 없이 즉시 반영(요약숫자·카드·지도핀·열린 상세 타임라인까지). 핀은 서명 가드로 변경분만 그려 깜빡임 없음, 상세 댓글 타이핑 중엔 재렌더 건너뜀. SOS는 기존대로 실시간. 10초 타이머는 시계·자가치유용으로 유지"}
