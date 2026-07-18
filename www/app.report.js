@@ -1018,6 +1018,13 @@ async function govReport(rid,kind,noPass){
     add(r.injuryPhoto,'부상사진','[부상사진]');
     add(r.transPhoto,'이송 사진','[이송사진]');
     (r.photos||[]).slice(0,4).forEach((p,i)=>add(p&&p.url,'','[현장사진 '+(i+1)+']'+((p&&p.time)?' '+String(p.time).slice(5,16):'')));
+    // 부상·이송 전용 슬롯이 비어 있으면 현장사진으로 표 칸을 채움 — 사진이 있는데 칸만 비어 보이던 문제.
+    // (부록으로만 가면 '사진이 안 들어갔다'로 오인 — 칸에 우선 배치, 남는 현장사진만 부록으로)
+    {
+      const _free=list.filter(p=>!p.slot);
+      if(!list.some(p=>p.slot==='부상사진')&&_free[0])_free[0].slot='부상사진';
+      if(!list.some(p=>p.slot==='이송 사진')&&_free[1])_free[1].slot='이송 사진';
+    }
     if(list.length){
       _photos=(await Promise.all(list.map(async p=>{try{const d=await _imgDataDims(p.u);return Object.assign(p,{w:d.w,h:d.h});}catch(e){return null;}}))).filter(Boolean);
     }
