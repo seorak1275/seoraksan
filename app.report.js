@@ -510,7 +510,7 @@ function _tlTeamFullHtml(team,idx){
   return `<div id="tlTeamCard_${idx}" style="display:flex;align-items:center;gap:6px;padding:6px 0;border-top:.5px solid rgba(255,255,255,.05);">
     <span style="flex:1;min-width:0;font-size:12px;font-weight:700;color:#c8dff0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${_teamIco(team)} ${_esc(_deptShort(team.name))}${cnt?` <span style="font-size:10px;color:#aab4c0;">${cnt}명</span>`:''}</span>
     ${_req?`<span style="font-size:9.5px;color:#7a96ad;flex-shrink:0;">🚨${_req}</span>`:''}
-    ${_arr?`<span style="font-size:9.5px;color:#3ad17a;flex-shrink:0;">🏁${_arr}</span>`:`<button onclick="event.stopPropagation();tlMarkArrival(${idx})" style="flex-shrink:0;background:rgba(39,174,96,.12);border:1px solid rgba(39,174,96,.35);color:#5dbf8a;border-radius:6px;font-size:9.5px;font-weight:700;padding:2px 7px;cursor:pointer;">🏁 도착</button>`}
+    ${_arr?`<span style="font-size:9.5px;color:#3ad17a;flex-shrink:0;">🏁${_arr}</span>`:''}
     <span onclick="event.stopPropagation();_tlTeamEditStart(${idx})" style="flex-shrink:0;color:rgba(77,155,245,.9);font-size:12px;cursor:pointer;padding:4px 6px;line-height:1;" title="팀 인원·이름 수정">✏️</span>
   </div>`;
 }
@@ -561,8 +561,15 @@ function _tlRecSelTeam(el){
 // 단계 버튼 탭 — 그 단계 패널을 열고, 저장 시 쓸 기본 stage를 세팅
 function _tlStepTap(k){
   window._tlStepSel=k;window._tlStepSelRid=_tlWpResId;
-  _tlRecStage=({'조우':'요구조자 조우','처치':'응급처치','하산':'하산 시작'})[k]||'';
+  _tlRecStage=({'조우':'요구조자 조우','하산':'하산 시작'})[k]||'';
   try{const r=getRes(_tlWpResId);if(r)renderTimeline(r,'advanced');}catch(e){}
+}
+// 조우 패널 모드(조우/응급처치/심정지) 전환
+function _tlEncMode(m){
+  _tlRecStage=m==='aid'?'응급처치':m==='cpr'?'심정지':'요구조자 조우';
+  [['tlEncModeEnc','enc'],['tlEncModeAid','aid'],['tlEncModeCpr','cpr']].forEach(([id,k])=>{const el=document.getElementById(id);if(el)el.classList.toggle('on',k===m);});
+  const w=document.getElementById('tlRecCprWrap');if(w)w.style.display=m==='cpr'?'block':'none';
+  const a=document.getElementById('tlRecEncAid');if(a)a.style.display=m==='enc'?'inline-flex':'none';
 }
 // 기타 기록(휴식·헬기·기상·직접입력) — 선택 시 저장 줄 노출, 단계 기본 stage를 덮어씀
 function _tlRecSelStage(el){
@@ -589,6 +596,11 @@ function _tlRecSave(rid){
   if(stage==='하산 시작'){
     _descMeths=[...document.querySelectorAll('#tlRecDescMeth .pill.on')].map(p=>p.dataset.v).filter(Boolean);
     if(_descMeths.length)entry.note=_descMeths.join('·')+(entry.note?' · '+entry.note:'');
+  }
+  // 조우 패널에서 고른 팀(ㅇㅇ팀 조우)을 기록 주체로
+  if(['요구조자 조우','응급처치','심정지'].includes(stage)&&!entry.team){
+    const tp=document.querySelector('#tlEncTeams .pill.on');
+    if(tp)entry.team=tp.dataset.v||'';
   }
   if(_tlRecStage==='심정지'){
     const cs=document.getElementById('tlRecCprStart')?.value||'';
@@ -636,7 +648,9 @@ function _tlRecSave(rid){
   // 🤝 조우 저장 시 '응급처치 함께 기록' 선택 → 같은 시각으로 응급처치도 한 줄 추가
   if(stage==='요구조자 조우'){
     const aid=document.getElementById('tlRecEncAid');
-    if(aid&&aid.classList.contains('on'))res[idx].timetable.push({stage:'응급처치',time:entry.time,note:'',by:entry.by,team:entry.team,seq:Date.now()+1});
+    if(aid&&aid.classList.contains('on')&&aid.style.display!=='none')res[idx].timetable.push({stage:'응급처치',time:entry.time,note:'',by:entry.by,team:entry.team,seq:Date.now()+1});
+    // 팀 조우 = 그 팀의 '도착'을 대체 — 도착시각이 비어 있으면 조우 시각으로 채움(시각 줄·문서 집계용, 일지엔 조우 줄만 표시)
+    if(entry.team){const tt=(res[idx].teams||[]).find(t=>t.name===entry.team);if(tt&&!tt.arrivedAt)tt.arrivedAt=entry.time;}
   }
   DB.s('rescues',res);
   _tlRecTeam='';_tlRecStage='';
@@ -693,9 +707,14 @@ function _collectLogEntries(r){
       const _base=t.wps&&t.wps[0]?t.wps[0].name.replace(/^\d{2}-\d{2}\s*/,''):'';
       const _tgt=t.wps&&t.wps.length>1?t.wps[t.wps.length-1].name.replace(/^\d{2}-\d{2}\s*/,''):'';
       const _mem=t.members&&t.members.length?t.members.join(', '):'';
-      logEntries.push({k:_tKey(t.createdAt),t:_tShow(t.createdAt),ico:_ico,label:t.name+' 출동',sub:(_mem?_mem+' · ':'')+(_base&&_tgt?_base+' → '+_tgt:''),type:'team'});
+      logEntries.push({k:_tKey(t.createdAt),t:_tShow(t.createdAt),ico:_ico,label:t.name+' 출동',sub:(_mem?_mem+' · ':'')+(_base&&_tgt?_base+' → '+_tgt:''),type:'team',tid:t.id,kind:'dispatch'});
     }
-    if(t.arrivedAt)logEntries.push({k:_tKey(t.arrivedAt),t:_tShow(t.arrivedAt),ico:'🏁',label:t.name+' 현장도착',sub:'',type:'team'});
+    // 팀 조우 기록이 같은 분에 있으면 도착 줄 생략(조우=도착 대체) — 중복 표시 방지
+    if(t.arrivedAt){
+      const _arrK=_tKey(t.arrivedAt);
+      const _dupEnc=(r.timetable||[]).some(e=>e&&e.stage==='요구조자 조우'&&_tKey(e.time)===_arrK);
+      if(!_dupEnc)logEntries.push({k:_arrK,t:_tShow(t.arrivedAt),ico:'🏁',label:t.name+' 현장도착',sub:'',type:'team',tid:t.id,kind:'arrive'});
+    }
     if(t.boardedAt)logEntries.push({k:_tKey(t.boardedAt),t:_tShow(t.boardedAt),ico:'🚁',label:t.name+' 환자 탑승',sub:'',type:'team'});
     (t.transportLog||[]).forEach(tr=>logEntries.push({k:_tKey(tr.at),t:_tShow(tr.at),ico:'🔄',label:t.name+' 이송전환',sub:tr.from+' → '+tr.to,type:'team'}));
   });
@@ -718,16 +737,17 @@ function _tlRecEditStart(reg){
   if(ent.by!==me&&!(typeof isAdminUser==='function'&&isAdminUser())){toast('⚠️ 본인이 작성한 기록만 수정할 수 있습니다');return;}
   window._tlEdit={rid:RG.rid,sig:RG.sig};
   window._tlRecOpen=true;
-  // 단계형 기록이면 해당 단계 패널을 열어 수정
-  const _stepMap={'요구조자 조우':'조우','응급처치':'처치','심정지':'처치','하산 시작':'하산'};
+  // 단계형 기록이면 해당 단계 패널을 열어 수정 (처치·심정지는 조우 패널 안)
+  const _stepMap={'요구조자 조우':'조우','응급처치':'조우','심정지':'조우','하산 시작':'하산'};
   if(_stepMap[ent.stage]){window._tlStepSel=_stepMap[ent.stage];window._tlStepSelRid=RG.rid;}
   renderTimeline(r,'advanced');
   setTimeout(function(){
     try{
       if(_stepMap[ent.stage]){
         _tlRecStage=ent.stage;
+        if(ent.stage==='응급처치'){if(typeof _tlEncMode==='function')_tlEncMode('aid');}
         if(ent.stage==='심정지'){
-          const c=document.getElementById('tlAidCpr');if(c)c.click();
+          if(typeof _tlEncMode==='function')_tlEncMode('cpr');
           const cs=document.getElementById('tlRecCprStart');if(cs&&ent.cprStart)cs.value=String(ent.cprStart).replace(' ','T').slice(0,16);
           const ce=document.getElementById('tlRecCprEnd');if(ce&&ent.cprEnd)ce.value=String(ent.cprEnd).replace(' ','T').slice(0,16);
           if(ent.aed==='사용'){const y=document.getElementById('tlRecAedY');if(y)y.click();}
@@ -762,6 +782,49 @@ function _tlRecDel(reg){
   DB.s('rescues',res);
   toast(dupN>1?('🗑 중복 '+dupN+'건 삭제됨'):'🗑 기록이 삭제되었습니다');
   renderTimeline(res[idx],'advanced');
+}
+// ── 상황일지의 자동 생성 줄(팀 출동·현장도착)도 수정·삭제 가능하게 ──
+function _dtEditModal(title,val,cb){
+  let m=document.getElementById('dtEditModal');if(m)m.remove();
+  m=document.createElement('div');m.id='dtEditModal';
+  m.style.cssText='position:fixed;inset:0;z-index:99850;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;padding:30px;';
+  const v=String(val||'').replace(' ','T').slice(0,16);
+  m.innerHTML=`<div style="background:#16161a;border:1px solid rgba(255,255,255,.25);border-radius:14px;max-width:300px;width:100%;padding:16px;">
+    <div style="font-size:13px;font-weight:800;color:#eaecef;margin-bottom:10px;">${title}</div>
+    <input type="datetime-local" id="dtEditInp" class="fi" style="width:100%;box-sizing:border-box;margin-bottom:11px;" value="${v}">
+    <div style="display:flex;gap:7px;">
+      <button onclick="document.getElementById('dtEditModal').remove()" style="flex:1;padding:10px;border-radius:9px;border:1px solid rgba(255,255,255,.15);background:transparent;color:#8b95a1;font-size:12px;font-weight:600;cursor:pointer;">취소</button>
+      <button id="dtEditOk" style="flex:2;padding:10px;border-radius:9px;background:#1a4a6e;color:#fff;border:none;font-size:12px;font-weight:700;cursor:pointer;">저장</button>
+    </div></div>`;
+  document.body.appendChild(m);
+  m.onclick=function(e){if(e.target===m)m.remove();};
+  document.getElementById('dtEditOk').onclick=function(){
+    const nv=(document.getElementById('dtEditInp').value||'').replace('T',' ');
+    if(!/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}/.test(nv)){toast('⚠️ 일시를 입력하세요');return;}
+    m.remove();cb(nv);
+  };
+}
+function _tlAfterTeamChange(){try{const r=getRes(_tlWpResId);if(r)renderTimeline(r,'advanced');}catch(e){try{_rerenderTlFull();}catch(_){}}}
+function _tlTeamRowEdit(tid,kind){
+  const i=_tlTeams.findIndex(t=>String(t.id)===String(tid));if(i<0){toast('팀 정보를 찾을 수 없습니다');return;}
+  const t=_tlTeams[i];
+  if(kind==='arrive'){
+    _dtEditModal('🏁 '+_esc(t.name)+' 도착 시각 수정',t.arrivedAt||now(),nv=>{t.arrivedAt=nv;_persistTeams();_tlAfterTeamChange();toast('✏️ 도착 시각 수정됨');});
+  }else{
+    _dtEditModal('🚗 '+_esc(t.name)+' 출동 시각 수정',t.requestedAt||t.createdAt||now(),nv=>{t.requestedAt=nv;t.createdAt=nv;_persistTeams();_tlAfterTeamChange();toast('✏️ 출동 시각 수정됨 — 팀원 변경은 출동 단계의 ✏️에서');});
+  }
+}
+function _tlTeamRowDel(tid,kind){
+  const i=_tlTeams.findIndex(t=>String(t.id)===String(tid));if(i<0)return;
+  const t=_tlTeams[i];
+  if(kind==='arrive'){
+    if(!confirm(t.name+' 도착 기록을 삭제할까요?'))return;
+    t.arrivedAt=null;
+  }else{
+    if(!confirm(t.name+' 출동(팀 전체)을 삭제할까요?\n이 팀의 도착 기록도 함께 사라집니다'))return;
+    _tlTeams.splice(i,1);
+  }
+  _persistTeams();_tlAfterTeamChange();toast('🗑 삭제됨');
 }
 // 🚨 최초접수 일시 수정 — 상황일지의 최초접수 줄 ✏️로 바로. r.date를 바꿔 목록·통계·보고서 전체 반영
 function _tlEditFirstDate(rid){
@@ -829,22 +892,18 @@ function _buildLogHtml(r){
         <div style="display:flex;align-items:center;gap:6px;margin-bottom:${e.sub?'2':'0'}px;">
           <span style="font-size:11px;color:#8b95a1;font-family:monospace;font-weight:600;white-space:nowrap;">${e.t}</span>
           <span style="font-size:${isWpPass(e)?'11':'12'}px;font-weight:${isWpPass(e)?'600':'700'};color:${isWpPass(e)?'rgba(255,255,255,.55)':col};">${e.ico} ${_esc(e.label)}</span>
-          ${(e.sig&&(e.by===getAuthor()||(typeof isAdminUser==='function'&&isAdminUser())))?(()=>{const _di=window._tlDelReg.push({rid:r.id,sig:e.sig})-1;return `<span onclick="event.stopPropagation();_tlRecEditStart(${_di})" style="margin:-8px 0 -8px auto;color:rgba(77,155,245,.9);font-size:13px;cursor:pointer;padding:8px 8px;flex-shrink:0;line-height:1;touch-action:manipulation;" title="기록 수정">✏️</span><span onclick="event.stopPropagation();_tlRecDel(${_di})" style="margin:-8px -6px -8px 0;color:rgba(255,107,91,.9);font-size:16px;font-weight:800;cursor:pointer;padding:8px 12px;flex-shrink:0;line-height:1;touch-action:manipulation;-webkit-tap-highlight-color:rgba(255,107,91,.2);" title="기록 삭제">×</span>`;})():(e.label==='최초접수'&&!(typeof isExternal==='function'&&isExternal()))?`<span onclick="event.stopPropagation();_tlEditFirstDate(${r.id})" style="margin:-8px -6px -8px auto;color:rgba(77,155,245,.9);font-size:13px;cursor:pointer;padding:8px 10px;flex-shrink:0;line-height:1;touch-action:manipulation;" title="최초접수 일시 수정">✏️</span>`:''}
+          ${(e.sig&&(e.by===getAuthor()||(typeof isAdminUser==='function'&&isAdminUser())))?(()=>{const _di=window._tlDelReg.push({rid:r.id,sig:e.sig})-1;return `<span onclick="event.stopPropagation();_tlRecEditStart(${_di})" style="margin:-8px 0 -8px auto;color:rgba(77,155,245,.9);font-size:13px;cursor:pointer;padding:8px 8px;flex-shrink:0;line-height:1;touch-action:manipulation;" title="기록 수정">✏️</span><span onclick="event.stopPropagation();_tlRecDel(${_di})" style="margin:-8px -6px -8px 0;color:rgba(255,107,91,.9);font-size:16px;font-weight:800;cursor:pointer;padding:8px 12px;flex-shrink:0;line-height:1;touch-action:manipulation;-webkit-tap-highlight-color:rgba(255,107,91,.2);" title="기록 삭제">×</span>`;})():(e.label==='최초접수'&&!(typeof isExternal==='function'&&isExternal()))?`<span onclick="event.stopPropagation();_tlEditFirstDate(${r.id})" style="margin:-8px -6px -8px auto;color:rgba(77,155,245,.9);font-size:13px;cursor:pointer;padding:8px 10px;flex-shrink:0;line-height:1;touch-action:manipulation;" title="최초접수 일시 수정">✏️</span>`:(e.tid&&!(typeof isExternal==='function'&&isExternal()))?`<span onclick="event.stopPropagation();_tlTeamRowEdit('${_escq(String(e.tid))}','${e.kind||''}')" style="margin:-8px 0 -8px auto;color:rgba(77,155,245,.9);font-size:13px;cursor:pointer;padding:8px 8px;flex-shrink:0;line-height:1;touch-action:manipulation;" title="시각 수정">✏️</span><span onclick="event.stopPropagation();_tlTeamRowDel('${_escq(String(e.tid))}','${e.kind||''}')" style="margin:-8px -6px -8px 0;color:rgba(255,107,91,.9);font-size:16px;font-weight:800;cursor:pointer;padding:8px 12px;flex-shrink:0;line-height:1;touch-action:manipulation;" title="삭제">×</span>`:''}
         </div>
         ${e.sub?`<div style="font-size:10px;color:rgba(255,255,255,.35);padding-left:2px;line-height:1.4;">${_esc(e.sub)}</div>`:''}
       </div>
     </div>`;
   }).join('');
-  // 범례
-  const legend=`<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px;">
-    ${Object.entries({요구조자:'victim',팀이동:'team',보고:'report','공단':'nps'}).map(([lbl,tp])=>`<span style="font-size:9px;color:${TYPE_COL[tp]};background:${TYPE_BG[tp]};border-radius:4px;padding:1px 6px;font-weight:700;">${lbl}</span>`).join('')}
-  </div>`;
   return `<div class="slog-box" style="background:#0f0f11;border-radius:10px;padding:11px 13px;margin-top:8px;border:.5px solid rgba(255,255,255,.15);">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:7px;">
       <span style="font-size:11px;color:#3182f6;font-weight:700;">📜 상황 일지</span>
       ${collapseWp?`<button data-on="0" data-n="${wpCount}" onclick="_toggleWpLog(this)" style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.12);color:rgba(255,255,255,.5);border-radius:10px;padding:2px 9px;font-size:10px;font-weight:700;cursor:pointer;">📍 통과 ${wpCount}건 보기</button>`:''}
     </div>
-    ${legend}${rows}
+    ${rows}
   </div>`;
 }
 // 상황일지의 '지점 통과' 기록 접기/펼치기 (기본 접힘 — 주요 이벤트 위주 표시)
@@ -1597,13 +1656,13 @@ function renderTimeline(r,viewMode,outId){
           <span onclick="_toggleRecCard(${_tglArg})" style="margin-left:auto;font-size:10.5px;color:#6b7684;font-weight:700;cursor:pointer;padding:2px 6px;">▲ 접기</span>
         </div>
         ${(()=>{
-          const STEPS=[['접수','📞'],['출동','🚗'],['조우','🤝'],['처치','🩹'],['하산','⬇️'],['종료','✅']];
+          const STEPS=[['접수','📞'],['출동','🚗'],['조우','🤝'],['하산','⬇️'],['종료','✅']]; // 처치는 조우 안에 포함
           const _stg=(r.timetable||[]).map(e=>e.stage||'');
-          const D={'접수':!!r.date,'출동':(r.teams||[]).length>0,'조우':_stg.includes('요구조자 조우'),'처치':_stg.some(s=>s==='응급처치'||s==='심정지'),'하산':_stg.includes('하산 시작'),'종료':r.status!=='ongoing'};
+          const D={'접수':!!r.date,'출동':(r.teams||[]).length>0,'조우':_stg.includes('요구조자 조우')||_stg.some(s=>s==='응급처치'||s==='심정지'),'하산':_stg.includes('하산 시작'),'종료':r.status!=='ongoing'};
           let cur='종료';for(const st of STEPS){if(!D[st[0]]){cur=st[0];break;}}
           if(window._tlStepSelRid!==r.id){window._tlStepSel=null;window._tlStepSelRid=r.id;}
           const sel=window._tlStepSel||cur;
-          _tlRecStage=({'조우':'요구조자 조우','처치':'응급처치','하산':'하산 시작'})[sel]||'';
+          _tlRecStage=({'조우':'요구조자 조우','하산':'하산 시작'})[sel]||'';
           const btns=STEPS.map(([k,ico])=>{
             const d=D[k],selq=k===sel,curq=k===cur;
             return `<div onclick="_tlStepTap('${k}')" style="flex:1;min-width:0;text-align:center;cursor:pointer;padding:8px 2px 7px;border-radius:10px;border:1.5px solid ${selq?'rgba(49,130,246,.7)':d?'rgba(61,220,132,.3)':'rgba(255,255,255,.12)'};background:${selq?'rgba(49,130,246,.16)':d?'rgba(61,220,132,.05)':'rgba(255,255,255,.02)'};">
@@ -1618,13 +1677,17 @@ function renderTimeline(r,viewMode,outId){
               <div id="tlAllTeams">${_tlTeamRowsHtml()}</div>
               <div id="tlBuildArea" style="margin-top:8px;">${_tlBuilding?_renderBuildPanelHtml():_renderCreateBtnsHtml()}</div>`;
           }else if(sel==='조우'){
-            panel=`<div style="font-size:11px;color:#8b95a1;margin-bottom:7px;">🤝 요구조자 조우 — 시간 확인하고 아래 [기록 저장]</div>
-              <div class="pill" id="tlRecEncAid" onclick="this.classList.toggle('on')" style="font-size:11px;cursor:pointer;display:inline-flex;border-color:rgba(231,76,60,.35);color:#e88;">🩹 응급처치도 함께 기록</div>`;
-          }else if(sel==='처치'){
-            panel=`<div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:7px;">
-                <div class="pill on" id="tlAidNorm" onclick="_tlRecStage='응급처치';this.classList.add('on');var c=document.getElementById('tlAidCpr');if(c)c.classList.remove('on');var w=document.getElementById('tlRecCprWrap');if(w)w.style.display='none';" style="font-size:11px;cursor:pointer;">🩹 응급처치</div>
-                <div class="pill" id="tlAidCpr" onclick="_tlRecStage='심정지';this.classList.add('on');var n=document.getElementById('tlAidNorm');if(n)n.classList.remove('on');var w=document.getElementById('tlRecCprWrap');if(w)w.style.display='block';" style="font-size:11px;cursor:pointer;border-color:rgba(231,76,60,.4);color:#e74c3c;">🫀 심정지·CPR</div>
+            // 조우+처치 통합 패널 — 출동 팀 버튼(ㅇㅇ팀 조우)로 도착을 대체, 처치·CPR도 여기서
+            const _tn=(r.teams||[]).map(t=>t.name).filter(Boolean);
+            panel=`${_tn.length?`<div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:7px;" id="tlEncTeams">
+                ${_tn.map((n,i)=>`<div class="pill${i===0?' on':''}" data-v="${_esc(n)}" onclick="document.querySelectorAll('#tlEncTeams .pill').forEach(p=>p.classList.remove('on'));this.classList.add('on');" style="font-size:11px;cursor:pointer;">🤝 ${_esc(_deptShort(n))} 조우</div>`).join('')}
+              </div>`:''}
+              <div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:7px;">
+                <div class="pill on" id="tlEncModeEnc" onclick="_tlEncMode('enc')" style="font-size:11px;cursor:pointer;">🤝 조우</div>
+                <div class="pill" id="tlEncModeAid" onclick="_tlEncMode('aid')" style="font-size:11px;cursor:pointer;">🩹 응급처치</div>
+                <div class="pill" id="tlEncModeCpr" onclick="_tlEncMode('cpr')" style="font-size:11px;cursor:pointer;border-color:rgba(231,76,60,.4);color:#e74c3c;">🫀 심정지·CPR</div>
               </div>
+              <div class="pill" id="tlRecEncAid" onclick="this.classList.toggle('on')" style="font-size:11px;cursor:pointer;display:inline-flex;border-color:rgba(231,76,60,.35);color:#e88;margin-bottom:7px;">🩹 응급처치도 함께 기록</div>
               <div id="tlRecCprWrap" style="display:none;background:rgba(231,76,60,.07);border:1px solid rgba(231,76,60,.25);border-radius:9px;padding:9px 11px;">
                 <div style="font-size:10px;color:#e74c3c;font-weight:700;margin-bottom:6px;">🫀 CPR 기록 (시작/종료·AED)</div>
                 <div style="display:flex;gap:6px;margin-bottom:6px;">
@@ -1645,7 +1708,7 @@ function renderTimeline(r,viewMode,outId){
             panel=D['종료']?`<div style="font-size:12px;color:#3ad17a;font-weight:800;">✅ 상황 종료됨${r.completion?' · 완료 '+_esc(r.completion):''}</div>`
               :`<button onclick="selResId=${r.id};curResId=${r.id};endSit();" style="width:100%;padding:12px;border-radius:10px;background:#0d5040;color:#fff;border:none;font-size:13px;font-weight:800;cursor:pointer;">✅ 상황 종료하기 — 이송 방법·병원·결과 입력</button>`;
           }
-          const showSave=['조우','처치','하산'].includes(sel);
+          const showSave=['조우','하산'].includes(sel);
           return `<div style="display:flex;gap:4px;margin-bottom:9px;">${btns}</div>
             <div id="tlStepPanel" style="background:rgba(255,255,255,.025);border:1px solid rgba(255,255,255,.08);border-radius:10px;padding:10px 11px;margin-bottom:8px;">${panel}</div>
             <div id="tlRecStages" style="display:flex;gap:4px;flex-wrap:wrap;align-items:center;margin-bottom:7px;">
