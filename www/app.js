@@ -3752,7 +3752,7 @@ function sosToRescue(id){
 // 앱 자체 업데이트 (OTA · Capgo 자체호스팅) — APK 전용. 웹/PWA는 서비스워커가 자동 갱신.
 // 번들(www)의 새 버전을 ota.json으로 알리면, 설치된 앱이 받아서 그 자리에서 교체(재빌드 불필요).
 // ══════════════════════════════════════════
-const OTA_VER='2026.07.18.277';                         // ← 현재 번들 버전 (릴리스마다 올림 · build-ota.sh가 ota.json에 반영)
+const OTA_VER='2026.07.18.278';                         // ← 현재 번들 버전 (릴리스마다 올림 · build-ota.sh가 ota.json에 반영)
 const OTA_MANIFEST='https://seorak1275.github.io/seoraksan/ota.json';
 // 업데이트 확인 폴백 소스 — 일부 기관망·통신사에서 github.io가 막혀 '확인 실패(네트워크)'가 나는 경우 대비.
 // 순서대로 시도: ① GitHub Pages(원본·즉시 반영) ② jsDelivr CDN(공개저장소 미러·거의 모든 망 통과)
@@ -4083,10 +4083,28 @@ window.onload=function(){
       setInterval(_swChk,1800000);
       document.addEventListener('visibilitychange',function(){if(document.visibilityState==='visible')_swChk();});
     }).catch(function(){});
-    // 새 서비스워커가 활성화(업데이트)되면 자동 새로고침 → '며칠 전 버전에 멈춤' 방지(자가치유)
+    // 새 서비스워커가 활성화(업데이트)되면 새로고침해 적용 → '며칠 전 버전에 멈춤' 방지(자가치유).
+    // 단, 작성 중(입력 포커스·1보 폼·보고서 작성)에 바로 새로고침하면 입력을 잃으므로
+    // 손을 뗄 때까지 미뤘다가 적용(유휴 5초 간격 확인 + 화면 이탈 시 즉시)
     navigator.serviceWorker.addEventListener('controllerchange',function(){
       if(!_hadController||window._swReloaded)return; // 첫 설치는 새로고침 안 함(루프 방지)
-      window._swReloaded=true;location.reload();
+      window._swReloaded=true;
+      var _done=false;var _go=function(){if(_done)return;_done=true;location.reload();};
+      var _busyNow=function(){
+        try{
+          var ae=document.activeElement;
+          if(ae&&(ae.tagName==='INPUT'||ae.tagName==='TEXTAREA'))return true;
+          var nr=document.getElementById('v-newres');if(nr&&nr.classList.contains('on'))return true; // 1보 작성 중
+          if(window._reportMode==='write')return true; // N보/보고서 작성 중
+          var tn=document.getElementById('tlRecNote'),tc=document.getElementById('tlRecCustom');
+          if((tn&&tn.value)||(tc&&tc.value))return true; // 기록카드 임시 입력 보호
+        }catch(e){}
+        return false;
+      };
+      if(!_busyNow()){_go();return;}
+      try{toast('⬆️ 새 버전이 준비됐어요 — 입력이 끝나면 자동 적용됩니다');}catch(e){}
+      var t=setInterval(function(){if(!_busyNow()){clearInterval(t);_go();}},5000);
+      document.addEventListener('visibilitychange',function(){if(document.visibilityState==='hidden'){try{clearInterval(t);}catch(e){}_go();}});
     });
   }
   try{_otaInit();}catch(e){} // APK 자체 업데이트(OTA) 확인
