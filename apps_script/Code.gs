@@ -1,31 +1,52 @@
-// ══════════════════════════════════════════════════════════════
-// 설악산 현장관리 — FCM 푸시 발송기 + 보안 게이트 (Google Apps Script)
-//
-// ★ 2026-07 보안 강화판 — 적용 방법 (기존 배포 스크립트 기준):
-//   1) 이 파일의 doPost / _getSecrets / _verifyIdToken / _rateLimited 를
-//      기존 스크립트에 덮어쓰기(또는 추가). ⚠️ 기존 스크립트에 mintToken(로그인
-//      토큰 발급) 코드가 있으면 그 함수는 절대 지우지 말 것 — 아래 doPost가
-//      handleMintToken(req) 이름으로 위임 호출한다. 기존 mintToken 처리 블록을
-//      function handleMintToken(req){...} 로 감싸 이름만 맞춰주면 된다.
-//   2) 프로젝트 설정 > 스크립트 속성에 아래 키 추가:
-//        SECRET          = 새 공유 시크릿(길고 랜덤하게)  ← 앱 관리자 설정의 '공유 비밀번호'와 동일하게
-//        SECRET_OLD      = (로테이션 중에만) 직전 시크릿 — 전 기기 업데이트 후 삭제
-//        REQUIRE_AUTH    = 0   ← 전 기기가 새 앱(ID토큰 동봉)으로 업데이트된 뒤 1로 변경
-//        FIREBASE_API_KEY= Firebase 웹 API 키 (ID토큰 검증용)
-//   3) 배포 > 배포 관리 > 기존 배포 '수정' > 새 버전 → URL 유지된 채 코드만 교체됨
-//
-// 보안 계층:
-//   · 시크릿: 코드 하드코딩 금지 — 스크립트 속성에서 읽음(로테이션 가능, 구/신 동시 허용)
-//   · ID토큰: 앱이 Firebase 로그인 ID토큰을 동봉 → 서버가 검증. REQUIRE_AUTH=1이면
-//     검증 실패 요청은 시크릿이 맞아도 거부(시크릿 유출 대비 2중 잠금)
-//   · 레이트리밋: 분당 전체 60회·사용자당 20회 초과 시 거부(스팸·마비 공격 차단)
-// ══════════════════════════════════════════════════════════════
+/**************************************************************
+ * 설악산 현장관리 — 통합 Apps Script (2026-07 보안 강화 통합본)
+ *  (1) FCM 푸시 발송 — 시크릿 + ID토큰 검증 + 레이트리밋
+ *  (2) 카카오 로그인 검증 + 허용목록 + Firebase 커스텀 토큰 발급
+ *  (3) 기상특보 24시간 감시(트리거)
+ *
+ * [교체 방법 — 전체 복붙 한 번]
+ *  ① 기존 스크립트에서 var SA = {...} 블록(서비스 계정 키)만 복사해 두기
+ *  ② 기존 코드 전체 삭제 → 이 파일 전체 붙여넣기
+ *  ③ 아래 "var SA" 자리에 ①에서 복사한 키 붙여넣기
+ *     (또는 스크립트 속성 SA_JSON에 키 JSON 전체를 넣으면 코드에 안 둬도 됨 — 권장)
+ *  ④ 프로젝트 설정 > 스크립트 속성 추가:
+ *       REQUIRE_AUTH     = 0    ← 전 기기 앱 업데이트 확인 후 1로 (푸시에 로그인 필수화)
+ *       FIREBASE_API_KEY = Firebase 웹 API 키 (ID토큰 검증용)
+ *       (선택) SECRET / SECRET_OLD — 시크릿 로테이션 시
+ *       (선택) SA_JSON — 서비스 계정 키 JSON 전체
+ *  ⑤ 배포 → 배포 관리 → 기존 배포 ✏️수정 → 새 버전 → 배포 (URL 그대로 유지)
+ *  ⑥ 테스트: 앱 카카오 로그인 1회 + 관리자 푸시 1회
+ *  ※ 문제 생기면: 배포 관리 → 이전 버전 선택 → 배포 (즉시 원복)
+ **************************************************************/
 
 // Firebase 프로젝트 ID
 var PROJECT_ID = 'seoraksan';
 
-// (레거시 폴백) 스크립트 속성 SECRET 미설정 시에만 사용 — 설정 후엔 무시됨
-var SHARED_SECRET = 'CHANGE-ME-설악산-비밀번호';
+// 앱과 일치해야 하는 공유 시크릿 (스크립트 속성 SECRET 설정 시 그쪽 우선)
+var SHARED_SECRET = '설악산119';
+
+// 마스터 관리자 카카오 이메일 — 항상 admin 권한 (허용목록과 무관)
+var MASTER_EMAIL = 'yraphael@kakao.com';
+
+// ── Firebase 서비스 계정 키 ──
+// 스크립트 속성 SA_JSON이 있으면 그걸 쓰고, 없으면 아래 인라인 블록 사용.
+var SA = (function () {
+  try {
+    var p = PropertiesService.getScriptProperties().getProperty('SA_JSON');
+    if (p) return JSON.parse(p);
+  } catch (e) {}
+  return {
+    /* ⚠️ 여기에 기존 스크립트의 var SA = { ... } 중괄호 안 내용을 그대로 붙여넣기
+       (type, project_id, private_key_id, private_key, client_email, token_uri) */
+  };
+})();
+
+// ── base64url 인코딩 (커스텀 토큰 서명용) ──
+function b64url(o) {
+  return Utilities.base64EncodeWebSafe(
+    typeof o === 'string' ? o : JSON.stringify(o)
+  ).replace(/=+$/, '');
+}
 
 // ── 시크릿: 스크립트 속성 우선(로테이션: SECRET_OLD 병행 허용) ──
 function _getSecrets() {
@@ -56,7 +77,7 @@ function _verifyIdToken(idToken) {
   } catch (e) { return ''; }
 }
 
-// ── 레이트리밋: 분당 전체 60회 · 사용자(uid 또는 익명)당 20회 ──
+// ── 레이트리밋: 분당 전체 60회 · 사용자당 20회 ──
 function _rateLimited(uid) {
   try {
     var c = CacheService.getScriptCache();
@@ -69,6 +90,30 @@ function _rateLimited(uid) {
   } catch (e) { return false; }
 }
 
+// ── Firestore appData 문서 읽기/쓰기 (스크립트 소유자 권한) ──
+function _fsDocGet(k) {
+  try {
+    var res = UrlFetchApp.fetch(
+      'https://firestore.googleapis.com/v1/projects/' + PROJECT_ID + '/databases/(default)/documents/appData/' + encodeURIComponent(k),
+      { headers: { Authorization: 'Bearer ' + ScriptApp.getOAuthToken() }, muteHttpExceptions: true });
+    if (res.getResponseCode() !== 200) return null;
+    var f = JSON.parse(res.getContentText()).fields;
+    if (!f || !f.d || !f.d.stringValue) return null;
+    return JSON.parse(f.d.stringValue);
+  } catch (e) { return null; }
+}
+function _fsDocSet(k, obj) {
+  try {
+    UrlFetchApp.fetch(
+      'https://firestore.googleapis.com/v1/projects/' + PROJECT_ID + '/databases/(default)/documents/appData/' + encodeURIComponent(k) + '?updateMask.fieldPaths=d',
+      { method: 'patch', contentType: 'application/json',
+        headers: { Authorization: 'Bearer ' + ScriptApp.getOAuthToken() },
+        payload: JSON.stringify({ fields: { d: { stringValue: JSON.stringify(obj) } } }),
+        muteHttpExceptions: true });
+  } catch (e) {}
+}
+
+// ══════════════ 메인 진입점 ══════════════
 function doPost(e) {
   try {
     var req = JSON.parse(e.postData.contents);
@@ -79,11 +124,8 @@ function doPost(e) {
       return _json({ error: 'unauthorized' });
     }
 
-    // ② 로그인(mintToken)은 기존 로직에 위임 — 카카오 토큰을 자체 검증하므로 여기서 종료
-    if (req.action === 'mintToken') {
-      if (typeof handleMintToken === 'function') return handleMintToken(req);
-      return _json({ error: 'mintToken_not_installed' }); // 기존 mintToken 블록을 handleMintToken으로 감싸주세요
-    }
+    // ② 카카오 로그인 → Firebase 커스텀 토큰 발급
+    if (req.action === 'mintToken') return handleMintToken(req);
 
     // ③ 푸시 발송 — ID토큰 검증(REQUIRE_AUTH=1이면 필수) + 레이트리밋
     var uid = _verifyIdToken(req.idToken);
@@ -96,8 +138,6 @@ function doPost(e) {
     var title  = req.title  || '설악산 현장관리';
     var body   = req.body   || '';
     var rawData = req.data  || {};
-
-    // FCM data 필드는 모든 값이 문자열이어야 함
     var data = {};
     Object.keys(rawData).forEach(function (k) {
       data[k] = String(rawData[k] == null ? '' : rawData[k]);
@@ -105,7 +145,6 @@ function doPost(e) {
 
     var accessToken = ScriptApp.getOAuthToken();
     var url = 'https://fcm.googleapis.com/v1/projects/' + PROJECT_ID + '/messages:send';
-
     var sent = 0;
     var invalid = [];
 
@@ -125,7 +164,6 @@ function doPost(e) {
           }
         }
       };
-
       var res = UrlFetchApp.fetch(url, {
         method: 'post',
         contentType: 'application/json',
@@ -133,17 +171,14 @@ function doPost(e) {
         payload: JSON.stringify(message),
         muteHttpExceptions: true
       });
-
       var code = res.getResponseCode();
-      if (code === 200) {
-        sent++;
-      } else {
+      if (code === 200) { sent++; }
+      else {
         var txt = res.getContentText();
-        // 만료/삭제된 토큰 → 앱이 정리하도록 돌려줌
         if (code === 404 ||
             txt.indexOf('UNREGISTERED') >= 0 ||
             txt.indexOf('INVALID_ARGUMENT') >= 0) {
-          invalid.push(tok);
+          invalid.push(tok); // 만료/삭제된 토큰 → 앱이 정리하도록 돌려줌
         }
       }
     });
@@ -152,6 +187,85 @@ function doPost(e) {
   } catch (err) {
     return _json({ error: String(err) });
   }
+}
+
+// ══════════════ 카카오 로그인 → 커스텀 토큰 ══════════════
+// 요청: {secret, action:'mintToken', kakaoAccessToken, profile:{realName,name,dept,rank}}
+// 응답: {token, role:'admin'|'member', kakaoId}  /  {error:'not_allowed'|...}
+function handleMintToken(req) {
+  if (_rateLimited('mint')) return _json({ error: 'rate_limited' });
+  var tok = req.kakaoAccessToken;
+  if (!tok) return _json({ error: 'no_token' });
+
+  // ① 카카오 서버에 직접 신원 확인 — 토큰 위조 불가
+  var kres;
+  try {
+    kres = UrlFetchApp.fetch('https://kapi.kakao.com/v2/user/me',
+      { headers: { Authorization: 'Bearer ' + tok }, muteHttpExceptions: true });
+  } catch (e) { return _json({ error: 'kakao_unreachable' }); }
+  if (kres.getResponseCode() !== 200) return _json({ error: 'kakao_invalid' });
+  var kj = JSON.parse(kres.getContentText());
+  var kakaoId = String(kj.id || '');
+  if (!kakaoId) return _json({ error: 'kakao_invalid' });
+  var email = (kj.kakao_account && kj.kakao_account.email) || '';
+
+  // ② 탈퇴·차단 목록 확인
+  var deleted = _fsDocGet('deletedKakaoIds') || [];
+  if (Array.isArray(deleted) && deleted.map(String).indexOf(kakaoId) >= 0) {
+    return _json({ error: 'not_allowed' });
+  }
+
+  // ③ 역할 판정: 마스터 이메일 → admin / _acl 허용목록 → 등록된 역할 / 자동승인 → member
+  var role = '';
+  if (email && email === MASTER_EMAIL) role = 'admin';
+  if (!role) {
+    var acl = _fsDocGet('_acl') || {};
+    var ent = acl[kakaoId];
+    var r = (typeof ent === 'string') ? ent : (ent && ent.role);
+    if (r === 'admin' || r === 'member') role = r;
+  }
+  if (!role) {
+    var aa = _fsDocGet('autoApprove');
+    var aaOn = aa === true || aa === 1 || aa === '1' || aa === 'true' ||
+               (aa && typeof aa === 'object' && (aa.on === true || aa.enabled === true));
+    if (aaOn) role = 'member';
+  }
+  if (!role) {
+    // 미승인 → 대기명단에 프로필 등록(관리자 직원 탭 자동 노출, 중복 방지) 후 거절
+    try {
+      var pend = _fsDocGet('pendingUsers') || [];
+      if (!pend.some(function (p) { return String(p.id || p.kakaoId || '') === kakaoId; })) {
+        var pf = req.profile || {};
+        pend.push({ id: kakaoId, kakaoId: kakaoId, name: pf.name || '', realName: pf.realName || '',
+                    dept: pf.dept || '', rank: pf.rank || '', at: Date.now() });
+        _fsDocSet('pendingUsers', pend);
+      }
+    } catch (e) {}
+    return _json({ error: 'not_allowed' });
+  }
+
+  // ④ Firebase 커스텀 토큰 발급 (서비스 계정 키로 서명)
+  var token = _mintCustomToken('kakao:' + kakaoId, { role: role, kakaoId: kakaoId });
+  if (!token) return _json({ error: 'mint_failed' });
+  return _json({ token: token, role: role, kakaoId: kakaoId });
+}
+
+// 커스텀 토큰(JWT RS256) 생성 — SA 키 필요
+function _mintCustomToken(uid, claims) {
+  try {
+    if (!SA || !SA.private_key || !SA.client_email) return '';
+    var now = Math.floor(Date.now() / 1000);
+    var header = { alg: 'RS256', typ: 'JWT' };
+    var payload = {
+      iss: SA.client_email, sub: SA.client_email,
+      aud: 'https://identitytoolkit.googleapis.com/google.identity.identitytoolkit.v1.IdentityToolkit',
+      iat: now, exp: now + 3600,
+      uid: uid, claims: claims || {}
+    };
+    var base = b64url(header) + '.' + b64url(payload);
+    var sig = Utilities.computeRsaSha256Signature(base, SA.private_key);
+    return base + '.' + Utilities.base64EncodeWebSafe(sig).replace(/=+$/, '');
+  } catch (e) { return ''; }
 }
 
 // 브라우저로 URL 열었을 때 상태 확인용
@@ -167,16 +281,8 @@ function _json(obj) {
 
 // ══════════════════════════════════════════════════════════════
 // 기상특보 24시간 감시 — 앱이 모두 꺼져 있어도 서버가 감지해 전 기기 푸시
-//
-// 설정(1회, PUSH_SETUP.md 참고):
-//   1) 이 파일 전체를 Apps Script 프로젝트에 붙여넣고 저장
-//   2) 편집기에서 watchKmaWarnings 를 한 번 [실행]해 권한 승인
-//   3) 좌측 ⏰(트리거) > 트리거 추가:
-//      함수 watchKmaWarnings · 시간 기반 · 분 단위 · 10분마다
-//
-// 앱(클라이언트)의 자동발령·인앱알림은 그대로 동작한다. 이 감시는
-// '아무도 앱을 보고 있지 않을 때'를 위한 백업 푸시이며, 클라이언트
-// 감지와 겹치면 같은 특보 푸시가 최대 2번 갈 수 있다(무해).
+// 설정(1회): 편집기에서 watchKmaWarnings 1회 [실행](권한 승인) →
+//   ⏰ 트리거 추가: watchKmaWarnings · 시간 기반 · 분 단위 · 10분마다
 // ══════════════════════════════════════════════════════════════
 var KMA_AUTH_KEY = 'S3Nk1fdqSpqzZNX3anqaWA';
 var KMA_SETAK_REGIONS = ['속초','고성','양양','인제','설악','강원북부산지','북부산지'];
@@ -191,16 +297,15 @@ function watchKmaWarnings() {
     txt = res.getBlob().getDataAsString('EUC-KR');
   } catch (e) { return; }
 
-  // typ01 정상 응답 마커가 없으면(에러 페이지 등) 상태 유지 — '특보 없음'으로 오인 금지
   if (!txt || !(txt.indexOf('START7777') >= 0 || txt.indexOf('REG_UP') >= 0)) return;
 
-  var cur = _kmaParseWatch(txt); // 예: {'호우':'경보','강풍':'주의보'}
+  var cur = _kmaParseWatch(txt);
   var sig = Object.keys(cur).sort().map(function (t) { return t + ':' + cur[t]; }).join('|');
   var props = PropertiesService.getScriptProperties();
   var prev = props.getProperty('kmaSig');
-  if (prev === sig) return;      // 변화 없음
+  if (prev === sig) return;
   props.setProperty('kmaSig', sig);
-  if (prev === null) return;     // 최초 실행: 기준만 저장, 알림 없음
+  if (prev === null) return;
 
   var prevMap = {};
   (prev || '').split('|').forEach(function (p) {
@@ -221,11 +326,10 @@ function watchKmaWarnings() {
   if (removed.length) msg.push('해제 ' + removed.join(', '));
   if (!msg.length) return;
 
-  var tokens = _fetchPushTokens('op_kma'); // 기상특보 알림을 끈 기기는 제외
+  var tokens = _fetchPushTokens('op_kma');
   if (tokens.length) _sendFcmToTokens(tokens, '📡 기상특보 (설악산 관할)', msg.join(' / '), { app: 'alert' });
 }
 
-// wrn_now_data_new.php 파싱 — 앱의 _parseKmaWarnings 축약판 (종류별 최고 등급만)
 function _kmaParseWatch(txt) {
   var types = ['호우','강풍','대설','태풍','폭풍해일','한파','폭염','풍랑','건조','황사'];
   var CODE = { W:'강풍', R:'호우', C:'한파', D:'건조', O:'폭풍해일', V:'풍랑', T:'태풍', S:'대설', Y:'황사', H:'폭염' };
@@ -259,7 +363,6 @@ function _kmaParseWatch(txt) {
   return out;
 }
 
-// Firestore REST로 fcmTokens 읽기 (cat 알림을 명시적으로 끈 기기는 제외)
 function _fetchPushTokens(cat) {
   var tokens = [];
   try {
@@ -280,7 +383,6 @@ function _fetchPushTokens(cat) {
   return tokens;
 }
 
-// FCM v1 발송 (doPost와 같은 방식 — 트리거 실행용 공용 함수)
 function _sendFcmToTokens(tokens, title, body, data) {
   var accessToken = ScriptApp.getOAuthToken();
   var url = 'https://fcm.googleapis.com/v1/projects/' + PROJECT_ID + '/messages:send';
