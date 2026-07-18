@@ -1413,7 +1413,8 @@ function _opBadges(r){
 function _coordFormats(lat,lng){
   lat=+lat;lng=+lng;
   const dms=(v,pos,neg)=>{const a=Math.abs(v),deg=Math.floor(a),mf=(a-deg)*60,mi=Math.floor(mf),se=Math.round((mf-mi)*60);return (v>=0?pos:neg)+deg+'° '+mi+"' "+se+'"';};
-  return {dec:lat.toFixed(6)+', '+lng.toFixed(6),dms:dms(lat,'N','S')+' '+dms(lng,'E','W'),kakao:'https://map.kakao.com/link/map/사고지점,'+lat.toFixed(6)+','+lng.toFixed(6)};
+  // 링크 안 한글은 문자·카톡의 URL 자동인식을 끊어 탭해도 안 열림 → encodeURIComponent로 순수 ASCII화
+  return {dec:lat.toFixed(6)+', '+lng.toFixed(6),dms:dms(lat,'N','S')+' '+dms(lng,'E','W'),kakao:'https://map.kakao.com/link/map/'+encodeURIComponent('사고지점')+','+lat.toFixed(6)+','+lng.toFixed(6)};
 }
 function openCoordShare(lat,lng,title){
   if(!(lat&&lng)){toast('좌표 없음');return;}
