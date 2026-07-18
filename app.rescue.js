@@ -864,7 +864,7 @@ function renderResList(){
           <div class="lmeta" style="margin-top:3px;">${_esc(r.type)} · ${r.date} · 사고자 ${_esc(r.vName||'미상')}${(r.victims2&&r.victims2.length)?` <span style="color:#e9897e;font-weight:700;">외 ${r.victims2.length}명</span>`:''}</div>
           ${_injLine?`<div class="lmeta lc-hide" style="margin-top:2px;color:#ff9a8a;">🤕 ${_esc(_injLine)}</div>`:''}
           ${_last?`<div class="lmeta lc-hide" style="margin-top:2px;color:#949aa2;">🕐 ${_esc(_last.t)} ${_esc(_last.label)}${_last.sub?' · '+_esc(String(_last.sub).slice(0,18)):''}</div>`:''}
-          ${hasCoord?`<button class="lc-hide" onclick="event.stopPropagation();viewOnMap(${r.lat},${r.lng})" style="margin-top:6px;padding:6px 12px;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.35);color:#3182f6;border-radius:8px;font-size:11px;font-weight:600;cursor:pointer;">🗺️ 지도보기</button>`:''}
+          ${hasCoord?`<button class="lc-hide" onclick="event.stopPropagation();viewOnMap(${r.lat},${r.lng},${r.id})" style="margin-top:6px;padding:6px 12px;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.35);color:#3182f6;border-radius:8px;font-size:11px;font-weight:600;cursor:pointer;">🗺️ 지도보기</button>`:''}
         </div>
         <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;align-self:flex-start;flex-shrink:0;">
           <span class="lbadge" style="background:${isOg?'rgba(231,76,60,.22)':'rgba(39,174,96,.2)'};color:${isOg?'#ff6b5e':'#3ad17a'};">${isOg?'진행중':'종료'}</span>
@@ -1220,6 +1220,105 @@ function renderRescueStats(){
 
 // 통계 자료 엑셀(CSV) 다운로드: 날짜 범위 필터
 // ── 사고 다발 구간 히트맵: 표지판 코드 기준으로 집계 (GPS 없어도 포함) ──
+// 집계만 분리(작은 카드·전체화면·PDF 공용): [{lat,lng,n,label}] 발생순 정렬
+function _heatCellsCompute(tab){
+  const _hf=window._statExpFrom||'',_ht=window._statExpTo||'';
+  const allData=(tab==='haz'?(DB.g('hazards')||[]):(DB.g('rescues')||[]))
+    .filter(r=>{const d=String(r.date||'').slice(0,10);return d&&(!_hf||d>=_hf)&&(!_ht||d<=_ht);});
+  if(!allData.length)return [];
+  const facs=DB.g('facilities')||[];
+  const signMap={};
+  facs.filter(f=>f.type&&f.type.includes('다목적위치표지판')&&f.lat&&f.lng).forEach(f=>{
+    const m=(f.name||'').match(/^(\d{2}-\d{2})/);
+    if(m)signMap[m[1]]={lat:f.lat,lng:f.lng,code:m[1],name:f.name};
+  });
+  const CELL=0.0025;
+  const bins={};
+  allData.forEach(x=>{
+    let key,code=null;
+    if(x.lat&&x.lng&&Object.keys(signMap).length){
+      let bestCode=null,bestD=Infinity;
+      Object.values(signMap).forEach(s=>{const d=_haversineKm(x.lat,x.lng,s.lat,s.lng);if(d<bestD){bestD=d;bestCode=s.code;}});
+      if(bestCode&&bestD<1){code=bestCode;key='s_'+code;}
+    }
+    if(!key){const m=(x.location||'').match(/(\d{2}-\d{2})/);if(m){code=m[1];key='s_'+code;}}
+    if(!key&&x.lat&&x.lng){key='g_'+Math.round(x.lat/CELL)+'_'+Math.round(x.lng/CELL);}
+    if(!key)return;
+    if(!bins[key])bins[key]={latSum:0,lngSum:0,latN:0,n:0,code};
+    if(x.lat&&x.lng){bins[key].latSum+=x.lat;bins[key].lngSum+=x.lng;bins[key].latN++;}
+    bins[key].n++;
+  });
+  return Object.values(bins).map(b=>{
+    let lat=b.latN>0?b.latSum/b.latN:null,lng=b.latN>0?b.lngSum/b.latN:null;
+    const s=b.code&&signMap[b.code];
+    if(!lat&&s){lat=s.lat;lng=s.lng;}
+    const label=b.code?b.code+(s&&s.name?' '+s.name.replace(/^\d{2}-\d{2}\s*/,'').slice(0,8):'')
+                :(lat?lat.toFixed(4)+','+lng.toFixed(4):'?');
+    return {lat,lng,n:b.n,label};
+  }).filter(c=>c.lat&&c.lng).sort((a,b)=>b.n-a.n);
+}
+// 셀들을 지정 요소에 지도로 그림(작은 카드·전체화면 공용)
+function _drawHeatOn(el,cells){
+  try{
+    const map=new kakao.maps.Map(el,{center:new kakao.maps.LatLng(38.13,128.43),level:8});
+    map.setMapTypeId(kakao.maps.MapTypeId.HYBRID);
+    const bounds=new kakao.maps.LatLngBounds();
+    const colOf=n=>n>=5?'#c0392b':n>=3?'#e74c3c':n>=2?'#e67e22':'#f1c40f';
+    const maxN=Math.max(...cells.map(c=>c.n),1);
+    cells.forEach(c=>{
+      const pos=new kakao.maps.LatLng(c.lat,c.lng);
+      bounds.extend(pos);
+      const op=Math.min(0.3+(c.n/maxN)*0.55,0.85);
+      new kakao.maps.Circle({center:pos,radius:150+Math.min(c.n,10)*55,fillColor:colOf(c.n),fillOpacity:op,strokeWeight:1.5,strokeColor:colOf(c.n),strokeOpacity:Math.min(op+0.1,0.95),map});
+    });
+    if(cells.length>1)map.setBounds(bounds,30);else map.setCenter(new kakao.maps.LatLng(cells[0].lat,cells[0].lng));
+    return map;
+  }catch(e){}
+}
+// ⛶ 전체화면 히트맵 — 확대·이동하며 크게 보기 + 순위 목록 + PDF 저장
+function openHeatFull(tab){
+  const cells=_heatCellsCompute(tab||'rescue');
+  if(!cells.length){toast('선택 기간에 표시할 데이터가 없습니다');return;}
+  let ov=document.getElementById('heatFullOv');if(ov)ov.remove();
+  ov=document.createElement('div');ov.id='heatFullOv';
+  ov.style.cssText='position:fixed;inset:0;z-index:99500;background:#0f0f11;display:flex;flex-direction:column;';
+  ov.innerHTML=`<div style="flex-shrink:0;display:flex;align-items:center;gap:8px;padding:calc(10px + env(safe-area-inset-top)) 12px 10px;border-bottom:1px solid rgba(255,255,255,.1);">
+      <span style="font-size:14px;font-weight:800;color:#eaecef;">🔥 사고 다발 구간</span>
+      <span style="font-size:10px;color:#8b95a1;flex:1;">${_esc(window._statExpFrom||'')} ~ ${_esc(window._statExpTo||'')}</span>
+      <button class="press-fx" onclick="_heatPdf('${tab||'rescue'}')" style="background:rgba(49,130,246,.14);border:1px solid rgba(49,130,246,.4);color:#4d9bf5;border-radius:8px;padding:7px 12px;font-size:12px;font-weight:700;cursor:pointer;">🖨 PDF</button>
+      <button onclick="document.getElementById('heatFullOv').remove()" style="background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.2);color:#d5d8dc;border-radius:8px;padding:7px 12px;font-size:12px;font-weight:700;cursor:pointer;">✕ 닫기</button></div>
+    <div id="heatFullMap" style="flex:1;min-height:0;"></div>
+    <div style="flex-shrink:0;max-height:24vh;overflow-y:auto;padding:9px 14px calc(10px + env(safe-area-inset-bottom));background:#16161a;border-top:1px solid rgba(255,255,255,.1);">
+      ${cells.slice(0,10).map((c,i)=>`<div style="display:flex;align-items:center;gap:8px;padding:3px 0;">
+        <span style="font-size:10px;font-weight:800;color:${i<3?'#e74c3c':'#a5abb3'};width:16px;">${i+1}</span>
+        <span style="font-size:12px;color:#d5d8dc;flex:1;">${_esc(c.label)}</span>
+        <span style="font-size:11px;font-weight:800;color:${c.n>=3?'#ff6b5e':'#e67e22'};">${c.n}건</span>
+      </div>`).join('')}
+    </div>`;
+  document.body.appendChild(ov);
+  setTimeout(()=>{try{_drawHeatOn(document.getElementById('heatFullMap'),cells);}catch(e){}},80);
+}
+// 🖨 다발구간 분석 PDF — 인쇄 미리보기에서 'PDF로 저장' 선택(폰·PC 공통)
+function _heatPdf(tab){
+  const cells=_heatCellsCompute(tab||'rescue');
+  if(!cells.length){toast('데이터 없음');return;}
+  const from=window._statExpFrom||'전체',to=window._statExpTo||'현재';
+  const _hf=window._statExpFrom||'',_ht=window._statExpTo||'';
+  const res=(tab==='haz'?(DB.g('hazards')||[]):(DB.g('rescues')||[]))
+    .filter(r=>{const d=String(r.date||'').slice(0,10);return d&&(!_hf||d>=_hf)&&(!_ht||d<=_ht);});
+  const tot=cells.reduce((a,c)=>a+c.n,0);
+  const td='border:1px solid #bbb;padding:6px 9px;font-size:12px;';
+  const html=`<style>@page{margin:16mm;}body{font-family:'Malgun Gothic','맑은 고딕',sans-serif;color:#111;background:#fff;}</style>
+    <div style="font-size:21px;font-weight:800;text-align:center;margin:6px 0 2px;">설악산 사고 다발 구간 분석</div>
+    <div style="font-size:12px;color:#555;text-align:center;margin-bottom:14px;">기간: ${_esc(from)} ~ ${_esc(to)} · 대상 ${res.length}건 (위치 특정 ${tot}건) · 생성 ${new Date().toISOString().slice(0,10)}</div>
+    <table style="width:100%;border-collapse:collapse;">
+      <tr style="background:#f0f2f5;"><th style="${td}width:36px;">순위</th><th style="${td}">구간 (다목적위치표지판 기준)</th><th style="${td}width:52px;">발생</th><th style="${td}width:150px;">좌표</th></tr>
+      ${cells.slice(0,20).map((c,i)=>`<tr${i<3?' style="background:#fff3f0;"':''}><td style="${td}text-align:center;font-weight:700;">${i+1}</td><td style="${td}">${_esc(c.label)}</td><td style="${td}text-align:center;font-weight:700;color:${c.n>=3?'#c0392b':'#333'};">${c.n}건</td><td style="${td}font-family:monospace;font-size:11px;">${c.lat.toFixed(5)}, ${c.lng.toFixed(5)}</td></tr>`).join('')}
+    </table>
+    <div style="font-size:10.5px;color:#777;margin-top:10px;">※ 구간은 다목적위치표지판(1km 이내 근접) 기준으로 묶었으며, 표지판이 없는 구역은 250m 격자로 집계. 설악산 현장관리 앱에서 자동 생성.</div>`;
+  if(typeof _docPreviewOverlay==='function')_docPreviewOverlay(html,'사고 다발 구간 분석 — 🖨에서 PDF로 저장');
+  toast('🖨 인쇄 버튼 → 대상에서 "PDF로 저장"을 선택하세요',6000);
+}
 function _renderHeatMap(tab){
   const el=document.getElementById('heatMapEl');
   if(!el||!window._KR)return;
@@ -1293,7 +1392,10 @@ function _renderHeatMap(tab){
   // TOP 5 순위
   const top=document.getElementById('heatTopList');
   if(top){
-    top.innerHTML=cells.slice(0,5).map((c,i)=>`<div style="display:flex;align-items:center;gap:7px;padding:3px 0;">
+    top.innerHTML=`<div style="display:flex;gap:6px;margin:2px 0 7px;">
+      <button class="press-fx" onclick="openHeatFull('${tab}')" style="flex:1;padding:8px;border-radius:8px;border:1px solid rgba(49,130,246,.4);background:rgba(49,130,246,.12);color:#4d9bf5;font-size:11.5px;font-weight:700;cursor:pointer;">⛶ 크게 보기</button>
+      <button class="press-fx" onclick="_heatPdf('${tab}')" style="flex:1;padding:8px;border-radius:8px;border:1px solid rgba(255,255,255,.2);background:rgba(255,255,255,.06);color:#c4c8ce;font-size:11.5px;font-weight:700;cursor:pointer;">🖨 PDF 저장</button>
+    </div>`+cells.slice(0,5).map((c,i)=>`<div style="display:flex;align-items:center;gap:7px;padding:3px 0;">
       <span style="font-size:9px;font-weight:800;color:${i===0?'#e74c3c':'#a5abb3'};width:14px;">${i+1}</span>
       <span style="font-size:11px;color:#c4c8ce;flex:1;">${c.label}</span>
       <span style="font-size:10px;font-weight:700;color:${c.n>=3?'#e74c3c':'#e67e22'};">${c.n}건</span>
@@ -1385,13 +1487,13 @@ function _resPopMetaHtml(data){
       ${!_skip(d.cause)?`<div style="font-size:10.5px;color:#c99a90;margin-top:3px;">원인: ${_esc(d.cause)}</div>`:''}
     </div>
     <div style="display:flex;flex-direction:column;gap:1px;margin-bottom:6px;">
-      ${_pRow('📍 위치',_locVal)}
+      ${_pRow('📍 위치',_locVal,(typeof _coordChipHtml==='function')?_coordChipHtml(data):'')}
       ${_pRow('사고자',_vLine,!_skip(d.vTel)?_telBtnsHtml(d.vTel,data.id,'사고자',d.vName):'')}
       ${(d.victims2&&d.victims2.length)?d.victims2.map((v,vi)=>_pRow('사고자'+(vi+2),_esc([v.name||'미상',v.age?v.age+'세':'',(v.gender&&v.gender!=='알수없음')?v.gender:'',v.tel?_fmtTel(v.tel):''].filter(Boolean).join(' · ')),v.tel?_telBtnsHtml(v.tel,data.id,'추가 사고자',v.name):'','#f0d9d4')).join(''):''}
       ${(!_skip(d.repName)||!_skip(d.repTel))?_pRow('신고자',[!_skip(d.repName)?_esc(d.repName):'',!_skip(d.repTel)?_esc(_fmtTel(d.repTel)):''].filter(Boolean).join(' · ')+(!_skip(d.repRel)?` <span style="font-size:10px;color:#e8b34a;font-weight:700;">(${_esc(d.repRel)})</span>`:''),!_skip(d.repTel)?_telBtnsHtml(d.repTel,data.id,'신고자',d.repName):''):''}
       ${(d.companions&&d.companions.length)?d.companions.map((c,ci)=>_pRow('동반자'+(d.companions.length>1?ci+1:''),_esc((c.name||'미상')+(c.tel?' · '+_fmtTel(c.tel):'')),c.tel?_telBtnsHtml(c.tel,data.id,'동반자',c.name):'')).join(''):''}
     </div>
-    ${(typeof _opBadges==='function')?_opBadges(data,true):''}
+    ${(typeof _opBadges==='function')?_opBadges(data,false):''}
     ${_sosLiveLineHtml(data)}
     ${!_skip(d.reception)?`<div style="background:#1c1c1e;border-radius:9px;padding:8px 11px;margin-top:2px;"><div style="font-size:10px;color:#6b7684;font-weight:700;letter-spacing:.2px;margin-bottom:3px;">📝 접수내용</div><div style="font-size:12px;color:#c9cdd3;line-height:1.55;">${_esc(d.reception)}</div></div>`:''}`;
 }
@@ -1430,7 +1532,7 @@ function openRescueOverlay(id){
     ${_resPopMetaHtml(data)}
     <div style="display:flex;gap:8px;margin-top:12px;">
       <button onclick="var e=document.getElementById('resOverlay');if(e)e.remove();selResId=${id};curResId=${id};viewReport();" style="flex:1;padding:12px;border-radius:9px;border:1px solid rgba(49,130,246,.45);background:rgba(49,130,246,.14);color:#3182f6;font-size:13px;font-weight:800;cursor:pointer;">📋 보고서 · 타임라인 보기</button>
-      ${data.lat&&data.lng?`<button onclick="var e=document.getElementById('resOverlay');if(e)e.remove();viewOnMap(${data.lat},${data.lng})" style="flex:none;padding:12px 14px;border-radius:9px;border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.04);color:#c4c8ce;font-size:13px;font-weight:700;cursor:pointer;">🗺️</button>`:''}
+      ${data.lat&&data.lng?`<button onclick="var e=document.getElementById('resOverlay');if(e)e.remove();viewOnMap(${data.lat},${data.lng},${data.id})" style="flex:none;padding:12px 14px;border-radius:9px;border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.04);color:#c4c8ce;font-size:13px;font-weight:700;cursor:pointer;">🗺️</button>`:''}
     </div>
   </div>`;
   m.onclick=function(e){if(e.target===m)m.remove();};

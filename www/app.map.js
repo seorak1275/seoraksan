@@ -1074,12 +1074,26 @@ function goHome(){
   closeDB();updateSummary();
   history.pushState({view:'home'},'','');
 }
-function viewOnMap(lat,lng){
+function viewOnMap(lat,lng,rid){
   openApp('rescue');
   setTimeout(function(){
     try{
+      // 보러 온 사고가 현재 필터(진행중만·유형)에 걸려 핀이 안 뜨면 — 위치만 덩그러니 뜨는 문제 → 필터 자동 완화
+      if(rid){
+        try{
+          const r=(DB.g('rescues')||[]).find(x=>String(x.id)===String(rid));
+          if(r){
+            const st=r.status==='ongoing'?'진행중':'종료';
+            if(resStatusF.size&&!resStatusF.has(st)){resStatusF.add(st);toast('👁 필터를 넓혀 이 사고를 표시합니다 ('+st+' 포함)');}
+            if(resTypeF.size&&!resTypeF.has('🚨구조'))resTypeF.add('🚨구조');
+            if(typeof _persistFilters==='function')_persistFilters();
+          }
+        }catch(e){}
+      }
       if(mapR){mapR.setCenter(new kakao.maps.LatLng(lat,lng));mapR.setLevel(4);}
       renderRescueMap();
+      if(rid)setTimeout(function(){try{openResPopup(rid,'rescue');}catch(e){}},280); // 핀 팝업 자동 오픈 — 위치만 뜨지 않게
+      try{var _bn=document.getElementById('bnav');if(_bn)_bn.style.display='flex';}catch(e){} // 하단바 유지
     }catch(e){}
   },200);
 }
@@ -1427,11 +1441,16 @@ function _elapsedBadge(r){
   const col=min<60?'#5fa86f':min<180?'#3182f6':min<360?'#e67e22':'#c0392b';
   return _opChip(col,`⏱️ 신고 후 ${txt} 경과`);
 }
-// 진행중 구조 운영 배지 묶음(경과·일몰) — 한 줄 flex
+// 진행중 구조 운영 배지 묶음(경과·일몰) — 한 줄 flex. 좌표 공유 칩은 위치 행 오른쪽(_coordChipHtml)으로 이동
 function _opBadges(r,withCoord){
   const b=[_elapsedBadge(r),_sunsetBadge(r)].filter(Boolean);
-  if(withCoord&&r&&r.lat&&r.lng)b.push(`<span onclick="event.stopPropagation();openCoordShare(${r.lat},${r.lng},'${_escq(String(r.title||'').slice(0,30))}')" style="display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:800;color:#4d9bf5;background:rgba(49,130,246,.12);border:1px solid rgba(49,130,246,.4);border-radius:7px;padding:3px 9px;cursor:pointer;">📍 좌표 공유</span>`);
+  if(withCoord&&r&&r.lat&&r.lng)b.push(_coordChipHtml(r));
   return b.length?`<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:6px;">${b.join('')}</div>`:'';
+}
+// 좌표 공유 칩 — 위치 행 오른쪽 끝에 붙는 컴팩트 버튼
+function _coordChipHtml(r){
+  if(!r||!r.lat||!r.lng)return '';
+  return `<span onclick="event.stopPropagation();openCoordShare(${r.lat},${r.lng},'${_escq(String(r.title||'').slice(0,30))}')" style="flex-shrink:0;display:inline-flex;align-items:center;gap:4px;font-size:10.5px;font-weight:800;color:#4d9bf5;background:rgba(49,130,246,.12);border:1px solid rgba(49,130,246,.4);border-radius:7px;padding:3px 8px;cursor:pointer;">📍 좌표 공유</span>`;
 }
 // ── 좌표 공유 (119·타 기관 전달용) — 십진수·도분초·카카오맵 링크 ──
 function _coordFormats(lat,lng){

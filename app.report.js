@@ -394,7 +394,7 @@ function startTlBuild(type){
 }
 
 function cancelTlBuild(){
-  _tlBuilding=false;
+  _tlBuilding=false;window._tlTeamEditIdx=null;
   const ba=document.getElementById('tlBuildArea');
   if(ba)ba.innerHTML=_renderCreateBtnsHtml();
 }
@@ -421,6 +421,27 @@ function toggleTlOtherDepts(){
 function confirmTlBuild(){
   const r=getRes(_tlWpResId);if(!r){toast('⚠️ 구조 정보 없음');return;}
   const nameEl=document.getElementById('tlBuildNameInput');
+  // ✏️ 팀 수정모드 — 새 팀 추가가 아니라 기존 팀 갱신(id·출동/도착 시각 보존 → 일지·문서에 즉시 반영)
+  if(window._tlTeamEditIdx!=null){
+    const t=_tlTeams[window._tlTeamEditIdx];
+    if(t){
+      const nv=nameEl&&nameEl.value.trim();
+      if(_tlBuildType==='nps'){
+        if(!_tlBuildMembers.length){toast('⚠️ 팀원을 선택하세요');return;}
+        t.members=_tlBuildMembers.slice();
+        if(nv)t.name=nv;
+        t.name=String(t.name||'').replace(/추가지원인력\(\d+명\)/,'추가지원인력('+t.members.length+'명)');
+      }else{
+        t.memberCount=parseInt(document.getElementById('tlBuildMemCount')?.value||'0')||0;
+        t.agType=_tlBuildAgencyType;t.agRegion=_tlBuildRegion||'';
+        if(nv)t.name=nv;
+      }
+    }
+    window._tlTeamEditIdx=null;_tlBuilding=false;
+    _persistTeams();_rerenderTlFull();
+    toast('✏️ 팀 정보 수정됨 — 일지·보고서에 반영');
+    return;
+  }
   if(_tlBuildType==='nps'){
     if(!_tlBuildMembers.length){toast('⚠️ 팀원을 선택하세요');return;}
     const _user=DB.g('currentUser')||{};
@@ -484,15 +505,31 @@ function _tlTeamFullHtml(team,idx){
   const cnt=_teamCnt(team);
   const _req=team.requestedAt?String(team.requestedAt).slice(11,16):'';
   const _arr=team.arrivedAt?String(team.arrivedAt).slice(11,16):'';
-  const mems=(team.members||[]);
-  const memStr=mems.length?mems.map(m=>_esc(m)).join('·'):'';
+  // 명단 상세는 보고서(출동인원)로 — 여기선 팀명·인원수·시각·도착만 컴팩트하게
   return `<div id="tlTeamCard_${idx}" style="display:flex;align-items:center;gap:6px;padding:6px 0;border-top:.5px solid rgba(255,255,255,.05);">
-    <span style="font-size:12px;font-weight:700;color:#c8dff0;flex-shrink:0;">${_teamIco(team)} ${_esc(_deptShort(team.name))}</span>
-    ${cnt?`<span style="font-size:10px;color:#aab4c0;font-weight:700;flex-shrink:0;">${cnt}명</span>`:''}
-    <span style="flex:1;min-width:0;font-size:10.5px;color:rgba(255,255,255,.55);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${memStr?'👥 '+memStr:''}</span>
+    <span style="flex:1;min-width:0;font-size:12px;font-weight:700;color:#c8dff0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${_teamIco(team)} ${_esc(_deptShort(team.name))}${cnt?` <span style="font-size:10px;color:#aab4c0;">${cnt}명</span>`:''}</span>
     ${_req?`<span style="font-size:9.5px;color:#7a96ad;flex-shrink:0;">🚨${_req}</span>`:''}
     ${_arr?`<span style="font-size:9.5px;color:#3ad17a;flex-shrink:0;">🏁${_arr}</span>`:`<button onclick="event.stopPropagation();tlMarkArrival(${idx})" style="flex-shrink:0;background:rgba(39,174,96,.12);border:1px solid rgba(39,174,96,.35);color:#5dbf8a;border-radius:6px;font-size:9.5px;font-weight:700;padding:2px 7px;cursor:pointer;">🏁 도착</button>`}
+    <span onclick="event.stopPropagation();_tlTeamEditStart(${idx})" style="flex-shrink:0;color:rgba(77,155,245,.9);font-size:12px;cursor:pointer;padding:4px 6px;line-height:1;" title="팀 인원·이름 수정">✏️</span>
   </div>`;
+}
+// ✏️ 출동팀 수정 — 출동 패널을 수정모드로 열어 팀원/인원수/이름 변경(출동·도착 시각은 보존)
+function _tlTeamEditStart(idx){
+  const t=_tlTeams[idx];if(!t)return;
+  window._tlTeamEditIdx=idx;
+  _tlBuilding=true;
+  _tlBuildType=String(t.id||'').startsWith('nps_')?'nps':'agency';
+  _tlBuildMembers=(t.members||[]).slice();
+  _tlBuildOtherOpen=false;
+  _tlBuildAgencyType=t.agType||'소방(환동해)';
+  _tlBuildRegion=t.agRegion||'';
+  const ba=document.getElementById('tlBuildArea');
+  if(ba){ba.innerHTML=_renderBuildPanelHtml();ba.scrollIntoView({behavior:'smooth',block:'center'});}
+  setTimeout(()=>{try{
+    const n=document.getElementById('tlBuildNameInput');if(n)n.value=t.name||'';
+    const mc=document.getElementById('tlBuildMemCount');if(mc&&t.memberCount)mc.value=t.memberCount;
+    toast('✏️ '+(t.name||'팀')+' 수정 — 인원·이름 고치고 [확인]');
+  }catch(e){}},60);
 }
 // 출동팀 카드 헤더: 팀 수 + 총 인원
 function _tlTeamsHdrHtml(){
@@ -1563,7 +1600,7 @@ function renderTimeline(r,viewMode,outId){
   };
   // 🚑 출동팀: 한 카드에 팀별 한 줄 + 팀 출동 버튼
   const _mkTeamCard=()=>_canWriteTl?`
-      <div style="background:#1c1c1e;border:.5px solid rgba(255,255,255,.14);border-radius:12px;padding:11px 13px;margin-top:8px;">
+      <div style="background:#1c1c1e;border:.5px solid rgba(255,255,255,.14);border-radius:12px;padding:11px 13px;margin-bottom:8px;">
         <div id="tlTeamHdr" style="font-size:11px;color:#3182f6;font-weight:800;margin-bottom:4px;">${_tlTeamsHdrHtml()}</div>
         <div id="tlAllTeams">${_tlTeamRowsHtml()}</div>
         <div id="tlBuildArea" style="margin-top:9px;">${_tlBuilding?_renderBuildPanelHtml():_renderCreateBtnsHtml()}</div>
@@ -1588,7 +1625,7 @@ function renderTimeline(r,viewMode,outId){
       </div>
       ${_vit0?`<div style="font-size:10px;color:#a5abb3;margin-top:6px;">활력: ${_vit0}</div>`:''}`;
     const _div='<div style="height:1px;background:rgba(255,255,255,.06);margin:9px 0;"></div>';
-    const _opB=(typeof _opBadges==='function')?_opBadges(r,true):'';
+    const _opB=(typeof _opBadges==='function')?_opBadges(r,false):''; // 좌표 공유는 위치 행 오른쪽 칩으로
     const _climbBtn=(r.loctype==='암벽'||r.loctype==='빙벽')?`<button onclick="event.stopPropagation();openClimbRosterForRescue(${r.id})" style="margin-top:7px;padding:6px 11px;border-radius:8px;border:1px solid rgba(49,130,246,.4);background:rgba(49,130,246,.12);color:#3182f6;font-size:11px;font-weight:700;cursor:pointer;">🧗 그날(${_esc((r.date||'').slice(0,10))}) 암벽 이용명단 조회</button>`:'';
     // 팝업 카드와 동일 규격: 라벨 10px 고정폭(50px) 정렬 · 값 12.5px 한 줄 말줄임 (통일 타이포)
     const _pRow=(lbl,val,btns,valCol)=>val?`<div style="display:flex;align-items:center;gap:8px;min-height:26px;overflow:hidden;">
@@ -1596,7 +1633,7 @@ function renderTimeline(r,viewMode,outId){
       <span style="flex:1;min-width:0;font-size:12.5px;color:${valCol||'#e5e8ec'};font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${val}</span>
       ${btns||''}</div>`:'';
     const _locVal=_ok(r.location)?`${_esc(r.location)}${(typeof _elevStr==='function'&&r.lat&&r.lng)?` <span style="font-size:10.5px;color:#8fb8ad;font-weight:600;">${_elevStr(r.lat,r.lng,r.alt)}</span>`:''}${_ok(r.loctype)?` <span style="font-size:10.5px;color:#8b95a1;font-weight:500;">· ${_esc(r.loctype)}</span>`:''}`:'';
-    const locSect=(_locVal?_pRow('📍 위치',_locVal):'')+_opB+(_climbBtn?`<div>${_climbBtn}</div>`:'');
+    const locSect=(_locVal?_pRow('📍 위치',_locVal,(typeof _coordChipHtml==='function')?_coordChipHtml(r):''):'')+_opB+(_climbBtn?`<div>${_climbBtn}</div>`:'');
     const _vAge=_ok(r.vBirth)?_ageFromBirth(r.vBirth)+'세':(_ok(r.vAge)?_esc(r.vAge)+'세':'');
     const _vLine=[_ok(r.vName)?_esc(r.vName):'미상',_vAge,_ok(r.vGender)&&r.vGender!=='알수없음'?_esc(r.vGender):'',_ok(r.vNation)&&r.vNation==='외국인'?('외국인'+(_ok(r.vNationality)?'('+_esc(r.vNationality)+')':'')):'',_ok(r.vTel)?_esc(_fmtTel(r.vTel)):''].filter(Boolean).join(' · ');
     let personSect=`<div style="display:flex;flex-direction:column;gap:1px;">`
@@ -1615,6 +1652,15 @@ function renderTimeline(r,viewMode,outId){
     if(wx)rows.push(_row('기상',wx));
     const rm=_okA(r.rescueMethod);if(rm.length)rows.push(_row('구조',rm.join(', ')));
     const mob=_okA(r.mobilize);if(mob.length)rows.push(_row('응소',mob.join(', ')));
+    // 출동인원 상세(명단·인원수)는 여기 보고서에 — 기록 구역의 출동팀 줄은 컴팩트(규정 서식 '동원인원'과 동일 형식)
+    {const _npsT=(r.teams||[]).filter(t=>!String(t.id||'').startsWith('agency_'));
+     const _tn=new Set(_npsT.flatMap(t=>t.members||[]));
+     const _loose=[...new Set((r.members||[]).filter(n=>n&&!_tn.has(n)))];
+     const _np=_npsT.filter(t=>(t.members||[]).length).map(t=>_esc(t.name)+' '+t.members.length+'명('+t.members.map(m=>_esc(m)).join(', ')+')');
+     if(_loose.length)_np.push(_loose.map(m=>_esc(m)).join(', '));
+     const _ag=(r.teams||[]).filter(t=>String(t.id||'').startsWith('agency_')).map(t=>_esc(t.name)+(t.memberCount?' '+t.memberCount+'명':''));
+     const _all=_np.concat(_ag.length?['유관기관 '+_ag.join(', ')]:[]);
+     if(_all.length)rows.push(_row('출동인원',_all.join(' / ')));}
     if(_ok(r.cause))rows.push(_row('원인',_esc(r.cause)));
     if(_ok(r.alcohol)&&r.alcohol!=='알수없음')rows.push(_row('음주',_esc(r.alcohol)+(_ok(r.alcAmount)?' · '+_esc(r.alcAmount):'')));
     if(_ok(r.situation))rows.push(_row('경위',_esc(r.situation)));
@@ -1710,9 +1756,9 @@ function renderTimeline(r,viewMode,outId){
       +_secHd('#3182f6','🕘 현장 기록 · 타임라인',16)
       +_mobilizeBlockHtml('rescues',r)
       +_mkRecCard()
+      +_mkTeamCard()
       +(logHtml?`<div style="margin:2px 0 8px;">${logHtml}</div>`
                :'<div style="text-align:center;font-size:11px;color:#565f6b;padding:12px 0 8px;">기록 없음 — 위 📌 기록 추가로 입력하세요</div>')
-      +_mkTeamCard()
       +`<div style="background:#1c1c1e;border-radius:10px;padding:12px;border:.5px solid rgba(255,255,255,.07);margin-top:8px;">
         <div style="font-size:11px;color:#3182f6;font-weight:700;margin-bottom:8px;">💬 댓글</div>
         <div id="commentList_${r.id}">${renderComments(r.id)}</div>
