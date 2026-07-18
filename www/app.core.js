@@ -1664,7 +1664,7 @@ function toggleHiContrast(){
 }
 // VAPID 키 설정 후 FCM 토큰 등록 (Firebase Console > Project Settings > Cloud Messaging > Web Push 인증서)
 // 키는 관리자 → 시스템 화면에서 입력(전 기기 동기화, appData/fcmVapidKey) — 하드코딩 상수는 폴백용
-const _FCM_VAPID=''; // (선택) 하드코딩 폴백 — 관리자 화면 입력이 우선
+const _FCM_VAPID='BCJmgN8TB7vPJbECQeZqeY8MpuuLHzpkov5rrT3ZcgG3xc47DZG7KGCqOKfWanxhRNKB9-B18B8cRievEXZti_g'; // 웹푸시(아이폰 PWA) 공개키
 async function _initFCM(){
   const vk=String(_FCM_VAPID||DB.g('fcmVapidKey')||'').trim();
   if(!_fmsg||!_fdb||!_swReg||typeof Notification==='undefined'||Notification.permission!=='granted'||!vk)return;

@@ -2969,15 +2969,27 @@ function autoGenTitle(returnOnly=false){
     injStr=(typeof _injLabel==='function')?_injLabel(_injuries[0]):((_injuries[0].part||'')+(_injuries[0].type||''));
     if(_injuries.length>1)injStr+=' 외 '+(_injuries.length-1);
   }
-  // 제목 형식: 「구역명 부상」 (예: 울산바위 근육경련). 위치칸(04-04)은 그대로, 제목엔 코드 앞자리→구역명 사용
+  // 제목 형식: 「00-00인근(구역명) 부상 66세,남」 / 외국인은 「… 외국인(국적),여」
   const _m=loc.match(/(\d{1,2})-\d{1,3}/);
   const _zone=(_m&&typeof ZONE_NAMES!=='undefined')?(ZONE_NAMES[String(_m[1]).padStart(2,'0')]||''):'';
-  const locLabel=_zone||(_m?_m[0]+' 인근':(loc?loc.slice(0,8):''));               // 04 → 울산바위, 매핑 없으면 코드/장소명
+  let locLabel='';
+  if(_m)locLabel=_m[0]+'인근'+(_zone?'('+_zone+')':'');   // 표지판 코드가 있으면 04-04인근(울산바위)
+  else if(loc)locLabel=loc.slice(0,10);                    // 없으면 장소명 앞부분
+  // 인적: 내국인=나이,성별 / 외국인=외국인(국적),성별
+  const _g=(gender&&gender!=='알수없음')?gender:'';
+  let who='';
+  if(nation==='외국인'){
+    const _nat=(document.getElementById('r_vAddr')?.value||'').trim(); // 외국인일 땐 거주지칸=국적
+    who='외국인'+(_nat?'('+_nat.slice(0,8)+')':'')+(_g?','+_g:'');
+  }else{
+    let _age='';try{const _b=(document.getElementById('r_vBirth')?.value||'').trim();if(_b&&typeof _ageFromBirth==='function')_age=_ageFromBirth(_b);}catch(e){}
+    if(_age!==''&&_age!=null&&!isNaN(_age))who=_age+'세'+(_g?','+_g:'');
+    else if(_g)who=_g;
+  }
   const parts=[];
-  if(locLabel)parts.push(locLabel);                                               // ① 위치(구역명 우선)
-  if(injStr)parts.push(injStr);                                                   // ② 다친 곳·정도
-  else if(type)parts.push(type);                                                  // 부상 없음 → 사고유형(조난·고립 등)
-  if(nation==='외국인') parts.push('외국인'+((gender&&gender!=='알수없음')?'('+gender+')':'')); // 외국인 표기
+  if(locLabel)parts.push(locLabel);
+  parts.push(injStr||type);
+  if(who)parts.push(who);
   const title=parts.join(' ')||today()+' '+type;
   if(returnOnly) return title;
   const el=document.getElementById('r_title');
@@ -3524,12 +3536,11 @@ function _drawSosPins(){
     const who=link
       ?(link.role+((link.name||p.name)?' '+String(link.name||p.name).slice(0,6):''))
       :String(p.name||'조난자').slice(0,8);
-    const altStr=(p.alt!=null&&p.alt!=='')?' ⛰'+p.alt+'m':'';
     const el=document.createElement('div');
     el.className='sos-pin'+(link?' sos-live':'');
-    el.innerHTML=`<span class="sos-dot">🆘</span><span class="sos-lbl">${_esc(who)} ±${acc}m${altStr}</span>`;
+    el.innerHTML=`<span class="sos-dot">🆘</span><span class="sos-lbl">${_esc(who)}</span>`;
     el.addEventListener('click',e=>{e.stopPropagation();_sosPinPopup(p.id);});
-    const ov=new kakao.maps.CustomOverlay({position:pos,content:el,clickable:true,yAnchor:1.15,zIndex:12});
+    const ov=new kakao.maps.CustomOverlay({position:pos,content:el,clickable:true,yAnchor:0.5,zIndex:12});
     ov.setMap(mapR);_sosOvs.push(ov);
   });
 }
@@ -3741,7 +3752,7 @@ function sosToRescue(id){
 // 앱 자체 업데이트 (OTA · Capgo 자체호스팅) — APK 전용. 웹/PWA는 서비스워커가 자동 갱신.
 // 번들(www)의 새 버전을 ota.json으로 알리면, 설치된 앱이 받아서 그 자리에서 교체(재빌드 불필요).
 // ══════════════════════════════════════════
-const OTA_VER='2026.07.18.273';                         // ← 현재 번들 버전 (릴리스마다 올림 · build-ota.sh가 ota.json에 반영)
+const OTA_VER='2026.07.18.274';                         // ← 현재 번들 버전 (릴리스마다 올림 · build-ota.sh가 ota.json에 반영)
 const OTA_MANIFEST='https://seorak1275.github.io/seoraksan/ota.json';
 // 업데이트 확인 폴백 소스 — 일부 기관망·통신사에서 github.io가 막혀 '확인 실패(네트워크)'가 나는 경우 대비.
 // 순서대로 시도: ① GitHub Pages(원본·즉시 반영) ② jsDelivr CDN(공개저장소 미러·거의 모든 망 통과)

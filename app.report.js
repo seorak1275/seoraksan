@@ -542,6 +542,15 @@ function _tlRecSave(rid){
   }
   const res=DB.g('rescues')||[];const idx=res.findIndex(x=>x.id===rid);if(idx===-1)return;
   if(!res[idx].timetable)res[idx].timetable=[];
+  // ✏️ 수정모드: 원본 항목을 제거+툼스톤(다른 기기 병합에도 안 되살아남) 후 새 값으로 교체
+  let _edited=false;
+  if(window._tlEdit&&window._tlEdit.rid===rid){
+    const _os=window._tlEdit.sig;
+    res[idx].timetable=res[idx].timetable.filter(x=>((typeof _logKey==='function')?_logKey(x):'')!==_os);
+    res[idx]._del=Array.isArray(res[idx]._del)?res[idx]._del:[];
+    if(res[idx]._del.indexOf(_os)<0)res[idx]._del.push(_os);
+    window._tlEdit=null;_edited=true;
+  }
   res[idx].timetable.push(entry);
   // 같은 서명이 예전에 삭제(툼스톤)돼 있으면: 새 항목에 re(재입력 구분자)를 부여해 키 자체를 분리.
   // (예전 방식처럼 툼스톤을 지우면 다른 기기와의 병합(union)에서 툼스톤이 되살아나 재입력이 다시 숨겨졌음 — 17시 상황종료 미표시 사례)
@@ -565,7 +574,7 @@ function _tlRecSave(rid){
   DB.s('rescues',res);
   _tlRecTeam='';_tlRecStage='';
   if(typeof _hapt==='function')_hapt(8);
-  toast('📌 기록됨: '+stage+(_synced.length?' — 📄 보고서에 자동 반영: '+_synced.join(', '):''));
+  toast((typeof _edited!=='undefined'&&_edited?'✏️ 수정됨: ':'📌 기록됨: ')+stage+(_synced.length?' — 📄 보고서에 자동 반영: '+_synced.join(', '):''));
   renderTimeline(res[idx],'advanced');
 }
 // 상황일지 엔트리 수집(공용) — 화면(_buildLogHtml)과 한글 보고서 생성이 함께 사용
@@ -631,6 +640,30 @@ function _collectLogEntries(r){
 }
 // 📌 기록 삭제 — 작성자 본인(또는 관리자)만. reg=삭제 레지스트리 인덱스({rid,sig}).
 // 서명(_logKey)으로 식별 → 화면상 동일한 중복분을 한 탭에 모두 제거 + _del 툼스톤 등록(병합으로 되살아나지 않음).
+// ✏️ 기록 수정 — 항목 값을 기록카드에 채워 수정모드로. 저장 시 원본은 삭제(툼스톤)되고 새 값으로 교체
+function _tlRecEditStart(reg){
+  const RG=(window._tlDelReg||[])[reg];if(!RG)return;
+  const r=getRes(RG.rid);if(!r)return;
+  const ent=(r.timetable||[]).find(x=>((typeof _logKey==='function')?_logKey(x):'')===RG.sig);
+  if(!ent){toast('이 줄은 자동 생성 항목이라 여기서 수정할 수 없습니다 — [기록 수정·추가 보고]에서 고치세요');return;}
+  const me=getAuthor();
+  if(ent.by!==me&&!(typeof isAdminUser==='function'&&isAdminUser())){toast('⚠️ 본인이 작성한 기록만 수정할 수 있습니다');return;}
+  window._tlEdit={rid:RG.rid,sig:RG.sig};
+  window._tlRecOpen=true;
+  renderTimeline(r,'advanced');
+  setTimeout(function(){
+    try{
+      let matched=false;
+      document.querySelectorAll('#tlRecStages .pill').forEach(p=>{if(p.dataset.v===ent.stage){_tlRecSelStage(p);matched=true;}});
+      if(!matched){const cp=document.querySelector('#tlRecStages .pill[data-v="__custom"]');if(cp){_tlRecSelStage(cp);const ci=document.getElementById('tlRecCustom');if(ci)ci.value=ent.stage||'';}}
+      const t=document.getElementById('tlRecTime');if(t&&ent.time)t.value=String(ent.time).replace(' ','T').slice(0,16);
+      const n=document.getElementById('tlRecNote');if(n)n.value=ent.note||'';
+      if(ent.team)document.querySelectorAll('#tlRecTeams .pill').forEach(p=>{if(p.dataset.v===ent.team)_tlRecSelTeam(p);});
+      const card=document.getElementById('tlRecStages');if(card)card.scrollIntoView({behavior:'smooth',block:'center'});
+      toast('✏️ 수정 모드 — 시간·내용 고치고 [기록 저장]을 누르면 교체됩니다',4000);
+    }catch(e){}
+  },140);
+}
 function _tlRecDel(reg){
   const R=(window._tlDelReg||[])[reg];if(!R)return;
   const rid=R.rid,sig=R.sig;
@@ -680,7 +713,7 @@ function _buildLogHtml(r){
         <div style="display:flex;align-items:center;gap:6px;margin-bottom:${e.sub?'2':'0'}px;">
           <span style="font-size:11px;color:#8b95a1;font-family:monospace;font-weight:600;white-space:nowrap;">${e.t}</span>
           <span style="font-size:${isWpPass(e)?'11':'12'}px;font-weight:${isWpPass(e)?'600':'700'};color:${isWpPass(e)?'rgba(255,255,255,.55)':col};">${e.ico} ${_esc(e.label)}</span>
-          ${(e.sig&&(e.by===getAuthor()||(typeof isAdminUser==='function'&&isAdminUser())))?(()=>{const _di=window._tlDelReg.push({rid:r.id,sig:e.sig})-1;return `<span onclick="event.stopPropagation();_tlRecDel(${_di})" style="margin:-8px -6px -8px auto;color:rgba(255,107,91,.9);font-size:16px;font-weight:800;cursor:pointer;padding:8px 12px;flex-shrink:0;line-height:1;touch-action:manipulation;-webkit-tap-highlight-color:rgba(255,107,91,.2);" title="기록 삭제">×</span>`;})():''}
+          ${(e.sig&&(e.by===getAuthor()||(typeof isAdminUser==='function'&&isAdminUser())))?(()=>{const _di=window._tlDelReg.push({rid:r.id,sig:e.sig})-1;return `<span onclick="event.stopPropagation();_tlRecEditStart(${_di})" style="margin:-8px 0 -8px auto;color:rgba(77,155,245,.9);font-size:13px;cursor:pointer;padding:8px 8px;flex-shrink:0;line-height:1;touch-action:manipulation;" title="기록 수정">✏️</span><span onclick="event.stopPropagation();_tlRecDel(${_di})" style="margin:-8px -6px -8px 0;color:rgba(255,107,91,.9);font-size:16px;font-weight:800;cursor:pointer;padding:8px 12px;flex-shrink:0;line-height:1;touch-action:manipulation;-webkit-tap-highlight-color:rgba(255,107,91,.2);" title="기록 삭제">×</span>`;})():''}
         </div>
         ${e.sub?`<div style="font-size:10px;color:rgba(255,255,255,.35);padding-left:2px;line-height:1.4;">${_esc(e.sub)}</div>`:''}
       </div>
@@ -1429,10 +1462,9 @@ function renderTimeline(r,viewMode,outId){
       </div>
       ${_vit0?`<div style="font-size:10px;color:#a5abb3;margin-top:6px;">활력: ${_vit0}</div>`:''}`;
     const _div='<div style="height:1px;background:rgba(255,255,255,.06);margin:9px 0;"></div>';
-    const _opB=(typeof _opBadges==='function')?_opBadges(r):'';
-    const _coordBtn=(r.lat&&r.lng)?`<button onclick="event.stopPropagation();openCoordShare(${r.lat},${r.lng},'${_escq((r.title||'').slice(0,30))}')" style="margin-top:7px;margin-right:6px;padding:6px 11px;border-radius:8px;border:1px solid rgba(49,130,246,.4);background:rgba(49,130,246,.12);color:#3182f6;font-size:11px;font-weight:700;cursor:pointer;">📍 좌표 공유</button>`:'';
+    const _opB=(typeof _opBadges==='function')?_opBadges(r,true):'';
     const _climbBtn=(r.loctype==='암벽'||r.loctype==='빙벽')?`<button onclick="event.stopPropagation();openClimbRosterForRescue(${r.id})" style="margin-top:7px;padding:6px 11px;border-radius:8px;border:1px solid rgba(49,130,246,.4);background:rgba(49,130,246,.12);color:#3182f6;font-size:11px;font-weight:700;cursor:pointer;">🧗 그날(${_esc((r.date||'').slice(0,10))}) 암벽 이용명단 조회</button>`:'';
-    const locSect=_ok(r.location)?`<div style="font-size:12px;color:#d5d8dc;line-height:1.5;">📍 ${_esc(r.location)}${(typeof _elevStr==='function'&&r.lat&&r.lng)?` <span style="color:#a7f3e4;font-size:10px;">${_elevStr(r.lat,r.lng,r.alt)}</span>`:''}${_ok(r.loctype)?` <span style="color:#8b95a1;font-size:10px;">· ${_esc(r.loctype)}</span>`:''}</div>${_opB}<div>${_coordBtn}${_climbBtn}</div>`:(_opB||_coordBtn?`${_opB}<div>${_coordBtn}</div>`:'');
+    const locSect=_ok(r.location)?`<div style="font-size:12px;color:#d5d8dc;line-height:1.5;">📍 ${_esc(r.location)}${(typeof _elevStr==='function'&&r.lat&&r.lng)?` <span style="color:#a7f3e4;font-size:10px;">${_elevStr(r.lat,r.lng,r.alt)}</span>`:''}${_ok(r.loctype)?` <span style="color:#8b95a1;font-size:10px;">· ${_esc(r.loctype)}</span>`:''}</div>${_opB}${_climbBtn?`<div>${_climbBtn}</div>`:``}`:(_opB||'');
     const _vAge=_ok(r.vBirth)?_ageFromBirth(r.vBirth)+'세':(_ok(r.vAge)?_esc(r.vAge)+'세':'');
     const _vLine=[_ok(r.vName)?_esc(r.vName):'미상',_vAge,_ok(r.vGender)&&r.vGender!=='알수없음'?_esc(r.vGender):'',_ok(r.vNation)&&r.vNation==='외국인'?('외국인'+(_ok(r.vNationality)?'('+_esc(r.vNationality)+')':'')):'',_ok(r.vTel)?_esc(_fmtTel(r.vTel)):''].filter(Boolean).join(' · ');
     let personSect=`<div style="display:flex;align-items:center;flex-wrap:nowrap;gap:5px;overflow:hidden;"><span style="font-size:10px;color:#565f6b;font-weight:700;min-width:40px;">사고자</span><span style="font-size:12px;color:#eaecef;font-weight:600;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${_vLine}</span>${_ok(r.vTel)?_telBtnsHtml(r.vTel,r.id,'사고자',r.vName):''}</div>`;
@@ -2005,7 +2037,7 @@ function _applyAiScanResult(d){
   toast('📋 출동지령서 자동 입력됨');
 }
 function openNpsResponse(resId){
-  var txt=prompt('공단 응소 내용을 입력하세요:','공단에서 응소를 실시하고 있어요');
+  var txt=prompt('공단 응소 내용을 입력하세요:','');
   if(txt===null)return;
   txt=(txt||'').trim();
   if(!txt){toast('⚠️ 내용을 입력하세요');return;}

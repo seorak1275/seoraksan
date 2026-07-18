@@ -1405,8 +1405,9 @@ function _elapsedBadge(r){
   return _opChip(col,`⏱️ 신고 후 ${txt} 경과`);
 }
 // 진행중 구조 운영 배지 묶음(경과·일몰) — 한 줄 flex
-function _opBadges(r){
+function _opBadges(r,withCoord){
   const b=[_elapsedBadge(r),_sunsetBadge(r)].filter(Boolean);
+  if(withCoord&&r&&r.lat&&r.lng)b.push(`<span onclick="event.stopPropagation();openCoordShare(${r.lat},${r.lng},'${_escq(String(r.title||'').slice(0,30))}')" style="display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:800;color:#4d9bf5;background:rgba(49,130,246,.12);border:1px solid rgba(49,130,246,.4);border-radius:7px;padding:3px 9px;cursor:pointer;">📍 좌표 공유</span>`);
   return b.length?`<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:6px;">${b.join('')}</div>`:'';
 }
 // ── 좌표 공유 (119·타 기관 전달용) — 십진수·도분초·카카오맵 링크 ──
