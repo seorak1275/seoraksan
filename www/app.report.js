@@ -280,7 +280,9 @@ function _renderBuildPanelHtml(){
     return `<div onclick="toggleTlBuildMember('${s.name.replace(/'/g,"\\'")}',this)" style="cursor:pointer;background:${on?'rgba(126,200,163,.2)':'rgba(255,255,255,.04)'};color:${on?'#7ec8a0':'rgba(255,255,255,.45)'};border:1px solid ${on?'rgba(126,200,163,.4)':'rgba(255,255,255,.12)'};border-radius:20px;font-size:10px;font-weight:700;padding:4px 10px;">${s.name}${s.rank?` <span style="font-size:8px;opacity:.7;">${s.rank}</span>`:''}</div>`;
   }
   if(_tlBuildType==='nps'){
-    const _autoName=_deptShort(myDept||'공단')+' '+(_tlTeams.filter(t=>t.id&&t.id.startsWith('nps_')).length+1)+'팀';
+    const _dsh=_deptShort(myDept||'공단');
+    const _samePrev=_tlTeams.filter(t=>t.id&&t.id.startsWith('nps_')&&((t.dept&&t.dept===_dsh)||String(t.name||'').indexOf(_dsh)===0||/추가지원인력/.test(String(t.name||''))));
+    const _autoName=_samePrev.length?_samePrev.length+'차 추가지원인력':_dsh;
     return `<div style="background:#1c1c1e;border-radius:10px;padding:12px;border:.5px solid rgba(255,255,255,.3);margin-bottom:10px;">
       <div style="font-size:11px;color:#3182f6;font-weight:700;margin-bottom:10px;">🥾 공단 팀 출동</div>
       <input id="tlBuildNameInput" type="text" class="fi" placeholder="${_autoName}" style="width:100%;box-sizing:border-box;margin-bottom:10px;">
@@ -423,9 +425,12 @@ function confirmTlBuild(){
     if(!_tlBuildMembers.length){toast('⚠️ 팀원을 선택하세요');return;}
     const _user=DB.g('currentUser')||{};
     const _dept=_deptShort(_user.dept||'공단');
-    const _npsNum=_tlTeams.filter(t=>t.id&&t.id.startsWith('nps_')).length+1;
-    const name=(nameEl&&nameEl.value.trim())||(_dept+' '+_npsNum+'팀');
-    _tlTeams.push({id:'nps_'+Date.now(),name,type:'foot',members:_tlBuildMembers.slice(),requestedAt:now(),arrivedAt:null,createdAt:now()});
+    // 처음 나가는 팀은 부서명만(예: '특구대 출동' — 환동해 등 유관기관 팀명은 그대로),
+    // 같은 곳에서 또 나가면 'N차 추가지원인력(m명) 출동 이름들' 형식
+    const _prevNps=_tlTeams.filter(t=>t.id&&t.id.startsWith('nps_'));
+    const _sameNps=_prevNps.filter(t=>(t.dept&&t.dept===_dept)||String(t.name||'').indexOf(_dept)===0||/추가지원인력/.test(String(t.name||'')));
+    const name=(nameEl&&nameEl.value.trim())||(_sameNps.length?_sameNps.length+'차 추가지원인력('+_tlBuildMembers.length+'명)':_dept);
+    _tlTeams.push({id:'nps_'+Date.now(),name,dept:_dept,type:'foot',members:_tlBuildMembers.slice(),requestedAt:now(),arrivedAt:null,createdAt:now()});
   }else{
     const memCount=parseInt(document.getElementById('tlBuildMemCount')?.value||'0')||0;
     // 환동해는 3교대 — 오늘 당직팀 번호를 팀명에 반영해 현장 혼선 방지
@@ -898,20 +903,25 @@ function _hwpxEmbedPhotos(entries,photos){
   let hpf=dec.decode(entries[hi].data);
   const tagBefore=(s,idx,open)=>{var at=s.lastIndexOf(open,idx);if(at<0)return null;var gt=s.indexOf('>',at);return (gt>=0&&gt<idx)?s.slice(at,gt+1):null;};
   // OWPML(KS X 6101) 그림 요소 — 표시 크기 W×H (HWPUNIT=1/7200인치, 96dpi 픽셀×75)
-  const picXml=(bid,W,H)=>{
+  // ⚠️ 한글 실파일(SimplePicture.hwpx) 대조로 확정한 규칙: 이미지 참조는 <hc:img>(hp: 아님),
+  //    imgDim 속성은 dimwidth/dimheight(dircx/dircy 아님), lineShape·빈 effects는 넣지 않음.
+  //    이전 코드가 hp:img·dircx를 써서 한글이 '파일을 읽거나 저장하는데 오류'로 거부했음.
+  const picXml=(bid,W,H,pw,ph)=>{
     const iid=Math.floor(Math.random()*2000000000)+1;
-    return '<hp:pic reverse="0" id="'+iid+'" zOrder="'+(iid%100000)+'" numberingType="PICTURE" textWrap="TOP_AND_BOTTOM" textFlow="BOTH_SIDES" lock="0" dropcapstyle="None" href="" groupLevel="0" instid="'+(iid+7)+'">'
+    const DW=Math.max(1,Math.round((pw||800)*75)),DH=Math.max(1,Math.round((ph||600)*75)); // 원본 픽셀→HWPUNIT
+    return '<hp:pic id="'+iid+'" zOrder="'+(iid%100000)+'" numberingType="PICTURE" textWrap="TOP_AND_BOTTOM" textFlow="BOTH_SIDES" lock="0" dropcapstyle="None" href="" groupLevel="0" instid="'+(iid+7)+'" reverse="0">'
       +'<hp:offset x="0" y="0"/><hp:orgSz width="'+W+'" height="'+H+'"/><hp:curSz width="'+W+'" height="'+H+'"/><hp:flip horizontal="0" vertical="0"/>'
       +'<hp:rotationInfo angle="0" centerX="'+Math.round(W/2)+'" centerY="'+Math.round(H/2)+'" rotateimage="1"/>'
       +'<hp:renderingInfo><hc:transMatrix e1="1" e2="0" e3="0" e4="0" e5="1" e6="0"/><hc:scaMatrix e1="1" e2="0" e3="0" e4="0" e5="1" e6="0"/><hc:rotMatrix e1="1" e2="0" e3="0" e4="0" e5="1" e6="0"/></hp:renderingInfo>'
-      +'<hp:lineShape color="#000000" width="0" style="NONE" endCap="FLAT" headStyle="NORMAL" tailStyle="NORMAL" headfill="1" tailfill="1" headSz="SMALL_SMALL" tailSz="SMALL_SMALL" outlineStyle="NORMAL" alpha="0"/>'
       +'<hp:imgRect><hc:pt0 x="0" y="0"/><hc:pt1 x="'+W+'" y="0"/><hc:pt2 x="'+W+'" y="'+H+'"/><hc:pt3 x="0" y="'+H+'"/></hp:imgRect>'
-      +'<hp:imgClip left="0" right="'+W+'" top="0" bottom="'+H+'"/><hp:inMargin left="0" right="0" top="0" bottom="0"/><hp:imgDim dircx="'+W+'" dircy="'+H+'"/>'
-      +'<hp:img binaryItemIDRef="'+bid+'" bright="0" contrast="0" effect="REAL_PIC" alpha="0"/><hp:effects/>'
-      +'<hp:sz width="'+W+'" height="'+H+'" widthRelTo="ABSOLUTE" heightRelTo="ABSOLUTE" protect="0"/>'
+      +'<hp:imgClip left="0" right="'+DW+'" top="0" bottom="'+DH+'"/><hp:inMargin left="0" right="0" top="0" bottom="0"/><hp:imgDim dimwidth="'+DW+'" dimheight="'+DH+'"/>'
+      +'<hc:img binaryItemIDRef="'+bid+'" bright="0" contrast="0" effect="REAL_PIC" alpha="0"/>'
+      +'<hp:sz width="'+W+'" widthRelTo="ABSOLUTE" height="'+H+'" heightRelTo="ABSOLUTE" protect="0"/>'
       +'<hp:pos treatAsChar="1" affectLSpacing="0" flowWithText="1" allowOverlap="0" holdAnchorAndSO="0" vertRelTo="PARA" horzRelTo="COLUMN" vertAlign="TOP" horzAlign="LEFT" vertOffset="0" horzOffset="0"/>'
-      +'<hp:outMargin left="0" right="0" top="0" bottom="0"/><hp:shapeComment/></hp:pic>';
+      +'<hp:outMargin left="0" right="0" top="0" bottom="0"/><hp:shapeComment>그림입니다.</hp:shapeComment></hp:pic>';
   };
+  // 문서 내 다른 문단은 전부 linesegarray(레이아웃 캐시)를 갖고 있어 추가 문단에도 최소값으로 부여(한글이 재계산)
+  const LINESEG='<hp:linesegarray><hp:lineseg textpos="0" vertpos="0" vertsize="1000" textheight="1000" baseline="850" spacing="600" horzpos="0" horzsize="42520" flags="393216"/></hp:linesegarray>';
   const b64ToU8=u=>{const b=atob(u.split(',')[1]);const a=new Uint8Array(b.length);for(let i=0;i<b.length;i++)a[i]=b.charCodeAt(i);return a;};
   const scale=(p,maxW,maxH)=>{const pw=(+p.w>0?+p.w:800),ph=(+p.h>0?+p.h:600);let W=Math.min(pw*75,maxW),H=W*ph/pw;if(maxH&&H>maxH){H=maxH;W=H*pw/ph;}return {W:Math.max(1,Math.round(W)),H:Math.max(1,Math.round(H))};};
   const added=[];
@@ -923,17 +933,17 @@ function _hwpxEmbedPhotos(entries,photos){
   if(rest.length&&sec.indexOf('</hs:sec>')>=0){
     const pOpen=(sec.match(/<hp:p [^>]*>/)||['<hp:p>'])[0];
     const rOpen2='<hp:run charPrIDRef="0">';
-    let blk=pOpen+rOpen2+'<hp:t> </hp:t></hp:run></hp:p>'
-      +pOpen+rOpen2+'<hp:t>[현장 사진]</hp:t></hp:run></hp:p>';
+    let blk=pOpen+rOpen2+'<hp:t> </hp:t></hp:run>'+LINESEG+'</hp:p>'
+      +pOpen+rOpen2+'<hp:t>[현장 사진]</hp:t></hp:run>'+LINESEG+'</hp:p>';
     rest.forEach(p=>{
-      const {W,H}=scale(p,21000);
-      blk+=pOpen+rOpen2+picXml(p._bid,W,H)+'</hp:run>'+rOpen2+'<hp:t> '+String(p.label||'').replace(/[<>&]/g,'')+'</hp:t></hp:run></hp:p>';
+      const {W,H}=scale(p,21000,52000); // 세로가 페이지를 넘지 않게 상한(≈18cm)
+      blk+=pOpen+rOpen2+picXml(p._bid,W,H,+p.w,+p.h)+'</hp:run>'+rOpen2+'<hp:t> '+String(p.label||'').replace(/[<>&]/g,'')+'</hp:t></hp:run>'+LINESEG+'</hp:p>';
     });
     sec=sec.replace('</hs:sec>',blk+'</hs:sec>');
   }
-  // ③ 패키지 매니페스트(content.hpf) 등록
+  // ③ 패키지 매니페스트(content.hpf) 등록 — 한글 실파일과 동일하게 media-type="image/jpg"
   added.forEach((f,i)=>{
-    hpf=hpf.replace('</opf:manifest>','<opf:item id="appimg'+(i+1)+'" href="'+f.name+'" media-type="image/jpeg" isEmbeded="1"/></opf:manifest>');
+    hpf=hpf.replace('</opf:manifest>','<opf:item id="appimg'+(i+1)+'" href="'+f.name+'" media-type="image/jpg" isEmbeded="1"/></opf:manifest>');
   });
   entries[si]={name:entries[si].name,data:enc.encode(sec)};
   entries[hi]={name:entries[hi].name,data:enc.encode(hpf)};
@@ -1225,11 +1235,14 @@ async function _safetyHwpxGen(rid){
       _tl.forEach(x=>{lines.push(' - '+x.t+' '+String(x.label||'').replace(/^[^\w가-힣0-9]+\s?/,'')+(x.sub?' ('+x.sub+')':''));});
     }
   }catch(e){}
-  // 출동 인원 — 공단(초동·팀) + 유관기관(소방 등)
-  const _npsAll=[...new Set([...(r.members||[]),...((r.teams||[]).filter(t=>!String(t.id||'').startsWith('agency_')).flatMap(t=>t.members||[]))].filter(Boolean))];
+  // 출동 인원은 내용이 아니라 '지원자(직원 등)' 칸에 — 예: 특구대 4명(이름들) / 유관기관 환동해 2팀 4명
+  const _npsTeams2=(r.teams||[]).filter(t=>!String(t.id||'').startsWith('agency_'));
+  const _teamNames2=new Set(_npsTeams2.flatMap(t=>t.members||[]));
+  const _loose2=[...new Set((r.members||[]).filter(n=>n&&!_teamNames2.has(n)))]; // 팀에 안 묶인 초동 인원
+  const _npsParts=_npsTeams2.filter(t=>(t.members||[]).length).map(t=>t.name+' '+t.members.length+'명('+t.members.join(', ')+')');
+  if(_loose2.length)_npsParts.push(_loose2.join(', '));
   const _agS=(r.teams||[]).filter(t=>String(t.id||'').startsWith('agency_')).map(t=>t.name+(t.memberCount?' '+t.memberCount+'명':'')).join(', ');
-  if(_npsAll.length||_agS)lines.push('< 출동 인원 > 공단 '+(_npsAll.join('·')||'-')+(_agS?' / 유관기관 '+_agS:''));
-  const helpers=[...new Set([..._npsAll,r.author].filter(Boolean))].join(', ');
+  const helpers=[_npsParts.join(', ')||r.author||'',_agS?'유관기관 '+_agS:''].filter(Boolean).join(' / ');
   // 장소: 좌표·장소구분 병기
   const _locFull=(r.location||'')+((r.lat&&r.lng)?' ('+(+r.lat).toFixed(5)+', '+(+r.lng).toFixed(5)+')':'')+(r.loctype?' · '+r.loctype:'');
   const map={'담당자':'','일시':dtStr,'장소':_locFull,'지원유형':typeLine,'성별':genderLine,'연령대':ageLine,'내용':lines.join('\n')||'- ','지원자':helpers};
@@ -1595,11 +1608,9 @@ function renderTimeline(r,viewMode,outId){
       _ftEl.style.display='block';
       if(!isExternal()){ // 통합 화면 — 작성 권한 있으면 항상 전체 푸터(내용 추가·종료·공단 응소)
         const _histBtn=all.length>1?`<button onclick="showPrevHistModal(${r.id})" style="display:block;width:100%;padding:6px 10px;border-radius:7px;border:.5px solid rgba(255,255,255,.25);background:rgba(255,255,255,.07);color:#4a8aaa;font-size:11px;font-weight:600;cursor:pointer;margin-bottom:6px;text-align:left;">📋 이전 이력 보기 (${all.length-1}건)</button>`:'';
-        _ftEl.innerHTML=_histBtn+`<div style="display:flex;gap:7px;"><button class="btn-submit" style="flex:2;background:#1a4a6e;color:#fff;" onclick="selResId=${r.id};curResId=${r.id};addPhase();">📝 내용 추가</button><button class="btn-submit" style="flex:1;background:#0d5040;color:#fff;" onclick="selResId=${r.id};curResId=${r.id};endSit();">✅ 상황 종료</button></div>`
-          +`<button onclick="openNpsResponse(${r.id})" style="margin-top:6px;width:100%;background:rgba(0,120,60,.18);color:#7ec8a0;border:1px solid rgba(0,120,60,.3);border-radius:9px;padding:9px;font-size:12px;font-weight:600;cursor:pointer;">🏕️ 공단 응소 기록</button>`;
+        _ftEl.innerHTML=_histBtn+`<div style="display:flex;gap:7px;"><button class="btn-submit" style="flex:2;background:#1a4a6e;color:#fff;" onclick="selResId=${r.id};curResId=${r.id};addPhase();">📝 내용 추가</button><button class="btn-submit" style="flex:1;background:#0d5040;color:#fff;" onclick="selResId=${r.id};curResId=${r.id};endSit();">✅ 상황 종료</button></div>`;
       } else if(!isExternal()){
-        _ftEl.innerHTML=`<button class="btn-submit" style="width:100%;background:#0d5040;color:#fff;" onclick="selResId=${r.id};curResId=${r.id};endSit();">✅ 상황 종료</button>`
-          +`<button onclick="openNpsResponse(${r.id})" style="margin-top:6px;width:100%;background:rgba(0,120,60,.18);color:#7ec8a0;border:1px solid rgba(0,120,60,.3);border-radius:9px;padding:9px;font-size:12px;font-weight:600;cursor:pointer;">🏕️ 공단 응소 기록</button>`;
+        _ftEl.innerHTML=`<button class="btn-submit" style="width:100%;background:#0d5040;color:#fff;" onclick="selResId=${r.id};curResId=${r.id};endSit();">✅ 상황 종료</button>`;
       }
     } else {
       _ftEl.style.display='block';
