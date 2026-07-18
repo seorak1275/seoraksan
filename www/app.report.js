@@ -873,8 +873,48 @@ function _docPreviewOverlay(docHtml,title){
   document.getElementById('docPrevBack').onclick=function(){ov.remove();};
   document.getElementById('docPrevPrint').onclick=function(){try{fr.contentWindow.focus();fr.contentWindow.print();}catch(e){toast('⚠️ 인쇄 실패 — 파일 저장 후 인쇄하세요');}};
 }
+// 처리현황 가운데 정렬 — 사고경위·생년월일·거주지 칸을 서식 원본과 무관하게(내장/업로드본 모두) CENTER로.
+// 대상 문단의 paraPr을 복제해 정렬만 CENTER로 바꾼 새 id를 부여(같은 paraPr을 쓰는 다른 칸엔 영향 없음)
+function _hwpxCenterFix(entries){
+  try{
+    const dec=new TextDecoder(),enc=new TextEncoder();
+    const hi=entries.findIndex(e=>/header\.xml$/i.test(e.name));
+    const si=entries.findIndex(e=>/section0\.xml$/i.test(e.name));
+    if(hi<0||si<0)return entries;
+    let hd=dec.decode(entries[hi].data),sec=dec.decode(entries[si].data);
+    const targets=['{{사고경위}}','{{신고자 생년월일, 성별}}','{{사고자 생년월일, 성별}}','{{사고자 거주지, 국가}}'];
+    const cloned={};let addCnt=0,touched=false;
+    targets.forEach(ph=>{
+      const at=sec.indexOf(ph);if(at<0)return;
+      const ps=sec.lastIndexOf('<hp:p ',at);if(ps<0)return;
+      const pTagEnd=sec.indexOf('>',ps);
+      const pTag=sec.slice(ps,pTagEnd+1);
+      const m=pTag.match(/paraPrIDRef="(\d+)"/);if(!m)return;
+      const pid=m[1];
+      const prM=hd.match(new RegExp('<hh:paraPr id="'+pid+'"[\\s\\S]*?</hh:paraPr>'));
+      if(!prM||/horizontal="CENTER"/.test(prM[0]))return; // 이미 가운데면 그대로
+      let nid=cloned[pid];
+      if(!nid){
+        nid=String(900+(+pid));
+        while(hd.indexOf('<hh:paraPr id="'+nid+'"')>=0)nid=String(+nid+1000);
+        const clone=prM[0].replace('id="'+pid+'"','id="'+nid+'"').replace(/(<hh:align[^>]*horizontal=")[A-Z_]+(")/,'$1CENTER$2');
+        hd=hd.replace(prM[0],prM[0]+clone);
+        cloned[pid]=nid;addCnt++;
+      }
+      sec=sec.slice(0,ps)+pTag.replace('paraPrIDRef="'+pid+'"','paraPrIDRef="'+nid+'"')+sec.slice(pTagEnd+1);
+      touched=true;
+    });
+    if(touched){
+      if(addCnt)hd=hd.replace(/(<hh:paraProperties itemCnt=")(\d+)(")/,(_a,b,c,d)=>b+((+c)+addCnt)+d);
+      entries[hi]={name:entries[hi].name,data:enc.encode(hd)};
+      entries[si]={name:entries[si].name,data:enc.encode(sec)};
+    }
+  }catch(e){console.warn('가운데 정렬 보정 실패(문서는 원본 정렬로 생성):',e);}
+  return entries;
+}
 async function _hwpxGenFromBuf(buf,map,fname,photos){
   let entries=await _zipRead(buf);
+  entries=_hwpxCenterFix(entries);
   if(photos&&photos.length){try{entries=_hwpxEmbedPhotos(entries,photos);}catch(e){console.warn('사진 삽입 실패(문서는 사진 없이 생성):',e);try{toast('⚠️ 사진 삽입 실패 — 문서는 사진 없이 생성됩니다 ('+(e&&e.message||e)+')');}catch(_){}}}
   const blob=_zipWrite(_hwpxFill(entries,map));
   const a=document.createElement('a');
@@ -926,10 +966,52 @@ function _hwpxEmbedPhotos(entries,photos){
   const scale=(p,maxW,maxH)=>{const pw=(+p.w>0?+p.w:800),ph=(+p.h>0?+p.h:600);let W=Math.min(pw*75,maxW),H=W*ph/pw;if(maxH&&H>maxH){H=maxH;W=H*pw/ph;}return {W:Math.max(1,Math.round(W)),H:Math.max(1,Math.round(H))};};
   const added=[];
   photos.forEach((p,i)=>{p._bid='appimg'+(i+1);added.push({name:'BinData/'+p._bid+'.jpg',data:b64ToU8(p.u)});});
-  // ⚠️ 표 셀 안 삽입(자리문구 치환)은 한글에서 '파일을 읽거나 저장하는데 오류'를 유발해 제거 —
-  //    실사용자 한글에서 열림이 확인된 방식은 '문서 끝 [현장 사진] 부록'뿐이라 전 사진을 부록으로만 넣는다.
-  //    (표 칸은 자리문구 유지 → 필요 시 한글에서 부록 사진을 잘라 넣기)
-  const rest=photos;
+  // ① 부상·이송 — 서식 표 칸의 자리문구를 그림으로 치환 (hc:img 수정 후 셀 삽입 정상 동작)
+  const SLOT_TXT={'부상사진':'여기에 부상 사진을 넣어주세요','이송 사진':'여기에 이송 사진을 넣어주세요'};
+  const CELL_W=22600,CELL_H=14400; // 셀 23812×15021 - 안여백
+  const slotPic=(s,txt,p)=>{ // 문자열 s의 자리문구를 그림으로 — 치환된 s 반환(없으면 null)
+    const ph='<hp:t>'+txt+'</hp:t>';
+    const at=s.indexOf(ph);if(at<0)return null;
+    const {W,H}=scale(p,CELL_W,CELL_H);
+    return s.slice(0,at)+picXml(p._bid,W,H,+p.w,+p.h)+'<hp:t/>'+s.slice(at+ph.length);
+  };
+  // 표 원본(자리문구가 살아있는 상태)을 현장사진 복제용으로 먼저 확보
+  let tblOrig=null;
+  {const a=sec.indexOf(SLOT_TXT['부상사진']);
+   if(a>=0){const tb=sec.lastIndexOf('<hp:tbl',a);
+     if(tb>=0){const ps=sec.lastIndexOf('<hp:p ',tb),pe=sec.indexOf('</hp:p>',sec.indexOf('</hp:tbl>',a))+7;
+       if(ps>=0&&pe>6)tblOrig=sec.slice(ps,pe);}}}
+  const rest=[];
+  photos.forEach(p=>{
+    const t=SLOT_TXT[p.slot||''];
+    const done=t?slotPic(sec,t,p):null;
+    if(done)sec=done;else rest.push(p);
+  });
+  // ② 현장사진 — 부상/이송 표를 복제해 바로 아래에 같은 표를 만들고 칸에 2장씩 배치
+  if(rest.length&&tblOrig){
+    let insert='';
+    for(let i=0;i<rest.length;i+=2){
+      let copy=tblOrig;
+      const tid=Math.floor(Math.random()*2000000000)+1;
+      copy=copy.replace(/<hp:tbl id="\d+" zOrder="\d+"/,'<hp:tbl id="'+tid+'" zOrder="'+(tid%100000)+'"');
+      copy=slotPic(copy,SLOT_TXT['부상사진'],rest[i])||copy;
+      copy=copy.replace('<hp:t>부상사진</hp:t>','<hp:t>현장사진 '+(i+1)+'</hp:t>');
+      if(rest[i+1]){
+        copy=slotPic(copy,SLOT_TXT['이송 사진'],rest[i+1])||copy;
+        copy=copy.replace('<hp:t>이송 사진</hp:t>','<hp:t>현장사진 '+(i+2)+'</hp:t>');
+      }else{
+        copy=copy.replace('<hp:t>'+SLOT_TXT['이송 사진']+'</hp:t>','<hp:t/>');
+        copy=copy.replace('<hp:t>이송 사진</hp:t>','<hp:t/>');
+      }
+      insert+=copy;
+    }
+    // 삽입 위치: (사진이 들어갔을 수 있는) 원본 표의 끝 — 라벨 '부상사진' 셀 기준으로 다시 찾기
+    const lb=sec.indexOf('<hp:t>부상사진</hp:t>');
+    const te=lb>=0?sec.indexOf('</hp:tbl>',lb):-1;
+    const pe2=te>=0?sec.indexOf('</hp:p>',te)+7:-1;
+    if(pe2>6){sec=sec.slice(0,pe2)+insert+sec.slice(pe2);rest.length=0;}
+  }
+  // ③ 표가 없는 서식이면 문서 끝 '[현장 사진]' 부록으로 폴백
   if(rest.length&&sec.indexOf('</hs:sec>')>=0){
     const pOpen=(sec.match(/<hp:p [^>]*>/)||['<hp:p>'])[0];
     const rOpen2='<hp:run charPrIDRef="0">';
@@ -1041,9 +1123,8 @@ async function govReport(rid,kind,noPass){
     ?'탐방객 안전사고 처리현황 보고('+_dDot+', '+_locFn+')'+(noPass?'(통과제외)':'')
     :'동향보고('+_dDot+', '+_locFn+')')+'.hwpx';
   // ── 올라간 사진 수집 (처리현황 전용) — 부상·이송·현장첨부를 hwpx에 실제 삽입 ──
-  // 사진 자동삽입(OWPML hp:pic) — 구조검증 통과: 삽입 후 section0/content.hpf XML well-formed,
-  //   zip 유효·mimetype 선두 stored·매니페스트 opf:item↔BinData↔binaryItemIDRef 일치 확인.
-  //   서식에 {{부상사진}}/{{이송 사진}} 자리표시자가 있으면 그 자리, 없으면 문서 끝 '[현장 사진]' 블록에 라벨과 함께.
+  // 사진 자동삽입(OWPML hp:pic, hc:img) — 부상·이송은 서식 표 칸에, 현장사진은 같은 표를
+  //   복제해 바로 아래 붙여 2장씩 배치(표 없는 서식이면 문서 끝 '[현장 사진]' 부록 폴백)
   const _HWPX_EMBED_PHOTOS=true;
   let _photos=[];
   if(_HWPX_EMBED_PHOTOS&&kind==='status'){
