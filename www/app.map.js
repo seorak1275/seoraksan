@@ -269,12 +269,31 @@ var _parkBoundary=null,_parkPendingMaps=[];
 function _paintPark(map,d){
   if(!map||map._parkDrawn||typeof kakao==='undefined')return;
   map._parkDrawn=true;
+  map._parkLines=[]; // 진단 토글용 참조 보관
   (d.rings||[]).forEach(function(ring){
     var path=ring.map(function(p){return new kakao.maps.LatLng(p[1],p[0]);});
-    new kakao.maps.Polyline({path:path,strokeWeight:3.5,strokeColor:'#ffffff',strokeOpacity:.4,strokeStyle:'solid',map:map,zIndex:1});
-    new kakao.maps.Polyline({path:path,strokeWeight:2,strokeColor:d.color||'#ff3b30',strokeOpacity:.9,strokeStyle:'solid',map:map,zIndex:1});
+    map._parkLines.push(new kakao.maps.Polyline({path:path,strokeWeight:3.5,strokeColor:'#ffffff',strokeOpacity:.4,strokeStyle:'solid',map:map,zIndex:1}));
+    map._parkLines.push(new kakao.maps.Polyline({path:path,strokeWeight:2,strokeColor:d.color||'#ff3b30',strokeOpacity:.9,strokeStyle:'solid',map:map,zIndex:1}));
   });
 }
+// ── 🔧 상황판 세로선 진단 — 레이어를 하나씩 꺼서 원인 특정 (사용자 A/B 테스트용) ──
+function boardDiag(){
+  var p=document.getElementById('bdDiag');if(p){p.remove();return;}
+  p=document.createElement('div');p.id='bdDiag';
+  p.style.cssText='position:fixed;top:70px;right:16px;z-index:99;background:#16161a;border:1px solid rgba(255,255,255,.25);border-radius:12px;padding:12px;display:flex;flex-direction:column;gap:7px;box-shadow:0 6px 24px rgba(0,0,0,.6);max-width:290px;';
+  var btn=function(txt,fn){return '<button onclick="'+fn+'" style="padding:10px 13px;border-radius:8px;border:1px solid rgba(255,255,255,.2);background:rgba(255,255,255,.06);color:#d5d8dc;font-size:12px;font-weight:700;cursor:pointer;text-align:left;">'+txt+'</button>';};
+  p.innerHTML='<div style="font-size:11px;font-weight:800;color:#8b95a1;">🔧 세로선 진단 — 하나씩 눌러보고<br>선이 사라지는 번호를 알려주세요</div>'
+    +btn('① 공원 경계선 끄기/켜기','_bdTogglePark()')
+    +btn('② 핀·오버레이 끄기/켜기','_bdTogglePins()')
+    +btn('③ 지도 강제 재생성','_bdRecreate()')
+    +btn('④ 완전 기본 지도로 재생성 (선·핀 없음)','_bdPlain()')
+    +'<button onclick="document.getElementById(\'bdDiag\').remove()" style="padding:7px;border:none;background:none;color:#6b7684;font-size:11px;cursor:pointer;">닫기</button>';
+  document.body.appendChild(p);
+}
+function _bdTogglePark(){var m=_boardMap;if(!m)return;var L=m._parkLines||[];if(!L.length){toast('경계선 없음');return;}var on=!!L[0].getMap();L.forEach(function(l){try{l.setMap(on?null:m);}catch(e){}});toast(on?'① 경계선 숨김 — 선이 사라졌나요?':'① 경계선 다시 표시');}
+function _bdTogglePins(){if(!_boardOvs.length){toast('핀 없음');return;}var on=!!_boardOvs[0].getMap();_boardOvs.forEach(function(o){try{o.setMap(on?null:_boardMap);}catch(e){}});toast(on?'② 핀 숨김 — 선이 사라졌나요?':'② 핀 다시 표시');}
+function _bdRecreate(){var el=document.getElementById('boardMap');if(el)_createBoardMap(el);toast('③ 지도 재생성 완료 — 선이 사라졌나요?');}
+function _bdPlain(){window._bdForcePlain=!window._bdForcePlain;var el=document.getElementById('boardMap');if(el)_createBoardMap(el);toast(window._bdForcePlain?'④ 진단 모드: 기본 로드맵만(선·핀·경계 없음) — 이래도 선이 보이면 카카오/브라우저 문제':'④ 원래 설정으로 복귀');}
 function _drawParkBoundary(map){
   if(!map||map._parkDrawn)return;
   if(_parkBoundary){_paintPark(map,_parkBoundary);return;}
@@ -531,12 +550,14 @@ function _createBoardMap(el){
     if(_boardMap){_boardOvs.forEach(o=>{try{o.setMap(null);}catch(e){}});_boardOvs=[];}
     el.innerHTML='';
     _boardMap=new kakao.maps.Map(el,{center:new kakao.maps.LatLng(DC.lat,DC.lng),level:9,tileAnimation:false});
-    _boardMap.setMapTypeId(_boardMapType==='hybrid'?kakao.maps.MapTypeId.HYBRID:kakao.maps.MapTypeId.ROADMAP);
+    _boardMap.setMapTypeId(window._bdForcePlain?kakao.maps.MapTypeId.ROADMAP:(_boardMapType==='hybrid'?kakao.maps.MapTypeId.HYBRID:kakao.maps.MapTypeId.ROADMAP));
     _boardCreateW=el.clientWidth||0;
     _boardCreateDpr=window.devicePixelRatio||1;
     el._fixTried=0;
-    try{_drawParkBoundary(_boardMap);}catch(e){}
-    _renderBoardPins(true);
+    if(!window._bdForcePlain){ // ④ 진단 모드에선 순수 지도만 — 경계·핀 전부 생략
+      try{_drawParkBoundary(_boardMap);}catch(e){}
+      _renderBoardPins(true);
+    }else{window._boardPinSig='';}
     // 레이아웃 커밋 후 한 번 더 relayout (생성 직후 폭 계산 오차 보정)
     requestAnimationFrame(function(){try{_boardMap&&_boardMap.relayout();}catch(e){}});
     // 생성 직후 컨테이너 폭이 또 달라진 경우(전체화면 전환·배율 변경 중 생성) 1회 재검증

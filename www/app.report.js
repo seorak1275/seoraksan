@@ -883,19 +883,10 @@ function _hwpxEmbedPhotos(entries,photos){
   const scale=(p,maxW,maxH)=>{const pw=(+p.w>0?+p.w:800),ph=(+p.h>0?+p.h:600);let W=Math.min(pw*75,maxW),H=W*ph/pw;if(maxH&&H>maxH){H=maxH;W=H*pw/ph;}return {W:Math.max(1,Math.round(W)),H:Math.max(1,Math.round(H))};};
   const added=[];
   photos.forEach((p,i)=>{p._bid='appimg'+(i+1);added.push({name:'BinData/'+p._bid+'.jpg',data:b64ToU8(p.u)});});
-  // ① 서식 표 안의 실제 자리 문구('여기에 부상 사진을 넣어주세요')에 삽입 — 없으면 {{슬롯}}도 허용, 그래도 없으면 ②
-  const SLOT_TEXT={'부상사진':'여기에 부상 사진을 넣어주세요','이송 사진':'여기에 이송 사진을 넣어주세요'};
-  photos.forEach(p=>{
-    if(!p.slot)return;
-    let ph=null,idx=-1;
-    for(const c of [SLOT_TEXT[p.slot],'{{'+p.slot+'}}']){if(!c)continue;const j=sec.indexOf(c);if(j>=0){ph=c;idx=j;break;}}
-    if(idx<0){p._noSlot=true;return;}
-    const rOpen=tagBefore(sec,idx,'<hp:run ')||'<hp:run charPrIDRef="0">';
-    const {W,H}=scale(p,17000,15000); // 표 셀에 맞게 폭·높이 제한
-    sec=sec.slice(0,idx)+'</hp:t></hp:run>'+rOpen+picXml(p._bid,W,H)+'</hp:run>'+rOpen+'<hp:t>'+sec.slice(idx+ph.length);
-  });
-  // ② 나머지는 문서 끝 '[현장 사진]' 부록 블록 — 사진 1장당 한 문단(라벨 병기). 섹션 루트는 hs:sec
-  const rest=photos.filter(p=>!p.slot||p._noSlot);
+  // ⚠️ 표 셀 안 삽입(자리문구 치환)은 한글에서 '파일을 읽거나 저장하는데 오류'를 유발해 제거 —
+  //    실사용자 한글에서 열림이 확인된 방식은 '문서 끝 [현장 사진] 부록'뿐이라 전 사진을 부록으로만 넣는다.
+  //    (표 칸은 자리문구 유지 → 필요 시 한글에서 부록 사진을 잘라 넣기)
+  const rest=photos;
   if(rest.length&&sec.indexOf('</hs:sec>')>=0){
     const pOpen=(sec.match(/<hp:p [^>]*>/)||['<hp:p>'])[0];
     const rOpen2='<hp:run charPrIDRef="0">';
@@ -1018,13 +1009,6 @@ async function govReport(rid,kind,noPass){
     add(r.injuryPhoto,'부상사진','[부상사진]');
     add(r.transPhoto,'이송 사진','[이송사진]');
     (r.photos||[]).slice(0,4).forEach((p,i)=>add(p&&p.url,'','[현장사진 '+(i+1)+']'+((p&&p.time)?' '+String(p.time).slice(5,16):'')));
-    // 부상·이송 전용 슬롯이 비어 있으면 현장사진으로 표 칸을 채움 — 사진이 있는데 칸만 비어 보이던 문제.
-    // (부록으로만 가면 '사진이 안 들어갔다'로 오인 — 칸에 우선 배치, 남는 현장사진만 부록으로)
-    {
-      const _free=list.filter(p=>!p.slot);
-      if(!list.some(p=>p.slot==='부상사진')&&_free[0])_free[0].slot='부상사진';
-      if(!list.some(p=>p.slot==='이송 사진')&&_free[1])_free[1].slot='이송 사진';
-    }
     if(list.length){
       _photos=(await Promise.all(list.map(async p=>{try{const d=await _imgDataDims(p.u);return Object.assign(p,{w:d.w,h:d.h});}catch(e){return null;}}))).filter(Boolean);
     }
@@ -1374,7 +1358,7 @@ function renderTimeline(r,viewMode,outId){
   const _mkRecCard=()=>{
     if(!_canWriteTl)return '';
     const _tglArg=`${r.id},'${_isBoard?_esc(outId):''}'`;
-    if(!window._tlRecOpen)return `<button onclick="_toggleRecCard(${_tglArg})" style="width:100%;margin-bottom:8px;padding:11px;border-radius:11px;border:1px dashed rgba(255,255,255,.35);background:rgba(255,255,255,.06);color:#3182f6;font-size:12.5px;font-weight:800;cursor:pointer;">📌 기록 추가 — 조우·처치·헬기·직접입력 ▾</button>`;
+    if(!window._tlRecOpen)return `<button onclick="_toggleRecCard(${_tglArg})" style="width:100%;margin-bottom:8px;padding:12px;border-radius:11px;border:1px solid rgba(49,130,246,.5);background:rgba(49,130,246,.14);color:#4d9bf5;font-size:12.5px;font-weight:800;cursor:pointer;box-shadow:0 2px 8px rgba(49,130,246,.12);">📌 기록 추가 — 조우·처치·헬기·직접입력 ▾</button>`;
     const _teamNames=(r.teams||[]).map(t=>t.name).filter(Boolean);
     return `
       <!-- 📌 기록: 누가 · 무엇을 · 언제 — 과거 시간 입력 가능, 일지는 시간순 자동 정렬 -->
@@ -1451,10 +1435,10 @@ function renderTimeline(r,viewMode,outId){
     const locSect=_ok(r.location)?`<div style="font-size:12px;color:#d5d8dc;line-height:1.5;">📍 ${_esc(r.location)}${(typeof _elevStr==='function'&&r.lat&&r.lng)?` <span style="color:#a7f3e4;font-size:10px;">${_elevStr(r.lat,r.lng,r.alt)}</span>`:''}${_ok(r.loctype)?` <span style="color:#8b95a1;font-size:10px;">· ${_esc(r.loctype)}</span>`:''}</div>${_opB}<div>${_coordBtn}${_climbBtn}</div>`:(_opB||_coordBtn?`${_opB}<div>${_coordBtn}</div>`:'');
     const _vAge=_ok(r.vBirth)?_ageFromBirth(r.vBirth)+'세':(_ok(r.vAge)?_esc(r.vAge)+'세':'');
     const _vLine=[_ok(r.vName)?_esc(r.vName):'미상',_vAge,_ok(r.vGender)&&r.vGender!=='알수없음'?_esc(r.vGender):'',_ok(r.vNation)&&r.vNation==='외국인'?('외국인'+(_ok(r.vNationality)?'('+_esc(r.vNationality)+')':'')):'',_ok(r.vTel)?_esc(_fmtTel(r.vTel)):''].filter(Boolean).join(' · ');
-    let personSect=`<div style="display:flex;align-items:center;flex-wrap:wrap;gap:5px;"><span style="font-size:10px;color:#565f6b;font-weight:700;min-width:40px;">사고자</span><span style="font-size:12px;color:#eaecef;font-weight:600;">${_vLine}</span>${_ok(r.vTel)?_telBtnsHtml(r.vTel,r.id,'사고자',r.vName):''}</div>`;
-    if(r.victims2&&r.victims2.length)personSect+=r.victims2.map((v,vi)=>`<div style="display:flex;align-items:center;flex-wrap:wrap;gap:5px;margin-top:6px;"><span style="font-size:10px;color:#e9897e;font-weight:700;min-width:40px;">추가${r.victims2.length>1?vi+1:''}</span><span style="font-size:12px;color:#f0d9d4;">${_esc([v.name||'미상',v.age?v.age+'세':'',(v.gender&&v.gender!=='알수없음')?v.gender:'',v.tel?_fmtTel(v.tel):''].filter(Boolean).join(' · '))}</span>${v.tel?_telBtnsHtml(v.tel,r.id,'추가 사고자',v.name):''}</div>`).join('');
-    if(_ok(r.repName)||_ok(r.repTel))personSect+=`<div style="display:flex;align-items:center;flex-wrap:wrap;gap:5px;margin-top:6px;"><span style="font-size:10px;color:#565f6b;font-weight:700;min-width:40px;">신고자</span><span style="font-size:12px;color:#d5d8dc;">${[_ok(r.repName)?_esc(r.repName):'',_ok(r.repTel)?_esc(_fmtTel(r.repTel)):''].filter(Boolean).join(' · ')}</span>${_ok(r.repRel)?`<span style="font-size:10px;color:#e8b34a;background:rgba(232,179,74,.1);border:1px solid rgba(232,179,74,.3);border-radius:5px;padding:1px 6px;font-weight:700;">${_esc(r.repRel)}</span>`:''}${_ok(r.repTel)?_telBtnsHtml(r.repTel,r.id,'신고자',r.repName):''}</div>`;
-    if(r.companions&&r.companions.length)personSect+=r.companions.map((c,ci)=>`<div style="display:flex;align-items:center;flex-wrap:wrap;gap:5px;margin-top:6px;"><span style="font-size:10px;color:#565f6b;font-weight:700;min-width:40px;">동반자${r.companions.length>1?ci+1:''}</span><span style="font-size:12px;color:#d5d8dc;">${_esc((c.name||'미상')+(c.tel?' '+_fmtTel(c.tel):''))}</span>${c.tel?_telBtnsHtml(c.tel,r.id,'동반자',c.name):''}</div>`).join('');
+    let personSect=`<div style="display:flex;align-items:center;flex-wrap:nowrap;gap:5px;overflow:hidden;"><span style="font-size:10px;color:#565f6b;font-weight:700;min-width:40px;">사고자</span><span style="font-size:12px;color:#eaecef;font-weight:600;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${_vLine}</span>${_ok(r.vTel)?_telBtnsHtml(r.vTel,r.id,'사고자',r.vName):''}</div>`;
+    if(r.victims2&&r.victims2.length)personSect+=r.victims2.map((v,vi)=>`<div style="display:flex;align-items:center;flex-wrap:nowrap;gap:5px;margin-top:6px;overflow:hidden;"><span style="font-size:10px;color:#e9897e;font-weight:700;min-width:40px;">추가${r.victims2.length>1?vi+1:''}</span><span style="font-size:12px;color:#f0d9d4;">${_esc([v.name||'미상',v.age?v.age+'세':'',(v.gender&&v.gender!=='알수없음')?v.gender:'',v.tel?_fmtTel(v.tel):''].filter(Boolean).join(' · '))}</span>${v.tel?_telBtnsHtml(v.tel,r.id,'추가 사고자',v.name):''}</div>`).join('');
+    if(_ok(r.repName)||_ok(r.repTel))personSect+=`<div style="display:flex;align-items:center;flex-wrap:nowrap;gap:5px;margin-top:6px;overflow:hidden;"><span style="font-size:10px;color:#565f6b;font-weight:700;min-width:40px;">신고자</span><span style="font-size:12px;color:#d5d8dc;">${[_ok(r.repName)?_esc(r.repName):'',_ok(r.repTel)?_esc(_fmtTel(r.repTel)):''].filter(Boolean).join(' · ')}</span>${_ok(r.repRel)?`<span style="font-size:10px;color:#e8b34a;background:rgba(232,179,74,.1);border:1px solid rgba(232,179,74,.3);border-radius:5px;padding:1px 6px;font-weight:700;">${_esc(r.repRel)}</span>`:''}${_ok(r.repTel)?_telBtnsHtml(r.repTel,r.id,'신고자',r.repName):''}</div>`;
+    if(r.companions&&r.companions.length)personSect+=r.companions.map((c,ci)=>`<div style="display:flex;align-items:center;flex-wrap:nowrap;gap:5px;margin-top:6px;overflow:hidden;"><span style="font-size:10px;color:#565f6b;font-weight:700;min-width:40px;">동반자${r.companions.length>1?ci+1:''}</span><span style="font-size:12px;color:#d5d8dc;">${_esc((c.name||'미상')+(c.tel?' '+_fmtTel(c.tel):''))}</span>${c.tel?_telBtnsHtml(c.tel,r.id,'동반자',c.name):''}</div>`).join('');
     if(typeof _sosLiveLineHtml==='function'){const _sl=_sosLiveLineHtml(r);if(_sl)personSect+='<div style="margin-top:6px;">'+_sl+'</div>';}
     const recvSect=_ok(r.reception)?`<div><span style="font-size:10px;color:#565f6b;font-weight:700;">📝 접수내용</span><div style="font-size:12px;color:#d5d8dc;line-height:1.55;margin-top:2px;">${_esc(r.reception)}</div></div>`:'';
     // 나머지(컴팩트)
@@ -1503,7 +1487,7 @@ function renderTimeline(r,viewMode,outId){
       ${injurySect}
       ${locSect?_div+locSect:''}
       ${_div}${personSect}
-      <button onclick="_toggleRepSheet(${r.id},'${_isBoard?_esc(outId):''}')" style="width:100%;margin-top:10px;padding:9px;border-radius:9px;border:1px dashed rgba(255,255,255,.3);background:rgba(255,255,255,.05);color:#6b7684;font-size:12px;font-weight:700;cursor:pointer;">${_shOpen?'▲ 보고서 접기':'📄 보고서 전체 펼치기 — 접수·경위·사진·출동인원'}</button>
+      <button onclick="_toggleRepSheet(${r.id},'${_isBoard?_esc(outId):''}')" style="width:100%;margin-top:10px;padding:11px;border-radius:9px;border:1px solid rgba(49,130,246,.45);background:rgba(49,130,246,.12);color:#4d9bf5;font-size:12.5px;font-weight:800;cursor:pointer;">${_shOpen?'▲ 보고서 접기':'📄 보고서 전체 펼치기 — 접수·경위·사진·출동인원 ▾'}</button>
     </div>`;
     // 펼쳤을 때만 붙는 상세 묶음 (접수·기타 정보 → 추가·변경 이력 → 사진 → 출동 인원)
     // 변경 이력(추가 보고·위치 변경)은 평소엔 숨기고 맨 아래 '🕓 변경 이력'으로 접어둠 — 누가·언제·무엇을 바꿨는지 필요할 때만 펼침
@@ -1549,12 +1533,14 @@ function renderTimeline(r,viewMode,outId){
         })():''}`;}
     // 조립(한 화면): [📄 보고서 구역] → [🕘 현장 기록 구역] → 💬 댓글 — 색 바 헤더로 두 구역을 명확히 구분
     // 두 구역을 색 밴드(칸)로 명확히 구분 — 📄 보고서(코랄) vs 🕘 현장기록·타임라인(블루)
-    const _secHd=(col,txt,mt)=>`<div style="display:flex;align-items:center;gap:7px;margin:${mt||6}px 0 9px;padding:8px 12px;border-radius:9px;background:${col}1f;border-left:3px solid ${col};"><span style="font-size:12.5px;font-weight:800;color:${col};letter-spacing:.2px;">${txt}</span></div>`;
+    const _secHd=(col,txt,mt,click)=>`<div ${click?`onclick="${click}"`:''} style="display:flex;align-items:center;gap:7px;margin:${mt||6}px 0 9px;padding:8px 12px;border-radius:9px;background:${col}1f;border-left:3px solid ${col};${click?'cursor:pointer;':''}"><span style="font-size:12.5px;font-weight:800;color:${col};letter-spacing:.2px;flex:1;">${txt}</span>${click?`<span style="font-size:12px;color:${col};font-weight:800;">${window._repSecOpen===false?'▸ 펼치기':'▾'}</span>`:''}</div>`;
+    // 📄 보고서 구역 전체 접기 — 밴드를 탭하면 요약 카드까지 통째로 접힘(타임라인만 크게 보고 싶을 때)
+    const _rsOpen=window._repSecOpen!==false;
     w.innerHTML=tabHdr
       +(r.status==='ongoing'?_rescueStepperHtml(r):'')
-      +_secHd('#ff8a73','📄 보고서')
-      +reportSheet
-      +_mkReportDetail()
+      +_secHd('#ff8a73','📄 보고서'+(_rsOpen?'':' <span style="font-size:10px;font-weight:400;color:#9c7a72;">(접힘)</span>'),6,`_toggleRepSection(${r.id},'${_isBoard?_esc(outId):''}')`)
+      +(_rsOpen?reportSheet:'')
+      +(_rsOpen?_mkReportDetail():'')
       +_secHd('#3182f6','🕘 현장 기록 · 타임라인',16)
       +_mobilizeBlockHtml('rescues',r)
       +_mkRecCard()
@@ -1601,6 +1587,13 @@ function _toggleRepSheet(rid,outId){
 function _toggleRecCard(rid,outId){
   window._tlRecOpen=!window._tlRecOpen;
   const r=getRes(rid);if(!r)return;
+  renderTimeline(r,'advanced',outId||undefined);
+}
+// 📄 보고서 구역 전체 접기/펼치기 — 밴드 탭
+function _toggleRepSection(rid,outId){
+  window._repSecOpen=window._repSecOpen===false?true:false;
+  const r=getRes(rid);if(!r)return;
+  if(typeof _hapt==='function')_hapt(6);
   renderTimeline(r,'advanced',outId||undefined);
 }
 // 변경 이력 접기/펼치기 — 재렌더 없이 그 자리에서 토글(가벼움)
