@@ -384,7 +384,9 @@ function _canonKey(o){
 function _logKey(e){
   if(!e||typeof e!=='object')return String(e);
   const t=String(e.time||e.at||e.repTime||'').replace('T',' ').slice(0,16); // 분 단위(초 무시)
-  return [t,e.stage||e.code||'',e.note||e.text||'',e.by||e.author||e.teamName||''].join('');
+  // e.re: '삭제했던 것과 같은 내용 재입력' 구분자 — 없으면 키 불변(기존 데이터 영향 없음).
+  // 재입력에 re를 부여하면 삭제 툼스톤(_del)과 키가 달라져, 서버 병합으로 툼스톤이 되살아나도 새 항목은 안 가려짐
+  return [t,e.stage||e.code||'',e.note||e.text||'',e.by||e.author||e.teamName||'',e.re||''].join('');
 }
 // 타임라인 중복 청소(1회) — 위 병합키 버그로 timetable/wpLog/npsLog에 쌓인 동일 항목을 1개만 남김.
 // 변경된 레코드만 저장(쿼터 최소화). rescues 미로드 시엔 플래그 미설정 → 다음 호출에서 재시도.

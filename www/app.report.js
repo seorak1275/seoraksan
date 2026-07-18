@@ -543,8 +543,11 @@ function _tlRecSave(rid){
   const res=DB.g('rescues')||[];const idx=res.findIndex(x=>x.id===rid);if(idx===-1)return;
   if(!res[idx].timetable)res[idx].timetable=[];
   res[idx].timetable.push(entry);
-  // 같은 서명이 예전에 삭제(툼스톤)돼 있으면 해제 — 재입력이 툼스톤에 가려 안 보이는 것 방지
-  if(Array.isArray(res[idx]._del)&&res[idx]._del.length&&typeof _logKey==='function'){const _nk=_logKey(entry);res[idx]._del=res[idx]._del.filter(k=>k!==_nk);}
+  // 같은 서명이 예전에 삭제(툼스톤)돼 있으면: 새 항목에 re(재입력 구분자)를 부여해 키 자체를 분리.
+  // (예전 방식처럼 툼스톤을 지우면 다른 기기와의 병합(union)에서 툼스톤이 되살아나 재입력이 다시 숨겨졌음 — 17시 상황종료 미표시 사례)
+  if(Array.isArray(res[idx]._del)&&res[idx]._del.length&&typeof _logKey==='function'){
+    if(res[idx]._del.indexOf(_logKey(entry))>=0)entry.re=Date.now();
+  }
   // ── 기록 ↔ 보고서 연동: 타임라인 기록이 보고서 정형 필드에도 자동 반영 (이미 있으면 건드리지 않음) ──
   const _synced=[];
   try{
@@ -834,7 +837,7 @@ function _docPreviewOverlay(docHtml,title){
 }
 async function _hwpxGenFromBuf(buf,map,fname,photos){
   let entries=await _zipRead(buf);
-  if(photos&&photos.length){try{entries=_hwpxEmbedPhotos(entries,photos);}catch(e){console.warn('사진 삽입 실패(문서는 사진 없이 생성):',e);}}
+  if(photos&&photos.length){try{entries=_hwpxEmbedPhotos(entries,photos);}catch(e){console.warn('사진 삽입 실패(문서는 사진 없이 생성):',e);try{toast('⚠️ 사진 삽입 실패 — 문서는 사진 없이 생성됩니다 ('+(e&&e.message||e)+')');}catch(_){}}}
   const blob=_zipWrite(_hwpxFill(entries,map));
   const a=document.createElement('a');
   a.href=URL.createObjectURL(blob);a.download=fname;
@@ -996,7 +999,13 @@ async function govReport(rid,kind,noPass){
     '인적사항':['- 사고자: '+(nb(r.vName)||'미상')+(vAgeStr?'('+vAgeStr+')':'')+(nb(r.vTel)?' · '+_fmtTel(r.vTel):''),v2Str?'- 추가 사고자: '+v2Str:'',compStr?'- 동반자: '+compStr:''].filter(Boolean).join('\n'),
     '사고원인분석':['- '+(nb(r.cause)||'-')+(injStr?' / '+injStr:'')+(nb(r.severity)?' ('+r.severity+')':''),nb(r.situation)?'- '+r.situation:''].filter(Boolean).join('\n'),
   });
-  const _fname=(kind==='status'?'안전사고처리현황'+(noPass?'(통과제외)':'(통과포함)'):'동향보고')+'_'+((r.date||'').slice(0,10)||'문서')+'.hwpx';
+  // 파일명: '탐방객 안전사고 처리현황 보고(2026.5.10., 영시암)' 형식 — 날짜 점표기 + 장소 축약
+  const _dm=String(r.date||'').match(/(\d{4})-(\d{2})-(\d{2})/);
+  const _dDot=_dm?(+_dm[1])+'.'+(+_dm[2])+'.'+(+_dm[3])+'.':'날짜미상';
+  const _locFn=(nb(r.location)||'설악산').replace(/[\\/:*?"<>|]/g,' ').replace(/\s+/g,' ').trim().slice(0,14);
+  const _fname=(kind==='status'
+    ?'탐방객 안전사고 처리현황 보고('+_dDot+', '+_locFn+')'+(noPass?'(통과제외)':'')
+    :'동향보고('+_dDot+', '+_locFn+')')+'.hwpx';
   // ── 올라간 사진 수집 (처리현황 전용) — 부상·이송·현장첨부를 hwpx에 실제 삽입 ──
   // 사진 자동삽입(OWPML hp:pic) — 구조검증 통과: 삽입 후 section0/content.hpf XML well-formed,
   //   zip 유효·mimetype 선두 stored·매니페스트 opf:item↔BinData↔binaryItemIDRef 일치 확인.
@@ -1012,6 +1021,8 @@ async function govReport(rid,kind,noPass){
     if(list.length){
       _photos=(await Promise.all(list.map(async p=>{try{const d=await _imgDataDims(p.u);return Object.assign(p,{w:d.w,h:d.h});}catch(e){return null;}}))).filter(Boolean);
     }
+    // 사진이 왜 없는지 그 자리에서 알림 — '사진이 안 나온다' 원인 확인용
+    if(!_photos.length)toast('ℹ️ 이 기록에 첨부된 부상·이송·현장 사진이 없어 문서에 사진 없이 생성됩니다 (상세 화면 📷 현장 사진에서 첨부)',5000);
   }
   try{
     _busy('📄 한글파일 생성 중…\n잠시만 기다려 주세요'); // 완료(미리보기/다운로드)까지 유지
@@ -1178,18 +1189,36 @@ async function _safetyHwpxGen(rid){
   try{const mm=String(r.date||'').match(/(\d{4})-(\d{2})-(\d{2})[ T]?(\d{2}:\d{2})?/);
     if(mm){const wd=['일','월','화','수','목','금','토'][new Date(+mm[1],+mm[2]-1,+mm[3]).getDay()];
       dtStr=mm[1]+'년 '+(+mm[2])+'월 '+(+mm[3])+'일('+wd+')'+(mm[4]?' '+mm[4]:'');}}catch(e){}
-  // 한글용 보고서 — 최종 경위·특이사항만. N보 변경요약(update)은 내부 수정 이력이라 제외
+  // 한글용 보고서 — 경위·특이사항 + 시간대별 타임라인 + 출동 인원(공단·유관기관)까지 수록
   const lines=[];
   if(r.situation)lines.push('- '+r.situation);
   if(r.extra&&!['','-','없음','해당없음','미상'].includes(String(r.extra).trim()))lines.push('- '+r.extra);
-  const helpers=[...new Set([...(r.members||[]),r.author].filter(Boolean))].join(', ');
-  const map={'담당자':'','일시':dtStr,'장소':r.location||'','지원유형':typeLine,'성별':genderLine,'연령대':ageLine,'내용':lines.join('\n')||'- ','지원자':helpers};
+  // 시간대별 조치(타임라인) — 내부 진행표시(N보)는 제외, 시각+내용만 간결히
+  try{
+    const _tl=_collectLogEntries(r).filter(x=>x.type!=='report');
+    if(_tl.length){
+      lines.push('< 시간대별 조치 >');
+      _tl.forEach(x=>{lines.push(' - '+x.t+' '+String(x.label||'').replace(/^[^\w가-힣0-9]+\s?/,'')+(x.sub?' ('+x.sub+')':''));});
+    }
+  }catch(e){}
+  // 출동 인원 — 공단(초동·팀) + 유관기관(소방 등)
+  const _npsAll=[...new Set([...(r.members||[]),...((r.teams||[]).filter(t=>!String(t.id||'').startsWith('agency_')).flatMap(t=>t.members||[]))].filter(Boolean))];
+  const _agS=(r.teams||[]).filter(t=>String(t.id||'').startsWith('agency_')).map(t=>t.name+(t.memberCount?' '+t.memberCount+'명':'')).join(', ');
+  if(_npsAll.length||_agS)lines.push('< 출동 인원 > 공단 '+(_npsAll.join('·')||'-')+(_agS?' / 유관기관 '+_agS:''));
+  const helpers=[...new Set([..._npsAll,r.author].filter(Boolean))].join(', ');
+  // 장소: 좌표·장소구분 병기
+  const _locFull=(r.location||'')+((r.lat&&r.lng)?' ('+(+r.lat).toFixed(5)+', '+(+r.lng).toFixed(5)+')':'')+(r.loctype?' · '+r.loctype:'');
+  const map={'담당자':'','일시':dtStr,'장소':_locFull,'지원유형':typeLine,'성별':genderLine,'연령대':ageLine,'내용':lines.join('\n')||'- ','지원자':helpers};
+  // 파일명: '탐방객 안전지원활동 보고(2026.5.10., 영시암)' 형식
+  const _dm2=String(r.date||'').match(/(\d{4})-(\d{2})-(\d{2})/);
+  const _dDot2=_dm2?(+_dm2[1])+'.'+(+_dm2[2])+'.'+(+_dm2[3])+'.':'날짜미상';
+  const _locFn2=((r.location||'설악산').replace(/[\\/:*?"<>|]/g,' ').replace(/\s+/g,' ').trim().slice(0,14))||'설악산';
   try{
     try{_busy('한글파일 생성 중…');}catch(e){}
     const resp=await fetch('./tpl-safety.hwpx');
     if(!resp.ok)throw new Error('tpl '+resp.status);
     const buf=await resp.arrayBuffer();
-    await _hwpxGenFromBuf(buf,map,'탐방객안전지원활동현황_'+(String(r.date||'').slice(0,10).replace(/-/g,'')||'미상')+'.hwpx');
+    await _hwpxGenFromBuf(buf,map,'탐방객 안전지원활동 보고('+_dDot2+', '+_locFn2+').hwpx');
   }catch(e){
     try{_busyDone&&_busyDone();}catch(_){}
     toast('⚠️ 서식을 불러오지 못해 HTML 복사본으로 대체합니다');
