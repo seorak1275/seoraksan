@@ -1995,7 +1995,7 @@ function _renderClimbStats(all){
       <div class="stitle">🛠️ 이용 처리 <span style="font-size:9px;font-weight:400;color:#6b7684;">해당 날짜를 통계·미업로드에서 제외</span></div>
       <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
         <input type="date" id="climbCxDate" value="${todayV}" style="flex:1;min-width:120px;background:#131316;color:#d5d8dc;border:1px solid rgba(255,255,255,.25);border-radius:8px;padding:8px;font-size:12px;">
-        ${cbtn('특보','🌩️','rgba(240,165,0,.14)','#f0c050')}${cbtn('우천','🌧️','rgba(255,255,255,.14)','#a5abb3')}${cbtn('이용없음','🈳','rgba(120,140,160,.12)','#9fb6c8')}
+        ${cbtn('기상','🌩️','rgba(240,165,0,.14)','#f0c050')}${cbtn('이용없음','🈳','rgba(120,140,160,.12)','#9fb6c8')}
       </div>
       ${cxDates.length?(()=>{ // 취소일이 시즌 내내 쌓여도 지저분하지 않게: 평소 한 줄 요약, 펼치면 개별 관리(×)
         const open=window._climbCxOpen;
@@ -3765,7 +3765,7 @@ function sosToRescue(id){
 // 앱 자체 업데이트 (OTA · Capgo 자체호스팅) — APK 전용. 웹/PWA는 서비스워커가 자동 갱신.
 // 번들(www)의 새 버전을 ota.json으로 알리면, 설치된 앱이 받아서 그 자리에서 교체(재빌드 불필요).
 // ══════════════════════════════════════════
-const OTA_VER='2026.07.18.282';                         // ← 현재 번들 버전 (릴리스마다 올림 · build-ota.sh가 ota.json에 반영)
+const OTA_VER='2026.07.18.283';                         // ← 현재 번들 버전 (릴리스마다 올림 · build-ota.sh가 ota.json에 반영)
 const OTA_MANIFEST='https://seorak1275.github.io/seoraksan/ota.json';
 // 업데이트 확인 폴백 소스 — 일부 기관망·통신사에서 github.io가 막혀 '확인 실패(네트워크)'가 나는 경우 대비.
 // 순서대로 시도: ① GitHub Pages(원본·즉시 반영) ② jsDelivr CDN(공개저장소 미러·거의 모든 망 통과)

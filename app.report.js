@@ -559,6 +559,17 @@ function _tlRecSelTeam(el){
 }
 function _tlRecSelStage(el){
   const v=el.dataset.v||'';
+  // 🚗 출동 — 기록이 아니라 '누가 출동하는지' 선택으로 연결(팀 출동이 일지에 자동 기록)
+  if(v==='__dispatch'){
+    try{const ba=document.getElementById('tlBuildArea');if(ba){if(!_tlBuilding)ba.innerHTML=_renderCreateBtnsHtml();ba.scrollIntoView({behavior:'smooth',block:'center'});}}catch(e){}
+    toast('🚗 누가 출동하나요? — 공단 팀 / 유관기관 팀을 선택하세요');
+    return;
+  }
+  // ✅ 상황종료 — 종료 모달(이송 방법·병원·결과, 완료시각 자동 기록)
+  if(v==='__end'){
+    try{selResId=_tlWpResId;curResId=_tlWpResId;endSit();}catch(e){}
+    return;
+  }
   _tlRecStage=_tlRecStage===v?'':v; // 재탭 시 해제
   // 헬기는 실수 방지 — 예/아니오 확인 후에만 기록 준비
   if(_tlRecStage==='헬기 요청'&&!confirm('🚁 헬기를 요청하셨습니까?\n[확인]을 누르면 헬기 요청 기록이 준비됩니다'))_tlRecStage='';
@@ -567,6 +578,10 @@ function _tlRecSelStage(el){
   if(cw){cw.style.display=_tlRecStage==='__custom'?'block':'none';if(_tlRecStage==='__custom')setTimeout(()=>{try{document.getElementById('tlRecCustom').focus();}catch(e){}},50);}
   const cpr=document.getElementById('tlRecCprWrap');
   if(cpr)cpr.style.display=_tlRecStage==='심정지'?'block':'none';
+  const dw=document.getElementById('tlRecDescWrap'); // 하산 방법 선택(보고서 구조방법 연동)
+  if(dw)dw.style.display=_tlRecStage==='하산 시작'?'block':'none';
+  const ew=document.getElementById('tlRecEncWrap'); // 조우 시 응급처치 동시 기록 옵션
+  if(ew)ew.style.display=_tlRecStage==='요구조자 조우'?'block':'none';
 }
 function _tlRecSave(rid){
   let stage=_tlRecStage;
@@ -576,6 +591,12 @@ function _tlRecSave(rid){
   const time=timeRaw?timeRaw.replace('T',' '):now();
   // seq=입력 순서(생성 ms) — 같은 분(초 없음) 기록의 정렬 안정화용
   const entry={stage,time,note:(document.getElementById('tlRecNote')?.value||'').trim(),by:getAuthor(),team:_tlRecTeam==='본소'?'본소':(_tlRecTeam||''),seq:Date.now()};
+  // ⬇️ 하산 방법(업기법·부축 등) — 기록 메모 맨 앞에 병기 + 아래에서 보고서 구조방법에 자동 반영
+  let _descMeths=[];
+  if(stage==='하산 시작'){
+    _descMeths=[...document.querySelectorAll('#tlRecDescMeth .pill.on')].map(p=>p.dataset.v).filter(Boolean);
+    if(_descMeths.length)entry.note=_descMeths.join('·')+(entry.note?' · '+entry.note:'');
+  }
   if(_tlRecStage==='심정지'){
     const cs=document.getElementById('tlRecCprStart')?.value||'';
     const ce=document.getElementById('tlRecCprEnd')?.value||'';
@@ -614,7 +635,16 @@ function _tlRecSave(rid){
       rec.rescueMethod=Array.isArray(rec.rescueMethod)?rec.rescueMethod:[];
       if(!rec.rescueMethod.includes('헬기')){rec.rescueMethod.push('헬기');_synced.push('구조방법에 헬기');}
     }
+    if(stage==='하산 시작'&&_descMeths.length){ // 하산 방법 → 보고서 구조방법 연동
+      rec.rescueMethod=Array.isArray(rec.rescueMethod)?rec.rescueMethod:[];
+      _descMeths.forEach(m=>{if(!rec.rescueMethod.includes(m)){rec.rescueMethod.push(m);_synced.push('구조방법 '+m);}});
+    }
   }catch(e){}
+  // 🤝 조우 저장 시 '응급처치 함께 기록' 선택 → 같은 시각으로 응급처치도 한 줄 추가
+  if(stage==='요구조자 조우'){
+    const aid=document.getElementById('tlRecEncAid');
+    if(aid&&aid.classList.contains('on'))res[idx].timetable.push({stage:'응급처치',time:entry.time,note:'',by:entry.by,team:entry.team,seq:Date.now()+1});
+  }
   DB.s('rescues',res);
   _tlRecTeam='';_tlRecStage='';
   if(typeof _hapt==='function')_hapt(8);
@@ -1535,7 +1565,7 @@ function renderTimeline(r,viewMode,outId){
     <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;">
       <div style="flex:1;min-width:0;">
         <div style="font-size:14px;font-weight:700;color:#eaecef;">${_esc(r.title)}</div>
-        <div style="font-size:11px;color:#454e5a;margin-top:3px;">${_esc(r.type)} · ${r.status==='ongoing'?'<span style="color:#c0392b;font-weight:700;">진행중</span>':'<span style="color:#27ae60;font-weight:700;">종료</span>'} · ${r.date}${r.status==='ongoing'&&_elapsedStr(r.date)?` · <span class="js-elapsed" data-d="${_esc(r.date)}" style="color:#f0a500;font-weight:700;">⏱ ${_elapsedStr(r.date)}</span>`:''}</div>
+        <div style="font-size:11px;color:#454e5a;margin-top:3px;">${_esc(r.type)} · ${r.status==='ongoing'?'<span style="color:#c0392b;font-weight:700;">진행중</span>':'<span style="color:#27ae60;font-weight:700;">종료</span>'} · ${r.date}${(r.weather&&String(r.weather).trim()&&r.weather!=='-')?` · <span style="color:#6b7684;">${_esc(r.weather)}${(r.initTemp!=null&&r.initTemp!=='')?' '+_esc(r.initTemp)+'°C':''}</span>`:''}${r.status==='ongoing'&&_elapsedStr(r.date)?` · <span class="js-elapsed" data-d="${_esc(r.date)}" style="color:#f0a500;font-weight:700;">⏱ ${_elapsedStr(r.date)}</span>`:''}</div>
       </div>
       <button onclick="openReportShare(${r.id})" style="flex-shrink:0;background:rgba(255,255,255,.12);color:#3182f6;border:1px solid rgba(255,255,255,.32);border-radius:7px;padding:5px 9px;font-size:10px;font-weight:800;cursor:pointer;white-space:nowrap;">📄 보고서</button>
     </div>
@@ -1554,7 +1584,7 @@ function renderTimeline(r,viewMode,outId){
   const _mkRecCard=()=>{
     if(!_canWriteTl)return '';
     const _tglArg=`${r.id},'${_isBoard?_esc(outId):''}'`;
-    if(!window._tlRecOpen)return `<button onclick="_toggleRecCard(${_tglArg})" style="width:100%;margin-bottom:8px;padding:12px;border-radius:11px;border:1px solid rgba(49,130,246,.5);background:rgba(49,130,246,.14);color:#4d9bf5;font-size:12.5px;font-weight:800;cursor:pointer;box-shadow:0 2px 8px rgba(49,130,246,.12);">📌 기록 추가 — 조우·처치·헬기·직접입력 ▾</button>`;
+    if(!window._tlRecOpen)return `<button onclick="_toggleRecCard(${_tglArg})" style="width:100%;margin-bottom:8px;padding:12px;border-radius:11px;border:1px solid rgba(49,130,246,.5);background:rgba(49,130,246,.14);color:#4d9bf5;font-size:12.5px;font-weight:800;cursor:pointer;box-shadow:0 2px 8px rgba(49,130,246,.12);">📌 기록 추가 — 출동·조우·처치·하산·종료 ▾</button>`;
     const _teamNames=(r.teams||[]).map(t=>t.name).filter(Boolean);
     return `
       <!-- 📌 기록: 누가 · 무엇을 · 언제 — 과거 시간 입력 가능, 일지는 시간순 자동 정렬 -->
@@ -1570,15 +1600,28 @@ function renderTimeline(r,viewMode,outId){
           ${(()=>{
             const sug=(r.status==='ongoing'&&typeof _recSuggest==='function')?_recSuggest(r):[];
             const pill=(s,isSug)=>{const danger=(s==='요구조자 조우'||s==='심정지');return `<div class="pill" data-v="${s}" onclick="_tlRecSelStage(this)" style="font-size:11px;cursor:pointer;${isSug?'border-color:rgba(61,220,132,.55);color:#7ee0a8;font-weight:800;':(danger?'border-color:rgba(231,76,60,.4);color:#e74c3c;':'')}">${isSug?'▸ ':''}${s}</div>`;};
-            // 진행: 추천(sug) 먼저(초록) → 나머지 핵심 단계. 특별 목록에 든 추천은 특별에서 표시
+            // 진행: 규정 처리현황 흐름 그대로 — 출동(팀 선택) → 조우(±응급처치) → 하산(방법 선택) → 휴식 → 종료(모달)
             const mainOrder=[...sug.filter(s=>!REC_STAGES_SPECIAL.includes(s)),...REC_STAGES_MAIN.filter(s=>!sug.includes(s))];
-            return `<div style="font-size:9.5px;color:#5a8aa0;font-weight:800;margin-bottom:4px;letter-spacing:.3px;">⏱ 진행 <span style="font-weight:400;color:#565f6b;">출발·도착·종료 시각은 팀 출동·종료하기에서 자동</span></div>
-              <div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:9px;">${mainOrder.map(s=>pill(s,sug.includes(s))).join('')}</div>
+            return `<div style="font-size:9.5px;color:#5a8aa0;font-weight:800;margin-bottom:4px;letter-spacing:.3px;">⏱ 진행 <span style="font-weight:400;color:#565f6b;">접수→출동→조우→처치→하산→종료 (규정 흐름)</span></div>
+              <div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:9px;">
+                <div class="pill" data-v="__dispatch" onclick="_tlRecSelStage(this)" style="font-size:11px;cursor:pointer;border-color:rgba(49,130,246,.5);color:#4d9bf5;font-weight:800;">🚗 출동</div>
+                ${mainOrder.map(s=>pill(s,sug.includes(s))).join('')}
+                ${r.status==='ongoing'?`<div class="pill" data-v="__end" onclick="_tlRecSelStage(this)" style="font-size:11px;cursor:pointer;border-color:rgba(39,174,96,.5);color:#3ad17a;font-weight:800;">✅ 상황종료</div>`:''}
+              </div>
               <div style="font-size:9.5px;color:#6b7684;font-weight:800;margin-bottom:4px;letter-spacing:.3px;">⭐ 특별 내용 <span style="font-weight:400;color:#565f6b;">심정지·헬기·기상 — 그 외는 직접입력</span></div>
               <div style="display:flex;gap:4px;flex-wrap:wrap;">${REC_STAGES_SPECIAL.map(s=>pill(s,false)).join('')}<div class="pill" data-v="__custom" onclick="_tlRecSelStage(this)" style="font-size:11px;cursor:pointer;border-style:dashed;">✏️ 직접입력</div></div>`;
           })()}
         </div>
         <div id="tlRecCustomWrap" style="display:none;margin-bottom:7px;"><input type="text" id="tlRecCustom" class="fi" placeholder="무엇을 했는지 직접 입력 (예: 장비 보급, 대피소 직원 합류)"></div>
+        <div id="tlRecDescWrap" style="display:none;margin-bottom:7px;background:rgba(49,130,246,.05);border:1px solid rgba(49,130,246,.2);border-radius:9px;padding:8px 10px;">
+          <div style="font-size:10px;color:#4d9bf5;font-weight:700;margin-bottom:5px;">⬇️ 어떻게 하산하나요? <span style="font-weight:400;color:#565f6b;">선택하면 보고서 구조방법에 자동 반영</span></div>
+          <div style="display:flex;gap:4px;flex-wrap:wrap;" id="tlRecDescMeth">
+            ${['업기법','부축','들것','동행하산','자력하산','로프구조'].map(m=>`<div class="pill" data-v="${m}" onclick="this.classList.toggle('on')" style="font-size:11px;cursor:pointer;">${m}</div>`).join('')}
+          </div>
+        </div>
+        <div id="tlRecEncWrap" style="display:none;margin-bottom:7px;">
+          <div class="pill" id="tlRecEncAid" onclick="this.classList.toggle('on')" style="font-size:11px;cursor:pointer;display:inline-flex;border-color:rgba(231,76,60,.35);color:#e88;">🩹 응급처치도 함께 기록</div>
+        </div>
         <div id="tlRecCprWrap" style="display:none;background:rgba(231,76,60,.07);border:1px solid rgba(231,76,60,.25);border-radius:9px;padding:9px 11px;margin-bottom:7px;">
           <div style="font-size:10px;color:#e74c3c;font-weight:700;margin-bottom:6px;">🫀 CPR 기록</div>
           <div style="display:flex;gap:6px;margin-bottom:6px;">
@@ -1630,7 +1673,7 @@ function renderTimeline(r,viewMode,outId){
     // 팝업 카드와 동일 규격: 라벨 10px 고정폭(50px) 정렬 · 값 12.5px 한 줄 말줄임 (통일 타이포)
     const _pRow=(lbl,val,btns,valCol)=>val?`<div style="display:flex;align-items:center;gap:8px;min-height:26px;overflow:hidden;">
       <span style="width:50px;flex-shrink:0;font-size:10px;color:#6b7684;font-weight:700;letter-spacing:.2px;">${lbl}</span>
-      <span style="flex:1;min-width:0;font-size:12.5px;color:${valCol||'#e5e8ec'};font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${val}</span>
+      <span style="flex:1;min-width:0;font-size:12.5px;color:${valCol||'#e5e8ec'};font-weight:600;line-height:1.45;word-break:break-all;">${val}</span>
       ${btns||''}</div>`:'';
     const _locVal=_ok(r.location)?`${_esc(r.location)}${(typeof _elevStr==='function'&&r.lat&&r.lng)?` <span style="font-size:10.5px;color:#8fb8ad;font-weight:600;">${_elevStr(r.lat,r.lng,r.alt)}</span>`:''}${_ok(r.loctype)?` <span style="font-size:10.5px;color:#8b95a1;font-weight:500;">· ${_esc(r.loctype)}</span>`:''}`:'';
     const locSect=(_locVal?_pRow('📍 위치',_locVal,(typeof _coordChipHtml==='function')?_coordChipHtml(r):''):'')+_opB+(_climbBtn?`<div>${_climbBtn}</div>`:'');
@@ -1646,10 +1689,16 @@ function renderTimeline(r,viewMode,outId){
     const recvSect=_ok(r.reception)?`<div><div style="font-size:10px;color:#6b7684;font-weight:700;letter-spacing:.2px;margin-bottom:3px;">📝 접수내용</div><div style="font-size:12px;color:#c9cdd3;line-height:1.55;">${_esc(r.reception)}</div></div>`:'';
     // 나머지(컴팩트)
     const rows=[];
-    const dparts=[_ok(r.date)?r.date:'',_ok(r.dispatch)?'신고 '+r.dispatch:'',_ok(r.arrival)?'출동 '+r.arrival:'',_ok(r.completion)?'완료 '+r.completion:''].filter(Boolean);
-    if(dparts.length)rows.push(_row('일시',dparts.join(' · ')));
-    const wx=[_ok(r.weather)?_esc(r.weather):'',(r.initTemp!=null&&r.initTemp!=='')?_esc(r.initTemp)+'°C':'',_ok(r.weatherAlert)?_esc(r.weatherAlert):''].filter(Boolean).join(' · ');
-    if(wx)rows.push(_row('기상',wx));
+    // 시각 줄 — 전체 일시·기상은 상단 헤더에 있으므로 여기선 운영 시각만.
+    // 폼 값이 비어도 팀 출동/도착·상황종료 기록에서 자동 도출(출동·도착·완료 미표기 문제 해결)
+    {const _hm2=v=>{const m=String(v||'').match(/(\d{2}:\d{2})(?::\d{2})?\s*$/)||String(v||'').match(/[ T](\d{2}:\d{2})/)||String(v||'').match(/^(\d{2}:\d{2})$/);return m?m[1]:'';};
+     const _tReq=(r.teams||[]).map(t=>t.requestedAt||t.createdAt).filter(Boolean).sort()[0]||'';
+     const _tArr=(r.teams||[]).map(t=>t.arrivedAt).filter(Boolean).sort()[0]||'';
+     const _tEnd=((r.timetable||[]).filter(e=>/상황\s*종료/.test(e.stage||'')).map(e=>e.time).sort().pop())||'';
+     const _d1=_hm2(r.date),_d2=_ok(r.dispatch)?_hm2(r.dispatch):_hm2(_tReq),_d3=_ok(r.arrival)?_hm2(r.arrival):_hm2(_tArr),_d4=_ok(r.completion)?_hm2(r.completion):_hm2(_tEnd);
+     const dparts=[_d1?'신고 '+_d1:'',_d2?'출동 '+_d2:'',_d3?'도착 '+_d3:'',_d4?'완료 '+_d4:''].filter(Boolean);
+     if(dparts.length)rows.push(_row('시각',dparts.join(' · ')));}
+    if(_ok(r.weatherAlert))rows.push(_row('특보',_esc(r.weatherAlert)));
     const rm=_okA(r.rescueMethod);if(rm.length)rows.push(_row('구조',rm.join(', ')));
     const mob=_okA(r.mobilize);if(mob.length)rows.push(_row('응소',mob.join(', ')));
     // 출동인원 상세(명단·인원수)는 여기 보고서에 — 기록 구역의 출동팀 줄은 컴팩트(규정 서식 '동원인원'과 동일 형식)
@@ -1892,23 +1941,60 @@ function _scenePhotosHtml(r){
     <div onclick="${url?`openLightbox('${_escq(url)}')`:`addSlotPhoto(${r.id},'${slot}')`}" style="position:relative;aspect-ratio:1;border-radius:8px;overflow:hidden;cursor:pointer;background:#0f0f11;border:1.5px ${url?'solid '+col:'dashed rgba(255,255,255,.28)'};display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;">
       ${url?`<img src="${url}" style="width:100%;height:100%;object-fit:cover;" loading="lazy">
         <span style="position:absolute;bottom:2px;left:4px;font-size:8px;color:#fff;font-weight:700;text-shadow:0 1px 2px #000;">${lbl}</span>
-        <button onclick="event.stopPropagation();addSlotPhoto(${r.id},'${slot}')" style="position:absolute;top:2px;right:2px;background:rgba(0,0,0,.55);border:none;color:#fff;border-radius:5px;font-size:8px;padding:1px 5px;cursor:pointer;">교체</button>`
+        <button onclick="event.stopPropagation();delSlotPhoto(${r.id},'${slot}')" style="position:absolute;top:2px;right:2px;background:rgba(192,57,43,.75);border:none;color:#fff;border-radius:5px;font-size:8px;padding:1px 5px;cursor:pointer;">×</button>
+        <button onclick="event.stopPropagation();addSlotPhoto(${r.id},'${slot}')" style="position:absolute;top:2px;left:2px;background:rgba(0,0,0,.55);border:none;color:#fff;border-radius:5px;font-size:8px;padding:1px 5px;cursor:pointer;">교체</button>`
       :`<span style="font-size:17px;line-height:1;">${ico}</span><span style="font-size:8.5px;color:${col};font-weight:800;">${lbl}</span>`}
     </div>`;
   return `<div style="background:#1c1c1e;border-radius:10px;padding:11px 12px;border:.5px solid rgba(255,255,255,.07);margin-top:8px;">
-    <div style="font-size:11px;color:#3182f6;font-weight:700;margin-bottom:7px;">📷 현장 사진 <span style="color:rgba(255,255,255,.3);font-weight:400;">구조출동 서식: 부상·이송 + 현장</span></div>
+    <div style="font-size:11px;color:#3182f6;font-weight:700;margin-bottom:7px;">📷 현장 사진 <span style="color:rgba(255,255,255,.3);font-weight:400;">구조출동 서식: 부상·이송 + 현장 · 현장사진의 🩹🚑=지정</span></div>
     <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;">
       ${slotTile('injury',r.injuryPhoto,'🩹','부상사진','#e05050')}
       ${slotTile('trans',r.transPhoto,'🚑','이송사진','#3182f6')}
       ${extras.map((p,i)=>`<div onclick="openLightbox('${_escq(p.url)}')" style="aspect-ratio:1;border-radius:8px;overflow:hidden;cursor:pointer;position:relative;background:#0f0f11;">
         <img src="${p.url}" style="width:100%;height:100%;object-fit:cover;" loading="lazy">
         <span style="position:absolute;bottom:2px;left:4px;font-size:8px;color:#fff;text-shadow:0 1px 2px #000;">현장${(p.time||'').slice(11,16)?' '+(p.time||'').slice(11,16):''}</span>
+        <button onclick="event.stopPropagation();delScenePhoto(${r.id},${i})" style="position:absolute;top:2px;right:2px;background:rgba(192,57,43,.75);border:none;color:#fff;border-radius:5px;font-size:8px;padding:1px 5px;cursor:pointer;">×</button>
+        <div style="position:absolute;bottom:2px;right:2px;display:flex;gap:2px;">
+          <button onclick="event.stopPropagation();assignScenePhoto(${r.id},${i},'injury')" title="부상사진으로 지정" style="background:rgba(224,80,80,.8);border:none;color:#fff;border-radius:5px;font-size:8px;padding:1px 4px;cursor:pointer;">🩹</button>
+          <button onclick="event.stopPropagation();assignScenePhoto(${r.id},${i},'trans')" title="이송사진으로 지정" style="background:rgba(49,130,246,.8);border:none;color:#fff;border-radius:5px;font-size:8px;padding:1px 4px;cursor:pointer;">🚑</button>
+        </div>
       </div>`).join('')}
       <div onclick="addScenePhotos(${r.id})" style="aspect-ratio:1;border-radius:8px;border:1.5px dashed rgba(255,255,255,.35);display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;color:#3182f6;gap:2px;">
         <span style="font-size:17px;line-height:1;">＋</span><span style="font-size:8px;">현장 추가</span>
       </div>
     </div>
   </div>`;
+}
+// 현장 사진 삭제 / 부상·이송 슬롯 지정 / 슬롯 사진 삭제
+function delScenePhoto(resId,idx){
+  if(!confirm('이 현장 사진을 삭제할까요?'))return;
+  const res=DB.g('rescues')||[];const ri=res.findIndex(x=>x.id===resId);if(ri<0)return;
+  const arr=(res[ri].photos||[]).filter(p=>p&&p.url);
+  if(!arr[idx])return;
+  res[ri].photos=(res[ri].photos||[]).filter(p=>p!==arr[idx]);
+  DB.s('rescues',res);toast('🗑 현장 사진 삭제됨');
+  try{renderTimeline(res[ri],_tlViewMode==='write'?'write':'advanced');}catch(e){}
+}
+function assignScenePhoto(resId,idx,slot){
+  const res=DB.g('rescues')||[];const ri=res.findIndex(x=>x.id===resId);if(ri<0)return;
+  const arr=(res[ri].photos||[]).filter(p=>p&&p.url);
+  const p=arr[idx];if(!p)return;
+  const field=slot==='injury'?'injuryPhoto':'transPhoto';
+  const prev=res[ri][field];
+  res[ri][field]=p.url;
+  res[ri].photos=(res[ri].photos||[]).filter(x=>x!==p);
+  if(prev)res[ri].photos.push({url:prev,time:now(),by:''}); // 이미 있던 슬롯 사진은 현장으로 돌려 유실 방지
+  DB.s('rescues',res);
+  toast(slot==='injury'?'🩹 부상사진으로 지정됨':'🚑 이송사진으로 지정됨');
+  try{renderTimeline(res[ri],_tlViewMode==='write'?'write':'advanced');}catch(e){}
+}
+function delSlotPhoto(resId,slot){
+  const nm=slot==='injury'?'부상사진':'이송사진';
+  if(!confirm(nm+'을 삭제할까요?'))return;
+  const res=DB.g('rescues')||[];const ri=res.findIndex(x=>x.id===resId);if(ri<0)return;
+  res[ri][slot==='injury'?'injuryPhoto':'transPhoto']='';
+  DB.s('rescues',res);toast('🗑 '+nm+' 삭제됨');
+  try{renderTimeline(res[ri],_tlViewMode==='write'?'write':'advanced');}catch(e){}
 }
 // 서식 지정 슬롯(부상/이송) 사진 1장 저장·교체 → r.injuryPhoto / r.transPhoto
 function addSlotPhoto(resId,slot){

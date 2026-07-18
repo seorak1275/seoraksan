@@ -1473,7 +1473,7 @@ function _resPopMetaHtml(data){
   // ── 통일 규격: 라벨 10px(#6b7684) 고정폭 정렬 · 값 12.5px(#e5e8ec) 한 줄 말줄임 · 강조는 부상 카드 14px 하나만 ──
   const _pRow=(lbl,val,btns,valCol)=>val?`<div style="display:flex;align-items:center;gap:8px;min-height:26px;overflow:hidden;">
       <span style="width:50px;flex-shrink:0;font-size:10px;color:#6b7684;font-weight:700;letter-spacing:.2px;">${lbl}</span>
-      <span style="flex:1;min-width:0;font-size:12.5px;color:${valCol||'#e5e8ec'};font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${val}</span>
+      <span style="flex:1;min-width:0;font-size:12.5px;color:${valCol||'#e5e8ec'};font-weight:600;line-height:1.45;word-break:break-all;">${val}</span>
       ${btns||''}</div>`:'';
   const _locVal=!_skip(d.location)?`${_esc(d.location)}${(typeof _elevStr==='function'&&data.lat&&data.lng)?` <span style="font-size:10.5px;color:#8fb8ad;font-weight:600;">${_elevStr(data.lat,data.lng,data.alt)}</span>`:''}${!_skip(d.loctype)?` <span style="font-size:10.5px;color:#8b95a1;font-weight:500;">· ${_esc(d.loctype)}</span>`:''}`:'';
   return `
