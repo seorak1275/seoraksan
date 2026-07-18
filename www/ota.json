@@ -1,1 +1,1 @@
-{"version":"2026.07.18.271","url":"https://seorak1275.github.io/seoraksan/bundle.zip","notes":"좌표 공유 카카오맵 링크 접속불가 수정 — URL 안 한글(사고지점)이 문자·카톡 링크 자동인식을 끊던 문제, encodeURIComponent로 순수 ASCII 링크화"}
+{"version":"2026.07.18.272","url":"https://seorak1275.github.io/seoraksan/bundle.zip","notes":"조난자 위치요청 링크 접속불가 수정 — APK(Capacitor)가 앱을 https://localhost에서 실행해 location.origin 기반 링크가 'https://localhost/?sos=…'로 발송되던 치명 버그. 공개 주소(seorak1275.github.io/seoraksan)로 고정 — 웹·APK 어디서 발급해도 열리는 링크"}

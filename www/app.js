@@ -3350,7 +3350,9 @@ function _updateSosFab(){
   b.innerHTML='🆘 조난·사고자'+(n?' <span style="background:#fff;color:#c0392b;border-radius:50%;padding:0 5px;font-weight:800;">'+n+'</span>':' 위치요청');
   b.style.background=n?'rgba(192,57,43,.95)':'rgba(192,57,43,.6)';
 }
-function _sosVictimUrl(tok){return location.origin+location.pathname+'?sos='+tok;}
+// ⚠️ location.origin 사용 금지 — 안드로이드 APK(Capacitor)는 앱을 https://localhost 에서 실행하므로
+// 그대로 쓰면 조난자에게 'https://localhost/?sos=…'라는 열 수 없는 링크가 감. 항상 공개 웹 주소로 고정.
+function _sosVictimUrl(tok){return 'https://seorak1275.github.io/seoraksan/?sos='+tok;}
 // 새 1회용 링크 발급 (토큰 생성 → active:true 문서 생성)
 function _sosNewLink(){
   if(!_fdb){toast('연결 준비 중 — 잠시 후 다시');return;}
@@ -3739,7 +3741,7 @@ function sosToRescue(id){
 // 앱 자체 업데이트 (OTA · Capgo 자체호스팅) — APK 전용. 웹/PWA는 서비스워커가 자동 갱신.
 // 번들(www)의 새 버전을 ota.json으로 알리면, 설치된 앱이 받아서 그 자리에서 교체(재빌드 불필요).
 // ══════════════════════════════════════════
-const OTA_VER='2026.07.18.271';                         // ← 현재 번들 버전 (릴리스마다 올림 · build-ota.sh가 ota.json에 반영)
+const OTA_VER='2026.07.18.272';                         // ← 현재 번들 버전 (릴리스마다 올림 · build-ota.sh가 ota.json에 반영)
 const OTA_MANIFEST='https://seorak1275.github.io/seoraksan/ota.json';
 // 업데이트 확인 폴백 소스 — 일부 기관망·통신사에서 github.io가 막혀 '확인 실패(네트워크)'가 나는 경우 대비.
 // 순서대로 시도: ① GitHub Pages(원본·즉시 반영) ② jsDelivr CDN(공개저장소 미러·거의 모든 망 통과)
