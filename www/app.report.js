@@ -564,6 +564,19 @@ function _tlStepTap(k){
   _tlRecStage=({'조우':'요구조자 조우','하산':'하산 시작'})[k]||'';
   try{const r=getRes(_tlWpResId);if(r)renderTimeline(r,'advanced');}catch(e){}
 }
+// 원탭 즉시 기록(헬기 등) — 지금 시각으로 바로 일지에 남김
+function _tlQuickRec(stage){
+  const rid=_tlWpResId;const res=DB.g('rescues')||[];const idx=res.findIndex(x=>x.id===rid);if(idx<0)return;
+  if(!res[idx].timetable)res[idx].timetable=[];
+  const entry={stage,time:now(),note:'',by:getAuthor(),team:'',seq:Date.now()};
+  if(Array.isArray(res[idx]._del)&&typeof _logKey==='function'&&res[idx]._del.indexOf(_logKey(entry))>=0)entry.re=Date.now();
+  res[idx].timetable.push(entry);
+  if(stage==='헬기 요청'){try{const rec=res[idx];rec.rescueMethod=Array.isArray(rec.rescueMethod)?rec.rescueMethod:[];if(!rec.rescueMethod.includes('헬기'))rec.rescueMethod.push('헬기');}catch(e){}}
+  DB.s('rescues',res);
+  if(typeof _hapt==='function')_hapt(8);
+  toast('📌 기록됨: '+stage+' '+String(entry.time).slice(11,16)+(stage==='헬기 요청'?' — 보고서 구조방법에 헬기 반영':''));
+  renderTimeline(res[idx],'advanced');
+}
 // 조우 패널 모드(조우/응급처치/심정지) 전환
 function _tlEncMode(m){
   _tlRecStage=m==='aid'?'응급처치':m==='cpr'?'심정지':'요구조자 조우';
@@ -574,9 +587,12 @@ function _tlEncMode(m){
 // 기타 기록(휴식·헬기·기상·직접입력) — 선택 시 저장 줄 노출, 단계 기본 stage를 덮어씀
 function _tlRecSelStage(el){
   const v=el.dataset.v||'';
+  // 🚁 헬기 — 예/아니오 확인 즉시 기록(저장 버튼 불필요). 시간이 다르면 일지에서 ✏️로 수정
+  if(v==='헬기 요청'){
+    if(confirm('🚁 헬기를 요청하셨습니까?\n[확인]하면 지금 시각으로 바로 기록됩니다\n(시간이 다르면 일지에서 ✏️로 고치세요)'))_tlQuickRec('헬기 요청');
+    return;
+  }
   _tlRecStage=_tlRecStage===v?'':v; // 재탭 시 해제
-  // 헬기는 실수 방지 — 예/아니오 확인 후에만 기록 준비
-  if(_tlRecStage==='헬기 요청'&&!confirm('🚁 헬기를 요청하셨습니까?\n[확인]을 누르면 헬기 요청 기록이 준비됩니다'))_tlRecStage='';
   document.querySelectorAll('#tlRecStages .pill').forEach(p=>p.classList.toggle('on',p.dataset.v===_tlRecStage&&_tlRecStage!==''));
   const cw=document.getElementById('tlRecCustomWrap');
   if(cw){cw.style.display=_tlRecStage==='__custom'?'block':'none';if(_tlRecStage==='__custom')setTimeout(()=>{try{document.getElementById('tlRecCustom').focus();}catch(e){}},50);}
@@ -2843,6 +2859,8 @@ function render1BoForm(prefill=null){
   ];
 
   const _offHrs=_isOffHours();
+  // 섹터 하단 '다음' 버튼 — 탭까지 손 안 올리고 아래에서 바로 다음 섹터로(전환 시 맨 위부터)
+  const _nextBtn=(id,lbl)=>`<button onclick="_repNextSec('${id}')" style="width:100%;margin-top:12px;padding:13px;border-radius:11px;border:none;background:#1a4a6e;color:#fff;font-size:13px;font-weight:800;cursor:pointer;">다음 — ${lbl} ▸</button>`;
 
   w.innerHTML=`
     <!-- 섹터 탭 — 최상단 고정(sticky). 스크롤해도 4개 섹터 전환이 항상 보임 -->
@@ -2968,6 +2986,7 @@ function render1BoForm(prefill=null){
           </div>
         </div>
       </div>
+      ${_nextBtn('repSec2','🤕 환자·부상')}
     </div>
 
     <!-- ══ 섹터2: 환자·부상 (순서: 부상현황 → 현장사진 → 원인·경위 → 활력징후) ══ -->
@@ -3062,6 +3081,7 @@ function render1BoForm(prefill=null){
           <div class="pills" id="sevPills">${['KTAS 1 (소생)','KTAS 2 (긴급)','KTAS 3 (응급)','KTAS 4 (준응급)','KTAS 5 (비응급)'].map(o=>`<div class="pill${p.severity===o?' on':''}" onclick="sPill(this,'sevPills');autoGenTitle()">${o}</div>`).join('')}</div>
         </div>
       </div>
+      ${_nextBtn('repSec3','🧑 인적사항')}
     </div>
 
     <!-- ══ 섹터3: 인적사항 ══ -->
@@ -3148,6 +3168,7 @@ function render1BoForm(prefill=null){
           <button onclick="addCompanion()" style="width:100%;padding:9px;background:rgba(255,255,255,.08);border:1px dashed rgba(255,255,255,.3);color:#3182f6;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;margin-top:4px;">＋ 동반자 추가</button>
         </div>
       </div>
+      ${_nextBtn('repSec5','📝 기타')}
     </div>
 
     <!-- ══ 섹터4: 기타 (순서: 응소 → 접수내용 → 제목·작성 → 동원장비) ══ -->
@@ -3236,7 +3257,9 @@ let _1boSubmitting=false;
 function switchRepTab(secId,el){
   document.querySelectorAll('.rep-sec').forEach(s=>s.style.display='none');
   const target=document.getElementById(secId);
-  if(target) target.style.display='block';
+  if(target){target.style.display='block';target.scrollTop=0;}
+  // 섹터 전환 시 항상 맨 위부터 — 이전 섹터에서 내린 만큼 스크롤이 남던 불편 해소
+  try{let sc=target?target.parentElement:null;while(sc&&sc!==document.body){if(sc.scrollTop)sc.scrollTop=0;sc=sc.parentElement;}window.scrollTo(0,0);}catch(e){}
   document.querySelectorAll('.rep-tab').forEach(t=>{
     t.style.color='rgba(255,255,255,.3)';
     t.style.borderBottomColor='transparent';
@@ -3245,6 +3268,11 @@ function switchRepTab(secId,el){
   if(el){el.style.color='#3182f6';el.style.borderBottomColor='#3182f6';el.classList.add('rep-tab-on');}
   if(secId==='repSec0') _renderFormTl();
   try{_updateTabDots();}catch(e){}
+}
+// 하단 '다음' 버튼 → 해당 섹터로 (탭 하이라이트까지 동기화)
+function _repNextSec(id){
+  const el=[...document.querySelectorAll('.rep-tab')].find(t=>(t.getAttribute('onclick')||'').indexOf("'"+id+"'")>=0);
+  switchRepTab(id,el||null);
 }
 // 섹터 탭 입력 점: 초록=핵심 입력됨 · 빨강=필수 미입력 · 회색=선택 항목 비어있음 — 뭘 안 썼는지 한눈에
 function _updateTabDots(){
