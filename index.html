@@ -26,6 +26,10 @@
 <script src="https://t1.kakaocdn.net/kakao_js_sdk/2.7.2/kakao.min.js" crossorigin="anonymous"></script>
 <script>
 var KAKAO_KEY='4ba2cd810d516a4f336d4dee5fa5eba5';
+// 카카오맵 SDK는 '로드 시점' 브라우저 배율(devicePixelRatio) 기준으로만 타일을 그림 —
+// 이후 Ctrl+/-로 배율을 바꾸면 지도 우측이 안 그려지는 세로선 발생(재생성해도 무효).
+// 로드 시점 배율을 기록해 두고, 달라지면 자동 새로고침으로 SDK를 재정렬한다(app.map.js _onDprChanged).
+window._dprAtSdkLoad=window.devicePixelRatio||1;
 if(window.Kakao&&!Kakao.isInitialized()) Kakao.init(KAKAO_KEY);
 (function(){
   // SDK 로드 재시도(네트워크 블립·느린 회선 대비). https 명시(일부 인앱 브라우저는 // 프로토콜상대 경로에서 실패).

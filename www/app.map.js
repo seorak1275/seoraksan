@@ -384,6 +384,7 @@ function initMaps(){
       clearTimeout(window._iZoomT);
       window._iZoomT=setTimeout(()=>{_scaleOvs(iEls,mapI.getLevel(),1);try{_reclusterInspect();}catch(e){}},150);
     });
+    _armDprWatch(); // 배율 변경 감지 — 전 지도 공통(세로선 예방)
     if(window._hideLoading)setTimeout(window._hideLoading,600);
   }
   if(window._KR){doInit();return;}
@@ -590,16 +591,40 @@ function _boardEnsureSize(){
     el._fixTried=0;
   }catch(e){}
 }
-// 모니터 배율·브라우저 확대(Ctrl +/-) 변경 감지 → 즉시 크기 재검증 (변경 때마다 리스너 재장전)
+// 모니터 배율·브라우저 확대(Ctrl +/-) 변경 감지 (변경 때마다 리스너 재장전)
 function _armDprWatch(){
   try{
     if(window._dprWatchOff)window._dprWatchOff();
     var mql=matchMedia('(resolution: '+(window.devicePixelRatio||1)+'dppx)');
-    var h=function(){setTimeout(function(){_boardEnsureSize();_armDprWatch();},120);};
+    var h=function(){setTimeout(function(){_onDprChanged();_armDprWatch();},150);};
     if(mql.addEventListener)mql.addEventListener('change',h);else if(mql.addListener)mql.addListener(h);
     window._dprWatchOff=function(){try{if(mql.removeEventListener)mql.removeEventListener('change',h);else if(mql.removeListener)mql.removeListener(h);}catch(e){}};
   }catch(e){}
 }
+// 배율 변경 대응 — 카카오 SDK는 로드 시점 배율로만 타일을 그려서(세로선 원인) 배율이 달라지면 새로고침이 유일한 해결.
+// 상황판이 열려 있으면 자동 새로고침 후 상황판 자동 복귀(모니터 무인 거치 대응), 그 외 화면에선 안내만(작성 중 데이터 보호).
+function _onDprChanged(){
+  var d=window.devicePixelRatio||1;
+  if(Math.abs(d-(window._dprAtSdkLoad||d))<0.01){try{_boardEnsureSize();}catch(e){}return;} // 로드 배율로 복귀 → 정상
+  var vb=document.getElementById('v-board');
+  if(vb&&vb.classList.contains('on')){
+    try{sessionStorage.setItem('_reopenBoard','1');}catch(e){}
+    try{toast('🖥 화면 배율 변경 감지 — 지도를 새로 불러옵니다');}catch(e){}
+    setTimeout(function(){location.reload();},700);
+  }else{
+    try{toast('🔎 화면 배율이 바뀌었습니다 — 지도에 세로선이 보이면 새로고침(F5) 하세요',6000);}catch(e){}
+  }
+}
+// 배율 변경으로 자동 새로고침된 경우 상황판 자동 복귀
+try{
+  if(sessionStorage.getItem('_reopenBoard')){
+    sessionStorage.removeItem('_reopenBoard');
+    var _rbT=setInterval(function(){
+      if(window._KR&&typeof openBoard==='function'&&document.readyState==='complete'){clearInterval(_rbT);try{openBoard();}catch(e){}}
+    },400);
+    setTimeout(function(){clearInterval(_rbT);},15000);
+  }
+}catch(e){}
 // 컨테이너가 전체화면 최종 너비에 도달하고 '안정'될 때까지 기다렸다 지도 생성
 // (예전엔 300px만 넘으면 바로 생성 → 열림 전환 중 좁은 폭으로 만들어져 오른쪽 띠 발생)
 function _boardMapWhenReady(tries,lastW,stable){

@@ -690,6 +690,19 @@ function initFirebase(onReady){
             if(_vw&&!_vw.classList.contains('on'))renderFacWork();else _updateFacWorkBadge();}catch(e){}}
         else if(window.curApp==='alert')renderAlertView();
         else if(window.curApp==='stats')renderFullStats();
+        // 열려 있는 사고 상세(v-report): 원격 변경 즉시 타임라인 갱신 — 저장된 기록이 화면에 안 나타나던 핵심 원인.
+        // 입력 보호: 입력칸 포커스 중이거나, 기록카드에 고르다 만 단계·메모·댓글 초안이 있으면 건너뜀(다음 변경 때 반영)
+        try{
+          var _vr=document.getElementById('v-report');
+          if(_vr&&_vr.classList.contains('on')&&typeof curResId!=='undefined'&&curResId&&typeof renderTimeline==='function'&&typeof getRes==='function'){
+            var _ae2=document.activeElement;
+            var _typing2=_ae2&&_vr.contains(_ae2)&&/INPUT|TEXTAREA/.test(_ae2.tagName||'');
+            var _draft2=(typeof _tlRecStage!=='undefined'&&_tlRecStage)||(typeof _tlRecTeam!=='undefined'&&_tlRecTeam)
+              ||((document.getElementById('tlRecNote')||{}).value)||((document.getElementById('tlRecCustom')||{}).value)
+              ||((document.getElementById('cmtInput_'+curResId)||{}).value)||((document.getElementById('cmtInput_adv_'+curResId)||{}).value);
+            if(!_typing2&&!_draft2){var _rr2=getRes(curResId);if(_rr2&&_rr2.id)renderTimeline(_rr2,(typeof _tlViewMode!=='undefined'&&_tlViewMode)||'advanced');}
+          }
+        }catch(e){}
         // 상황판(모니터): 열려 있으면 원격 변경 '즉시' 반영 — 10초 폴링 대기 없이 실시간 동기화.
         // (핀은 데이터 서명 가드로 변경분만 다시 그림 · 상세 패널은 댓글 입력 중이면 건너뛰어 타이핑 보호)
         try{
