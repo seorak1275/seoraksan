@@ -3458,6 +3458,14 @@ function renderAdmSheets(){
       <div style="font-size:10px;color:#3a4a6a;margin-top:7px;">무료 티어: 1일 1,500회 · 분당 100만 토큰 · 결제 불필요</div>
     </div>
     <div class="scard" style="margin-bottom:8px;">
+      <div class="stitle">🔔 아이폰·웹 푸시 키 (VAPID)</div>
+      <div style="font-size:11px;color:#8b95a1;margin-bottom:8px;">Firebase 콘솔 → ⚙️ 프로젝트 설정 → <b>클라우드 메시징</b> → 웹 푸시 인증서 → <b>키 쌍 생성</b> 후 그 키(B로 시작)를 붙여넣고 저장. 전 기기에 자동 반영되며, 아이폰은 <b>홈 화면 앱으로 실행 + 알림 허용</b>(설정 탭) 시 꺼진 폰에도 푸시가 갑니다.</div>
+      <div style="display:flex;gap:6px;">
+        <input id="vapidKeyInp" type="text" class="fi" value="${DB.g('fcmVapidKey')||''}" placeholder="B로 시작하는 88자 키" style="flex:1;font-family:monospace;font-size:12px;">
+        <button onclick="(function(){var v=(document.getElementById('vapidKeyInp').value||'').trim();DB.s('fcmVapidKey',v);try{if(v&&typeof _initFCM==='function')_initFCM();}catch(e){}toast(v?'✅ 저장 — 전 기기 자동 반영, 각 기기는 알림 허용 시 푸시 등록':'키 삭제됨');})()" style="background:#1a3a20;color:#86efac;border:1px solid rgba(74,222,128,.3);padding:8px 14px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;">저장</button>
+      </div>
+    </div>
+    <div class="scard" style="margin-bottom:8px;">
       <div class="stitle">🎯 커스텀 사고유형 아이콘</div>
       <div style="font-size:11px;color:#8b95a1;margin-bottom:8px;">'기타'로 직접 입력해 쓰는 사고유형(예: 낙석, 화재)에 전용 지도 아이콘을 지정. 등록하면 전 기기에 공유됩니다.</div>
       <div id="customTypeList">${(DB.g('customResTypes')||[]).map((t,i)=>`<div style="display:flex;align-items:center;gap:8px;padding:6px 10px;background:#1c1c1e;border-radius:7px;margin-bottom:4px;border:1px solid rgba(255,255,255,.07);">

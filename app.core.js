@@ -111,7 +111,7 @@ const _FB_CFG={
 // history: 점검이력은 무제한으로 계속 쌓이는 로그성 데이터라 단일문서 그대로 두면 매 점검마다 전체가 전원에게 재전송됨 → 건별 문서로 전환
 const _SHARED_COLL=['rescues','hazards','facilities','history','facIssues'];
 // _SHARED_DOC: 단일 문서에 JSON 배열 저장 (관리자 전용, 동시 쓰기 없음)
-const _SHARED_DOC=['alertOps','alertLog','catFac','catFacMeta','pendingUsers','approvedUsers','deletedKakaoIds','adminOwnerKakaoId','adminApprovalCode','extAgencies','extAgencyCode','extAgencyDisplayName','geminiApiKey','kmaProxyUrl','_acl','loginLog','trailStatus','crisisLevel','weatherBrief','weatherLog','trailLog','sosBlocked','autoApprove','pushLog','devKakaoId','notiPolicy','customResTypes','facManagers','climbDates','climbCancels','homeHidden','climbAccidents','otaInfo','climbAgg','facTrash'];
+const _SHARED_DOC=['alertOps','alertLog','catFac','catFacMeta','pendingUsers','approvedUsers','deletedKakaoIds','adminOwnerKakaoId','adminApprovalCode','extAgencies','extAgencyCode','extAgencyDisplayName','geminiApiKey','kmaProxyUrl','_acl','loginLog','trailStatus','crisisLevel','weatherBrief','weatherLog','trailLog','sosBlocked','autoApprove','pushLog','devKakaoId','notiPolicy','customResTypes','facManagers','climbDates','climbCancels','homeHidden','climbAccidents','otaInfo','climbAgg','facTrash','fcmVapidKey'];
 // otaInfo: ota.json의 Firestore 미러 {version,url,notes,at} — 웹 방문자가 자동 갱신. github 계열이 막힌 망의 APK가 업데이트 정보를 받는 최후 폴백 통로
 // homeHidden: 관리자가 홈 화면에서 숨긴 메뉴 키 목록(미완성 기능 감추기용) — 전 직원 동기화 적용
 // climbAccidents: 수동 등록한 암벽 사고자 [{id,date,name,note,by,at}] — 엑셀 상태값은 다운로드 시점따라 달라 신뢰 불가라 사고는 직접 등록
@@ -680,6 +680,7 @@ function initFirebase(onReady){
       // 승인 대기 중인 사용자: _acl 동기화 즉시 멤버 판정 → 재로그인 없이 자동 입장
       try{var _g=document.getElementById('approvalGate');if(_g&&_g.style.display!=='none'){if(_isAutoApprove()){var _u=DB.g('currentUser')||{};if(_u.kakaoId)_aclSelfApprove(_u.kakaoId);}if(_isMember()){_g.style.display='none';_stopApprovalPoll();updateUserUI();try{goHome();}catch(e){}toast('✅ 승인 완료 — 환영합니다');}}}catch(e){}
       try{_updateCrisisBanner();}catch(e){}
+      try{if(!_fcmTokenCache)_initFCM();}catch(e){} // VAPID 키가 방금 동기화됐으면 재시작 없이 웹푸시 토큰 등록
       clearTimeout(_remoteUpdateTimer);
       _remoteUpdateTimer=setTimeout(function(){
         try{if(typeof _applyHomeMenuVisibility==='function')_applyHomeMenuVisibility();}catch(e){} // 관리자의 홈메뉴 숨김 설정 동기화 즉시 반영
@@ -1662,16 +1663,18 @@ function toggleHiContrast(){
   toast(on?'🌞 야외 고대비 모드 켜짐':'🌙 고대비 모드 꺼짐');
 }
 // VAPID 키 설정 후 FCM 토큰 등록 (Firebase Console > Project Settings > Cloud Messaging > Web Push 인증서)
-const _FCM_VAPID=''; // ← 여기에 Firebase Console에서 발급한 VAPID 키 입력
-const _FCM_PUSH_URL='https://script.google.com/macros/s/AKfycbwp4JWCBkLC-LlSqiPOmyUEIO3uhv9w0ReJhEaJcXvlK0NWWwIrEK3Jo-DTaBWRHqJW/exec';
-const _FCM_PUSH_SECRET='설악산119';
+// 키는 관리자 → 시스템 화면에서 입력(전 기기 동기화, appData/fcmVapidKey) — 하드코딩 상수는 폴백용
+const _FCM_VAPID=''; // (선택) 하드코딩 폴백 — 관리자 화면 입력이 우선
 async function _initFCM(){
-  if(!_fmsg||!_fdb||!_swReg||typeof Notification==='undefined'||Notification.permission!=='granted'||!_FCM_VAPID)return;
+  const vk=String(_FCM_VAPID||DB.g('fcmVapidKey')||'').trim();
+  if(!_fmsg||!_fdb||!_swReg||typeof Notification==='undefined'||Notification.permission!=='granted'||!vk)return;
   try{
-    const token=await _fmsg.getToken({vapidKey:_FCM_VAPID,serviceWorkerRegistration:_swReg});
+    const token=await _fmsg.getToken({vapidKey:vk,serviceWorkerRegistration:_swReg});
     if(token)_saveFcmToken(token,'web');
   }catch(e){}
 }
+const _FCM_PUSH_URL='https://script.google.com/macros/s/AKfycbwp4JWCBkLC-LlSqiPOmyUEIO3uhv9w0ReJhEaJcXvlK0NWWwIrEK3Jo-DTaBWRHqJW/exec';
+const _FCM_PUSH_SECRET='설악산119';
 
 // ══ 네이티브 푸시 (Capacitor / 안드로이드 APK) ══
 // 웹 VAPID와 달리 OS 차원 푸시 → 앱이 완전히 꺼져 있어도 수신.
