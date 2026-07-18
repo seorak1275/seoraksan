@@ -1469,11 +1469,13 @@ function _resPopMetaHtml(data){
   const _skip=v=>{if(!v)return true;const s=String(v).trim();return !s||s==='-'||['미상','없음','모르겠음','알수없음','미정','해당없음','기타'].includes(s);};
   const _arr=v=>(Array.isArray(v)?v:typeof v==='string'?[v]:[]).filter(x=>!_skip(x));
   const d=(typeof _mergedRescue==='function')?_mergedRescue(data):data; // 추가보고 최신 정보 병합
-  const _vLine=[!_skip(d.vName)?_esc(d.vName):'미상',(!_skip(d.vBirth)?_ageFromBirth(d.vBirth)+'세':(!_skip(d.vAge)?_esc(d.vAge)+'세':'')),(!_skip(d.vGender)&&d.vGender!=='알수없음'?_esc(d.vGender):''),(!_skip(d.vTel)?_esc(_fmtTel(d.vTel)):'')].filter(Boolean).join(' · ');
+  // 전화번호는 nowrap 스팬 — 줄이 넘쳐도 번호가 중간에서 안 쪼개지고 통째로 다음 줄로
+  const _nwTel=t=>'<span style="white-space:nowrap;">'+_esc(_fmtTel(t))+'</span>';
+  const _vLine=[!_skip(d.vName)?_esc(d.vName):'미상',(!_skip(d.vBirth)?_ageFromBirth(d.vBirth)+'세':(!_skip(d.vAge)?_esc(d.vAge)+'세':'')),(!_skip(d.vGender)&&d.vGender!=='알수없음'?_esc(d.vGender):''),(!_skip(d.vTel)?_nwTel(d.vTel):'')].filter(Boolean).join(' · ');
   // ── 통일 규격: 라벨 10px(#6b7684) 고정폭 정렬 · 값 12.5px(#e5e8ec) 한 줄 말줄임 · 강조는 부상 카드 14px 하나만 ──
   const _pRow=(lbl,val,btns,valCol)=>val?`<div style="display:flex;align-items:center;gap:8px;min-height:26px;overflow:hidden;">
       <span style="width:50px;flex-shrink:0;font-size:10px;color:#6b7684;font-weight:700;letter-spacing:.2px;">${lbl}</span>
-      <span style="flex:1;min-width:0;font-size:12.5px;color:${valCol||'#e5e8ec'};font-weight:600;line-height:1.45;word-break:break-all;">${val}</span>
+      <span style="flex:1;min-width:0;font-size:12.5px;color:${valCol||'#e5e8ec'};font-weight:600;line-height:1.45;word-break:keep-all;overflow-wrap:break-word;">${val}</span>
       ${btns||''}</div>`:'';
   const _locVal=!_skip(d.location)?`${_esc(d.location)}${(typeof _elevStr==='function'&&data.lat&&data.lng)?` <span style="font-size:10.5px;color:#8fb8ad;font-weight:600;">${_elevStr(data.lat,data.lng,data.alt)}</span>`:''}${!_skip(d.loctype)?` <span style="font-size:10.5px;color:#8b95a1;font-weight:500;">· ${_esc(d.loctype)}</span>`:''}`:'';
   return `
@@ -1489,9 +1491,9 @@ function _resPopMetaHtml(data){
     <div style="display:flex;flex-direction:column;gap:1px;margin-bottom:6px;">
       ${_pRow('📍 위치',_locVal,(typeof _coordChipHtml==='function')?_coordChipHtml(data):'')}
       ${_pRow('사고자',_vLine,!_skip(d.vTel)?_telBtnsHtml(d.vTel,data.id,'사고자',d.vName):'')}
-      ${(d.victims2&&d.victims2.length)?d.victims2.map((v,vi)=>_pRow('사고자'+(vi+2),_esc([v.name||'미상',v.age?v.age+'세':'',(v.gender&&v.gender!=='알수없음')?v.gender:'',v.tel?_fmtTel(v.tel):''].filter(Boolean).join(' · ')),v.tel?_telBtnsHtml(v.tel,data.id,'추가 사고자',v.name):'','#f0d9d4')).join(''):''}
-      ${(!_skip(d.repName)||!_skip(d.repTel))?_pRow('신고자',[!_skip(d.repName)?_esc(d.repName):'',!_skip(d.repTel)?_esc(_fmtTel(d.repTel)):''].filter(Boolean).join(' · ')+(!_skip(d.repRel)?` <span style="font-size:10px;color:#e8b34a;font-weight:700;">(${_esc(d.repRel)})</span>`:''),!_skip(d.repTel)?_telBtnsHtml(d.repTel,data.id,'신고자',d.repName):''):''}
-      ${(d.companions&&d.companions.length)?d.companions.map((c,ci)=>_pRow('동반자'+(d.companions.length>1?ci+1:''),_esc((c.name||'미상')+(c.tel?' · '+_fmtTel(c.tel):'')),c.tel?_telBtnsHtml(c.tel,data.id,'동반자',c.name):'')).join(''):''}
+      ${(d.victims2&&d.victims2.length)?d.victims2.map((v,vi)=>_pRow('사고자'+(vi+2),[v.name?_esc(v.name):'미상',v.age?_esc(v.age)+'세':'',(v.gender&&v.gender!=='알수없음')?_esc(v.gender):'',v.tel?_nwTel(v.tel):''].filter(Boolean).join(' · '),v.tel?_telBtnsHtml(v.tel,data.id,'추가 사고자',v.name):'','#f0d9d4')).join(''):''}
+      ${(!_skip(d.repName)||!_skip(d.repTel))?_pRow('신고자',[!_skip(d.repName)?_esc(d.repName):'',!_skip(d.repTel)?_nwTel(d.repTel):''].filter(Boolean).join(' · ')+(!_skip(d.repRel)?` <span style="font-size:10px;color:#e8b34a;font-weight:700;white-space:nowrap;">(${_esc(d.repRel)})</span>`:''),!_skip(d.repTel)?_telBtnsHtml(d.repTel,data.id,'신고자',d.repName):''):''}
+      ${(d.companions&&d.companions.length)?d.companions.map((c,ci)=>_pRow('동반자'+(d.companions.length>1?ci+1:''),_esc(c.name||'미상')+(c.tel?' · '+_nwTel(c.tel):''),c.tel?_telBtnsHtml(c.tel,data.id,'동반자',c.name):'')).join(''):''}
     </div>
     ${(typeof _opBadges==='function')?_opBadges(data,false):''}
     ${_sosLiveLineHtml(data)}

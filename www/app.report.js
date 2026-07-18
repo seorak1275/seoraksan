@@ -1690,17 +1690,19 @@ function renderTimeline(r,viewMode,outId){
     // 팝업 카드와 동일 규격: 라벨 10px 고정폭(50px) 정렬 · 값 12.5px 한 줄 말줄임 (통일 타이포)
     const _pRow=(lbl,val,btns,valCol)=>val?`<div style="display:flex;align-items:center;gap:8px;min-height:26px;overflow:hidden;">
       <span style="width:50px;flex-shrink:0;font-size:10px;color:#6b7684;font-weight:700;letter-spacing:.2px;">${lbl}</span>
-      <span style="flex:1;min-width:0;font-size:12.5px;color:${valCol||'#e5e8ec'};font-weight:600;line-height:1.45;word-break:break-all;">${val}</span>
+      <span style="flex:1;min-width:0;font-size:12.5px;color:${valCol||'#e5e8ec'};font-weight:600;line-height:1.45;word-break:keep-all;overflow-wrap:break-word;">${val}</span>
       ${btns||''}</div>`:'';
     const _locVal=_ok(r.location)?`${_esc(r.location)}${(typeof _elevStr==='function'&&r.lat&&r.lng)?` <span style="font-size:10.5px;color:#8fb8ad;font-weight:600;">${_elevStr(r.lat,r.lng,r.alt)}</span>`:''}${_ok(r.loctype)?` <span style="font-size:10.5px;color:#8b95a1;font-weight:500;">· ${_esc(r.loctype)}</span>`:''}`:'';
     const locSect=(_locVal?_pRow('📍 위치',_locVal,(typeof _coordChipHtml==='function')?_coordChipHtml(r):''):'')+_opB+(_climbBtn?`<div>${_climbBtn}</div>`:'');
     const _vAge=_ok(r.vBirth)?_ageFromBirth(r.vBirth)+'세':(_ok(r.vAge)?_esc(r.vAge)+'세':'');
-    const _vLine=[_ok(r.vName)?_esc(r.vName):'미상',_vAge,_ok(r.vGender)&&r.vGender!=='알수없음'?_esc(r.vGender):'',_ok(r.vNation)&&r.vNation==='외국인'?('외국인'+(_ok(r.vNationality)?'('+_esc(r.vNationality)+')':'')):'',_ok(r.vTel)?_esc(_fmtTel(r.vTel)):''].filter(Boolean).join(' · ');
+    // 전화번호는 nowrap 스팬 — 줄이 넘쳐도 번호가 중간에서 안 쪼개지고 통째로 다음 줄로
+    const _nwTel=t=>'<span style="white-space:nowrap;">'+_esc(_fmtTel(t))+'</span>';
+    const _vLine=[_ok(r.vName)?_esc(r.vName):'미상',_vAge,_ok(r.vGender)&&r.vGender!=='알수없음'?_esc(r.vGender):'',_ok(r.vNation)&&r.vNation==='외국인'?('외국인'+(_ok(r.vNationality)?'('+_esc(r.vNationality)+')':'')):'',_ok(r.vTel)?_nwTel(r.vTel):''].filter(Boolean).join(' · ');
     let personSect=`<div style="display:flex;flex-direction:column;gap:1px;">`
       +_pRow('사고자',_vLine,_ok(r.vTel)?_telBtnsHtml(r.vTel,r.id,'사고자',r.vName):'')
-      +((r.victims2&&r.victims2.length)?r.victims2.map((v,vi)=>_pRow('사고자'+(vi+2),_esc([v.name||'미상',v.age?v.age+'세':'',(v.gender&&v.gender!=='알수없음')?v.gender:'',v.tel?_fmtTel(v.tel):''].filter(Boolean).join(' · ')),v.tel?_telBtnsHtml(v.tel,r.id,'추가 사고자',v.name):'','#f0d9d4')).join(''):'')
-      +((_ok(r.repName)||_ok(r.repTel))?_pRow('신고자',[_ok(r.repName)?_esc(r.repName):'',_ok(r.repTel)?_esc(_fmtTel(r.repTel)):''].filter(Boolean).join(' · ')+(_ok(r.repRel)?` <span style="font-size:10px;color:#e8b34a;font-weight:700;">(${_esc(r.repRel)})</span>`:''),_ok(r.repTel)?_telBtnsHtml(r.repTel,r.id,'신고자',r.repName):''):'')
-      +((r.companions&&r.companions.length)?r.companions.map((c,ci)=>_pRow('동반자'+(r.companions.length>1?ci+1:''),_esc((c.name||'미상')+(c.tel?' · '+_fmtTel(c.tel):'')),c.tel?_telBtnsHtml(c.tel,r.id,'동반자',c.name):'')).join(''):'')
+      +((r.victims2&&r.victims2.length)?r.victims2.map((v,vi)=>_pRow('사고자'+(vi+2),[v.name?_esc(v.name):'미상',v.age?_esc(v.age)+'세':'',(v.gender&&v.gender!=='알수없음')?_esc(v.gender):'',v.tel?_nwTel(v.tel):''].filter(Boolean).join(' · '),v.tel?_telBtnsHtml(v.tel,r.id,'추가 사고자',v.name):'','#f0d9d4')).join(''):'')
+      +((_ok(r.repName)||_ok(r.repTel))?_pRow('신고자',[_ok(r.repName)?_esc(r.repName):'',_ok(r.repTel)?_nwTel(r.repTel):''].filter(Boolean).join(' · ')+(_ok(r.repRel)?` <span style="font-size:10px;color:#e8b34a;font-weight:700;white-space:nowrap;">(${_esc(r.repRel)})</span>`:''),_ok(r.repTel)?_telBtnsHtml(r.repTel,r.id,'신고자',r.repName):''):'')
+      +((r.companions&&r.companions.length)?r.companions.map((c,ci)=>_pRow('동반자'+(r.companions.length>1?ci+1:''),_esc(c.name||'미상')+(c.tel?' · '+_nwTel(c.tel):''),c.tel?_telBtnsHtml(c.tel,r.id,'동반자',c.name):'')).join(''):'')
       +`</div>`;
     if(typeof _sosLiveLineHtml==='function'){const _sl=_sosLiveLineHtml(r);if(_sl)personSect+='<div style="margin-top:6px;">'+_sl+'</div>';}
     const recvSect=_ok(r.reception)?`<div><div style="font-size:10px;color:#6b7684;font-weight:700;letter-spacing:.2px;margin-bottom:3px;">📝 접수내용</div><div style="font-size:12px;color:#c9cdd3;line-height:1.55;">${_esc(r.reception)}</div></div>`:'';
