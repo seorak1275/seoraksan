@@ -733,8 +733,11 @@ body.hi-contrast .stat-lbl{color:rgba(255,255,255,.65)!important;}
 /* ── 52번 지도 픽커: 이중 모달 시 최상단 보장 ── */
 #modalMapPicker{z-index:60!important;}
 
-/* ── 목록 작게 보기(기기별 설정) ── */
-body.list-compact .lcard{padding:8px 10px;gap:8px;margin-bottom:5px;border-radius:10px;}
-body.list-compact .lcard .lname{font-size:12px;}
-body.list-compact .lcard .lmeta{font-size:9.5px;}
-body.list-compact .lcard .lico{width:30px;height:30px;font-size:15px;border-radius:8px;}
+/* ── 목록 간단히 보기(기기별 설정) — 크기 축소가 아니라 정보 자체를 줄여 한 화면에 더 많이 ── */
+body.list-compact .lcard{padding:7px 9px;gap:8px;margin-bottom:4px;border-radius:9px;}
+body.list-compact .lcard .linfo{min-width:0;}
+body.list-compact .lcard .lname{font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+body.list-compact .lcard .lmeta{font-size:9.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+body.list-compact .lcard .lico{width:26px;height:26px;font-size:14px;border-radius:7px;}
+body.list-compact .lc-hide{display:none!important;} /* 부상·최근기록·기관배지·지도버튼·설명 등 부가정보 숨김 */
+body.list-compact .haz-card{padding:8px 10px;margin-bottom:4px;}

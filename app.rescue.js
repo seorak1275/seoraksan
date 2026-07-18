@@ -773,7 +773,7 @@ function _toggleListDensity(){
   const c=document.body.classList.toggle('list-compact');
   try{localStorage.setItem('listDensity',c?'compact':'normal');}catch(e){}
   renderResList();
-  toast(c?'▤ 목록 작게 보기':'▤ 목록 보통 크기');
+  toast(c?'▤ 간단히 보기 — 핵심만 한 줄씩, 한 화면에 더 많이':'▤ 자세히 보기 — 부상·최근기록까지 표시');
 }
 const _renderResListDebounced=_debounce(()=>renderResList(),250);
 function onResSearch(v){
@@ -815,7 +815,7 @@ function renderResList(){
   let cards=[];
   const _hdr=(txt,col)=>`<div style="display:flex;align-items:center;gap:7px;margin:4px 2px 7px;"><span style="font-size:11px;font-weight:800;color:${col};letter-spacing:.3px;">${txt}</span><div style="flex:1;height:1px;background:linear-gradient(90deg,${col}44,transparent);"></div></div>`;
   // 정렬 토글(기본 최신순) — 날짜 정렬이 헷갈린다는 피드백 반영
-  cards.push(`<div style="display:flex;justify-content:flex-end;gap:6px;margin:0 2px 6px;"><button onclick="_toggleListDensity()" style="background:rgba(255,255,255,.1);color:#8b95a1;border:1px solid rgba(255,255,255,.28);border-radius:16px;padding:5px 12px;font-size:11px;font-weight:700;cursor:pointer;">▤ ${document.body.classList.contains('list-compact')?'작게':'보통'}</button><button onclick="toggleResSort()" style="background:rgba(255,255,255,.1);color:#3182f6;border:1px solid rgba(255,255,255,.28);border-radius:16px;padding:5px 12px;font-size:11px;font-weight:700;cursor:pointer;">↕ ${_resSortNewest?'최신순':'오래된순'}</button></div>`);
+  cards.push(`<div style="display:flex;justify-content:flex-end;gap:6px;margin:0 2px 6px;"><button onclick="_toggleListDensity()" style="background:rgba(255,255,255,.1);color:#8b95a1;border:1px solid rgba(255,255,255,.28);border-radius:16px;padding:5px 12px;font-size:11px;font-weight:700;cursor:pointer;">▤ ${document.body.classList.contains('list-compact')?'간단히':'자세히'}</button><button onclick="toggleResSort()" style="background:rgba(255,255,255,.1);color:#3182f6;border:1px solid rgba(255,255,255,.28);border-radius:16px;padding:5px 12px;font-size:11px;font-weight:700;cursor:pointer;">↕ ${_resSortNewest?'최신순':'오래된순'}</button></div>`);
   // 🆘 조난·사고자 위치 수신 — 별도 sos 컬렉션이라 목록 최상단에 노출(아직 사고 미등록 건만)
   if(_resListTab!=='haz'&&(_sosPings||[]).length){
     const _regIds=new Set((res||[]).map(r=>r.sosId).filter(Boolean));
@@ -857,14 +857,14 @@ function renderResList(){
         <div class="lico" style="background:${isOg?ti.color:'#1a3a1a'};border:none;color:#fff;">${ti.ico}</div>
         <div class="linfo">
           <div class="lname">🚨 ${_esc(r.title)}</div>
-          ${(r.extAgency||(r.mobilize&&r.mobilize.length))?`<div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:3px;">
+          ${(r.extAgency||(r.mobilize&&r.mobilize.length))?`<div class="lc-hide" style="display:flex;flex-wrap:wrap;gap:4px;margin-top:3px;">
             ${r.extAgency?`<span style="font-size:9px;background:rgba(255,120,30,.18);color:#f08050;border:1px solid rgba(255,120,30,.35);border-radius:9px;padding:1px 7px;font-weight:700;">🚒 ${_esc(r.extAgency)}</span>`:''}
             ${(r.mobilize&&r.mobilize.length)?`<span style="font-size:9px;background:rgba(231,76,60,.18);color:#e74c3c;border:1px solid rgba(231,76,60,.4);border-radius:9px;padding:1px 7px;font-weight:700;">🚨 ${_esc(r.mobilize.join('·'))}</span>${_mobilizeCompactBadge(r)}`:''}
           </div>`:''}
           <div class="lmeta" style="margin-top:3px;">${_esc(r.type)} · ${r.date} · 사고자 ${_esc(r.vName||'미상')}${(r.victims2&&r.victims2.length)?` <span style="color:#e9897e;font-weight:700;">외 ${r.victims2.length}명</span>`:''}</div>
-          ${_injLine?`<div class="lmeta" style="margin-top:2px;color:#ff9a8a;">🤕 ${_esc(_injLine)}</div>`:''}
-          ${_last?`<div class="lmeta" style="margin-top:2px;color:#949aa2;">🕐 ${_esc(_last.t)} ${_esc(_last.label)}${_last.sub?' · '+_esc(String(_last.sub).slice(0,18)):''}</div>`:''}
-          ${hasCoord?`<button onclick="event.stopPropagation();viewOnMap(${r.lat},${r.lng})" style="margin-top:6px;padding:6px 12px;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.35);color:#3182f6;border-radius:8px;font-size:11px;font-weight:600;cursor:pointer;">🗺️ 지도보기</button>`:''}
+          ${_injLine?`<div class="lmeta lc-hide" style="margin-top:2px;color:#ff9a8a;">🤕 ${_esc(_injLine)}</div>`:''}
+          ${_last?`<div class="lmeta lc-hide" style="margin-top:2px;color:#949aa2;">🕐 ${_esc(_last.t)} ${_esc(_last.label)}${_last.sub?' · '+_esc(String(_last.sub).slice(0,18)):''}</div>`:''}
+          ${hasCoord?`<button class="lc-hide" onclick="event.stopPropagation();viewOnMap(${r.lat},${r.lng})" style="margin-top:6px;padding:6px 12px;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.35);color:#3182f6;border-radius:8px;font-size:11px;font-weight:600;cursor:pointer;">🗺️ 지도보기</button>`:''}
         </div>
         <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;align-self:flex-start;flex-shrink:0;">
           <span class="lbadge" style="background:${isOg?'rgba(231,76,60,.22)':'rgba(39,174,96,.2)'};color:${isOg?'#ff6b5e':'#3ad17a'};">${isOg?'진행중':'종료'}</span>
@@ -885,8 +885,8 @@ function renderResList(){
           <div style="flex:1;min-width:0;">
             <div style="font-size:13px;color:#eaecef;font-weight:600;">${_esc(h.hazType||'위험상황')} · ${_esc(h.loc||'-')}${(h.mobilize&&h.mobilize.length)?` <span style="font-size:9px;background:rgba(231,76,60,.18);color:#e74c3c;border:1px solid rgba(231,76,60,.4);border-radius:9px;padding:1px 6px;font-weight:700;vertical-align:middle;">🚨 ${_esc(h.mobilize.join('·'))}</span>${_mobilizeCompactBadge(h)}`:''}</div>
             <div style="font-size:11px;color:#949aa2;margin-top:3px;">${h.dt||'-'} · ${_esc(h.danger||'-')} · ${_esc(h.author||'-')}</div>
-            <div style="font-size:11px;color:#8b95a1;margin-top:2px;">${_esc((h.desc||'').slice(0,40))}${(h.desc||'').length>40?'...':''}</div>
-            ${hasCoord?`<button onclick="event.stopPropagation();viewOnMap(${h.lat},${h.lng})" style="margin-top:5px;padding:4px 10px;background:rgba(230,126,34,.12);border:1px solid rgba(230,126,34,.35);color:#e67e22;border-radius:7px;font-size:11px;font-weight:600;cursor:pointer;">🗺️ 지도보기</button>`:''}
+            <div class="lc-hide" style="font-size:11px;color:#8b95a1;margin-top:2px;">${_esc((h.desc||'').slice(0,40))}${(h.desc||'').length>40?'...':''}</div>
+            ${hasCoord?`<button class="lc-hide" onclick="event.stopPropagation();viewOnMap(${h.lat},${h.lng})" style="margin-top:5px;padding:4px 10px;background:rgba(230,126,34,.12);border:1px solid rgba(230,126,34,.35);color:#e67e22;border-radius:7px;font-size:11px;font-weight:600;cursor:pointer;">🗺️ 지도보기</button>`:''}
           </div>
           <span class="lbadge ${done?'haz-badge-done':'haz-badge-active'}" style="align-self:flex-start;flex-shrink:0;">${_esc(h.hazStatus||'미조치')}</span>
         </div>

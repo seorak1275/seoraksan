@@ -523,6 +523,8 @@ function _tlRecSelTeam(el){
 function _tlRecSelStage(el){
   const v=el.dataset.v||'';
   _tlRecStage=_tlRecStage===v?'':v; // 재탭 시 해제
+  // 헬기는 실수 방지 — 예/아니오 확인 후에만 기록 준비
+  if(_tlRecStage==='헬기 요청'&&!confirm('🚁 헬기를 요청하셨습니까?\n[확인]을 누르면 헬기 요청 기록이 준비됩니다'))_tlRecStage='';
   document.querySelectorAll('#tlRecStages .pill').forEach(p=>p.classList.toggle('on',p.dataset.v===_tlRecStage&&_tlRecStage!==''));
   const cw=document.getElementById('tlRecCustomWrap');
   if(cw){cw.style.display=_tlRecStage==='__custom'?'block':'none';if(_tlRecStage==='__custom')setTimeout(()=>{try{document.getElementById('tlRecCustom').focus();}catch(e){}},50);}
@@ -687,6 +689,41 @@ function _tlRecDel(reg){
   toast(dupN>1?('🗑 중복 '+dupN+'건 삭제됨'):'🗑 기록이 삭제되었습니다');
   renderTimeline(res[idx],'advanced');
 }
+// 🚨 최초접수 일시 수정 — 상황일지의 최초접수 줄 ✏️로 바로. r.date를 바꿔 목록·통계·보고서 전체 반영
+function _tlEditFirstDate(rid){
+  const r=getRes(rid);if(!r)return;
+  const v=String(r.date||'').replace(' ','T').slice(0,16);
+  let m=document.getElementById('fdEditModal');if(m)m.remove();
+  m=document.createElement('div');m.id='fdEditModal';
+  m.style.cssText='position:fixed;inset:0;z-index:99850;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;padding:30px;';
+  m.innerHTML=`<div style="background:#16161a;border:1px solid rgba(255,255,255,.25);border-radius:14px;max-width:300px;width:100%;padding:16px;">
+    <div style="font-size:13px;font-weight:800;color:#eaecef;margin-bottom:10px;">🚨 최초접수 일시 수정</div>
+    <input type="datetime-local" id="fdEditInp" class="fi" style="width:100%;box-sizing:border-box;margin-bottom:9px;" value="${v}">
+    <div style="font-size:10px;color:#8b95a1;margin-bottom:11px;line-height:1.5;">접수한 시간이 다르게 기록됐을 때 고치세요.<br>목록·통계·보고서 등 모든 화면에 함께 반영됩니다.</div>
+    <div style="display:flex;gap:7px;">
+      <button onclick="document.getElementById('fdEditModal').remove()" style="flex:1;padding:10px;border-radius:9px;border:1px solid rgba(255,255,255,.15);background:transparent;color:#8b95a1;font-size:12px;font-weight:600;cursor:pointer;">취소</button>
+      <button onclick="_tlEditFirstDateSave(${r.id})" style="flex:2;padding:10px;border-radius:9px;background:#1a4a6e;color:#fff;border:none;font-size:12px;font-weight:700;cursor:pointer;">저장</button>
+    </div></div>`;
+  document.body.appendChild(m);
+  m.onclick=function(e){if(e.target===m)m.remove();};
+}
+function _tlEditFirstDateSave(rid){
+  const nv=(document.getElementById('fdEditInp')?.value||'').replace('T',' ');
+  if(!/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}/.test(nv)){toast('⚠️ 일시를 입력하세요');return;}
+  const res=DB.g('rescues')||[];const idx=res.findIndex(x=>String(x.id)===String(rid));if(idx<0)return;
+  const old=String(res[idx].date||'');
+  const m=document.getElementById('fdEditModal');if(m)m.remove();
+  if(nv.slice(0,16)===old.slice(0,16))return;
+  // 감사 흔적은 상황일지 기록으로(보고 차수에 영향 없음)
+  if(!res[idx].timetable)res[idx].timetable=[];
+  res[idx].timetable.push({stage:'최초접수 일시 수정',time:now(),note:(old||'(없음)')+' → '+nv,by:getAuthor(),seq:Date.now()});
+  res[idx].date=nv;
+  DB.s('rescues',res);
+  toast('✏️ 최초접수 일시가 '+nv.slice(5,16)+'로 수정되었습니다');
+  try{if(document.getElementById('v-report').classList.contains('on'))renderTimeline(res[idx],_tlViewMode||'advanced');}catch(e){}
+  try{if(typeof renderResList==='function')renderResList();}catch(e){}
+  try{if(typeof autoGenTitle==='function'&&document.getElementById('r_title'))autoGenTitle();}catch(e){}
+}
 function _buildLogHtml(r){
   const logEntries=_collectLogEntries(r);
   if(!logEntries.length)return '';
@@ -718,7 +755,7 @@ function _buildLogHtml(r){
         <div style="display:flex;align-items:center;gap:6px;margin-bottom:${e.sub?'2':'0'}px;">
           <span style="font-size:11px;color:#8b95a1;font-family:monospace;font-weight:600;white-space:nowrap;">${e.t}</span>
           <span style="font-size:${isWpPass(e)?'11':'12'}px;font-weight:${isWpPass(e)?'600':'700'};color:${isWpPass(e)?'rgba(255,255,255,.55)':col};">${e.ico} ${_esc(e.label)}</span>
-          ${(e.sig&&(e.by===getAuthor()||(typeof isAdminUser==='function'&&isAdminUser())))?(()=>{const _di=window._tlDelReg.push({rid:r.id,sig:e.sig})-1;return `<span onclick="event.stopPropagation();_tlRecEditStart(${_di})" style="margin:-8px 0 -8px auto;color:rgba(77,155,245,.9);font-size:13px;cursor:pointer;padding:8px 8px;flex-shrink:0;line-height:1;touch-action:manipulation;" title="기록 수정">✏️</span><span onclick="event.stopPropagation();_tlRecDel(${_di})" style="margin:-8px -6px -8px 0;color:rgba(255,107,91,.9);font-size:16px;font-weight:800;cursor:pointer;padding:8px 12px;flex-shrink:0;line-height:1;touch-action:manipulation;-webkit-tap-highlight-color:rgba(255,107,91,.2);" title="기록 삭제">×</span>`;})():''}
+          ${(e.sig&&(e.by===getAuthor()||(typeof isAdminUser==='function'&&isAdminUser())))?(()=>{const _di=window._tlDelReg.push({rid:r.id,sig:e.sig})-1;return `<span onclick="event.stopPropagation();_tlRecEditStart(${_di})" style="margin:-8px 0 -8px auto;color:rgba(77,155,245,.9);font-size:13px;cursor:pointer;padding:8px 8px;flex-shrink:0;line-height:1;touch-action:manipulation;" title="기록 수정">✏️</span><span onclick="event.stopPropagation();_tlRecDel(${_di})" style="margin:-8px -6px -8px 0;color:rgba(255,107,91,.9);font-size:16px;font-weight:800;cursor:pointer;padding:8px 12px;flex-shrink:0;line-height:1;touch-action:manipulation;-webkit-tap-highlight-color:rgba(255,107,91,.2);" title="기록 삭제">×</span>`;})():(e.label==='최초접수'&&!(typeof isExternal==='function'&&isExternal()))?`<span onclick="event.stopPropagation();_tlEditFirstDate(${r.id})" style="margin:-8px -6px -8px auto;color:rgba(77,155,245,.9);font-size:13px;cursor:pointer;padding:8px 10px;flex-shrink:0;line-height:1;touch-action:manipulation;" title="최초접수 일시 수정">✏️</span>`:''}
         </div>
         ${e.sub?`<div style="font-size:10px;color:rgba(255,255,255,.35);padding-left:2px;line-height:1.4;">${_esc(e.sub)}</div>`:''}
       </div>
@@ -1045,7 +1082,7 @@ async function govReport(rid,kind,noPass){
     ? r.injuries.map(i=>(typeof _injLabel==='function')?_injLabel(i):((i.part||'')+(i.type||''))).filter(Boolean).join(', ')
     : [(r.injuryParts||[]).join(','),(r.injuryTypes||[]).join(',')].filter(Boolean).join(' / ');
   // 한글용 보고서(hwpx) — 'N보 보고' 같은 내부 진행 표시(type:report)는 제외하고 실제 현장 대응 흐름만 수록
-  let _logSrc=_collectLogEntries(r).filter(e=>e.type!=='report');
+  let _logSrc=_collectLogEntries(r).filter(e=>e.type!=='report'&&!/일시 수정/.test(e.label||'')); // 수정 감사 줄은 문서 제외
   if(noPass)_logSrc=_logSrc.filter(e=>!e.pass); // 통과 기록 제외본
   const logs=_logSrc.map(e=>({t:e.t,txt:e.label.replace(/^[^\w가-힣0-9]+\s?/,'')+(e.sub?' ('+e.sub+')':'')}));
   const logLines=logs.map(l=>'  - '+l.t+' '+l.txt); // 띄어쓰기2 + '- ' + 시간 + 상황, 항목마다 줄바꿈
@@ -1310,7 +1347,7 @@ async function _safetyHwpxGen(rid){
   if(r.extra&&!['','-','없음','해당없음','미상'].includes(String(r.extra).trim()))lines.push('- '+r.extra);
   // 시간대별 조치(타임라인) — 내부 진행표시(N보)는 제외, 시각+내용만 간결히
   try{
-    const _tl=_collectLogEntries(r).filter(x=>x.type!=='report');
+    const _tl=_collectLogEntries(r).filter(x=>x.type!=='report'&&!/일시 수정/.test(x.label||''));
     if(_tl.length){
       lines.push('< 시간대별 조치 >');
       _tl.forEach(x=>{lines.push(' - '+x.t+' '+String(x.label||'').replace(/^[^\w가-힣0-9]+\s?/,'')+(x.sub?' ('+x.sub+')':''));});
@@ -1422,13 +1459,7 @@ function openReportShare(rid){
   m.innerHTML=`<div style="background:#16161a;border:1px solid rgba(255,255,255,.25);border-radius:14px;max-width:300px;width:100%;padding:16px;max-height:85vh;overflow-y:auto;">
     <div style="font-size:14px;font-weight:800;color:#eaecef;margin-bottom:12px;text-align:center;">📄 보고서</div>
     <button class="press-fx" onclick="share119(${rid});this.closest('#repShareModal').remove();" style="${b}border:1px solid rgba(224,90,78,.45);background:rgba(224,90,78,.12);color:#ff9a8a;">🚑 유관기관 공유 <span style="font-size:10px;font-weight:600;opacity:.8;">(119·경찰 — 문자/카톡)</span></button>
-    <div style="border:1px solid rgba(232,179,74,.4);background:rgba(232,179,74,.07);border-radius:10px;padding:9px 10px 8px;margin-bottom:7px;">
-      <div style="font-size:12.5px;font-weight:800;color:#e8b34a;text-align:center;margin-bottom:7px;">📑 안전사고 처리현황 <span style="font-size:10px;font-weight:600;opacity:.75;">(한글용)</span></div>
-      <div style="display:flex;gap:6px;">
-        <button class="press-fx" onclick="govReport(${rid},'status',false);this.closest('#repShareModal').remove();" style="flex:1;padding:9px 4px;border-radius:8px;border:1px solid rgba(232,179,74,.4);background:rgba(232,179,74,.15);color:#e8b34a;font-size:12px;font-weight:700;cursor:pointer;">통과기록 포함</button>
-        <button class="press-fx" onclick="govReport(${rid},'status',true);this.closest('#repShareModal').remove();" style="flex:1;padding:9px 4px;border-radius:8px;border:1px solid rgba(232,179,74,.25);background:rgba(232,179,74,.05);color:#e8b34a;font-size:12px;font-weight:700;cursor:pointer;">통과기록 제외</button>
-      </div>
-    </div>
+    <button class="press-fx" onclick="govReport(${rid},'status');this.closest('#repShareModal').remove();" style="${b}border:1px solid rgba(232,179,74,.4);background:rgba(232,179,74,.12);color:#e8b34a;">📑 안전사고 처리현황 (한글용)</button>
     <button class="press-fx" onclick="govReport(${rid},'trend');this.closest('#repShareModal').remove();" style="${b}border:1px solid rgba(232,179,74,.4);background:rgba(232,179,74,.1);color:#e8b34a;">📈 동향보고 (한글용)</button>
     <button class="press-fx" onclick="safetyReport(${rid});this.closest('#repShareModal').remove();" style="${b}border:1px solid rgba(240,140,60,.4);background:rgba(240,140,60,.1);color:#f0a05a;">🧡 안전지원활동 현황 (한글용)</button>
     <button onclick="this.closest('#repShareModal').remove();" style="width:100%;padding:9px;border:none;background:none;color:#8b95a1;font-size:12px;cursor:pointer;">닫기</button>
@@ -1477,10 +1508,11 @@ function renderTimeline(r,viewMode,outId){
   _initTlTeams(r);
   _tlRecTeam='';_tlRecStage='';
   const _canWriteTl=!isExternal();
-  // 기록 단계 — ⏱ 진행(시간순 핵심: 조우·처치·하산) / ⭐ 특별 내용(헬기·기상·중단 등). '직접입력'으로 자유 작성
-  // (출발·현장도착·종료 시각은 팀 출동/종료하기에서 자동 기록되므로 여기엔 중복으로 두지 않음)
-  const REC_STAGES_MAIN=['요구조자 조우','응급처치','하산 시작'];
-  const REC_STAGES_SPECIAL=['심정지','헬기 요청','헬기 도착','기상 악화','휴식','구조 중단','구조 재개','대피소 숙박'];
+  // 기록 단계 — 기본 흐름(접수→출동→통과→조우→처치→하산→휴식→종료)에 맞춘 ⏱ 진행 4개 +
+  // ⭐ 특별(심정지·헬기·기상)만. 중단/재개/대피소숙박 등 저빈도는 제거(직접입력으로 가능).
+  // (접수·출동·통과·종료·병원이송은 각각 1보/팀 출동/통과기록/종료하기에서 자동 기록)
+  const REC_STAGES_MAIN=['요구조자 조우','응급처치','하산 시작','휴식'];
+  const REC_STAGES_SPECIAL=['심정지','헬기 요청','기상 악화'];
   if(window._tlRecOpen===undefined)window._tlRecOpen=(r.status==='ongoing'); // 진행중=기록 입력 펼침 / 종료 건=접힘
   const _mkRecCard=()=>{
     if(!_canWriteTl)return '';
@@ -1505,7 +1537,7 @@ function renderTimeline(r,viewMode,outId){
             const mainOrder=[...sug.filter(s=>!REC_STAGES_SPECIAL.includes(s)),...REC_STAGES_MAIN.filter(s=>!sug.includes(s))];
             return `<div style="font-size:9.5px;color:#5a8aa0;font-weight:800;margin-bottom:4px;letter-spacing:.3px;">⏱ 진행 <span style="font-weight:400;color:#565f6b;">출발·도착·종료 시각은 팀 출동·종료하기에서 자동</span></div>
               <div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:9px;">${mainOrder.map(s=>pill(s,sug.includes(s))).join('')}</div>
-              <div style="font-size:9.5px;color:#6b7684;font-weight:800;margin-bottom:4px;letter-spacing:.3px;">⭐ 특별 내용 <span style="font-weight:400;color:#565f6b;">헬기·기상·중단 등</span></div>
+              <div style="font-size:9.5px;color:#6b7684;font-weight:800;margin-bottom:4px;letter-spacing:.3px;">⭐ 특별 내용 <span style="font-weight:400;color:#565f6b;">심정지·헬기·기상 — 그 외는 직접입력</span></div>
               <div style="display:flex;gap:4px;flex-wrap:wrap;">${REC_STAGES_SPECIAL.map(s=>pill(s,false)).join('')}<div class="pill" data-v="__custom" onclick="_tlRecSelStage(this)" style="font-size:11px;cursor:pointer;border-style:dashed;">✏️ 직접입력</div></div>`;
           })()}
         </div>
