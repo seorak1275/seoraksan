@@ -277,6 +277,29 @@ function _paintPark(map,d){
   });
 }
 // ── 🔧 상황판 세로선 진단 — 레이어를 하나씩 꺼서 원인 특정 (사용자 A/B 테스트용) ──
+// 🔦 세로선 원인 스캔 — 화면 안쪽에 세로 경계(왼/오른 가장자리)를 가진 큰 요소를 전부 분홍 테두리로 표시.
+// 세로선과 겹치는 테두리가 있으면 앱 요소가 범인(전 기기 공통 수정 가능), 없으면 표시장치/드라이버 쪽.
+function _seamScan(){
+  try{
+    const vw=innerWidth,vh=innerHeight,hits=[];
+    document.querySelectorAll('body *').forEach(el=>{
+      let r;try{r=el.getBoundingClientRect();}catch(e){return;}
+      if(r.height<vh*0.7||r.width<8)return;
+      const edges=[];
+      if(r.left>6&&r.left<vw-6)edges.push('좌'+Math.round(r.left));
+      if(r.right>6&&r.right<vw-6)edges.push('우'+Math.round(r.right));
+      if(!edges.length)return;
+      const cs=getComputedStyle(el);
+      if(cs.display==='none'||cs.visibility==='hidden')return;
+      el.style.outline='2px solid #ff2d78';el.style.outlineOffset='-2px';
+      setTimeout(()=>{try{el.style.outline='';el.style.outlineOffset='';}catch(e){}},10000);
+      hits.push((el.id?'#'+el.id:(typeof el.className==='string'&&el.className?'.'+el.className.split(' ')[0]:el.tagName.toLowerCase()))+'('+edges.join('·')+')');
+    });
+    try{console.log('seamScan:',hits);}catch(e){}
+    toast(hits.length?('🔦 세로 경계 요소 '+hits.length+'개를 10초간 분홍 테두리로 표시 — 세로선과 겹치는 게 범인입니다. 화면을 캡처해 보내주세요'):'🔦 화면 안쪽에 세로 경계 요소 없음 — 앱이 아니라 표시장치·드라이버 쪽 원인',9000);
+    return hits;
+  }catch(e){try{toast('스캔 실패: '+e);}catch(_){}}
+}
 function boardDiag(){
   var p=document.getElementById('bdDiag');if(p){p.remove();return;}
   p=document.createElement('div');p.id='bdDiag';

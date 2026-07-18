@@ -1368,23 +1368,32 @@ function _resPopMetaHtml(data){
   const _arr=v=>(Array.isArray(v)?v:typeof v==='string'?[v]:[]).filter(x=>!_skip(x));
   const d=(typeof _mergedRescue==='function')?_mergedRescue(data):data; // 추가보고 최신 정보 병합
   const _vLine=[!_skip(d.vName)?_esc(d.vName):'미상',(!_skip(d.vBirth)?_ageFromBirth(d.vBirth)+'세':(!_skip(d.vAge)?_esc(d.vAge)+'세':'')),(!_skip(d.vGender)&&d.vGender!=='알수없음'?_esc(d.vGender):''),(!_skip(d.vTel)?_esc(_fmtTel(d.vTel)):'')].filter(Boolean).join(' · ');
+  // ── 통일 규격: 라벨 10px(#6b7684) 고정폭 정렬 · 값 12.5px(#e5e8ec) 한 줄 말줄임 · 강조는 부상 카드 14px 하나만 ──
+  const _pRow=(lbl,val,btns,valCol)=>val?`<div style="display:flex;align-items:center;gap:8px;min-height:26px;overflow:hidden;">
+      <span style="width:50px;flex-shrink:0;font-size:10px;color:#6b7684;font-weight:700;letter-spacing:.2px;">${lbl}</span>
+      <span style="flex:1;min-width:0;font-size:12.5px;color:${valCol||'#e5e8ec'};font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${val}</span>
+      ${btns||''}</div>`:'';
+  const _locVal=!_skip(d.location)?`${_esc(d.location)}${(typeof _elevStr==='function'&&data.lat&&data.lng)?` <span style="font-size:10.5px;color:#8fb8ad;font-weight:600;">${_elevStr(data.lat,data.lng,data.alt)}</span>`:''}${!_skip(d.loctype)?` <span style="font-size:10.5px;color:#8b95a1;font-weight:500;">· ${_esc(d.loctype)}</span>`:''}`:'';
   return `
-    <div style="display:flex;gap:5px;margin-bottom:7px;align-items:center;">
-      <span style="font-size:10px;padding:2px 7px;border-radius:9px;font-weight:700;background:${isOg?'rgba(192,57,43,.2)':'rgba(39,174,96,.15)'};color:${isOg?'#e05050':'#27ae60'};">${isOg?'진행중':'종료'}</span>
-      <span style="font-size:10px;color:#454e5a;">${_esc(d.type)}</span>
+    <div style="display:flex;gap:6px;margin-bottom:9px;align-items:center;">
+      <span style="font-size:10px;padding:2.5px 8px;border-radius:9px;font-weight:800;background:${isOg?'rgba(192,57,43,.2)':'rgba(39,174,96,.15)'};color:${isOg?'#ff6b5e':'#3ad17a'};">${isOg?'진행중':'종료'}</span>
+      <span style="font-size:10px;padding:2.5px 8px;border-radius:9px;font-weight:700;background:rgba(255,255,255,.06);color:#8b95a1;">${_esc(d.type)}</span>
     </div>
-    <div style="background:rgba(231,76,60,.08);border:1px solid rgba(231,76,60,.3);border-radius:9px;padding:9px 11px;margin-bottom:6px;">
-      <div style="font-size:9px;color:#ff8a73;font-weight:800;margin-bottom:3px;">🤕 부상 정도${!_skip(d.severity)?` <span style="font-size:10px;color:#fff;background:#c0392b;border-radius:5px;padding:1px 6px;">${_esc(d.severity)}</span>`:''}</div>
+    <div style="background:rgba(231,76,60,.08);border:1px solid rgba(231,76,60,.3);border-radius:10px;padding:9px 11px;margin-bottom:8px;">
+      <div style="display:flex;align-items:center;margin-bottom:4px;"><span style="font-size:10px;color:#ff8a73;font-weight:700;letter-spacing:.2px;">🤕 부상</span>${!_skip(d.severity)?`<span style="margin-left:auto;font-size:10px;font-weight:800;color:#fff;background:#c0392b;border-radius:6px;padding:2px 8px;">${_esc(d.severity)}</span>`:''}</div>
       <div style="font-size:14px;font-weight:800;color:#ffd9d0;line-height:1.4;">${_injLabeledHtml(d)||'<span style="font-size:12px;color:#9c7a72;font-weight:600;">미입력</span>'}</div>
+      ${!_skip(d.cause)?`<div style="font-size:10.5px;color:#c99a90;margin-top:3px;">원인: ${_esc(d.cause)}</div>`:''}
     </div>
-    ${!_skip(d.location)?`<div style="font-size:12px;color:#d5d8dc;margin-bottom:6px;">📍 ${_esc(d.location)}${(typeof _elevStr==='function'&&data.lat&&data.lng)?` <span style="color:#a7f3e4;font-size:10px;">${_elevStr(data.lat,data.lng,data.alt)}</span>`:''}${!_skip(d.loctype)?` <span style="color:#8b95a1;font-size:10px;">· ${_esc(d.loctype)}</span>`:''}</div>`:''}
+    <div style="display:flex;flex-direction:column;gap:1px;margin-bottom:6px;">
+      ${_pRow('📍 위치',_locVal)}
+      ${_pRow('사고자',_vLine,!_skip(d.vTel)?_telBtnsHtml(d.vTel,data.id,'사고자',d.vName):'')}
+      ${(d.victims2&&d.victims2.length)?d.victims2.map((v,vi)=>_pRow('사고자'+(vi+2),_esc([v.name||'미상',v.age?v.age+'세':'',(v.gender&&v.gender!=='알수없음')?v.gender:'',v.tel?_fmtTel(v.tel):''].filter(Boolean).join(' · ')),v.tel?_telBtnsHtml(v.tel,data.id,'추가 사고자',v.name):'','#f0d9d4')).join(''):''}
+      ${(!_skip(d.repName)||!_skip(d.repTel))?_pRow('신고자',[!_skip(d.repName)?_esc(d.repName):'',!_skip(d.repTel)?_esc(_fmtTel(d.repTel)):''].filter(Boolean).join(' · ')+(!_skip(d.repRel)?` <span style="font-size:10px;color:#e8b34a;font-weight:700;">(${_esc(d.repRel)})</span>`:''),!_skip(d.repTel)?_telBtnsHtml(d.repTel,data.id,'신고자',d.repName):''):''}
+      ${(d.companions&&d.companions.length)?d.companions.map((c,ci)=>_pRow('동반자'+(d.companions.length>1?ci+1:''),_esc((c.name||'미상')+(c.tel?' · '+_fmtTel(c.tel):'')),c.tel?_telBtnsHtml(c.tel,data.id,'동반자',c.name):'')).join(''):''}
+    </div>
     ${(typeof _opBadges==='function')?_opBadges(data,true):''}
-    <div style="display:flex;align-items:center;flex-wrap:nowrap;gap:5px;margin-bottom:6px;overflow:hidden;"><span style="font-size:10px;color:#565f6b;font-weight:700;">사고자</span><span style="font-size:12px;color:#eaecef;font-weight:600;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${_vLine}</span>${!_skip(d.vTel)?_telBtnsHtml(d.vTel,data.id,'사고자',d.vName):''}</div>
-    ${(d.victims2&&d.victims2.length)?d.victims2.map((v,vi)=>`<div style="display:flex;align-items:center;flex-wrap:nowrap;gap:5px;margin-bottom:6px;overflow:hidden;"><span style="font-size:10px;color:#e9897e;font-weight:700;">추가사고자${d.victims2.length>1?vi+1:''}</span><span style="font-size:12px;color:#f0d9d4;">${_esc([v.name||'미상',v.age?v.age+'세':'',(v.gender&&v.gender!=='알수없음')?v.gender:'',v.tel?_fmtTel(v.tel):''].filter(Boolean).join(' · '))}</span>${v.tel?_telBtnsHtml(v.tel,data.id,'추가 사고자',v.name):''}</div>`).join(''):''}
-    ${(!_skip(d.repName)||!_skip(d.repTel))?`<div style="display:flex;align-items:center;flex-wrap:nowrap;gap:5px;margin-bottom:6px;overflow:hidden;"><span style="font-size:10px;color:#565f6b;font-weight:700;">신고자</span><span style="font-size:12px;color:#d5d8dc;">${[!_skip(d.repName)?_esc(d.repName):'',!_skip(d.repTel)?_esc(_fmtTel(d.repTel)):''].filter(Boolean).join(' · ')}</span>${!_skip(d.repRel)?`<span style="font-size:10px;color:#e8b34a;background:rgba(232,179,74,.1);border:1px solid rgba(232,179,74,.3);border-radius:5px;padding:1px 6px;font-weight:700;">${_esc(d.repRel)}</span>`:''}${!_skip(d.repTel)?_telBtnsHtml(d.repTel,data.id,'신고자',d.repName):''}</div>`:''}
-    ${(d.companions&&d.companions.length)?d.companions.map((c,ci)=>`<div style="display:flex;align-items:center;flex-wrap:nowrap;gap:5px;margin-bottom:6px;overflow:hidden;"><span style="font-size:10px;color:#565f6b;font-weight:700;">동반자${d.companions.length>1?ci+1:''}</span><span style="font-size:12px;color:#d5d8dc;">${_esc((c.name||'미상')+(c.tel?' '+_fmtTel(c.tel):''))}</span>${c.tel?_telBtnsHtml(c.tel,data.id,'동반자',c.name):''}</div>`).join(''):''}
     ${_sosLiveLineHtml(data)}
-    ${!_skip(d.reception)?`<div style="font-size:11px;color:#c4c8ce;line-height:1.5;background:#1c1c1e;border-radius:8px;padding:8px 10px;"><span style="font-size:9px;color:#565f6b;font-weight:700;">📝 접수내용</span><br>${_esc(d.reception)}</div>`:''}`;
+    ${!_skip(d.reception)?`<div style="background:#1c1c1e;border-radius:9px;padding:8px 11px;margin-top:2px;"><div style="font-size:10px;color:#6b7684;font-weight:700;letter-spacing:.2px;margin-bottom:3px;">📝 접수내용</div><div style="font-size:12px;color:#c9cdd3;line-height:1.55;">${_esc(d.reception)}</div></div>`:''}`;
 }
 // 실시간 위치 안내줄(연결된 SOS 링크 전원 — 사고자/동반자/신고자/추가 사고자 역할 표시)
 // 사고자 줄에만 '위치 채택' 버튼. 없으면 빈 문자열
