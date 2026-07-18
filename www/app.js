@@ -46,6 +46,7 @@ function renderSettings(){
       <div class="set-card">
         <button class="set-row tap" onclick="_otaCheck(true)"><div class="set-ic">🔄</div><div class="set-bd"><div class="set-lb">업데이트 확인 · 적용</div><div class="set-sb">버전 ${OTA_VER} · 재설치 없이 자체 갱신</div></div><span class="set-cv">›</span></button>
         <a class="set-row tap" href="https://github.com/seorak1275/seoraksan/releases/latest" target="_blank" style="text-decoration:none;"><div class="set-ic">📱</div><div class="set-bd"><div class="set-lb">안드로이드 APK 다운로드</div><div class="set-sb">최신 빌드 (GitHub Releases)</div></div><span class="set-cv">↗</span></a>
+        ${(!_isNativeApp()&&matchMedia('(pointer:fine)').matches)?`<button class="set-row tap" onclick="_dlSeamFix()"><div class="set-ic">🖥</div><div class="set-bd"><div class="set-lb">PC 세로선 보정 바로가기 받기</div><div class="set-sb">화면에 세로 이음선이 보이는 PC용 — 받은 파일로 실행하면 보정된 상태로 열립니다 (설정 변경 불필요)</div></div><span class="set-cv">⬇</span></button>`:''}
       </div>
 
       <div class="set-hd">오프라인 지도 · 무통신 대비</div>
@@ -84,6 +85,17 @@ function renderSettings(){
 function togNotiSet(k,el){const s=DB.g('notiSetting')||{};const cur=_notiOn(k);s[k]=!cur;DB.s('notiSetting',s);el.className='toggle '+(!cur?'on':'off');_updateFcmTokenSettings();toast(!cur?'✅ 알림 켜짐':'🔕 꺼짐');}
 function togVibrate(el){const cur=DB.g('notiVibrate')!==false;DB.s('notiVibrate',!cur);el.className='toggle '+(!cur?'on':'off');try{if(!cur&&navigator.vibrate)navigator.vibrate(120);}catch(e){}toast(!cur?'📳 진동 켜짐':'📴 진동 꺼짐');}
 function togNotiAll(on){const s=DB.g('notiSetting')||{};NOTI_GROUPS.forEach(g=>g.items.forEach(it=>{s[it.k]=on;}));DB.s('notiSetting',s);_updateFcmTokenSettings();renderSettings();toast(on?'✅ 전체 알림 켜짐':'🔕 전체 알림 꺼짐');}
+// PC 세로선(그래픽 합성 이음새) 보정 실행파일 배포 — 브라우저 설정을 건드리지 않고
+// 실행 시에만 GPU 합성을 끄는 바로가기(.bat). 바탕화면에 두고 이걸로 열면 끝.
+function _dlSeamFix(){
+  const url='https://seorak1275.github.io/seoraksan/';
+  const bat='@echo off\r\nrem Seoraksan app - screen seam fix launcher (GPU compositing off, this window only)\r\nstart "" chrome --app="'+url+'" --disable-gpu-compositing\r\nif errorlevel 1 start "" msedge --app="'+url+'" --disable-gpu-compositing\r\n';
+  const a=document.createElement('a');
+  a.href='data:application/octet-stream,'+encodeURIComponent(bat);
+  a.download='설악산현장관리(세로선보정).bat';
+  document.body.appendChild(a);a.click();setTimeout(()=>a.remove(),1500);
+  toast('💾 받은 파일을 바탕화면에 두고, 앞으로 그 파일로 실행하세요 — 세로선 없이 열립니다',7000);
+}
 
 // ══════════════════════════════════════════
 // Google Sheets
@@ -3752,7 +3764,7 @@ function sosToRescue(id){
 // 앱 자체 업데이트 (OTA · Capgo 자체호스팅) — APK 전용. 웹/PWA는 서비스워커가 자동 갱신.
 // 번들(www)의 새 버전을 ota.json으로 알리면, 설치된 앱이 받아서 그 자리에서 교체(재빌드 불필요).
 // ══════════════════════════════════════════
-const OTA_VER='2026.07.18.278';                         // ← 현재 번들 버전 (릴리스마다 올림 · build-ota.sh가 ota.json에 반영)
+const OTA_VER='2026.07.18.279';                         // ← 현재 번들 버전 (릴리스마다 올림 · build-ota.sh가 ota.json에 반영)
 const OTA_MANIFEST='https://seorak1275.github.io/seoraksan/ota.json';
 // 업데이트 확인 폴백 소스 — 일부 기관망·통신사에서 github.io가 막혀 '확인 실패(네트워크)'가 나는 경우 대비.
 // 순서대로 시도: ① GitHub Pages(원본·즉시 반영) ② jsDelivr CDN(공개저장소 미러·거의 모든 망 통과)
