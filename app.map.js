@@ -325,6 +325,7 @@ function _zoneClear(){
   _zoneLayer=null;_zonePolys=null;_zoneSel=null;
   _zoneBlinkStop();
   const c=document.getElementById('zoneInfoCard');if(c)c.remove();
+  const fo=document.getElementById('zoneFacOv');if(fo)fo.remove();
 }
 // 구역 폴리곤 기본 스타일(내 구역=초록 테두리·진한 채움)로 복원
 function _zoneStyleReset(pg){
@@ -411,7 +412,7 @@ function _zonePip(n,la,ln){
   }
   return false;
 }
-// 이 구역 시설물 보기 — 구역 안 시설물을 깜빡이 오버레이로 8초 표시 + 화면 맞춤
+// 이 구역 시설물 보기 — 은은한 깜빡이 점 + 하단 목록 시트(이름은 지도에 안 씀)
 function _zoneShowFacs(n){
   const _zm=(typeof mapI!=='undefined'&&mapI)?mapI:null;if(!_zm||!window.kakao)return;
   _zoneBlinkStop();
@@ -419,9 +420,10 @@ function _zoneShowFacs(n){
   const facs=(DB.g('facilities')||[]).filter(f=>f.lat&&f.lng&&_facVisibleTo(f)
     &&(admin||!(_meta[f.type]||{}).adminOnly)&&_zonePip(n,+f.lat,+f.lng));
   if(!facs.length){toast(n+'구역 안에 등록된 시설물이 없습니다');return;}
+  facs.sort((a,b)=>String(a.name||'').localeCompare(String(b.name||''),'ko',{numeric:true}));
   if(!document.getElementById('zoneBlinkCss')){
     const st=document.createElement('style');st.id='zoneBlinkCss';
-    st.textContent='@keyframes zoneFacBlink{0%,100%{box-shadow:0 0 0 0 rgba(255,215,106,.85);opacity:1;}50%{box-shadow:0 0 0 13px rgba(255,215,106,0);opacity:.5;}}';
+    st.textContent='@keyframes zoneFacBlink{0%,100%{box-shadow:0 0 0 0 rgba(255,215,106,.55);opacity:.95;}50%{box-shadow:0 0 0 7px rgba(255,215,106,0);opacity:.6;}}';
     document.head.appendChild(st);
   }
   _zoneFacBlink=[];
@@ -429,19 +431,48 @@ function _zoneShowFacs(n){
   facs.forEach(f=>{
     const col=(typeof _facTypeColor==='function'?_facTypeColor(f.type):'#ffd76a');
     const el=document.createElement('div');
-    el.style.cssText='display:flex;flex-direction:column;align-items:center;gap:2px;cursor:pointer;';
-    el.innerHTML=`<span style="width:15px;height:15px;border-radius:50%;background:${col};border:2px solid #fff;animation:zoneFacBlink 1s ease-in-out infinite;"></span>
-      <span style="background:rgba(10,12,16,.88);color:#ffe9a8;font-size:10px;font-weight:800;padding:1px 6px;border-radius:7px;border:1px solid rgba(255,215,106,.5);white-space:nowrap;">${_esc(f.name||'')}</span>`;
-    el.onclick=function(ev){try{ev.stopPropagation();}catch(e){}try{openFacFromMap(f.id);}catch(e){}};
+    el.style.cssText='cursor:pointer;padding:4px;';
+    el.innerHTML=`<span style="display:block;width:12px;height:12px;border-radius:50%;background:${col};border:1.5px solid #fff;animation:zoneFacBlink 1.2s ease-in-out infinite;"></span>`;
+    el.onclick=function(ev){try{ev.stopPropagation();}catch(e){}_zoneFacGo(f.id);};
     const pos=new kakao.maps.LatLng(+f.lat,+f.lng);
     const ov=new kakao.maps.CustomOverlay({position:pos,content:el,yAnchor:.5,zIndex:9,clickable:true});
     ov.setMap(_zm);_zoneFacBlink.push(ov);bounds.extend(pos);
   });
   try{_zm.setBounds(bounds,60);}catch(e){}
   const c=document.getElementById('zoneInfoCard');if(c)c.remove();
-  toast('🏗 '+n+'구역 시설물 '+facs.length+'개 — 깜빡이 표시(8초)',3500);
-  clearTimeout(window._zoneBlinkTm);
-  window._zoneBlinkTm=setTimeout(_zoneBlinkStop,8000);
+  // 하단 목록 시트
+  const old=document.getElementById('zoneFacOv');if(old)old.remove();
+  const ov=document.createElement('div');ov.id='zoneFacOv';
+  ov.style.cssText='position:absolute;bottom:0;left:0;right:0;z-index:30;background:#1c1c1e;border:1px solid rgba(255,255,255,.2);border-radius:16px 16px 0 0;box-shadow:0 -4px 20px rgba(0,0,0,.7);max-height:52vh;display:flex;flex-direction:column;padding-bottom:calc(8px + env(safe-area-inset-bottom));';
+  const rows=facs.map(f=>{
+    const col=_facTypeColor(f.type);
+    const ty=String(f.type||'');
+    return `<div onclick="_zoneFacGo(${f.id})" style="display:flex;align-items:center;gap:8px;padding:7px 4px;border-bottom:1px solid rgba(255,255,255,.04);cursor:pointer;">
+      <span style="width:26px;height:26px;border-radius:50%;background:${col}30;border:1.5px solid ${col};display:inline-flex;align-items:center;justify-content:center;font-size:12px;flex-shrink:0;">${_esc(ty.split(' ')[0])}</span>
+      <span style="flex:1;min-width:0;">
+        <span style="display:block;font-size:12px;font-weight:700;color:#dceaf6;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${_esc(f.name||'')}</span>
+        <span style="display:block;font-size:9.5px;color:#5d86a3;">${_esc(ty.split(' ').slice(1).join(' ')||'')}</span>
+      </span>
+    </div>`;
+  }).join('');
+  ov.innerHTML=`
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 13px 7px;flex-shrink:0;">
+      <span style="font-size:12px;font-weight:800;color:#ffd76a;">🏗 ${_esc(n)}구역 시설물 <span style="font-size:9px;color:#8b9099;font-weight:600;">${facs.length}개 · 누르면 상세</span></span>
+      <button onclick="_zoneFacListClose()" style="background:none;border:none;color:rgba(255,255,255,.45);font-size:18px;cursor:pointer;padding:0 2px;line-height:1;">×</button>
+    </div>
+    <div style="overflow-y:auto;padding:0 13px 10px;">${rows}</div>`;
+  const host=document.querySelector('#v-inspect-map .mapwrap')||document.getElementById('v-inspect-map');
+  (host||document.body).appendChild(ov);
+}
+function _zoneFacGo(id){
+  _zoneFacListClose();
+  const f=(DB.g('facilities')||[]).find(x=>x.id===id);if(!f)return;
+  try{if(mapI&&f.lat){mapI.setLevel(Math.min(mapI.getLevel(),4));mapI.panTo(new kakao.maps.LatLng(f.lat,f.lng));}}catch(e){}
+  try{openFacFromMap(id);}catch(e){}
+}
+function _zoneFacListClose(){
+  const ov=document.getElementById('zoneFacOv');if(ov)ov.remove();
+  _zoneBlinkStop();
 }
 function _zoneBlinkStop(){
   clearTimeout(window._zoneBlinkTm);
@@ -1064,6 +1095,9 @@ function renderBoard(){
   const trailWarnCnt=Object.values(ts).filter(v=>v.status==='주의').length;
   const trailActive=_boardView==='trail';
   const rescueActive=_boardView==='rescue', hazActive=_boardView==='hazard', alertActive=_boardView==='alert';
+  // 시설물 점검 — 종결 안 된 점검 이슈
+  const facOpen=(DB.g('facIssues')||[]).filter(x=>x.status!=='closed');
+  const facActive=_boardView==='fac';
   let html='';
   // 요약 스트립 (클릭 시 하단 카드 영역 전환)
   html+=`<div style="display:flex;gap:10px;margin-bottom:16px;">
@@ -1079,6 +1113,10 @@ function renderBoard(){
     <div onclick="setBoardView('alert')" class="bd-stat" style="flex:1;min-width:0;background:${activeOp?'rgba(255,255,255,.12)':'rgba(39,174,96,.08)'};border:1px solid ${alertActive?(activeOp?'rgba(255,255,255,.9)':'rgba(39,174,96,.75)'):(activeOp?'rgba(255,255,255,.45)':'rgba(39,174,96,.25)')};border-radius:12px;padding:12px 16px;text-align:center;cursor:pointer;transition:all .15s;${alertActive?'box-shadow:inset 0 0 0 2px rgba(255,255,255,.3);':''}">
       <div class="bd-num" style="font-size:30px;font-weight:900;color:${activeOp?'#3182f6':'#27ae60'};">${activeOp?(opMt?opRespCnt:opAlertCnt):0}</div>
       <div class="bd-lbl" style="font-size:12px;color:${alertActive?'#eaecef':'rgba(255,255,255,.5)'};font-weight:${alertActive?'700':'400'};">🌀 ${activeOp?(opMt?'특보 응소':'발효 특보'):'특보운영'}${alertActive?' ▾':''}</div>
+    </div>
+    <div onclick="setBoardView('fac')" class="bd-stat" style="flex:1;min-width:0;background:${facOpen.length?'rgba(230,126,34,.1)':'rgba(39,174,96,.08)'};border:1px solid ${facActive?(facOpen.length?'rgba(230,126,34,.9)':'rgba(39,174,96,.75)'):(facOpen.length?'rgba(230,126,34,.35)':'rgba(39,174,96,.25)')};border-radius:12px;padding:12px 16px;text-align:center;cursor:pointer;transition:all .15s;${facActive?'box-shadow:inset 0 0 0 2px rgba(230,126,34,.3);':''}">
+      <div class="bd-num" style="font-size:30px;font-weight:900;color:${facOpen.length?'#e67e22':'#27ae60'};">${facOpen.length}</div>
+      <div class="bd-lbl" style="font-size:12px;color:${facActive?'#eaecef':'rgba(255,255,255,.5)'};font-weight:${facActive?'700':'400'};">🔧 시설물 점검${facActive?' ▾':''}</div>
     </div>
   </div>
   ${trailCtrlCnt||trailWarnCnt?`<div onclick="setBoardView('trail')" style="display:flex;align-items:center;gap:12px;background:rgba(231,76,60,.1);border:1px solid ${trailActive?'rgba(231,76,60,.85)':'rgba(231,76,60,.35)'};border-radius:12px;padding:10px 16px;margin-bottom:10px;cursor:pointer;">
@@ -1165,6 +1203,28 @@ function renderBoard(){
         })()}
         <button onclick="closeBoard();openApp('alert');" style="width:100%;margin-top:13px;padding:9px;border-radius:9px;border:1px solid rgba(255,255,255,.35);background:rgba(255,255,255,.1);color:#3182f6;font-size:13px;font-weight:700;cursor:pointer;">🌀 특보운영 상세 열기</button>
       </div>`;
+    }
+  } else if(facActive){
+    if(!facOpen.length){
+      html+=`<div style="text-align:center;padding:50px 0 30px;font-size:17px;color:rgba(255,255,255,.3);">✅ 진행중인 시설물 점검 없음</div>`;
+    } else {
+      const facsAll=DB.g('facilities')||[];
+      const rows=facOpen.slice().sort((a,b)=>(Number(b.stage||1)-Number(a.stage||1))||((b.createdAt||0)-(a.createdAt||0)));
+      html+=`<div style="background:#131316;border:1.5px solid rgba(230,126,34,.4);border-radius:14px;padding:16px 18px;">
+        <div style="font-size:16px;font-weight:900;color:#e67e22;margin-bottom:10px;">🔧 시설물 점검 진행 현황 <span style="font-size:12px;color:#8b95a1;font-weight:600;">${facOpen.length}건</span></div>`;
+      rows.forEach(it=>{
+        const f=facsAll.find(x=>String(x.id)===String(it.facId))||{};
+        const st=(typeof FAC_ISTAGE!=='undefined'&&FAC_ISTAGE[Number(it.stage||1)])||{l:'접수',ico:'📥',c:'#3182f6',who:''};
+        const gc=(typeof _gColor==='function')?_gColor(it.grade):'#8b95a1';
+        html+=`<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-top:1px solid rgba(255,255,255,.05);">
+          <span style="flex-shrink:0;font-size:11px;font-weight:800;color:#08121e;background:${st.c};border-radius:6px;padding:3px 8px;">${st.ico} ${_esc(st.l)}</span>
+          <span style="flex:1;min-width:0;">
+            <span style="display:block;font-size:13px;font-weight:800;color:#eaecef;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${_esc(f.name||it.facName||'시설물')} ${it.grade?`<b style="color:${gc};font-size:11.5px;">${_esc(it.grade)}등급</b>`:''}</span>
+            <span style="display:block;font-size:11px;color:#8b95a1;margin-top:1px;">${_esc(st.who||'')}${it.createdAt?' · '+(typeof _fmtWhen==='function'?_fmtWhen(it.createdAt):''):''}</span>
+          </span>
+        </div>`;
+      });
+      html+=`</div>`;
     }
   } else if(hazActive){
     if(!haz.length){

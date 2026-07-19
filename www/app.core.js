@@ -1639,6 +1639,9 @@ function _cleanOldSharedNotis(){
   // 한 번에 최대 100건만 삭제(여러 기기가 동시에 돌려도 부담 적게) — 200명 동시접속 시 폭주 방지
   _fdb.collection('sharedNotis').where('at','<',cutoff).limit(100).get()
     .then(snap=>snap.docs.forEach(d=>d.ref.delete())).catch(()=>{});
+  // SOS 알림 1회발송 선점표(claim)도 48시간 지나면 정리
+  _fdb.collection('sosNotiClaims').where('at','<',Date.now()-48*3600000).limit(50).get()
+    .then(snap=>snap.docs.forEach(d=>d.ref.delete())).catch(()=>{});
 }
 function _vibeOn(){return DB.g('notiVibrate')!==false;} // 진동 설정(기본 켜짐)
 function _showSystemNoti(body,ico){

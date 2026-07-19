@@ -1116,6 +1116,17 @@ function _injLabeledHtml(d){
   const showRaw=raw&&norm(raw)!==norm(chips.join(''));
   return chipHtml+(showRaw?`<div style="font-size:10px;color:#9c8078;font-weight:500;margin-top:1px;">원문: ${_esc(raw)}</div>`:'');
 }
+// 기간 입력 중 재렌더 금지 — 날짜 세그먼트 입력마다 change가 와서 즉시 다시 그리면
+// 입력칸이 새로 만들어져 포커스가 날아가고 "기간 입력이 잘 안 되는" 증상이 됨.
+// 900ms 조용해진 뒤 반영하되, 아직 입력칸에 포커스가 있으면 빠져나갈 때(blur) 반영.
+function _statRangeChanged(inp){
+  clearTimeout(window._statRngT);
+  window._statRngT=setTimeout(()=>{
+    const ae=document.activeElement;
+    if(ae&&ae.tagName==='INPUT'&&ae.type==='date'){ae.addEventListener('blur',()=>{try{renderRescueStats();}catch(e){}},{once:true});return;}
+    try{renderRescueStats();}catch(e){}
+  },900);
+}
 function renderRescueStats(){
   document.getElementById('topTitle').textContent='재난/구조 관리';
   // 기간을 과거·전체로 넓힌 통계를 위해 1년 이전 기록도 1회 로드(평소엔 최근 1년만 구독) — 로드되면 자동 재집계
@@ -1133,7 +1144,12 @@ function renderRescueStats(){
     rsTabH.style.background=tab==='haz'?'#3d1f00':'#1a1000';
     rsTabH.style.color=tab==='haz'?'#ffaa44':'#e67e22';
   }
-  const res=DB.g('rescues')||[];const haz=DB.g('hazards')||[];
+  // 기간(엑셀 카드 날짜 범위)을 현황·차트 전체에 적용 — 다운로드·히트맵과 동일 기준
+  if(!window._statExpFrom)window._statExpFrom=new Date().getFullYear()+'-01-01';
+  if(!window._statExpTo)window._statExpTo=today();
+  const _inRange=d=>{const s=String(d||'').slice(0,10);return s&&s>=window._statExpFrom&&s<=window._statExpTo;};
+  const res=(DB.g('rescues')||[]).filter(r=>_inRange(r.date));
+  const haz=(DB.g('hazards')||[]).filter(h=>_inRange(h.date));
   const mon=today().slice(0,7);
   const safeMax=obj=>Math.max(...Object.values(obj),1);
   const hbar=(k,v,max,col='#3182f6')=>{
@@ -1162,12 +1178,12 @@ function renderRescueStats(){
   const _rangeChip=(lbl,f,t)=>`<span onclick="window._statExpFrom='${f}';window._statExpTo='${t}';renderRescueStats();" style="cursor:pointer;padding:4px 10px;border-radius:12px;font-size:10.5px;font-weight:700;background:rgba(39,174,96,.1);border:1px solid rgba(39,174,96,.3);color:#5dbf8a;">${lbl}</span>`;
   const _y=new Date().getFullYear();
   const expCard=`<div class="scard" style="border-color:rgba(39,174,96,.25);">
-    <div class="stitle" style="color:#27ae60;">📅 기간 · 📥 엑셀 다운로드 <span style="font-size:9px;font-weight:400;color:#6b7684;">기간은 아래 사고다발구간에도 적용</span></div>
+    <div class="stitle" style="color:#27ae60;">📅 기간 · 📥 엑셀 다운로드 <span style="font-size:9px;font-weight:400;color:#6b7684;">기간은 아래 현황·통계 전체에 적용</span></div>
     <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;">
-      <input type="date" value="${window._statExpFrom}" onchange="window._statExpFrom=this.value;renderRescueStats();"
+      <input type="date" value="${window._statExpFrom}" onchange="window._statExpFrom=this.value;_statRangeChanged(this);"
         style="flex:1;background:#0f0f11;border:1px solid rgba(255,255,255,.12);color:#c4c8ce;border-radius:7px;padding:7px 8px;font-size:12px;color-scheme:dark;">
       <span style="font-size:11px;color:#454e5a;flex-shrink:0;">~</span>
-      <input type="date" value="${window._statExpTo}" onchange="window._statExpTo=this.value;renderRescueStats();"
+      <input type="date" value="${window._statExpTo}" onchange="window._statExpTo=this.value;_statRangeChanged(this);"
         style="flex:1;background:#0f0f11;border:1px solid rgba(255,255,255,.12);color:#c4c8ce;border-radius:7px;padding:7px 8px;font-size:12px;color-scheme:dark;">
     </div>
     <div style="display:flex;gap:5px;margin-bottom:8px;">${_rangeChip('이번달',mon+'-01',today())}${_rangeChip('올해',_y+'-01-01',today())}${_rangeChip('전체','2020-01-01',today())}</div>
@@ -1214,9 +1230,9 @@ function renderRescueStats(){
     w.innerHTML=`
       ${expCard}
       <div class="scard">
-        <div class="stitle">🚨 구조보고 현황</div>
+        <div class="stitle">🚨 구조보고 현황 <span style="font-size:9px;font-weight:400;color:#6b7684;">${window._statExpFrom} ~ ${window._statExpTo}</span></div>
         <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:4px;">
-          ${mini('전체',res.length)}
+          ${mini('기간 전체',res.length)}
           ${mini('진행중',res.filter(r=>r.status==='ongoing').length,'#e05050')}
           ${mini('종료',res.filter(r=>r.status==='done').length,'#27ae60')}
           ${mini('이번달',res.filter(r=>r.date&&r.date.startsWith(mon)).length,'#3182f6')}
@@ -1254,9 +1270,9 @@ function renderRescueStats(){
     w.innerHTML=`
       ${expCard}
       <div class="scard">
-        <div class="stitle">⚠️ 위험상황 현황</div>
+        <div class="stitle">⚠️ 위험상황 현황 <span style="font-size:9px;font-weight:400;color:#6b7684;">${window._statExpFrom} ~ ${window._statExpTo}</span></div>
         <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:4px;">
-          ${mini('전체',haz.length)}
+          ${mini('기간 전체',haz.length)}
           ${mini('미조치',haz.filter(h=>h.hazStatus==='미조치').length,'#e05050')}
           ${mini('조치중',haz.filter(h=>h.hazStatus==='조치중').length,'#e67e22')}
           ${mini('완료',haz.filter(h=>h.hazStatus&&h.hazStatus!=='미조치'&&h.hazStatus!=='조치중').length,'#27ae60')}

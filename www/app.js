@@ -3304,6 +3304,18 @@ function _sosShowTeamMsg(m){
 
 // ── 구조대 측: 조난·사고자 위치 실시간 구독 (1회용 토큰: 팀이 발급한 active 링크만 표시) ──
 let _sosPings=[];                              // 활성(active) 발급 토큰 전체(위치 있든 없든)
+// SOS 이벤트 알림 1회 발송 보장 — 접속 중인 모든 기기가 같은 이벤트를 각자 전체 발송하면
+// 기기 수만큼 푸시가 중복(알람 폭주)됨 → Firestore 트랜잭션 선점(claim)으로 최초 1대만 발송.
+// 통신 오류로 선점 확인이 불가하면 알림 누락보다 중복이 나으므로 그냥 발송.
+function _sosNotiOnce(key,fn){
+  if(!_fdb){try{fn();}catch(e){}return;}
+  const ref=_fdb.collection('sosNotiClaims').doc(String(key).replace(/[\/#?]/g,'_'));
+  _fdb.runTransaction(t=>t.get(ref).then(s=>{
+    if(s.exists)throw {dup:1};
+    t.set(ref,{at:Date.now(),by:(typeof _MY_DEVICE_ID!=='undefined'?_MY_DEVICE_ID:'')});
+  })).then(()=>{try{fn();}catch(e){}})
+    .catch(err=>{if(!(err&&err.dup)){try{fn();}catch(e){}}});
+}
 function _sosLocated(){return (_sosPings||[]).filter(p=>p.lat&&p.lng);} // 실제 위치 수신된 건
 function _initSosWatch(){
   if(!_fdb||window._sosWatchBound)return;
@@ -3327,10 +3339,12 @@ function _initSosWatch(){
       _sosPings.forEach(p=>{
         // 링크 '접속' 즉시 알림 (위치 수신 전 단계 — 링크가 전달됐고 열렸다는 신호)
         if(p.openedAt&&!seenOpen[p.id]){seenOpen[p.id]=1;
-          if(window._sosInited&&!(p.lat&&p.lng)){try{toast('🔗 위치요청 링크 접속됨'+(p.name?': '+p.name:'')+' — 위치 수신 대기',6000);}catch(e){}try{pushNoti('🔗 위치요청 링크 접속됨'+(p.name?': '+p.name:''),'🆘','sos',{app:'rescue',tab:1});}catch(e){}}
+          if(window._sosInited&&!(p.lat&&p.lng)){try{toast('🔗 위치요청 링크 접속됨'+(p.name?': '+p.name:'')+' — 위치 수신 대기',6000);}catch(e){}
+            _sosNotiOnce('open:'+p.id,()=>{try{pushNoti('🔗 위치요청 링크 접속됨'+(p.name?': '+p.name:''),'🆘','sos',{app:'rescue',tab:1});}catch(e){}});}
         }
         if(p.lat&&p.lng&&!seen[p.id]){seen[p.id]=1;
-          if(window._sosInited){try{toast('🆘 조난·사고자 위치 수신: '+(p.name||'익명')+(p.acc?' (±'+p.acc+'m)':''),6000);}catch(e){}try{pushNoti('🆘 조난·사고자 위치 수신'+(p.name?': '+p.name:''),'🆘','sos',{app:'rescue',tab:1});}catch(e){}}
+          if(window._sosInited){try{toast('🆘 조난·사고자 위치 수신: '+(p.name||'익명')+(p.acc?' (±'+p.acc+'m)':''),6000);}catch(e){}
+            _sosNotiOnce('loc:'+p.id,()=>{try{pushNoti('🆘 조난·사고자 위치 수신'+(p.name?': '+p.name:''),'🆘','sos',{app:'rescue',tab:1});}catch(e){}});}
         }
       });
       window._sosInited=true;
@@ -3765,7 +3779,7 @@ function sosToRescue(id){
 // 앱 자체 업데이트 (OTA · Capgo 자체호스팅) — APK 전용. 웹/PWA는 서비스워커가 자동 갱신.
 // 번들(www)의 새 버전을 ota.json으로 알리면, 설치된 앱이 받아서 그 자리에서 교체(재빌드 불필요).
 // ══════════════════════════════════════════
-const OTA_VER='2026.07.19.295';                         // ← 현재 번들 버전 (릴리스마다 올림 · build-ota.sh가 ota.json에 반영)
+const OTA_VER='2026.07.19.296';                         // ← 현재 번들 버전 (릴리스마다 올림 · build-ota.sh가 ota.json에 반영)
 const OTA_MANIFEST='https://seorak1275.github.io/seoraksan/ota.json';
 // 업데이트 확인 폴백 소스 — 일부 기관망·통신사에서 github.io가 막혀 '확인 실패(네트워크)'가 나는 경우 대비.
 // 순서대로 시도: ① GitHub Pages(원본·즉시 반영) ② jsDelivr CDN(공개저장소 미러·거의 모든 망 통과)
