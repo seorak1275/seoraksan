@@ -259,7 +259,7 @@ function _hideRepFooter(){const f=document.getElementById('rep1BoFooter');if(f)f
 // 부서·기관명 줄임 표시 (특수산악구조대→특구대 등 · 환동해처럼 짧게) — 자르지 않고 치환만
 function _deptShort(n){let s=String(n||'');try{Object.entries(DEPT_SHORT).forEach(([k,v])=>{s=s.split(k).join(v);});}catch(e){}return s;}
 // 팀 인원수: 명단이 있으면 명단 수, 없으면 입력된 인원수
-function _teamCnt(t){return (t.members&&t.members.length)||t.memberCount||0;}
+function _teamCnt(t){var c=_personCount(t.members);return c||t.memberCount||0;}
 
 function _renderCreateBtnsHtml(){
   return `<div style="display:flex;gap:8px;margin-bottom:10px;">
@@ -430,7 +430,7 @@ function confirmTlBuild(){
         if(!_tlBuildMembers.length){toast('⚠️ 팀원을 선택하세요');return;}
         t.members=_tlBuildMembers.slice();
         if(nv)t.name=nv;
-        t.name=String(t.name||'').replace(/추가지원인력\(\d+명\)/,'추가지원인력('+t.members.length+'명)');
+        t.name=String(t.name||'').replace(/추가지원인력\(\d+명\)/,'추가지원인력('+_personCount(t.members)+'명)');
       }else{
         t.memberCount=parseInt(document.getElementById('tlBuildMemCount')?.value||'0')||0;
         t.agType=_tlBuildAgencyType;t.agRegion=_tlBuildRegion||'';
@@ -1506,7 +1506,7 @@ async function _safetyHwpxGen(rid){
   const _npsTeams2=(r.teams||[]).filter(t=>!String(t.id||'').startsWith('agency_'));
   const _teamNames2=new Set(_npsTeams2.flatMap(t=>t.members||[]));
   const _loose2=[...new Set((r.members||[]).filter(n=>n&&!_teamNames2.has(n)))]; // 팀에 안 묶인 초동 인원
-  const _npsParts=_npsTeams2.filter(t=>(t.members||[]).length).map(t=>t.name+' '+t.members.length+'명('+_senJoin(t.members)+')');
+  const _npsParts=_npsTeams2.filter(t=>(t.members||[]).length).map(t=>t.name+' '+_personCount(t.members)+'명('+_senJoin(t.members)+')');
   if(_loose2.length)_npsParts.push(_loose2.join(', '));
   const _agS=(r.teams||[]).filter(t=>String(t.id||'').startsWith('agency_')).map(t=>t.name+(t.memberCount?' '+t.memberCount+'명':'')).join(', ');
   const helpers=[_npsParts.join(', ')||r.author||'',_agS?'유관기관 '+_agS:''].filter(Boolean).join(' / ');
@@ -1803,7 +1803,7 @@ function renderTimeline(r,viewMode,outId){
     {const _npsT=(r.teams||[]).filter(t=>!String(t.id||'').startsWith('agency_'));
      const _tn=new Set(_npsT.flatMap(t=>t.members||[]));
      const _loose=[...new Set((r.members||[]).filter(n=>n&&!_tn.has(n)))];
-     const _np=_npsT.filter(t=>(t.members||[]).length).map(t=>_esc(t.name)+' '+t.members.length+'명('+_senJoinEsc(t.members)+')');
+     const _np=_npsT.filter(t=>(t.members||[]).length).map(t=>_esc(t.name)+' '+_personCount(t.members)+'명('+_senJoinEsc(t.members)+')');
      if(_loose.length)_np.push(_loose.map(m=>_esc(m)).join(', '));
      const _ag=(r.teams||[]).filter(t=>String(t.id||'').startsWith('agency_')).map(t=>_esc(t.name)+(t.memberCount?' '+t.memberCount+'명':''));
      const _all=_np.concat(_ag.length?['유관기관 '+_ag.join(', ')]:[]);
@@ -1871,7 +1871,7 @@ function renderTimeline(r,viewMode,outId){
           const tot=((r.members||[]).length)+(r.teams||[]).reduce((a,t)=>a+_teamCnt(t),0)+(r.extraTeams||[]).reduce((a,t)=>a+((t.members||[]).length),0);
           return `<div style="font-size:11px;color:#3182f6;font-weight:700;margin-bottom:7px;">👥 출동 인원${tot?` <span style="color:#aab4c0;">· 총 ${tot}명</span>`:''}</div>`;
         })()}
-        ${(r.members&&r.members.length)?`<div style="font-size:11px;color:#c4c8ce;margin-bottom:3px;"><span style="color:#7ec8a0;font-weight:600;">🏃 초동팀 <span style="color:#aab4c0;font-size:10px;">${r.members.length}명</span></span> <span style="color:#c4c8ce;">— ${_esc(_senJoin(r.members))}</span></div>`:''}
+        ${(r.members&&r.members.length)?`<div style="font-size:11px;color:#c4c8ce;margin-bottom:3px;"><span style="color:#7ec8a0;font-weight:600;">🏃 초동팀 <span style="color:#aab4c0;font-size:10px;">${_personCount(r.members)}명</span></span> <span style="color:#c4c8ce;">— ${_esc(_senJoin(r.members))}</span></div>`:''}
         ${(r.teams&&r.teams.length)?r.teams.map(t=>{
           const cnt=_teamCnt(t);
           const mem=(t.members&&t.members.length)?` <span style="color:#c4c8ce;font-weight:400;">— ${_esc(_senJoin(t.members))}</span>`:'';
@@ -2924,13 +2924,11 @@ function render1BoForm(prefill=null){
         <div id="climbLocWrap" style="display:${(p.loctype==='암벽'||p.loctype==='빙벽')?'block':'none'};" class="fg">
           ${(p.loctype==='암벽'||p.loctype==='빙벽')?`<span class="fl">📍 ${p.loctype} 위치 선택 <span style="font-size:9px;color:#8b95a1;font-weight:400;">${p.loctype==='암벽'?'지구별':''}</span></span>${_climbLocBtnsHtml(p.loctype,p.location)}`:''}
         </div>
-        <div id="permitWrap" style="display:${p.loctype&&(p.loctype==='암벽'||p.loctype==='빙벽')?'block':'none'};" class="fg">
-          <span class="fl">🏔️ 암빙벽 허가</span>
-          <select id="r_permit" class="fsel" onchange="chkPermit(this)">${['해당없음','허가자 있음','무허가'].map(o=>`<option${p.permit===o?' selected':''}>${o}</option>`).join('')}</select>
-        </div>
-        <div id="permitRoster" style="display:${p.permit==='허가자 있음'?'block':'none'};" class="fg">
-          <button type="button" onclick="openClimbVictimPick()" style="width:100%;background:linear-gradient(145deg,#3a2409,#5a3a12);color:#f0c88a;border:1px solid rgba(240,200,138,.35);border-radius:8px;padding:10px;font-size:12.5px;font-weight:800;cursor:pointer;">🧗 그날 암벽 신청명단 확인 · 사고자 불러오기</button>
-          <div style="font-size:9.5px;color:#8b95a1;margin-top:4px;">※ 사고자가 신청자가 아닐 수 있습니다 — 명단에서 동반자도 개별 선택됩니다</div>
+        <div id="permitRoster" style="display:${p.loctype&&(p.loctype==='암벽'||p.loctype==='빙벽')?'block':'none'};" class="fg">
+          <span class="fl">🏔️ 암빙벽 허가 <span style="font-size:9px;color:#8b95a1;font-weight:400;">신청명단에서 찾으면 자동 표시됩니다</span></span>
+          <button type="button" onclick="openClimbVictimPick()" style="width:100%;background:linear-gradient(145deg,#3a2409,#5a3a12);color:#f0c88a;border:1px solid rgba(240,200,138,.35);border-radius:8px;padding:10px;font-size:12.5px;font-weight:800;cursor:pointer;">🧗 그날 암벽 신청명단에서 사고자 찾기</button>
+          <div id="permitStatus" style="font-size:11px;font-weight:700;margin-top:6px;color:${p.permit==='허가자 있음'?'#5fcf8f':(p.permit==='무허가'?'#ff8a73':'#8b95a1')};">${p.permit==='허가자 있음'?'✅ 허가자(신청명단 확인됨)':(p.permit==='무허가'?'⛔ 무허가(명단에 없음)':'명단에서 찾거나, 없으면 아래 명단 창의 「허가자 아님」을 누르세요')}</div>
+          <input type="hidden" id="r_permit" value="${p.permit||'해당없음'}">
         </div>
         <div class="fg"><span class="fl">접수 내용 <span style="font-size:9px;color:#8b95a1;font-weight:400;">(신고 원문 — 파악된 사고 전개는 환자·부상 탭 '사고 경위'에)</span></span>
           <textarea id="r_recv" class="fta" rows="3" placeholder="예) 119 이첩 — 천불동계곡 하산 중 발목 부상, 자력 이동 불가, 일행 1명">${p.reception||''}</textarea>

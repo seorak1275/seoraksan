@@ -1415,7 +1415,7 @@ function renderBoard(){
         ${(r.teams&&r.teams.length)?r.teams.map((t,ti2)=>{
           const col=TEAM_COLORS[ti2%TEAM_COLORS.length];
           const mem=(t.members&&t.members.length)?(typeof _senJoin==='function'?_senJoin(t.members):t.members.join(', ')):'';
-          const cnt=t.memberCount?t.memberCount+'명':(t.members&&t.members.length?t.members.length+'명':'');
+          const cnt=t.memberCount?t.memberCount+'명':(t.members&&t.members.length?_personCount(t.members)+'명':'');
           const arr=t.arrivedAt?String(t.arrivedAt).slice(11,16):'';
           const req=t.requestedAt?String(t.requestedAt).slice(11,16):'';
           return `<div style="display:flex;align-items:center;gap:12px;padding:7px 0;border-top:1px solid rgba(255,255,255,.05);">

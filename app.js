@@ -1928,7 +1928,9 @@ function openClimbVictimPick(){
     +'<div style="padding:10px 14px;display:flex;gap:6px;flex-wrap:wrap;border-bottom:1px solid rgba(255,255,255,.05);flex-shrink:0;">'
     +'<input type="date" value="'+window._climbVicDate+'" onchange="window._climbVicDate=this.value;_renderClimbVicPick();" style="flex:1;min-width:130px;background:#0e1c2e;color:#d5d8dc;border:1px solid rgba(255,255,255,.25);border-radius:8px;padding:8px;font-size:12px;">'
     +'<input type="text" placeholder="🔍 이름 검색" oninput="window._climbVicQ=this.value;_renderClimbVicPick();" style="flex:2;min-width:110px;background:#0e1c2e;color:#d5d8dc;border:1px solid rgba(255,255,255,.25);border-radius:8px;padding:8px;font-size:12px;"></div>'
-    +'<div id="cvpBody" style="flex:1;overflow-y:auto;padding:10px 14px;"><div style="text-align:center;color:#6b7684;padding:30px;">불러오는 중…</div></div></div>';
+    +'<div id="cvpBody" style="flex:1;overflow-y:auto;padding:10px 14px;"><div style="text-align:center;color:#6b7684;padding:30px;">불러오는 중…</div></div>'
+    +'<div style="padding:9px 14px;border-top:1px solid rgba(255,255,255,.12);flex-shrink:0;">'
+    +'<button onclick="_climbVicNotPermit()" style="width:100%;background:rgba(255,138,115,.12);color:#ff9a80;border:1px solid rgba(255,138,115,.4);border-radius:9px;padding:10px;font-size:12.5px;font-weight:800;cursor:pointer;">⛔ 명단에 없음 · 허가자 아님(무허가) — 직접 입력</button></div></div>';
   document.body.appendChild(ov);
   _climbLoadAll().then(function(){_renderClimbVicPick();}).catch(function(){var b=document.getElementById('cvpBody');if(b)b.innerHTML='<div style="text-align:center;color:#ff8a73;padding:30px;">명단 불러오기 실패(오프라인?)</div>';});
 }
@@ -2008,9 +2010,17 @@ function _climbVicFill(ri,ci){
   var r=(window._climbVicDay||[])[ri];if(!r)return;
   var p=ci<0?(r.applicant||{}):((r.companions||[])[ci]||{});
   _climbVicSetVictim(p);
+  try{if(typeof _setPermit==='function')_setPermit('허가자 있음');}catch(e){} // 명단에서 찾음 → 허가자 자동 표시
   var e=document.getElementById('climbVictimPick');if(e)e.remove();
   try{if(typeof autoGenTitle==='function')autoGenTitle();}catch(e){}
   toast('✅ 사고자 불러옴: '+(p.name||''),3000);
+}
+// 명단에 없음 → 무허가로 표시하고 창 닫음(인적사항 직접 입력)
+function _climbVicNotPermit(){
+  try{if(typeof _setPermit==='function')_setPermit('무허가');}catch(e){}
+  var e=document.getElementById('climbVictimPick');if(e)e.remove();
+  try{if(typeof autoGenTitle==='function')autoGenTitle();}catch(e){}
+  toast('⛔ 무허가(명단에 없음)로 표시 — 인적사항을 직접 입력하세요',3500);
 }
 function _climbVicFillTeam(ri){
   var r=(window._climbVicDay||[])[ri];if(!r)return;
@@ -2027,6 +2037,7 @@ function _climbVicFillTeam(ri){
       if(q('.v2-tel'))q('.v2-tel').value=c.phone||'';
     }catch(e){}
   });
+  try{if(typeof _setPermit==='function')_setPermit('허가자 있음');}catch(e){}
   var e=document.getElementById('climbVictimPick');if(e)e.remove();
   try{if(typeof autoGenTitle==='function')autoGenTitle();}catch(e){}
   toast('✅ 팀 전체 불러옴 — 사고자 1 + 동반자 '+((r.companions||[]).length)+'명',3500);
@@ -3855,7 +3866,7 @@ function sosToRescue(id){
 // 앱 자체 업데이트 (OTA · Capgo 자체호스팅) — APK 전용. 웹/PWA는 서비스워커가 자동 갱신.
 // 번들(www)의 새 버전을 ota.json으로 알리면, 설치된 앱이 받아서 그 자리에서 교체(재빌드 불필요).
 // ══════════════════════════════════════════
-const OTA_VER='2026.07.19.306';                         // ← 현재 번들 버전 (릴리스마다 올림 · build-ota.sh가 ota.json에 반영)
+const OTA_VER='2026.07.19.307';                         // ← 현재 번들 버전 (릴리스마다 올림 · build-ota.sh가 ota.json에 반영)
 const OTA_MANIFEST='https://seorak1275.github.io/seoraksan/ota.json';
 // 업데이트 확인 폴백 소스 — 일부 기관망·통신사에서 github.io가 막혀 '확인 실패(네트워크)'가 나는 경우 대비.
 // 순서대로 시도: ① GitHub Pages(원본·즉시 반영) ② jsDelivr CDN(공개저장소 미러·거의 모든 망 통과)

@@ -1445,9 +1445,9 @@ function _climbLocBtnsHtml(kind,cur){
 function chkIllegal(sel){
   document.getElementById('fineWrap').style.display=sel.value.includes('비법정')?'block':'none';
   const isClimb=sel.value==='암벽'||sel.value==='빙벽';
-  const pw=document.getElementById('permitWrap');
-  if(pw) pw.style.display=isClimb?'block':'none';
-  if(!isClimb){const pr=document.getElementById('permitRoster');if(pr)pr.style.display='none';}
+  // 암빙벽이면 명단 찾기 버튼(=허가 블록)을 바로 노출 — '허가자 있음'을 먼저 고를 필요 없음
+  {const pr=document.getElementById('permitRoster');if(pr)pr.style.display=isClimb?'block':'none';}
+  const pw=document.getElementById('permitWrap');if(pw)pw.style.display='none'; // 구 드롭다운 블록은 사용 안 함
   // 인적사항 탭의 '암벽 명단 불러오기' — 암벽 사고일 때만 (신청명단은 암벽 전용)
   {const cp3=document.getElementById('climbPickWrap3');if(cp3)cp3.style.display=sel.value==='암벽'?'block':'none';}
   const clw=document.getElementById('climbLocWrap');
@@ -1467,8 +1467,20 @@ function selClimbLoc(loc,btn){
   if(wrap)wrap.querySelectorAll('.tog-btn').forEach(b=>b.classList.remove('on'));
   if(btn)btn.classList.add('on');
 }
-// 허가자 있음 → 암벽 이용관리 명단 연계 버튼 표시 (허가번호·소속 수기입력은 폐지)
-function chkPermit(sel){const e=document.getElementById('permitRoster');if(e)e.style.display=sel.value==='허가자 있음'?'block':'none';}
+// 출동폰·당직폰은 사람이 아님 — 인원수(명)에서 제외 (명단·연락처로는 그대로 표시)
+function _isNonPerson(nm){return /출동폰|당직폰/.test(String(nm||''));}
+function _personCount(members){return (members||[]).filter(function(m){return !_isNonPerson(m);}).length;}
+// (구) 허가 드롭다운 핸들러 — 이제 허가상태는 명단에서 찾으면 자동 설정되므로 미사용(하위호환 유지)
+function chkPermit(sel){}
+// 암빙벽 허가 상태 설정 + 상태문구 갱신 ('허가자 있음'=명단확인 / '무허가'=명단에 없음)
+function _setPermit(v){
+  const h=document.getElementById('r_permit');if(h)h.value=v;
+  const s=document.getElementById('permitStatus');
+  if(s){
+    s.textContent=v==='허가자 있음'?'✅ 허가자(신청명단 확인됨)':(v==='무허가'?'⛔ 무허가(명단에 없음)':'명단에서 찾거나, 없으면 명단 창의 「허가자 아님」을 누르세요');
+    s.style.color=v==='허가자 있음'?'#5fcf8f':(v==='무허가'?'#ff8a73':'#8b95a1');
+  }
+}
 let _companionCount=(window._companionCount)||0;
 function addCompanion(){
   _companionCount++;
