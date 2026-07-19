@@ -638,7 +638,7 @@ try{history.replaceState({view:'home'},'','');history.pushState({view:'home'},''
 <!-- ══ 모달: 작성자 설정 ══ -->
 <div id="modalUser" class="modal">
   <div class="mbox">
-    <div class="mhdr"><span class="mtitle" id="modalUserTitle">👤 작성자 설정</span><button class="mclose" id="modalUserClose" onclick="if(window._requireProfile){toast('⚠️ 이름·소속·직위를 모두 입력해주세요');}else{closeM('modalUser');}">×</button></div>
+    <div class="mhdr"><span class="mtitle" id="modalUserTitle">👤 작성자 설정</span><button class="mclose" id="modalUserClose" onclick="if(window._requireProfile){toast('⚠️ 이름·소속을 입력해주세요');}else{closeM('modalUser');}">×</button></div>
     <div id="kakaoUserBanner" style="display:none;background:rgba(254,229,0,.1);border:1px solid rgba(254,229,0,.3);border-radius:8px;padding:9px 11px;margin-bottom:11px;font-size:11px;color:#f0d900;">
       💬 카카오 계정으로 로그인됨 — 이름·소속만 확인하세요
     </div>
@@ -655,7 +655,7 @@ try{history.replaceState({view:'home'},'','');history.pushState({view:'home'},''
       <div style="font-size:10px;color:#565f6b;font-weight:600;margin-bottom:5px;">👥 등록된 직원 — 탭하면 자동 입력</div>
       <div id="staffQuickChips" style="display:flex;flex-wrap:wrap;gap:5px;"></div>
     </div>
-    <div class="fg"><span class="fl">직위</span>
+    <div class="fg"><span class="fl">직위 <span style="color:#6b7684;font-weight:400;font-size:11px;">(선택 — 명부엔 급수만 있어요)</span></span>
       <div class="pills" id="rankPills">
         <div class="pill" onclick="sPill(this,'rankPills')">주임</div>
         <div class="pill" onclick="sPill(this,'rankPills')">계장</div>

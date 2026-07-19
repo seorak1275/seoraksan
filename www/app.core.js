@@ -668,7 +668,7 @@ function initFirebase(onReady){
       // 서버 기록에서 자동 복원하고 입력창을 닫음(개인정보 재입력 방지)
       try{
         var _cu=DB.g('currentUser')||{};
-        if(_resolveAuthType()==='kakao'&&_cu.kakaoId&&!(_cu.dept&&_cu.rank&&(_cu.realName||_cu.name))){
+        if(_resolveAuthType()==='kakao'&&_cu.kakaoId&&!(_cu.dept&&(_cu.realName||_cu.name))){
           if(_restoreProfileFromServer(_cu.kakaoId)){
             updateUserUI();
             var _mu=document.getElementById('modalUser');
@@ -1604,7 +1604,7 @@ function _notiRecipientReady(){
     if(at==='external')return true;
     if(localStorage.getItem('_adminAuthed')==='1'||localStorage.getItem('_masterAuthed')==='1')return true;
     var u=DB.g('currentUser')||{};
-    if(at==='kakao'&&u.dept&&u.rank&&(u.realName||u.name))return true;
+    if(at==='kakao'&&u.dept&&(u.realName||u.name))return true;
   }catch(e){}
   return false;
 }

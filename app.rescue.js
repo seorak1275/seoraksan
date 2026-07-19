@@ -33,29 +33,41 @@ function _rosterHintRender(name){
   const box=document.getElementById('rosterHint');if(!box)return;
   if(!_staffRoster){box.style.display='none';return;}
   const {exact,near}=_rosterFind(name);
-  const btn=s=>`<button onclick="_rosterPick('${_escq(s.n)}','${_escq(s.d)}','${_escq(s.g||'')}')" style="display:block;width:100%;text-align:left;margin-top:5px;padding:9px 11px;border-radius:9px;border:1px solid rgba(39,174,96,.35);background:rgba(39,174,96,.1);color:#7ec8a0;font-size:12px;font-weight:700;cursor:pointer;">✅ ${_esc(s.n)} · ${_esc(s.d)}${s.g?' · '+_esc(s.g):''} — 본인입니다</button>`;
+  // 정확히 일치 → 한 번에 로그인(이름·소속·급수 자동), 유사 → 채우기만(사용자 확인)
+  const btnGo=s=>`<button onclick="_rosterConfirm('${_escq(s.n)}','${_escq(s.d)}','${_escq(s.g||'')}')" style="display:block;width:100%;text-align:left;margin-top:5px;padding:10px 12px;border-radius:9px;border:1px solid rgba(39,174,96,.45);background:rgba(39,174,96,.14);color:#8fe0b0;font-size:12.5px;font-weight:800;cursor:pointer;">✅ ${_esc(s.n)} · ${_esc(s.d)}${s.g?' · '+_esc(s.g):''}<span style="display:block;font-size:10.5px;color:#6fbf94;font-weight:600;margin-top:2px;">본인입니다 — 이 정보로 바로 로그인 →</span></button>`;
+  const btnFill=s=>`<button onclick="_rosterPick('${_escq(s.n)}','${_escq(s.d)}','${_escq(s.g||'')}')" style="display:block;width:100%;text-align:left;margin-top:5px;padding:9px 11px;border-radius:9px;border:1px solid rgba(232,200,74,.35);background:rgba(232,200,74,.08);color:#e8d078;font-size:12px;font-weight:700;cursor:pointer;">🔎 ${_esc(s.n)} · ${_esc(s.d)}${s.g?' · '+_esc(s.g):''} — 이 분이면 선택</button>`;
   if(exact.length){
-    box.innerHTML=`<div style="font-size:11px;color:#5dbf8a;font-weight:700;">📋 직원 명부에서 찾았습니다${exact.length>1?' — 동명이인이 있어요, 소속을 확인하세요':''}</div>`+exact.map(btn).join('');
+    box.innerHTML=`<div style="font-size:11px;color:#5dbf8a;font-weight:700;">📋 직원 명부에서 찾았습니다${exact.length>1?' — 동명이인이 있어요, 소속을 확인하세요':''}</div>`+exact.map(btnGo).join('');
   }else if(near.length){
-    box.innerHTML=`<div style="font-size:11px;color:#e8c84a;font-weight:700;">📋 혹시 이 분입니까? (입력한 이름과 유사)</div>`+near.map(btn).join('');
+    box.innerHTML=`<div style="font-size:11px;color:#e8c84a;font-weight:700;">📋 혹시 이 분입니까? (입력한 이름과 유사)</div>`+near.map(btnFill).join('');
   }else{
     box.innerHTML=`<div style="font-size:10.5px;color:#c79a4a;line-height:1.5;">❔ 직원 명부(일반직·특정직)에 없는 이름입니다.<br>카카오 별명이 실명과 다르면 <b>실명</b>으로 고쳐 쓰세요. 기간제·외부 인원은 그대로 진행하면 관리자 확인 후 승인됩니다.</div>`;
   }
   box.style.display='block';
 }
+// 유사(불확실) 매칭: 이름·소속·급수만 채우고 사용자가 확인 후 저장
 function _rosterPick(n,d,g){
   const ni=document.getElementById('uNameIn');if(ni)ni.value=n;
   const ds=document.getElementById('uDeptIn');if(ds)ds.value=d;
-  toast('📋 명부 확인: '+n+' ('+d+(g?' · '+g:'')+') — 직위만 고르고 저장하세요');
+  window._pendingGrade=g||'';
+  toast('📋 명부 확인: '+n+' ('+d+(g?' · '+g:'')+') — 맞으면 저장하세요');
   try{_rosterHintRender(n);}catch(e){}
+}
+// 정확히 일치: 명부 정보(이름·소속·급수)로 바로 로그인 완료 — 직위는 명부에 없어 선택 사항
+function _rosterConfirm(n,d,g){
+  const ni=document.getElementById('uNameIn');if(ni)ni.value=n;
+  const ds=document.getElementById('uDeptIn');if(ds)ds.value=d;
+  window._pendingGrade=g||'';
+  saveUser();
 }
 function openChangeUser(){
   const u=DB.g('currentUser')||{};
   const authType=DB.g('authType');
   const isKakao=authType==='kakao';
+  window._pendingGrade=u.grade||''; // 급수(명부 자동채움 임시값) 초기화
   // 제목: 최초 가입(프로필 미완성)일 때만 '가입 신청' — 기존엔 구버전 approvalStatus를 봐서
   // 승인된 직원에게도 '가입 신청'이 떴음(현 승인체계는 _acl 기준이라 이 필드가 안 채워짐)
-  const _pDone0=!!(u.dept&&u.rank&&(u.realName||u.name));
+  const _pDone0=!!(u.dept&&(u.realName||u.name));
   const titleEl=document.getElementById('modalUserTitle');
   if(titleEl)titleEl.textContent=(isKakao&&!_pDone0)?'🆕 가입 신청':(_pDone0?'👤 내 정보':'👤 작성자 설정');
   // 승인코드 폐지 — 입력란 항상 숨김(승인은 관리자 멤버 지정으로만)
@@ -215,7 +227,7 @@ function _enforceAccessGate(){
   var authType=(typeof _resolveAuthType==='function')?_resolveAuthType():'';
   var u=DB.g('currentUser')||{};
   var isKakao=authType==='kakao';
-  var profileDone=!!(u.dept&&u.rank&&(u.realName||u.name));
+  var profileDone=!!(u.dept&&(u.realName||u.name));
   // 카카오 사용자가 프로필까지 끝냈는데 멤버가 아니면 차단. 그 외(미로그인·외부·프로필 미완)는 각 흐름이 처리.
   if(isKakao&&profileDone&&!_isMember()){
     // 자동 승인 모드: 대기 없이 스스로 멤버 등록 후 바로 입장
@@ -260,12 +272,13 @@ function saveUser(){
   const name=document.getElementById('uNameIn').value.trim();
   if(!name){toast('⚠️ 이름을 입력해주세요');return;}
   const dept=document.getElementById('uDeptIn').value;
-  const rank=getSelPills('rankPills')[0]||'';
+  const rank=getSelPills('rankPills')[0]||'';   // 직위 — 명부에 없어 선택 사항(비워도 로그인 가능)
   if(!dept){toast('⚠️ 소속 과/분소를 선택해주세요');return;}
-  if(!rank){toast('⚠️ 직위를 선택해주세요');return;}
   const existing=DB.g('currentUser')||{};
+  const grade=window._pendingGrade||existing.grade||''; // 급수(5급·6급 등) — 명부에서 자동 채움
+  window._pendingGrade='';
   // 승인은 관리자가 직원 탭에서 '멤버' 지정으로만 부여(승인코드 제거). 여기선 프로필만 저장.
-  const saved={...existing,realName:name,name,dept,rank};
+  const saved={...existing,realName:name,name,dept,rank,grade};
   DB.s('currentUser',saved);
   _notifyNewJoiner(saved);
   window._requireProfile=false;
@@ -303,7 +316,7 @@ function _notifyNewJoiner(u){
   const status=u.approvalStatus||(prev&&prev.approvalStatus)||'pending';
   const filtered=all.filter(function(p){return p.id!==uid;});
   filtered.push({
-    id:uid,realName:u.realName,name:u.name,dept:u.dept,rank:u.rank,
+    id:uid,realName:u.realName,name:u.name,dept:u.dept,rank:u.rank,grade:u.grade||'',
     kakaoId:u.kakaoId||null,kakaoImg:u.kakaoImg||null,
     approvalStatus:status,
     submittedAt:(prev&&prev.submittedAt)||Date.now(),
@@ -316,7 +329,7 @@ function _renderPendingList(){
   var list=(DB.g('pendingUsers')||[]).slice().reverse().slice(0,20);
   if(!list.length)return'<div style="font-size:11px;color:#565f6b;padding:8px 0;">새 가입자 없음</div>';
   return list.map(function(u){return'<div style="background:#0f0f11;border:1px solid rgba(255,255,255,.15);border-radius:8px;padding:10px;margin-bottom:7px;'+(u.seen?'opacity:.55':'')+'">'+(!u.seen?'<div style="font-size:9px;color:#3182f6;font-weight:700;margin-bottom:4px;">NEW</div>':'')+
-    '<div style="font-size:12px;color:#eaecef;font-weight:700;">'+_esc(u.realName||u.name)+' <span style="font-weight:400;color:#8b95a1;">· '+_esc(u.dept||'')+' · '+_esc(u.rank||'')+'</span></div>'+
+    '<div style="font-size:12px;color:#eaecef;font-weight:700;">'+_esc(u.realName||u.name)+' <span style="font-weight:400;color:#8b95a1;">· '+_esc(u.dept||'')+(u.rank?' · '+_esc(u.rank):'')+(u.grade?' · '+_esc(u.grade):'')+'</span></div>'+
     '<div style="font-size:10px;color:#565f6b;margin-top:2px;">닉네임: '+_esc(u.name)+' · '+(u.submittedAt?new Date(u.submittedAt).toLocaleDateString('ko-KR'):'')+' 가입</div>'+
     '<button onclick="_markSeen(\''+_escq(u.id)+'\')" style="margin-top:6px;background:rgba(255,255,255,.1);color:#3182f6;border:1px solid rgba(255,255,255,.2);padding:5px 10px;border-radius:6px;font-size:10px;cursor:pointer;">확인 완료</button>'+
   '</div>';}).join('');
@@ -511,7 +524,7 @@ function _isAppUnlocked(){
     if(typeof isAdminUser==='function'&&isAdminUser())return true;        // 관리자·개발자
     var at=(typeof _resolveAuthType==='function')?_resolveAuthType():DB.g('authType');
     var u=DB.g('currentUser')||{};
-    var profileDone=!!(u.dept&&u.rank&&(u.realName||u.name));
+    var profileDone=!!(u.dept&&(u.realName||u.name));
     if(at==='kakao'&&profileDone&&_isMember())return true;               // 카카오+프로필완료+승인멤버
   }catch(e){return true;} // 판정이 깨지면 정상 사용자 잠김 방지 위해 개방(1차 방어는 오버레이)
   return false;

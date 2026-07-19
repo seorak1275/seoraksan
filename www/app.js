@@ -25,7 +25,7 @@ function renderSettings(){
           ${_kakao&&u.kakaoImg?`<img class="set-avt" src="${_esc(_imgHttps(u.kakaoImg||''))}" onerror="this.outerHTML='<div class=&quot;set-avt&quot;>👤</div>'">`:`<div class="set-avt">👤</div>`}
           <div style="flex:1;min-width:0;">
             <div class="set-anm">${_esc(u.realName||u.name||'미설정')}</div>
-            <div class="set-ade">${_esc(u.dept||'소속 미설정')}${u.rank?' · '+_esc(u.rank):''}</div>
+            <div class="set-ade">${_esc(u.dept||'소속 미설정')}${u.rank?' · '+_esc(u.rank):''}${u.grade?' · '+_esc(u.grade):''}</div>
             <div style="font-size:11px;font-weight:700;margin-top:4px;color:${_appr?'#5fcf8f':'#e8a04a'};">● ${_appr?'승인됨':'승인 대기'}</div>
           </div>
         </div>
@@ -245,7 +245,7 @@ function _recordLoginLog(){
     const kid=u.kakaoId||_authKakaoId;
     if(!kid)return;
     const log=(DB.g('loginLog')||[]).slice();
-    const entry={kakaoId:String(kid),name:u.realName||u.name||'',dept:u.dept||'',rank:u.rank||'',at:Date.now()};
+    const entry={kakaoId:String(kid),name:u.realName||u.name||'',dept:u.dept||'',rank:u.rank||'',grade:u.grade||'',at:Date.now()};
     const i=log.findIndex(e=>String(e.kakaoId)===String(kid));
     if(i>=0){
       const old=log[i];
@@ -368,8 +368,8 @@ function _handleKakaoCode(code,redirectUri){
     if(window.hideLoginScreen)window.hideLoginScreen();
     updateUserUI();
     toast('✅ 카카오 로그인 완료');
-    // 소속·직위·이름이 이미 저장돼 있으면(재로그인) 다시 입력받지 않음
-    if(!merged.dept||!merged.rank||!(merged.realName||merged.name)){
+    // 이름·소속이 이미 저장돼 있으면(재로그인) 다시 입력받지 않음 (직위는 선택 사항)
+    if(!merged.dept||!(merged.realName||merged.name)){
       window._requireProfile=true;
       setTimeout(function(){openChangeUser();},300);
     } else {
@@ -493,7 +493,7 @@ function _resolveAuthType(){
 function _restoreProfileFromServer(kakaoId){
   kakaoId=String(kakaoId||'');if(!kakaoId)return false;
   var u=DB.g('currentUser')||{};
-  if(u.dept&&u.rank&&(u.realName||u.name))return true; // 이미 완성
+  if(u.dept&&(u.realName||u.name))return true; // 이미 완성(직위는 선택 사항)
   var src=(DB.g('pendingUsers')||[]).find(function(p){return String(p.kakaoId||p.id)===kakaoId&&(p.dept||p.rank);})
         ||(DB.g('loginLog')||[]).find(function(e){return String(e.kakaoId)===kakaoId&&(e.dept||e.rank);});
   if(!src)return false;
@@ -501,10 +501,11 @@ function _restoreProfileFromServer(kakaoId){
     realName:u.realName||src.realName||src.name||'',
     name:u.name||src.name||src.realName||'',
     dept:u.dept||src.dept||'',
-    rank:u.rank||src.rank||''
+    rank:u.rank||src.rank||'',
+    grade:u.grade||src.grade||''
   });
   DB.s('currentUser',merged);
-  return !!(merged.dept&&merged.rank&&(merged.realName||merged.name));
+  return !!(merged.dept&&(merged.realName||merged.name));
 }
 function _checkAndRequireProfile(){
   var authType=_resolveAuthType();
@@ -514,8 +515,9 @@ function _checkAndRequireProfile(){
   var isKakao=authType==='kakao';
   if(isKakao){
     if(window._needsCode)return; // _handleKakaoCode가 처리 중 — 간섭 금지
-    // 프로필 미완성이면 먼저 서버 기록에서 복원 시도, 그래도 없을 때만 입력 요구
-    if(!u.dept||!u.rank||!(u.realName||u.name)){
+    // 프로필 미완성(이름·소속)이면 먼저 서버 기록에서 복원 시도, 그래도 없을 때만 입력 요구
+    // (직위는 명부에 없어 선택 사항 — 이름·소속만 있으면 완성으로 본다)
+    if(!u.dept||!(u.realName||u.name)){
       if(!(u.kakaoId&&_restoreProfileFromServer(u.kakaoId))){
         window._requireProfile=true;
         setTimeout(function(){openChangeUser();},300);
@@ -527,7 +529,7 @@ function _checkAndRequireProfile(){
     try{_enforceAccessGate();}catch(e){}
     return;
   }
-  if(!u.dept||!u.rank){
+  if(!u.dept){
     window._requireProfile=true;setTimeout(function(){openChangeUser();},300);
   }
 }
@@ -3823,7 +3825,7 @@ function sosToRescue(id){
 // 앱 자체 업데이트 (OTA · Capgo 자체호스팅) — APK 전용. 웹/PWA는 서비스워커가 자동 갱신.
 // 번들(www)의 새 버전을 ota.json으로 알리면, 설치된 앱이 받아서 그 자리에서 교체(재빌드 불필요).
 // ══════════════════════════════════════════
-const OTA_VER='2026.07.19.302';                         // ← 현재 번들 버전 (릴리스마다 올림 · build-ota.sh가 ota.json에 반영)
+const OTA_VER='2026.07.19.303';                         // ← 현재 번들 버전 (릴리스마다 올림 · build-ota.sh가 ota.json에 반영)
 const OTA_MANIFEST='https://seorak1275.github.io/seoraksan/ota.json';
 // 업데이트 확인 폴백 소스 — 일부 기관망·통신사에서 github.io가 막혀 '확인 실패(네트워크)'가 나는 경우 대비.
 // 순서대로 시도: ① GitHub Pages(원본·즉시 반영) ② jsDelivr CDN(공개저장소 미러·거의 모든 망 통과)
