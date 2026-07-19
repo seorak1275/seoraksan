@@ -279,6 +279,23 @@ function _paintPark(map,d){
 // ── 🔧 상황판 세로선 진단 — 레이어를 하나씩 꺼서 원인 특정 (사용자 A/B 테스트용) ──
 // ── 🌿 용도지구 오버레이 — 공단 공식 SHP(용도지구_변경) 그대로(EPSG:5174→WGS84, 0.5m 이내 단순화) ──
 let _useZoneLayer=null,_useZoneData=null;
+// 링 넓이(신발끈 공식, 상대비교용) — 작은 지구를 위에 올려 클릭이 가려지지 않게
+function _ringArea(r){let a=0;for(let i=0,j=r.length-1;i<r.length;j=i++){a+=(r[j][0]-r[i][0])*(r[j][1]+r[i][1]);}return Math.abs(a/2);}
+// 용도지구 폴리곤 생성 — 넓은 지구부터 그리고(낮은 zIndex), 작은 지구는 위에(높은 zIndex) → 겹친 곳에서 작은 지구가 눌림
+function _drawUseZonePolys(map,onClick){
+  const items=[];
+  (_useZoneData.zones||[]).forEach(z=>{(z.rings||[]).forEach(r=>{if(r.length>=3)items.push({z,r,a:_ringArea(r)});});});
+  items.sort((p,q)=>q.a-p.a); // 넓은 것 먼저
+  const out=[];
+  items.forEach((it,i)=>{
+    const pg=new kakao.maps.Polygon({path:it.r.map(p=>new kakao.maps.LatLng(p[1],p[0])),
+      strokeWeight:2,strokeColor:it.z.color,strokeOpacity:.95,fillColor:it.z.color,fillOpacity:.34,zIndex:i+1,map:map});
+    pg._uz=it.z;pg._uzBaseZ=i+1;
+    kakao.maps.event.addListener(pg,'click',function(){onClick(pg);});
+    out.push(pg);
+  });
+  return out;
+}
 function _toggleUseZones(){
   if(_useZoneLayer){
     _useZoneLayer.forEach(o=>{try{o.setMap(null);}catch(e){}});_useZoneLayer=null;
@@ -289,17 +306,8 @@ function _toggleUseZones(){
   }
   const go=()=>{
     const _zm=(typeof mapI!=='undefined'&&mapI)?mapI:null;if(!_zm)return;
-    _useZoneLayer=[];_mapCtrlOn('useZoneBtn',true);
-    (_useZoneData.zones||[]).forEach(z=>{
-      (z.rings||[]).forEach(r=>{
-        if(r.length<3)return;
-        const pg=new kakao.maps.Polygon({path:r.map(p=>new kakao.maps.LatLng(p[1],p[0])),
-          strokeWeight:2,strokeColor:z.color,strokeOpacity:.95,fillColor:z.color,fillOpacity:.34,map:_zm});
-        pg._uz=z;
-        kakao.maps.event.addListener(pg,'click',function(){_useZoneSelect(pg);});
-        _useZoneLayer.push(pg);
-      });
-    });
+    _mapCtrlOn('useZoneBtn',true);
+    _useZoneLayer=_drawUseZonePolys(_zm,_useZoneSelect);
     // 범례
     let lg=document.getElementById('useZoneLegend');if(lg)lg.remove();
     lg=document.createElement('div');lg.id='useZoneLegend';
@@ -317,9 +325,9 @@ function _toggleUseZones(){
 // 용도지구 선택 — 누른 지구의 외곽선을 흰색 강조 + 무슨 지구인지 카드 표시
 let _uzSel=null;
 function _useZoneSelect(pg){
-  if(_uzSel){try{_uzSel.setOptions({strokeWeight:2,strokeColor:_uzSel._uz.color,strokeOpacity:.95,fillOpacity:.34,zIndex:1});}catch(e){}}
+  if(_uzSel){try{_uzSel.setOptions({strokeWeight:2,strokeColor:_uzSel._uz.color,strokeOpacity:.95,fillOpacity:.34,zIndex:_uzSel._uzBaseZ||1});}catch(e){}}
   _uzSel=pg;
-  try{pg.setOptions({strokeWeight:4,strokeColor:'#ffffff',strokeOpacity:1,fillOpacity:.48,zIndex:5});}catch(e){}
+  try{pg.setOptions({strokeWeight:4,strokeColor:'#ffffff',strokeOpacity:1,fillOpacity:.48,zIndex:9999});}catch(e){}
   const z=pg._uz||{};
   let c=document.getElementById('useZoneCard');if(c)c.remove();
   c=document.createElement('div');c.id='useZoneCard';
@@ -335,8 +343,12 @@ function _useZoneSelect(pg){
 }
 function _useZoneUnsel(){
   const c=document.getElementById('useZoneCard');if(c)c.remove();
-  if(_uzSel){try{_uzSel.setOptions({strokeWeight:2,strokeColor:_uzSel._uz.color,strokeOpacity:.95,fillOpacity:.34,zIndex:1});}catch(e){}}
+  if(_uzSel){try{_uzSel.setOptions({strokeWeight:2,strokeColor:_uzSel._uz.color,strokeOpacity:.95,fillOpacity:.34,zIndex:_uzSel._uzBaseZ||1});}catch(e){}}
   _uzSel=null;
+}
+// 구역·용도 오버레이 화면요소 정리 — 화면 전환·홈 이동 시 범례·카드가 남지 않도록
+function _zoneOverlayCleanup(){
+  ['useZoneLegend','useZoneLegendB','useZoneCard','zoneInfoCard','zoneFacOv'].forEach(id=>{const e=document.getElementById(id);if(e)e.remove();});
 }
 // ── 🗺 순찰 구역 오버레이(폴리곤) — 직무현황 PDF의 구역을 벡터화·좌표 변환한 49개 면 ──
 // park-zones.json v2: zones[{n,color,rings}] + labels[{n,lat,lng}] + info{n:{r,m}} — 공원경계 정합(오차 ~30m)
@@ -506,17 +518,8 @@ function _toggleUseZonesBoard(){
     const lg=document.getElementById('useZoneLegendB');if(lg)lg.remove();try{_useZoneUnsel();}catch(e){}return;}
   const go=()=>{
     if(!_boardMap)return;
-    _useZoneLayerB=[];_bdBtnOn('boardUseZoneBtn',true);
-    (_useZoneData.zones||[]).forEach(z=>{
-      (z.rings||[]).forEach(r=>{
-        if(r.length<3)return;
-        const pg=new kakao.maps.Polygon({path:r.map(p=>new kakao.maps.LatLng(p[1],p[0])),
-          strokeWeight:2,strokeColor:z.color,strokeOpacity:.95,fillColor:z.color,fillOpacity:.34,map:_boardMap});
-        pg._uz=z;
-        kakao.maps.event.addListener(pg,'click',function(){_useZoneSelect(pg);});
-        _useZoneLayerB.push(pg);
-      });
-    });
+    _bdBtnOn('boardUseZoneBtn',true);
+    _useZoneLayerB=_drawUseZonePolys(_boardMap,_useZoneSelect);
     let lg=document.getElementById('useZoneLegendB');if(lg)lg.remove();
     lg=document.createElement('div');lg.id='useZoneLegendB';
     lg.style.cssText='position:fixed;left:12px;bottom:12px;z-index:99500;background:rgba(15,15,17,.92);border:1px solid rgba(255,255,255,.2);border-radius:11px;padding:8px 11px;display:flex;flex-direction:column;gap:3px;';
@@ -1514,6 +1517,7 @@ function goHome(){
   showV('v-home');
   document.getElementById('appHdr').style.display='none';
   document.getElementById('bnav').style.display='none';
+  try{_zoneOverlayCleanup();}catch(e){} // 구역·용도 범례/카드가 홈에 남지 않게
   closeDB();updateSummary();
   history.pushState({view:'home'},'','');
 }
@@ -1611,6 +1615,8 @@ function switchTab(idx,el){
   if(isExternal()&&idx!==1){toast('⚠️ 외부기관 계정은 지도만 이용 가능합니다');return;}
   try{if(typeof _hapt==='function')_hapt(6);}catch(e){} // 탭 전환 햅틱 — 앱다운 손맛(미지원 기기는 무시)
   [1,2,3,4].forEach(i=>{var e=document.getElementById('nv'+i);if(e)e.classList.remove('on');});if(el)el.classList.add('on');closeDB();
+  // 시설물 지도(구역·용도)를 벗어나면 범례·카드 제거 — 다른 탭에 떠 있지 않게
+  if(!(curApp==='inspect'&&idx===1)){try{_zoneOverlayCleanup();}catch(e){}}
   if(curApp==='rescue'){
     if(idx===1){showV('v-rescue-map');rMaps();updateRescueCross();try{renderRescueMap();}catch(e){}} // 복귀 시 핀 최신화
     else{if(idx===2){showV('v-rescue-list');renderResList();}else{showV('v-rescue-stats');renderRescueStats();}}

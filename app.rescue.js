@@ -81,9 +81,9 @@ function _buildSenMap(){
   _senMap={};
   ((_staffRoster.staff)||[]).forEach((s,i)=>{
     const g=parseInt(String(s.g||'').replace(/[^\d]/g,''));
-    // 이름 예외 직책은 선임 가중치를 준다(소장>대장·분소장>과장>급수순)
+    // 이름 예외 직책 선임 가중치: 소장 > 과장 > 대장·분소장 > 급수순
     const r=_RANK_BY_NAME[s.n];
-    const titleW=r==='소장'?0:(r==='특수산악구조대장'||r==='분소장')?1:r==='과장'?2:99;
+    const titleW=r==='소장'?0:r==='과장'?1:(r==='특수산악구조대장'||r==='분소장')?2:99;
     _senMap[s.n]=Math.min(titleW,(isNaN(g)?9:g))*10000+i;
   });
   return _senMap;

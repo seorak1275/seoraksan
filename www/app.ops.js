@@ -3281,16 +3281,34 @@ function renderAdmMembers(){
   loginLog.forEach(e=>{
     const kid=String(e.kakaoId||'');if(!kid||seen[kid])return;seen[kid]=1;
     const pu=pending.find(p=>String(p.kakaoId||p.id)===kid);
-    unified.push({kakaoId:kid,name:(pu&&(pu.realName||pu.name))||e.name||'',dept:(pu&&pu.dept)||e.dept||'',rank:(pu&&pu.rank)||e.rank||'',kakaoImg:(pu&&pu.kakaoImg)||'',approvalStatus:(pu&&pu.approvalStatus)||'',puId:(pu&&pu.id)||'',reg:(pu&&pu.submittedAt)||e.at||0});
+    unified.push({kakaoId:kid,name:(pu&&(pu.realName||pu.name))||e.name||'',dept:(pu&&pu.dept)||e.dept||'',rank:(pu&&pu.rank)||e.rank||'',grade:(pu&&pu.grade)||e.grade||'',kakaoImg:(pu&&pu.kakaoImg)||'',approvalStatus:(pu&&pu.approvalStatus)||'',puId:(pu&&pu.id)||'',reg:(pu&&pu.submittedAt)||e.at||0});
   });
   pending.forEach(p=>{
     const kid=String(p.kakaoId||p.id);if(seen[kid])return;seen[kid]=1;
-    unified.push({kakaoId:kid,name:p.realName||p.name||'',dept:p.dept||'',rank:p.rank||'',kakaoImg:p.kakaoImg||'',approvalStatus:p.approvalStatus||'',puId:p.id,reg:p.submittedAt||0});
+    unified.push({kakaoId:kid,name:p.realName||p.name||'',dept:p.dept||'',rank:p.rank||'',grade:p.grade||'',kakaoImg:p.kakaoImg||'',approvalStatus:p.approvalStatus||'',puId:p.id,reg:p.submittedAt||0});
+  });
+  // 급수·직위 보완: 저장값이 없으면 직원 명부(이름·소속 일치)에서 채워 표시
+  const _rst0=(typeof _staffRoster!=='undefined'&&_staffRoster&&_staffRoster.staff)||null;
+  unified.forEach(u=>{
+    if((!u.grade||!u.rank)&&_rst0&&u.name){
+      const m=_rst0.filter(s=>s.n===u.name&&(!u.dept||s.d===u.dept));
+      const s=(m.length===1)?m[0]:(_rst0.filter(s=>s.n===u.name).length===1?_rst0.find(s=>s.n===u.name):null);
+      if(s){if(!u.grade)u.grade=s.g||'';if(!u.rank&&typeof _rankFromGrade==='function')u.rank=_rankFromGrade(s.g,u.name)||'';}
+    }
   });
 
   const usedDepts=[...new Set(unified.map(u=>u.dept).filter(Boolean))];
   const chips=['전체',...usedDepts];
-  const fu=_admMemberFilter==='전체'?unified:unified.filter(u=>u.dept===_admMemberFilter);
+  const fu=_admMemberFilter==='전체'?unified.slice():unified.filter(u=>u.dept===_admMemberFilter);
+  // 정렬: 최신순(등록시각)·짬순(연공)·가나다순
+  const _sort=window._admMemberSort||'recent';
+  if(_sort==='senior'&&typeof _staffSenScore==='function'){
+    fu.sort((a,b)=>{const d=_staffSenScore(a.name)-_staffSenScore(b.name);return d!==0?d:String(a.name).localeCompare(String(b.name),'ko');});
+  }else if(_sort==='name'){
+    fu.sort((a,b)=>String(a.name||'힣').localeCompare(String(b.name||'힣'),'ko'));
+  }else{
+    fu.sort((a,b)=>(b.reg||0)-(a.reg||0));
+  }
   const adminCnt=fu.filter(u=>roleOf(u.kakaoId)==='admin').length;
   const memberCnt=fu.filter(u=>roleOf(u.kakaoId)==='member').length;
   const facMgrs=_facManagers();
@@ -3336,7 +3354,7 @@ function renderAdmMembers(){
         ${u.kakaoImg?`<img src="${_esc(_imgHttps(u.kakaoImg))}" style="width:34px;height:34px;border-radius:50%;object-fit:cover;flex-shrink:0;" onerror="this.style.display='none'">`:`<div style="width:34px;height:34px;border-radius:50%;background:#3a2a18;display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0;">🆕</div>`}
         <div style="flex:1;min-width:0;">
           <div style="font-size:13px;font-weight:700;color:#eaecef;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${_esc(u.name||'이름없음')} ${rosterBadge(u)}</div>
-          <div style="font-size:10px;color:#9c8060;margin-top:1px;">${_esc(u.dept||'소속 미입력')}${u.rank?' · '+_esc(u.rank):''} <span style="font-family:monospace;color:#6a5030;">ID ${_esc(u.kakaoId)}</span></div>
+          <div style="font-size:10px;color:#9c8060;margin-top:1px;">${_esc(u.dept||'소속 미입력')}${u.rank?' · '+_esc(u.rank):''}${u.grade?' · '+_esc(u.grade):''} <span style="font-family:monospace;color:#6a5030;">ID ${_esc(u.kakaoId)}</span></div>
         </div>
         <button onclick="grantMember('${_escq(u.kakaoId)}')" style="flex-shrink:0;background:#27ae60;color:#fff;border:none;border-radius:8px;padding:8px 13px;font-size:12px;font-weight:800;cursor:pointer;">✅ 승인</button>
         ${u.puId?`<button onclick="deleteUser('${_escq(u.puId)}')" style="flex-shrink:0;background:rgba(192,57,43,.15);color:#ff8a80;border:1px solid rgba(192,57,43,.25);border-radius:8px;padding:8px 10px;font-size:11px;cursor:pointer;">거부</button>`:''}
@@ -3345,8 +3363,12 @@ function renderAdmMembers(){
   }
 
   html+=`
-  <div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:10px;">
+  <div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:8px;">
     ${chips.map(d=>`<div onclick="setAdmMemberFilter('${d}')" style="padding:4px 10px;border-radius:20px;font-size:10px;font-weight:700;cursor:pointer;${d===_admMemberFilter?'background:#1a4a6e;color:#3182f6;':'background:#1c1c1e;color:#565f6b;border:1px solid #1a3a5a;'}">${d}</div>`).join('')}
+  </div>
+  <div style="display:flex;align-items:center;gap:5px;margin-bottom:10px;">
+    <span style="font-size:10px;color:#565f6b;font-weight:700;flex-shrink:0;">정렬</span>
+    ${[['recent','🕑 최신순'],['senior','🎖 짬순'],['name','가나다순']].map(([v,l])=>`<div onclick="setAdmMemberSort('${v}')" style="padding:4px 10px;border-radius:20px;font-size:10px;font-weight:700;cursor:pointer;${_sort===v?'background:#1a4a6e;color:#3182f6;':'background:#1c1c1e;color:#565f6b;border:1px solid #1a3a5a;'}">${l}</div>`).join('')}
   </div>`;
 
   if(!fu.length){
@@ -3364,7 +3386,7 @@ function renderAdmMembers(){
           ${u.kakaoImg?`<img src="${_esc(_imgHttps(u.kakaoImg))}" style="width:32px;height:32px;border-radius:50%;object-fit:cover;flex-shrink:0;" onerror="this.style.display='none'">`:`<div style="width:32px;height:32px;border-radius:50%;background:#1a3a5a;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0;">👤</div>`}
           <div style="flex:1;min-width:0;">
             <div style="font-size:12px;font-weight:700;color:#eaecef;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${_esc(u.name||'이름없음')} ${roleBadge} ${facMgrBadge} ${appBadge} ${rosterBadge(u)}</div>
-            <div style="font-size:10px;color:#565f6b;margin-top:1px;">${_esc(u.dept)}${u.rank?' · '+_esc(u.rank):''} <span style="font-family:monospace;color:#2a5060;">ID ${_esc(u.kakaoId)}</span></div>
+            <div style="font-size:10px;color:#565f6b;margin-top:1px;">${_esc(u.dept)}${u.rank?' · '+_esc(u.rank):''}${u.grade?' · <b style="color:#7a8a99;">'+_esc(u.grade)+'</b>':''} <span style="font-family:monospace;color:#2a5060;">ID ${_esc(u.kakaoId)}</span></div>
             ${u.reg?`<div style="font-size:9px;color:#3a5a6a;margin-top:1px;">📅 등록 ${new Date(u.reg).toLocaleString('ko-KR',{year:'2-digit',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'})}</div>`:''}
           </div>
           <div style="display:flex;align-items:center;gap:4px;flex-shrink:0;">
@@ -3432,6 +3454,7 @@ function _saveAdmMemberByKakao(kakaoId,editId){
 }
 var _admMemberFilter='전체';
 function setAdmMemberFilter(f){_admMemberFilter=f;renderAdmMembers();}
+function setAdmMemberSort(s){window._admMemberSort=s;renderAdmMembers();}
 function _toggleAdmMemberEdit(id){
   const el=document.getElementById('admMemberEdit_'+id);
   if(el)el.style.display=el.style.display==='none'?'block':'none';
