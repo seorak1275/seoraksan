@@ -1472,7 +1472,7 @@ function openAddFac(){
   ['facNameIn','facGpsIn','facNote','facMgmtIn','facSpecIn','facStructIn'].forEach(id=>{const e=document.getElementById(id);if(e)e.value='';});
   {const g=document.getElementById('facGradeSel');if(g)g.value='';}
   const _fa=document.getElementById('facAuthor');_fa.value=getAuthor();_fa.disabled=true;
-  document.getElementById('prevFac').innerHTML='📸 촬영 또는 앨범';
+  {const pv=document.getElementById('prevFac');pv.dataset.url='';pv.innerHTML='📸 촬영 또는 앨범';} // 이전 편집 사진 잔재 제거
   try{gpsFromMap('facGpsIn','inspect');}catch(e){}
   try{_resetFacFormMap();}catch(e){} // 지도 선택기 초기화(🗺 버튼으로 열림)
   // 위치: 구간 선택식 — 지도 십자선 근처 표지판의 구간을 기본 선택(수기 입력 폐지 → 데이터 통일)
@@ -1482,17 +1482,26 @@ function openAddFac(){
   _fillFacLocSel(_zone);
   document.getElementById('modalAddFac').classList.add('on');
 }
-// 위치(구간) 셀렉트 채우기 — ZONE_NAMES 기준 'NN (구간명)' 옵션. 기존 자유입력(레거시) 값은 옵션으로 보존
+// 위치(구간) 셀렉트 채우기 — ZONE_NAMES 기준 'NN (구간명)' 옵션(01→14 정렬).
+// 레거시 값 정규화: '10'·'백담계곡'처럼 저장된 옛 값도 '10 (백담계곡)' 옵션에 자동 매칭(불일치 '(기존값)' 중복 제거)
 function _fillFacLocSel(cur){
   const sel=document.getElementById('facLocIn');if(!sel)return;
   cur=String(cur||'').trim();
   let opts='<option value="">위치 미지정</option>';
-  try{Object.keys(ZONE_NAMES).forEach(z=>{const v=_zoneLbl(z);opts+=`<option value="${_esc(v)}">${_esc(v)}</option>`;});}catch(e){}
+  try{Object.keys(ZONE_NAMES).sort().forEach(z=>{const v=_zoneLbl(z);opts+=`<option value="${_esc(v)}">${_esc(v)}</option>`;});}catch(e){}
   sel.innerHTML=opts;
-  if(cur){
-    if(![...sel.options].some(o=>o.value===cur))sel.insertAdjacentHTML('beforeend',`<option value="${_esc(cur)}">${_esc(cur)} (기존값)</option>`);
-    sel.value=cur;
-  }
+  if(!cur)return;
+  // 레거시 표기 정규화 → 표준 라벨
+  try{
+    const mNum=cur.match(/^(\d{1,2})$/); // '10'
+    if(mNum&&ZONE_NAMES[mNum[1].padStart(2,'0')])cur=_zoneLbl(mNum[1].padStart(2,'0'));
+    else{
+      const hit=Object.keys(ZONE_NAMES).find(z=>ZONE_NAMES[z]===cur||cur.indexOf(ZONE_NAMES[z])>=0&&cur.indexOf(z)>=0);
+      if(hit)cur=_zoneLbl(hit);
+    }
+  }catch(e){}
+  if(![...sel.options].some(o=>o.value===cur))sel.insertAdjacentHTML('beforeend',`<option value="${_esc(cur)}">${_esc(cur)} (기존값)</option>`);
+  sel.value=cur;
 }
 function openEditFac(id){
   if(!_canManageFac()){toast('⚠️ 탐방시설과·개발자만 수정 가능');return;}
@@ -1500,7 +1509,9 @@ function openEditFac(id){
   _editFacId=id;
   document.getElementById('addFacModalTitle').textContent='✏️ 시설물 수정';
   fillSel('facTypeSel',DB.g('catFac')||[]);
-  document.getElementById('facTypeSel').value=f.type;
+  {const ts=document.getElementById('facTypeSel'); // 종류가 목록에 없어도(레거시) 빈값으로 안 날아가게 옵션 보존
+   if(f.type&&![...ts.options].some(o=>o.value===f.type))ts.insertAdjacentHTML('beforeend',`<option value="${_esc(f.type)}">${_esc(f.type)}</option>`);
+   ts.value=f.type||'';}
   document.getElementById('facNameIn').value=f.name||'';
   _fillFacLocSel(f.loc||''); // 구간 셀렉트 — 레거시 자유입력 값은 '(기존값)' 옵션으로 유지
   document.getElementById('facGpsIn').value=f.lat&&f.lng?f.lat.toFixed(5)+', '+f.lng.toFixed(5):'';
@@ -1511,7 +1522,10 @@ function openEditFac(id){
   {const e=document.getElementById('facStructIn');if(e)e.value=f.struct||'';}
   document.getElementById('facNote').value=f.note||'';
   const _fa=document.getElementById('facAuthor');_fa.value=f.author||getAuthor();_fa.disabled=true;
-  document.getElementById('prevFac').innerHTML='📸 촬영 또는 앨범';
+  // 기존 사진 유지 — 미리보기에 그대로 실어 저장 시 빈값으로 덮이지 않게(사진 사라짐 버그 수정)
+  {const pv=document.getElementById('prevFac');
+   if(f.photo){pv.dataset.url=f.photo;pv.innerHTML=`<img src="${_esc(f.photo)}" style="max-width:100%;max-height:110px;border-radius:8px;">`;}
+   else{pv.dataset.url='';pv.innerHTML='📸 촬영 또는 앨범';}}
   try{_resetFacFormMap();}catch(e){} // 지도 선택기 초기화(🗺 버튼으로 열림 — 저장 좌표에서 시작)
   closeM('modalFacDetail');
   document.getElementById('modalAddFac').classList.add('on');
@@ -1564,7 +1578,12 @@ function submitAddFac(){
   {const _pf=_editFacId?(facs.find(x=>x.id===_editFacId)||{}):{};if(data.grade&&data.grade!==_pf.grade)data.gradeBy=getAuthor();}
   if(_editFacId){
     const idx=facs.findIndex(f=>f.id===_editFacId);
-    if(idx!==-1)facs[idx]=Object.assign(facs[idx],data);
+    // 안전망: 수정 시 사진·종류가 비면 기존 값 유지(빈값 덮어쓰기로 사라지던 버그 방지)
+    if(idx!==-1){
+      if(!data.photo&&facs[idx].photo)data.photo=facs[idx].photo;
+      if(!data.type&&facs[idx].type)data.type=facs[idx].type;
+      facs[idx]=Object.assign(facs[idx],data);
+    }
     _editFacId=null;
     DB.s('facilities',facs);
     try{renderInspectMap();}catch(e){}renderFacList();closeM('modalAddFac');toast('✅ 시설물 수정');updateSummary();
