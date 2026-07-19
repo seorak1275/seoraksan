@@ -1561,6 +1561,24 @@ async function _climbSave(recs){
   _climbSyncAgg(_climbBuildAgg(recs)); // 날짜별 인원 집계 갱신(업로드분만 병합)
   return dates;
 }
+// 업로드 이상치 점검 — 나이 80세↑·고등학생 미만(≤13)·등반경력 60년↑·경력이 나이보다 많음 등
+// 오입력·엑셀 오류(예: 경력 900년) 조기 발견용. 저장은 그대로 하되 업로드 후 확인 안내를 띄운다.
+function _climbAnomalies(recs){
+  const out=[];
+  const expNum=v=>{const n=parseInt(String(v==null?'':v).replace(/[^\d]/g,''));return isNaN(n)?null:n;};
+  const chk=(p,team,date)=>{
+    if(!p||!p.name)return;
+    const age=(typeof _climbAge==='function')?_climbAge(p.dob):null;
+    const exp=expNum(p.exp);
+    const who=`${date} · ${_esc(p.name)}${team&&team!==p.name?`(${_esc(team)}팀)`:''}`;
+    if(age!=null&&age>=80)out.push(`${who} — 나이 ${age}세 (80세 이상)`);
+    if(age!=null&&age<=13)out.push(`${who} — 나이 ${age}세 (고등학생 미만)`);
+    if(exp!=null&&exp>=60)out.push(`${who} — 등반경력 ${exp}년 (60년 이상)`);
+    if(age!=null&&exp!=null&&exp>age)out.push(`${who} — 등반경력(${exp}년)이 나이(${age}세)보다 많음`);
+  };
+  (recs||[]).forEach(r=>{const d=r.useDate||'';const tn=r.applicant&&r.applicant.name;chk(r.applicant,tn,d);(r.companions||[]).forEach(c=>chk(c,tn,d));});
+  return out;
+}
 // 업로드 핸들러 (파일 input onchange)
 // 파일 선택(input) 또는 끌어놓기(File) 양쪽에서 호출 — 실제 처리는 _climbProcessFile
 async function climbUpload(inp){
@@ -1598,6 +1616,14 @@ async function _climbProcessFile(file){
     toast('✅ '+recs.length+'건 저장 · 신규 '+fresh.length+'일'+(dup.length?' · 재등록 '+dup.length+'일':'')+' ('+dates[0]+'~'+dates[dates.length-1]+')',4500);
     try{renderHomeActive();}catch(e){}
     _climbStaged=null;_climbCache=null;openClimb();
+    // 저장 후 이상치 안내 — 오입력·엑셀 오류 확인 요청
+    try{
+      const warns=_climbAnomalies(recs);
+      if(warns.length){
+        const shown=warns.slice(0,15).join('\n');
+        setTimeout(()=>alert('⚠️ 확인이 필요한 항목 '+warns.length+'건이 있습니다.\n(나이 80세↑ / 고등학생 미만 / 등반경력 60년↑ / 경력＞나이)\n\n'+shown+(warns.length>15?`\n\n… 외 ${warns.length-15}건`:'')+'\n\n원본 엑셀의 생년월일·등반경력을 확인해 주세요.'),350);
+      }
+    }catch(e){}
   }catch(e){
     if(typeof _busyDone==='function')_busyDone();
     toast('⚠️ 업로드 실패: '+((e&&e.message)||e)+(navigator.onLine?'':' (오프라인)'),4500);
@@ -1814,11 +1840,13 @@ function _renderClimbRoster(all){
   const expStr=e=>{const n=parseInt(String(e==null?'':e).replace(/[^\d]/g,''));return isNaN(n)?'':(n+'년');};
   const gChip=g=>g==='남'?'<span style="flex-shrink:0;background:rgba(255,255,255,.16);color:#a5abb3;border-radius:6px;padding:1px 7px;font-size:10px;font-weight:800;">남</span>'
     :g==='여'?'<span style="flex-shrink:0;background:rgba(232,120,150,.16);color:#e8a0ba;border-radius:6px;padding:1px 7px;font-size:10px;font-weight:800;">여</span>':'';
+  // 나이·경력은 각각 고정폭 우측정렬 열로 — 경력 유무·자릿수와 무관하게 세로로 일렬 정렬
   const person=(nm,gender,age,exp,ph,lead,acc)=>`<div style="display:flex;align-items:center;gap:7px;padding:3.5px 0;">
       <span style="font-size:12.5px;font-weight:${lead?'800':'600'};color:${acc?'#ff9a90':(lead?'#eef0f2':'#d5d8dc')};flex-shrink:0;">${lead?'👤 ':'└ '}${_esc(nm||'-')}${acc?' <span style="font-size:9.5px;background:rgba(255,107,91,.16);color:#ff8a80;border-radius:5px;padding:1px 5px;font-weight:800;">🚨사고자</span>':''}</span>
       ${callBtn(ph)}
-      <span style="margin-left:auto;font-size:10px;color:#949aa2;flex-shrink:0;">${[age!=null?age+'세':'',expStr(exp)].filter(Boolean).join(' · ')}</span>
-      ${gChip(gender)}</div>`;
+      <span style="margin-left:auto;font-size:10px;color:#949aa2;width:32px;text-align:right;flex-shrink:0;">${age!=null?age+'세':''}</span>
+      <span style="font-size:10px;color:#8b95a1;width:38px;text-align:right;flex-shrink:0;">${expStr(exp)}</span>
+      <span style="width:26px;text-align:right;flex-shrink:0;">${gChip(gender)}</span></div>`;
   let html=`<div style="display:flex;align-items:center;gap:6px;margin-bottom:10px;">
       <button onclick="climbRosterStep(-1)" ${idx<=0?'disabled':''} style="background:#0e2436;border:1px solid rgba(255,255,255,.25);color:#a5abb3;border-radius:9px;padding:8px 11px;font-size:14px;font-weight:800;cursor:pointer;${idx<=0?'opacity:.35;':''}">◀</button>
       <div style="flex:1;text-align:center;">
@@ -2033,7 +2061,8 @@ function _renderClimbStats(all){
     .sort((a,b)=>String(b.date).localeCompare(String(a.date)));
   const accN=accList.length;
   const mini=(lbl,val,col,sub)=>`<div style="background:#0f0f11;border-radius:10px;padding:11px 8px;text-align:center;"><div style="font-size:18px;font-weight:800;color:${col||'#eaecef'};line-height:1.15;">${val}</div><div style="font-size:9.5px;color:#8b95a1;margin-top:3px;">${lbl}</div>${sub?`<div style="font-size:8.5px;color:#565f6b;margin-top:1px;">${sub}</div>`:''}</div>`;
-  const bar=(rows,unit,colf)=>{const max=Math.max.apply(null,[1].concat(rows.map(x=>x.v)));return rows.map(x=>`<div style="display:flex;align-items:center;gap:8px;padding:4px 0;"><span style="font-size:11px;color:#cdd1d6;width:92px;flex-shrink:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${_esc(x.k)}</span><div style="flex:1;height:9px;background:rgba(255,255,255,.05);border-radius:5px;overflow:hidden;"><div style="height:100%;width:${Math.max(3,Math.round(x.v/max*100))}%;background:${colf?colf(x):'#3182f6'};border-radius:5px;"></div></div><span style="font-size:11px;color:#eaecef;font-weight:800;min-width:64px;text-align:right;">${x.v}${unit||'명'}${x.team!=null?` <span style="color:#6b7684;font-weight:600;font-size:9px;">${x.team}팀</span>`:''}</span></div>`).join('');};
+  // 값(N명)·팀수(N팀)를 각각 고정폭 우측정렬 열로 — 자릿수 달라도 세로 일렬 정렬
+  const bar=(rows,unit,colf)=>{const max=Math.max.apply(null,[1].concat(rows.map(x=>x.v)));return rows.map(x=>`<div style="display:flex;align-items:center;gap:8px;padding:4px 0;"><span style="font-size:11px;color:#cdd1d6;width:92px;flex-shrink:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${_esc(x.k)}</span><div style="flex:1;height:9px;background:rgba(255,255,255,.05);border-radius:5px;overflow:hidden;"><div style="height:100%;width:${Math.max(3,Math.round(x.v/max*100))}%;background:${colf?colf(x):'#3182f6'};border-radius:5px;"></div></div><span style="font-size:11px;color:#eaecef;font-weight:800;width:52px;text-align:right;flex-shrink:0;">${x.v.toLocaleString?x.v.toLocaleString():x.v}${unit||'명'}</span><span style="color:#6b7684;font-weight:600;font-size:9px;width:34px;text-align:right;flex-shrink:0;">${x.team!=null?x.team+'팀':''}</span></div>`).join('');};
   // 세로 막대(컬럼) 차트 — 월별·요일별처럼 항목 적은 건 한 줄에 세로 막대로(공간 절약)
   const colChart=(rows,colf)=>{const max=Math.max.apply(null,[1].concat(rows.map(x=>x.v)));return `<div style="display:flex;align-items:flex-end;gap:5px;height:78px;">${rows.map(x=>`<div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;min-width:0;"><span style="font-size:10px;color:#eaecef;font-weight:800;line-height:1;">${x.v}</span><div style="width:66%;max-width:24px;height:${Math.max(3,Math.round(x.v/max*44))}px;background:${colf?colf(x):'#3182f6'};border-radius:4px 4px 0 0;margin-top:3px;"></div><span style="font-size:10px;color:#949aa2;margin-top:3px;white-space:nowrap;">${_esc(x.k)}</span></div>`).join('')}</div>`;};
   // ── 총 통계 요약 (모드 토글: 실제 이용 / 신청 전체) ──
@@ -3794,7 +3823,7 @@ function sosToRescue(id){
 // 앱 자체 업데이트 (OTA · Capgo 자체호스팅) — APK 전용. 웹/PWA는 서비스워커가 자동 갱신.
 // 번들(www)의 새 버전을 ota.json으로 알리면, 설치된 앱이 받아서 그 자리에서 교체(재빌드 불필요).
 // ══════════════════════════════════════════
-const OTA_VER='2026.07.19.300';                         // ← 현재 번들 버전 (릴리스마다 올림 · build-ota.sh가 ota.json에 반영)
+const OTA_VER='2026.07.19.301';                         // ← 현재 번들 버전 (릴리스마다 올림 · build-ota.sh가 ota.json에 반영)
 const OTA_MANIFEST='https://seorak1275.github.io/seoraksan/ota.json';
 // 업데이트 확인 폴백 소스 — 일부 기관망·통신사에서 github.io가 막혀 '확인 실패(네트워크)'가 나는 경우 대비.
 // 순서대로 시도: ① GitHub Pages(원본·즉시 반영) ② jsDelivr CDN(공개저장소 미러·거의 모든 망 통과)
