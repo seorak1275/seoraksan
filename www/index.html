@@ -325,7 +325,7 @@ try{history.replaceState({view:'home'},'','');history.pushState({view:'home'},''
       </div>
       <div style="display:flex;gap:6px;">
         <button class="map-ctrl" id="sosReqBtn" onclick="openSosRequest()" style="position:static;pointer-events:auto;border-color:#ffe14d;background:rgba(192,57,43,.7);color:#fff;font-weight:700;">🆘 조난·사고자 위치요청</button>
-        <button class="map-ctrl" onclick="openPatrolMap()" style="position:static;pointer-events:auto;">🗺 구역도</button>
+        <button class="map-ctrl" onclick="_toggleZones()" style="position:static;pointer-events:auto;">🗺 구역</button>
       </div>
     </div>
     <button class="fab-gps" onclick="gpsTo('rescue')" title="내 위치">

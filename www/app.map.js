@@ -277,6 +277,59 @@ function _paintPark(map,d){
   });
 }
 // ── 🔧 상황판 세로선 진단 — 레이어를 하나씩 꺼서 원인 특정 (사용자 A/B 테스트용) ──
+// ── 🗺 순찰 구역 오버레이(벡터) — 직무현황 PDF의 구역 경계를 좌표 변환해 실제 지도 위에 표시 ──
+// park-zones.json: 지구 색면 6개 + 구역 분할선 50개 + 번호 라벨(탭=범위·담당) — 공원경계 정합 기반(오차 ~30m)
+let _zoneLayer=null,_zoneData=null;
+function _toggleZones(){
+  if(_zoneLayer){_zoneClear();toast('🗺 구역 표시 끔');return;}
+  const go=()=>{_zoneDraw();toast('🗺 순찰 구역 표시 — 번호를 누르면 범위·담당이 나옵니다',4000);};
+  if(_zoneData){go();return;}
+  fetch('park-zones.json').then(r=>r.json()).then(zd=>{_zoneData=zd;go();})
+    .catch(()=>toast('⚠️ 구역 데이터를 불러오지 못했습니다'));
+}
+function _zoneClear(){
+  if(_zoneLayer)_zoneLayer.forEach(o=>{try{o.setMap(null);}catch(e){}});
+  _zoneLayer=null;
+  const c=document.getElementById('zoneInfoCard');if(c)c.remove();
+}
+function _zoneDraw(){
+  if(!mapR||!_zoneData||!window.kakao)return;
+  _zoneClear();_zoneLayer=[];
+  const zd=_zoneData;
+  (zd.districts||[]).forEach(d=>{
+    (d.rings||[]).forEach(ring=>{
+      if(ring.length<3)return;
+      _zoneLayer.push(new kakao.maps.Polygon({path:ring.map(p=>new kakao.maps.LatLng(p[0],p[1])),
+        strokeWeight:2.5,strokeColor:d.color,strokeOpacity:.95,fillColor:d.color,fillOpacity:.10,zIndex:1,map:mapR}));
+    });
+  });
+  (zd.lines||[]).forEach(l=>{
+    if(l.length<2)return;
+    _zoneLayer.push(new kakao.maps.Polyline({path:l.map(p=>new kakao.maps.LatLng(p[0],p[1])),
+      strokeWeight:1.8,strokeColor:'#ffffff',strokeOpacity:.8,zIndex:2,map:mapR}));
+  });
+  (zd.labels||[]).forEach(lb=>{
+    const el=document.createElement('div');
+    el.style.cssText='background:rgba(18,22,30,.85);color:#ffd76a;font-size:11px;font-weight:800;padding:2px 7px;border-radius:9px;border:1px solid rgba(255,215,106,.55);cursor:pointer;line-height:1.4;';
+    el.textContent=lb.n;
+    el.onclick=function(ev){try{ev.stopPropagation();}catch(e){}_zoneInfo(lb.n);};
+    const ov=new kakao.maps.CustomOverlay({position:new kakao.maps.LatLng(lb.lat,lb.lng),content:el,yAnchor:.5,zIndex:6,clickable:true});
+    ov.setMap(mapR);_zoneLayer.push(ov);
+  });
+}
+function _zoneInfo(n){
+  const inf=(_zoneData&&_zoneData.info&&_zoneData.info[n])||null;
+  let c=document.getElementById('zoneInfoCard');if(c)c.remove();
+  c=document.createElement('div');c.id='zoneInfoCard';
+  c.style.cssText='position:fixed;left:12px;right:12px;bottom:calc(74px + env(safe-area-inset-bottom));z-index:9500;background:#16161a;border:1px solid rgba(255,215,106,.4);border-radius:13px;padding:12px 14px;box-shadow:0 6px 20px rgba(0,0,0,.6);';
+  c.innerHTML=`<div style="display:flex;align-items:center;gap:8px;">
+      <span style="font-size:14px;font-weight:800;color:#ffd76a;">${_esc(n)}구역</span>
+      <span style="flex:1;font-size:12px;color:#d5d8dc;line-height:1.5;">${inf?_esc(inf.r||''):'범위 정보 없음'}</span>
+      <button onclick="document.getElementById('zoneInfoCard').remove()" style="background:none;border:none;color:rgba(255,255,255,.5);font-size:19px;cursor:pointer;line-height:1;">×</button></div>
+    ${inf&&inf.m?`<div style="font-size:12px;color:#8fb8ad;margin-top:5px;">담당: <b style="color:#a7e3c4;">${_esc(inf.m)}</b></div>`:''}
+    <button onclick="openPatrolMap()" style="margin-top:8px;padding:7px 11px;border-radius:8px;border:1px solid rgba(49,130,246,.4);background:rgba(49,130,246,.12);color:#4d9bf5;font-size:11px;font-weight:700;cursor:pointer;">📄 원본 구역도 이미지 보기</button>`;
+  document.body.appendChild(c);
+}
 // ── 🗺 순찰 담당 구역도(직무현황표 PDF) 뷰어 — 핀치·휠·더블탭 확대, 오프라인 캐시 ──
 function openPatrolMap(){
   let ov=document.getElementById('patrolMapOv');if(ov)ov.remove();
