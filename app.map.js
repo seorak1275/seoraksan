@@ -293,29 +293,44 @@ function _zoneClear(){
   const c=document.getElementById('zoneInfoCard');if(c)c.remove();
 }
 function _zoneDraw(){
-  if(!mapR||!_zoneData||!window.kakao)return;
+  const _zm=(typeof mapI!=='undefined'&&mapI)?mapI:null; // 시설물 지도에 표시
+  if(!_zm||!_zoneData||!window.kakao)return;
   _zoneClear();_zoneLayer=[];
   const zd=_zoneData;
+  // 내 담당 구역 — 로그인한 이름이 담당자에 포함된 구역은 초록으로 강조
+  const _me=DB.g('currentUser')||{};
+  const _myName=String(_me.realName||_me.name||'').trim();
+  const _isMine=n=>{const inf=zd.info&&zd.info[n];return !!(_myName&&inf&&inf.m&&inf.m.indexOf(_myName)>=0);};
+  const _myLbs=[];
   (zd.districts||[]).forEach(d=>{
     (d.rings||[]).forEach(ring=>{
       if(ring.length<3)return;
       _zoneLayer.push(new kakao.maps.Polygon({path:ring.map(p=>new kakao.maps.LatLng(p[0],p[1])),
-        strokeWeight:2.5,strokeColor:d.color,strokeOpacity:.95,fillColor:d.color,fillOpacity:.10,zIndex:1,map:mapR}));
+        strokeWeight:2.5,strokeColor:d.color,strokeOpacity:.95,fillColor:d.color,fillOpacity:.10,zIndex:1,map:_zm}));
     });
   });
   (zd.lines||[]).forEach(l=>{
     if(l.length<2)return;
     _zoneLayer.push(new kakao.maps.Polyline({path:l.map(p=>new kakao.maps.LatLng(p[0],p[1])),
-      strokeWeight:1.8,strokeColor:'#ffffff',strokeOpacity:.8,zIndex:2,map:mapR}));
+      strokeWeight:1.8,strokeColor:'#ffffff',strokeOpacity:.8,zIndex:2,map:_zm}));
   });
   (zd.labels||[]).forEach(lb=>{
+    const mine=_isMine(lb.n);
     const el=document.createElement('div');
-    el.style.cssText='background:rgba(18,22,30,.85);color:#ffd76a;font-size:11px;font-weight:800;padding:2px 7px;border-radius:9px;border:1px solid rgba(255,215,106,.55);cursor:pointer;line-height:1.4;';
-    el.textContent=lb.n;
+    el.style.cssText=mine
+      ?'background:rgba(15,54,32,.92);color:#7dffb0;font-size:12px;font-weight:900;padding:3px 9px;border-radius:10px;border:1.5px solid #3ddc84;cursor:pointer;line-height:1.4;box-shadow:0 0 8px rgba(61,220,132,.5);'
+      :'background:rgba(18,22,30,.85);color:#ffd76a;font-size:11px;font-weight:800;padding:2px 7px;border-radius:9px;border:1px solid rgba(255,215,106,.55);cursor:pointer;line-height:1.4;';
+    el.textContent=mine?('★'+lb.n):lb.n;
     el.onclick=function(ev){try{ev.stopPropagation();}catch(e){}_zoneInfo(lb.n);};
-    const ov=new kakao.maps.CustomOverlay({position:new kakao.maps.LatLng(lb.lat,lb.lng),content:el,yAnchor:.5,zIndex:6,clickable:true});
-    ov.setMap(mapR);_zoneLayer.push(ov);
+    const ov=new kakao.maps.CustomOverlay({position:new kakao.maps.LatLng(lb.lat,lb.lng),content:el,yAnchor:.5,zIndex:mine?7:6,clickable:true});
+    ov.setMap(_zm);_zoneLayer.push(ov);
+    if(mine)_myLbs.push(lb);
   });
+  // 내 구역이 있으면 지도 이동 + 안내
+  if(_myLbs.length){
+    try{_zm.setCenter(new kakao.maps.LatLng(_myLbs[0].lat,_myLbs[0].lng));if(_zm.getLevel()>7)_zm.setLevel(7);}catch(e){}
+    toast('⭐ 내 담당 구역: '+_myLbs.map(l=>l.n).join('·')+'구역 — 초록 표시');
+  }
 }
 function _zoneInfo(n){
   const inf=(_zoneData&&_zoneData.info&&_zoneData.info[n])||null;

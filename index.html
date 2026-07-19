@@ -323,9 +323,8 @@ try{history.replaceState({view:'home'},'','');history.pushState({view:'home'},''
         <button class="map-ctrl" id="resCatFilterBtn" onclick="toggleResCatFilter()" style="position:static;pointer-events:auto;margin-left:auto;display:flex;align-items:center;gap:4px;border-color:rgba(39,174,96,.5);color:#27ae60;">🗺️ 시설물 <span id="resCatFilterBadge" style="display:none;background:#27ae60;color:#fff;border-radius:50%;width:15px;height:15px;font-size:9px;font-weight:800;align-items:center;justify-content:center;flex-shrink:0;"></span></button>
         <button class="map-ctrl" id="resMapFilterBtn" onclick="toggleResMapFilter()" style="position:static;pointer-events:auto;display:flex;align-items:center;gap:4px;border-color:rgba(192,57,43,.5);color:#e05050;">🚨 구조 <span id="resMapFilterBadge" style="display:none;background:#e05050;color:#fff;border-radius:50%;width:15px;height:15px;font-size:9px;font-weight:800;align-items:center;justify-content:center;flex-shrink:0;"></span></button>
       </div>
-      <div style="display:flex;gap:6px;">
+      <div style="display:flex;">
         <button class="map-ctrl" id="sosReqBtn" onclick="openSosRequest()" style="position:static;pointer-events:auto;border-color:#ffe14d;background:rgba(192,57,43,.7);color:#fff;font-weight:700;">🆘 조난·사고자 위치요청</button>
-        <button class="map-ctrl" onclick="_toggleZones()" style="position:static;pointer-events:auto;">🗺 구역</button>
       </div>
     </div>
     <button class="fab-gps" onclick="gpsTo('rescue')" title="내 위치">
@@ -440,7 +439,7 @@ try{history.replaceState({view:'home'},'','');history.pushState({view:'home'},''
       </div>
     </div>
     <button class="map-ctrl" onclick="toggleMapType('inspect')">위성/일반</button>
-    <button class="map-ctrl" onclick="openPatrolMap()" style="left:96px;">🗺 구역도</button>
+    <button class="map-ctrl" onclick="_toggleZones()" style="left:96px;">🗺 구역</button>
     <button class="map-ctrl" id="inspFilterBtn" onclick="toggleInspFilter()" style="left:auto;right:10px;display:flex;align-items:center;gap:4px;">
       <span id="inspFilterIco">⚙️</span> 필터 <span id="inspFilterBadge" style="display:none;background:#e05050;color:#fff;border-radius:50%;width:17px;height:17px;font-size:9px;font-weight:800;align-items:center;justify-content:center;box-shadow:0 1px 5px rgba(224,80,80,.55);flex-shrink:0;"></span>
     </button>
