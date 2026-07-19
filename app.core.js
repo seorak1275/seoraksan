@@ -806,6 +806,7 @@ function initFirebase(onReady){
           if(d.dk){const sk=window._notiSeenDk||(window._notiSeenDk={});if(sk['rx:'+d.dk])return;sk['rx:'+d.dk]=1;sk[d.dk]=1;}
           if(!_notiRecipientReady())return; // 미로그인 상태에는 알림 전달 안 함(로그인 화면만 봐야 함)
           if(d.adminOnly&&!(typeof isAdminUser==='function'&&isAdminUser()))return; // 관리자 전용 알림은 관리자만 수신
+          if((d.devOnly||String(d.type||'').indexOf('op_')===0)&&!_amDev())return; // 【임시】특보(op_*)는 개발자만 수신
           if(d.targetKakaoIds&&d.targetKakaoIds.length){ // 대상 지정 알림: 지정된 카카오ID만 수신
             var _myK=String((DB.g('currentUser')||{}).kakaoId||'');
             if(!_myK||d.targetKakaoIds.map(String).indexOf(_myK)<0)return;
@@ -1607,8 +1608,17 @@ function _notiRecipientReady(){
   }catch(e){}
   return false;
 }
+// 개발자(마스터 포함) 여부 — 특보 알림 임시 제한용
+function _amDev(){
+  try{
+    const u=DB.g('currentUser')||{};
+    return (typeof _isDeveloper==='function'&&_isDeveloper(u.kakaoId))||(typeof _isMasterAdmin==='function'&&_isMasterAdmin());
+  }catch(e){return false;}
+}
 function pushNoti(msg,ico,type='info',link=null,pushCat=null,opts){
   const adminOnly=!!(opts&&opts.adminOnly); // 관리자에게만 보낼 알림(권한 요청 등)
+  // 【임시】 특보운영(op_*) 알림은 안정화 전까지 개발자 전용 — 전 직원 발송·푸시 중단 (2026-07 윤태종 지시)
+  const devOnly=String(type).indexOf('op_')===0;
   // 특정 카카오ID들에게만 보낼 알림(시설물 담당자 등) — 전체 진동·푸시 없이 대상자 기기에서만 표시
   const targets=(opts&&Array.isArray(opts.targetKakaoIds))?opts.targetKakaoIds.map(String).filter(Boolean):null;
   // 대상 지정 알림은 발신자 개인설정과 무관하게 반드시 브로드캐스트(대상자에게 도달해야 함)
@@ -1621,20 +1631,20 @@ function pushNoti(msg,ico,type='info',link=null,pushCat=null,opts){
   if(dk){const sk=window._notiSeenDk||(window._notiSeenDk={});sk[dk]=1;}
   const _myK=String((DB.g('currentUser')||{}).kakaoId||'');
   const _iAmTarget=!targets||(_myK&&targets.indexOf(_myK)>=0);
-  // 내 벨에 추가 — 관리자 전용인데 관리자 아니거나 / 대상 지정인데 내가 대상 아니면 추가 안 함
-  if((!adminOnly||(typeof isAdminUser==='function'&&isAdminUser()))&&_iAmTarget){
+  // 내 벨에 추가 — 관리자 전용인데 관리자 아니거나 / 대상 지정인데 내가 대상 아니면 추가 안 함 / 개발자 전용은 개발자만
+  if((!adminOnly||(typeof isAdminUser==='function'&&isAdminUser()))&&_iAmTarget&&(!devOnly||_amDev())){
     const ns=DB.g('notis')||[];ns.unshift({id,msg,ico,time:now(),read:false,link});
     if(ns.length>80)ns.splice(80);DB.s('notis',ns);updateBell();
   }
-  // 꺼진 폰까지 OS 푸시 — 관리자 전용·대상 지정은 전체 OS푸시를 보내지 않음(앱 내 벨로만, 전원 진동 방지)
-  if(!adminOnly&&!targets)_sendFcmPush('설악산 현장관리',msg,pushCat||type,link);
-  // 특보(op_*) 알림은 설정 켠 사용자의 카카오톡(나와의 채팅)으로도 발송
-  try{if(String(type).indexOf('op_')===0&&typeof _kakaoMsgOn==='function'&&_kakaoMsgOn()&&typeof _sendKakaoSelf==='function')_sendKakaoSelf(msg);}catch(e){}
+  // 꺼진 폰까지 OS 푸시 — 관리자 전용·대상 지정·개발자 전용은 전체 OS푸시를 보내지 않음
+  if(!adminOnly&&!targets&&!devOnly)_sendFcmPush('설악산 현장관리',msg,pushCat||type,link);
+  // 특보(op_*) 알림은 설정 켠 사용자의 카카오톡(나와의 채팅)으로도 발송 — 【임시】개발자만
+  try{if(String(type).indexOf('op_')===0&&_amDev()&&typeof _kakaoMsgOn==='function'&&_kakaoMsgOn()&&typeof _sendKakaoSelf==='function')_sendKakaoSelf(msg);}catch(e){}
   // 기기 간 Firestore 브로드캐스트 (adminOnly·targetKakaoIds면 수신측에서 필터)
   if(_fdb){
     _fdb.collection('sharedNotis').doc(String(id)).set({
       id,msg,ico,type:type||'info',link:link||null,adminOnly:adminOnly,targetKakaoIds:targets||null,
-      at:id,timeStr:now(),deviceId:_MY_DEVICE_ID,dk:dk||null
+      at:id,timeStr:now(),deviceId:_MY_DEVICE_ID,dk:dk||null,devOnly:devOnly||false
     }).catch(()=>{});
   }
 }

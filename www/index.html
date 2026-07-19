@@ -444,12 +444,14 @@ try{history.replaceState({view:'home'},'','');history.pushState({view:'home'},''
         <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:11px;height:11px;border-radius:50%;border:1.5px solid rgba(39,174,96,.8);"></div>
       </div>
     </div>
-    <button class="map-ctrl" onclick="toggleMapType('inspect')">위성/일반</button>
-    <button class="map-ctrl" id="zoneBtn" onclick="_toggleZones()" style="left:96px;">🗺 구역</button>
-    <button class="map-ctrl" id="useZoneBtn" onclick="_toggleUseZones()" style="left:170px;">🌿 용도</button>
-    <button class="map-ctrl" id="inspFilterBtn" onclick="toggleInspFilter()" style="left:auto;right:10px;display:flex;align-items:center;gap:4px;">
-      <span id="inspFilterIco">⚙️</span> 필터 <span id="inspFilterBadge" style="display:none;background:#e05050;color:#fff;border-radius:50%;width:17px;height:17px;font-size:9px;font-weight:800;align-items:center;justify-content:center;box-shadow:0 1px 5px rgba(224,80,80,.55);flex-shrink:0;"></span>
-    </button>
+    <div id="inspTopCtrls" style="position:absolute;top:8px;left:8px;right:8px;z-index:10;display:flex;gap:6px;align-items:center;pointer-events:none;">
+      <button class="map-ctrl" style="position:static;pointer-events:auto;" onclick="toggleMapType('inspect')">위성/일반</button>
+      <button class="map-ctrl" id="zoneBtn" style="position:static;pointer-events:auto;" onclick="_toggleZones()">🗺 구역</button>
+      <button class="map-ctrl" id="useZoneBtn" style="position:static;pointer-events:auto;" onclick="_toggleUseZones()">🌿 용도</button>
+      <button class="map-ctrl" id="inspFilterBtn" style="position:static;pointer-events:auto;margin-left:auto;display:flex;align-items:center;gap:4px;" onclick="toggleInspFilter()">
+        <span id="inspFilterIco">⚙️</span> 필터 <span id="inspFilterBadge" style="display:none;background:#e05050;color:#fff;border-radius:50%;width:17px;height:17px;font-size:9px;font-weight:800;align-items:center;justify-content:center;box-shadow:0 1px 5px rgba(224,80,80,.55);flex-shrink:0;"></span>
+      </button>
+    </div>
     <button class="fab-gps" onclick="gpsTo('inspect')">📍</button>
     <button class="fab" style="background:#0c4838;color:#fff;" onclick="openAddFac()">＋</button>
     <!-- 필터 패널: 필터 버튼 '바로 아래' 드롭다운(배경 오버레이 없음 → 지도 조작 가능) -->
@@ -546,6 +548,8 @@ try{history.replaceState({view:'home'},'','');history.pushState({view:'home'},''
     <div style="display:flex;align-items:center;gap:8px;flex-shrink:0;">
       <button onclick="boardDiag()" title="세로선 진단" style="background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.2);color:#8b95a1;border-radius:9px;padding:7px 12px;font-size:13px;cursor:pointer;">🔧</button>
       <button id="boardMapTypeBtn" onclick="toggleBoardMapType()" style="background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.3);color:#a5abb3;border-radius:9px;padding:7px 14px;font-size:13px;font-weight:700;cursor:pointer;">🛰 위성</button>
+      <button id="boardZoneBtn" onclick="_toggleZonesBoard()" style="background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.3);color:#a5abb3;border-radius:9px;padding:7px 14px;font-size:13px;font-weight:700;cursor:pointer;">🗺 구역</button>
+      <button id="boardUseZoneBtn" onclick="_toggleUseZonesBoard()" style="background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.3);color:#a5abb3;border-radius:9px;padding:7px 14px;font-size:13px;font-weight:700;cursor:pointer;">🌿 용도</button>
       <button onclick="closeBoard()" style="background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);color:rgba(255,255,255,.5);border-radius:9px;padding:7px 14px;font-size:13px;cursor:pointer;">✕ 닫기</button>
     </div>
   </div>

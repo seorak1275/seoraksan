@@ -398,13 +398,78 @@ function _zoneInfo(n){
   let c=document.getElementById('zoneInfoCard');if(c)c.remove();
   c=document.createElement('div');c.id='zoneInfoCard';
   c.style.cssText='position:fixed;left:50%;transform:translateX(-50%);bottom:calc(74px + env(safe-area-inset-bottom));z-index:9500;width:calc(100% - 24px);max-width:440px;box-sizing:border-box;background:#16161a;border:1px solid rgba(255,215,106,.4);border-radius:13px;padding:12px 14px;box-shadow:0 6px 20px rgba(0,0,0,.6);';
+  const _onBoard=(()=>{try{return document.getElementById('v-board').classList.contains('on');}catch(e){return false;}})();
   c.innerHTML=`<div style="display:flex;align-items:flex-start;gap:8px;">
       <span style="font-size:14px;font-weight:800;color:#ffd76a;flex-shrink:0;">${_esc(n)}구역</span>
       <span style="flex:1;font-size:12px;color:#d5d8dc;line-height:1.5;word-break:keep-all;">${inf?_esc(inf.r||''):'범위 정보 없음'}</span>
       <button onclick="_zoneUnsel()" style="background:none;border:none;color:rgba(255,255,255,.5);font-size:19px;cursor:pointer;line-height:1;flex-shrink:0;">×</button></div>
     ${inf&&inf.m?`<div style="font-size:12px;color:#8fb8ad;margin-top:5px;">담당: <b style="color:#a7e3c4;">${_esc(inf.m)}</b></div>`:''}
-    <button onclick="_zoneShowFacs('${_escq(n)}')" style="margin-top:8px;padding:7px 11px;border-radius:8px;border:1px solid rgba(255,215,106,.45);background:rgba(255,215,106,.1);color:#ffd76a;font-size:11px;font-weight:700;cursor:pointer;">🏗 이 구역 시설물 보기</button>`;
+    ${_onBoard?'':`<button onclick="_zoneShowFacs('${_escq(n)}')" style="margin-top:8px;padding:7px 11px;border-radius:8px;border:1px solid rgba(255,215,106,.45);background:rgba(255,215,106,.1);color:#ffd76a;font-size:11px;font-weight:700;cursor:pointer;">🏗 이 구역 시설물 보기</button>`}`;
+  if(_onBoard)c.style.zIndex='99600'; // 상황판(전체화면) 위로
   document.body.appendChild(c);
+}
+// ── 상황판 지도용 구역·용도 레이어 — 같은 데이터를 큰 지도에서 그대로 (표시 전용, 탭=범위·담당 카드) ──
+let _zoneLayerB=null,_useZoneLayerB=null;
+function _bdBtnOn(id,on){
+  const b=document.getElementById(id);if(!b)return;
+  b.style.background=on?'rgba(49,130,246,.85)':'rgba(255,255,255,.1)';
+  b.style.color=on?'#fff':'#a5abb3';
+  b.style.borderColor=on?'#7db4ff':'rgba(255,255,255,.3)';
+}
+function _toggleZonesBoard(){
+  if(_zoneLayerB){_zoneLayerB.forEach(o=>{try{o.setMap(null);}catch(e){}});_zoneLayerB=null;_bdBtnOn('boardZoneBtn',false);
+    const c=document.getElementById('zoneInfoCard');if(c)c.remove();return;}
+  const go=()=>{_zoneDrawBoard();_bdBtnOn('boardZoneBtn',true);};
+  if(_zoneData){go();return;}
+  fetch('park-zones.json').then(r=>r.json()).then(zd=>{_zoneData=zd;go();})
+    .catch(()=>toast('⚠️ 구역 데이터를 불러오지 못했습니다'));
+}
+function _zoneDrawBoard(){
+  if(!_boardMap||!_zoneData||!window.kakao)return;
+  if(_zoneLayerB)_zoneLayerB.forEach(o=>{try{o.setMap(null);}catch(e){}});
+  _zoneLayerB=[];
+  (_zoneData.zones||[]).forEach(z=>{
+    (z.rings||[]).forEach(ring=>{
+      if(ring.length<3)return;
+      const pg=new kakao.maps.Polygon({path:ring.map(p=>new kakao.maps.LatLng(p[0],p[1])),
+        strokeWeight:1.5,strokeColor:'#ffffff',strokeOpacity:.7,fillColor:z.color,fillOpacity:.12,zIndex:1,map:_boardMap});
+      kakao.maps.event.addListener(pg,'click',function(){_zoneInfo(z.n);});
+      _zoneLayerB.push(pg);
+    });
+  });
+  (_zoneData.labels||[]).forEach(lb=>{
+    const el=document.createElement('div');
+    el.style.cssText='background:rgba(18,22,30,.85);color:#ffd76a;font-size:12px;font-weight:800;padding:2px 8px;border-radius:9px;border:1px solid rgba(255,215,106,.55);cursor:pointer;line-height:1.4;';
+    el.textContent=lb.n;
+    el.onclick=function(ev){try{ev.stopPropagation();}catch(e){}_zoneInfo(lb.n);};
+    const ov=new kakao.maps.CustomOverlay({position:new kakao.maps.LatLng(lb.lat,lb.lng),content:el,yAnchor:.5,zIndex:6,clickable:true});
+    ov.setMap(_boardMap);_zoneLayerB.push(ov);
+  });
+}
+function _toggleUseZonesBoard(){
+  if(_useZoneLayerB){_useZoneLayerB.forEach(o=>{try{o.setMap(null);}catch(e){}});_useZoneLayerB=null;_bdBtnOn('boardUseZoneBtn',false);
+    const lg=document.getElementById('useZoneLegendB');if(lg)lg.remove();return;}
+  const go=()=>{
+    if(!_boardMap)return;
+    _useZoneLayerB=[];_bdBtnOn('boardUseZoneBtn',true);
+    (_useZoneData.zones||[]).forEach(z=>{
+      (z.rings||[]).forEach(r=>{
+        if(r.length<3)return;
+        _useZoneLayerB.push(new kakao.maps.Polygon({path:r.map(p=>new kakao.maps.LatLng(p[1],p[0])),
+          strokeWeight:2,strokeColor:z.color,strokeOpacity:.95,fillColor:z.color,fillOpacity:.34,map:_boardMap}));
+      });
+    });
+    let lg=document.getElementById('useZoneLegendB');if(lg)lg.remove();
+    lg=document.createElement('div');lg.id='useZoneLegendB';
+    lg.style.cssText='position:fixed;left:12px;bottom:12px;z-index:99500;background:rgba(15,15,17,.92);border:1px solid rgba(255,255,255,.2);border-radius:11px;padding:8px 11px;display:flex;flex-direction:column;gap:3px;';
+    const seen={};
+    (_useZoneData.zones||[]).forEach(z=>{if(seen[z.grade])return;seen[z.grade]=1;
+      lg.insertAdjacentHTML('beforeend',`<div style="display:flex;align-items:center;gap:6px;font-size:10px;color:#d5d8dc;"><span style="width:10px;height:10px;border-radius:3px;background:${z.color};display:inline-block;"></span>${_esc(z.grade)}</div>`);});
+    document.body.appendChild(lg);
+  };
+  if(_useZoneData){go();return;}
+  fetch('park-usezones.json').then(r=>r.json()).then(d=>{_useZoneData=d;go();})
+    .catch(()=>toast('⚠️ 용도지구 데이터를 불러오지 못했습니다'));
 }
 // 구역 폴리곤 내부 판정(레이캐스팅) — rings는 [lat,lng] 순서
 function _zonePip(n,la,ln){
@@ -840,7 +905,12 @@ function openBoard(){
   },2000);
   history.pushState({view:'board'},'','');
 }
-function closeBoard(){clearInterval(_boardTimer);clearInterval(window._boardSizeTimer);goHome();}
+function closeBoard(){
+  clearInterval(_boardTimer);clearInterval(window._boardSizeTimer);
+  try{const lg=document.getElementById('useZoneLegendB');if(lg)lg.remove();}catch(e){}
+  try{const c=document.getElementById('zoneInfoCard');if(c)c.remove();}catch(e){}
+  goHome();
+}
 
 // 상황판 지도: 진행중 구조/위험 핀 표시
 let _boardMap=null,_boardOvs=[],_boardResizeBound=false,_boardCreateW=0;
@@ -860,6 +930,9 @@ function _createBoardMap(el){
     el._fixTried=0;
     if(!window._bdForcePlain){ // ④ 진단 모드에선 순수 지도만 — 경계·핀 전부 생략
       try{_drawParkBoundary(_boardMap);}catch(e){}
+      // 구역·용도 레이어가 켜져 있었다면 재생성된 지도에 다시 그림
+      try{if(_zoneLayerB){_zoneLayerB.forEach(o=>{try{o.setMap(null);}catch(e){}});_zoneDrawBoard();}}catch(e){}
+      try{if(_useZoneLayerB){_useZoneLayerB.forEach(o=>{try{o.setMap(null);}catch(e){}});_useZoneLayerB=null;_toggleUseZonesBoard();}}catch(e){}
       _renderBoardPins(true);
     }else{window._boardPinSig='';}
     // 레이아웃 커밋 후 한 번 더 relayout (생성 직후 폭 계산 오차 보정)
