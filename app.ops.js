@@ -358,6 +358,7 @@ function _toggleFPSec(id){
   if(body)body.style.display=window._fpSec[id]?'block':'none';
   if(arrow)arrow.textContent=window._fpSec[id]?'⌄':'›';
 }
+// 바텀시트 드래그 닫기(팀 시트 등 아래에서 뜨는 시트용 — 필터 패널은 드롭다운으로 전환되어 미사용)
 function _initFPDrag(hId,pId,closeFn){
   const h=document.getElementById(hId),p=document.getElementById(pId);
   if(!h||!p||h._fpBound)return;h._fpBound=true;
@@ -367,7 +368,6 @@ function _initFPDrag(hId,pId,closeFn){
     const y=(e.changedTouches?e.changedTouches[0]:e).clientY;
     const dist=y-y0,dt=Date.now()-t0,vel=dt>0?dist/dt:0;
     p.style.transition='transform .22s cubic-bezier(.4,0,.2,1)';
-    // 둔감하던 닫기 개선: 임계 60→40px, 또는 아래로 빠르게 튕기면(속도) 바로 닫힘
     if(dist>40||(dist>12&&vel>0.4))closeFn();else p.style.transform='translateY(0)';
     document.removeEventListener('mousemove',mv);document.removeEventListener('mouseup',up);
   };
@@ -376,17 +376,25 @@ function _initFPDrag(hId,pId,closeFn){
   h.addEventListener('touchend',up);
   h.addEventListener('mousedown',e=>{y0=e.clientY;t0=Date.now();p.style.transition='none';document.addEventListener('mousemove',mv);document.addEventListener('mouseup',up);e.preventDefault();});
 }
+// 필터 패널 = 버튼 '바로 아래' 드롭다운 — 버튼은 위에 있는데 패널이 아래에서 떠서 안 보이던 문제 해결
+function _fpOpen(pId,updateFn){
+  const p=document.getElementById(pId);if(!p)return;
+  p.style.display='flex';
+  p.style.transition='none';p.style.transform='translateY(-10px)';p.style.opacity='0';
+  if(updateFn)try{updateFn();}catch(e){}
+  requestAnimationFrame(()=>{p.style.transition='transform .2s ease,opacity .2s ease';p.style.transform='translateY(0)';p.style.opacity='1';});
+}
+function _fpClose(pId){
+  const p=document.getElementById(pId);if(!p)return;
+  p.style.transition='transform .18s ease,opacity .18s ease';
+  p.style.transform='translateY(-10px)';p.style.opacity='0';
+  setTimeout(()=>{p.style.display='none';p.style.transform='translateY(0)';p.style.opacity='1';},180);
+}
 function toggleInspFilter(){
   const p=document.getElementById('inspFilterPanel');
-  const open=p.style.display==='flex';
-  if(open){closeInspFilter();}
-  else{p.style.display='flex';p.style.transform='translateY(0)';_initFPDrag('inspFPHandle','inspFilterPanel',closeInspFilter);}
+  if(p.style.display==='flex')closeInspFilter();else _fpOpen('inspFilterPanel');
 }
-function closeInspFilter(){
-  const p=document.getElementById('inspFilterPanel');
-  p.style.transform='translateY(100%)';
-  setTimeout(()=>{p.style.display='none';p.style.transform='translateY(0)';},220);
-}
+function closeInspFilter(){_fpClose('inspFilterPanel');}
 function resetInspFilter(){
   facMapStatusF=new Set();facMapTypeF=new Set();facMapLocF=new Set();facMapGradeF=new Set();
   renderInspectMap();renderFacList();
@@ -394,15 +402,9 @@ function resetInspFilter(){
 // ─── 시설물 목록 필터 ───
 function toggleFacListFilter(){
   const p=document.getElementById('facListFilterPanel');
-  const open=p.style.display==='flex';
-  if(open){_closeFacListFilter();}
-  else{p.style.display='flex';p.style.transform='translateY(0)';_updateFacListFilterPanel();_initFPDrag('facLFPHandle','facListFilterPanel',_closeFacListFilter);}
+  if(p.style.display==='flex')_closeFacListFilter();else _fpOpen('facListFilterPanel',_updateFacListFilterPanel);
 }
-function _closeFacListFilter(){
-  const p=document.getElementById('facListFilterPanel');
-  p.style.transform='translateY(100%)';
-  setTimeout(()=>{p.style.display='none';p.style.transform='translateY(0)';},220);
-}
+function _closeFacListFilter(){_fpClose('facListFilterPanel');}
 function resetFacListFilter(){
   facMapStatusF=new Set();facMapTypeF=new Set();facMapLocF=new Set();facMapGradeF=new Set();facListSort='default';
   _persistFilters();renderInspectMap();renderFacList();
@@ -511,37 +513,19 @@ function toggleResFacCat(type,isDefault){
 function resetResCatFilter(){resFacCatH=new Set();resFacCatF=new Set();_updateResCatFilterPanel();_applyRFacFilter();}
 function toggleResCatFilter(){
   const p=document.getElementById('resCatFilterPanel');
-  const open=p.style.display==='flex';
-  if(open){_closeResCatFilter();}
-  else{p.style.display='flex';p.style.transform='translateY(0)';_updateResCatFilterPanel();_initFPDrag('resCFPHandle','resCatFilterPanel',_closeResCatFilter);}
+  if(p.style.display==='flex')_closeResCatFilter();else{_fpOpen('resCatFilterPanel',_updateResCatFilterPanel);_closeResMapFilter();}
 }
-function _closeResCatFilter(){
-  const p=document.getElementById('resCatFilterPanel');
-  p.style.transform='translateY(100%)';
-  setTimeout(()=>{p.style.display='none';p.style.transform='translateY(0)';},220);
-}
+function _closeResCatFilter(){_fpClose('resCatFilterPanel');}
 function toggleResMapFilter(){
   const p=document.getElementById('resMapFilterPanel');
-  const open=p.style.display==='flex';
-  if(open){_closeResMapFilter();}
-  else{p.style.display='flex';p.style.transform='translateY(0)';_updateResFilterPanels();_initFPDrag('resMFPHandle','resMapFilterPanel',_closeResMapFilter);}
+  if(p.style.display==='flex')_closeResMapFilter();else{_fpOpen('resMapFilterPanel',_updateResFilterPanels);_closeResCatFilter();}
 }
-function _closeResMapFilter(){
-  const p=document.getElementById('resMapFilterPanel');
-  p.style.transform='translateY(100%)';
-  setTimeout(()=>{p.style.display='none';p.style.transform='translateY(0)';},220);
-}
+function _closeResMapFilter(){_fpClose('resMapFilterPanel');}
 function toggleResListFilter(){
   const p=document.getElementById('resListFilterPanel');
-  const open=p.style.display==='flex';
-  if(open){_closeResListFilter();}
-  else{p.style.display='flex';p.style.transform='translateY(0)';_updateResFilterPanels();_initFPDrag('resLFPHandle','resListFilterPanel',_closeResListFilter);}
+  if(p.style.display==='flex')_closeResListFilter();else _fpOpen('resListFilterPanel',_updateResFilterPanels);
 }
-function _closeResListFilter(){
-  const p=document.getElementById('resListFilterPanel');
-  p.style.transform='translateY(100%)';
-  setTimeout(()=>{p.style.display='none';p.style.transform='translateY(0)';},220);
-}
+function _closeResListFilter(){_fpClose('resListFilterPanel');}
 // ── 시설물 종류별 고정 색 (핀·목록·팝업 공통 — 종류를 색으로 즉시 구분) ──
 const FAC_TYPE_COLORS={'다목적위치표지판':'#6b7684','교량':'#3182f6','데크/계단':'#e67e22','안전난간':'#46ad5f','대피소':'#7ec8a0','탐방지원센터':'#f0c060','사찰':'#c8845a','건축물':'#d4699b','목재계단':'#a5912c','계곡시설':'#2fa3c4','장소':'#b055c9'};
 function _facTypeColor(t){

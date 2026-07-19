@@ -336,27 +336,31 @@ try{history.replaceState({view:'home'},'','');history.pushState({view:'home'},''
     </div>
     <button class="fab" style="background:#7a1818;color:#fff;" onclick="openNewRescue()">🚨</button>
     <button class="fab2" id="hazFab" onclick="openNewHazard()">⚠️ 위험상황 보고</button>
-    <!-- 재난/구조 필터 패널 -->
-    <div id="resMapFilterPanel" style="display:none;position:absolute;bottom:0;left:0;right:0;z-index:20;background:#16161a;border-radius:11px 11px 0 0;box-shadow:0 -3px 18px rgba(0,0,0,.7);max-height:52%;flex-direction:column;transition:transform .22s cubic-bezier(.4,0,.2,1);touch-action:none;">
-      <div id="resMFPHandle" style="padding:7px 0 3px;flex-shrink:0;cursor:grab;user-select:none;"><div class="sheet-handle"></div></div>
-      <div style="padding:2px 12px 5px;display:flex;justify-content:space-between;align-items:center;flex-shrink:0;border-bottom:1px solid rgba(255,255,255,.06);">
+    <!-- 재난/구조 필터 패널: 필터 버튼 바로 아래 드롭다운 -->
+    <div id="resMapFilterPanel" style="display:none;position:absolute;top:50px;left:8px;right:8px;z-index:25;background:#16161a;border:1px solid rgba(255,255,255,.18);border-radius:12px;box-shadow:0 10px 26px rgba(0,0,0,.72);max-height:56%;flex-direction:column;transition:transform .2s ease,opacity .2s ease;">
+      <div style="padding:8px 12px 5px;display:flex;justify-content:space-between;align-items:center;flex-shrink:0;border-bottom:1px solid rgba(255,255,255,.06);">
         <span style="font-size:11px;font-weight:700;color:#3182f6;">🔍 필터 <span id="resMapFilterCount" style="color:#e05050;font-size:10px;"></span></span>
-        <button onclick="resetResFilter()" style="background:none;border:none;color:rgba(255,255,255,.3);font-size:10px;cursor:pointer;padding:2px 6px;">↺ 초기화</button>
+        <span style="display:flex;gap:2px;">
+          <button onclick="resetResFilter()" style="background:none;border:none;color:rgba(255,255,255,.3);font-size:10px;cursor:pointer;padding:2px 6px;">↺ 초기화</button>
+          <button onclick="_closeResMapFilter()" style="background:none;border:none;color:rgba(255,255,255,.5);font-size:14px;cursor:pointer;padding:0 6px;line-height:1;">✕</button>
+        </span>
       </div>
-      <div style="overflow-y:auto;padding:0 12px 70px;" id="resMFPSections">
+      <div style="overflow-y:auto;padding:0 12px 14px;" id="resMFPSections">
         <div id="resMFP_date"></div>
         <div id="resMFP_type"></div>
         <div id="resMFP_status"></div>
       </div>
     </div>
-    <!-- 시설물 카테고리 필터 패널 -->
-    <div id="resCatFilterPanel" style="display:none;position:absolute;bottom:0;left:0;right:0;z-index:20;background:#16161a;border-radius:11px 11px 0 0;box-shadow:0 -3px 18px rgba(0,0,0,.7);max-height:60%;flex-direction:column;transition:transform .22s cubic-bezier(.4,0,.2,1);touch-action:none;">
-      <div id="resCFPHandle" style="padding:7px 0 3px;flex-shrink:0;cursor:grab;user-select:none;"><div class="sheet-handle"></div></div>
-      <div style="padding:2px 12px 5px;display:flex;justify-content:space-between;align-items:center;flex-shrink:0;border-bottom:1px solid rgba(255,255,255,.06);">
+    <!-- 시설물 카테고리 필터 패널: 버튼 바로 아래 드롭다운 -->
+    <div id="resCatFilterPanel" style="display:none;position:absolute;top:50px;left:8px;right:8px;z-index:25;background:#16161a;border:1px solid rgba(255,255,255,.18);border-radius:12px;box-shadow:0 10px 26px rgba(0,0,0,.72);max-height:60%;flex-direction:column;transition:transform .2s ease,opacity .2s ease;">
+      <div style="padding:8px 12px 5px;display:flex;justify-content:space-between;align-items:center;flex-shrink:0;border-bottom:1px solid rgba(255,255,255,.06);">
         <span style="font-size:11px;font-weight:700;color:#27ae60;">🗺️ 시설물 필터 <span id="resCatFilterCount" style="color:#e05050;font-size:10px;"></span></span>
-        <button onclick="resetResCatFilter()" style="background:none;border:none;color:rgba(255,255,255,.3);font-size:10px;cursor:pointer;padding:2px 6px;">↺ 초기화</button>
+        <span style="display:flex;gap:2px;">
+          <button onclick="resetResCatFilter()" style="background:none;border:none;color:rgba(255,255,255,.3);font-size:10px;cursor:pointer;padding:2px 6px;">↺ 초기화</button>
+          <button onclick="_closeResCatFilter()" style="background:none;border:none;color:rgba(255,255,255,.5);font-size:14px;cursor:pointer;padding:0 6px;line-height:1;">✕</button>
+        </span>
       </div>
-      <div style="overflow-y:auto;padding:0 12px 70px;" id="resCFPContent"></div>
+      <div style="overflow-y:auto;padding:0 12px 14px;" id="resCFPContent"></div>
     </div>
     <div class="dbcard" id="resPopup">
       <div class="dbgrab"><div class="dbhandle"></div></div>
@@ -391,13 +395,15 @@ try{history.replaceState({view:'home'},'','');history.pushState({view:'home'},''
     </div>
   </div>
   <div style="flex:1;overflow-y:auto;padding:8px 12px 80px;" id="resListWrap"></div>
-  <div id="resListFilterPanel" style="display:none;position:absolute;bottom:0;left:0;right:0;z-index:20;background:#16161a;border-radius:11px 11px 0 0;box-shadow:0 -3px 18px rgba(0,0,0,.7);max-height:52%;flex-direction:column;transition:transform .22s cubic-bezier(.4,0,.2,1);touch-action:none;">
-    <div id="resLFPHandle" style="padding:7px 0 3px;flex-shrink:0;cursor:grab;user-select:none;"><div class="sheet-handle"></div></div>
-    <div style="padding:2px 12px 5px;display:flex;justify-content:space-between;align-items:center;flex-shrink:0;border-bottom:1px solid rgba(255,255,255,.06);">
+  <div id="resListFilterPanel" style="display:none;position:absolute;top:46px;left:8px;right:8px;z-index:25;background:#16161a;border:1px solid rgba(255,255,255,.18);border-radius:12px;box-shadow:0 10px 26px rgba(0,0,0,.72);max-height:56%;flex-direction:column;transition:transform .2s ease,opacity .2s ease;">
+    <div style="padding:8px 12px 5px;display:flex;justify-content:space-between;align-items:center;flex-shrink:0;border-bottom:1px solid rgba(255,255,255,.06);">
       <span style="font-size:11px;font-weight:700;color:#3182f6;">🔍 필터 <span id="resListFilterCount" style="color:#e05050;font-size:10px;"></span></span>
-      <button onclick="resetResFilter()" style="background:none;border:none;color:rgba(255,255,255,.3);font-size:10px;cursor:pointer;padding:2px 6px;">↺ 초기화</button>
+      <span style="display:flex;gap:2px;">
+        <button onclick="resetResFilter()" style="background:none;border:none;color:rgba(255,255,255,.3);font-size:10px;cursor:pointer;padding:2px 6px;">↺ 초기화</button>
+        <button onclick="_closeResListFilter()" style="background:none;border:none;color:rgba(255,255,255,.5);font-size:14px;cursor:pointer;padding:0 6px;line-height:1;">✕</button>
+      </span>
     </div>
-    <div style="overflow-y:auto;padding:0 12px 70px;" id="resLFPSections">
+    <div style="overflow-y:auto;padding:0 12px 14px;" id="resLFPSections">
       <div id="resLFP_date"></div>
       <div id="resLFP_type"></div>
       <div id="resLFP_status"></div>
@@ -446,19 +452,18 @@ try{history.replaceState({view:'home'},'','');history.pushState({view:'home'},''
     </button>
     <button class="fab-gps" onclick="gpsTo('inspect')">📍</button>
     <button class="fab" style="background:#0c4838;color:#fff;" onclick="openAddFac()">＋</button>
-    <!-- 필터 패널 (배경 오버레이 없음 → 지도 조작 가능) -->
-    <div id="inspFilterPanel" style="display:none;position:absolute;bottom:0;left:0;right:0;z-index:20;background:#16161a;border-radius:11px 11px 0 0;box-shadow:0 -3px 18px rgba(0,0,0,.7);max-height:52%;flex-direction:column;transition:transform .22s cubic-bezier(.4,0,.2,1);touch-action:none;">
-      <!-- 드래그 핸들 -->
-      <div id="inspFPHandle" style="padding:7px 0 3px;flex-shrink:0;cursor:grab;user-select:none;">
-        <div class="sheet-handle"></div>
-      </div>
+    <!-- 필터 패널: 필터 버튼 '바로 아래' 드롭다운(배경 오버레이 없음 → 지도 조작 가능) -->
+    <div id="inspFilterPanel" style="display:none;position:absolute;top:48px;left:8px;right:8px;z-index:25;background:#16161a;border:1px solid rgba(255,255,255,.18);border-radius:12px;box-shadow:0 10px 26px rgba(0,0,0,.72);max-height:56%;flex-direction:column;transition:transform .2s ease,opacity .2s ease;">
       <!-- 헤더 -->
-      <div style="padding:2px 12px 5px;display:flex;justify-content:space-between;align-items:center;flex-shrink:0;border-bottom:1px solid rgba(255,255,255,.06);">
+      <div style="padding:8px 12px 5px;display:flex;justify-content:space-between;align-items:center;flex-shrink:0;border-bottom:1px solid rgba(255,255,255,.06);">
         <span style="font-size:11px;font-weight:700;color:#3182f6;">🔍 필터 <span id="inspFilterCount" style="color:#e05050;font-size:10px;"></span></span>
-        <button onclick="resetInspFilter()" style="background:none;border:none;color:rgba(255,255,255,.3);font-size:10px;cursor:pointer;padding:2px 6px;">↺ 초기화</button>
+        <span style="display:flex;gap:2px;">
+          <button onclick="resetInspFilter()" style="background:none;border:none;color:rgba(255,255,255,.3);font-size:10px;cursor:pointer;padding:2px 6px;">↺ 초기화</button>
+          <button onclick="closeInspFilter()" style="background:none;border:none;color:rgba(255,255,255,.5);font-size:14px;cursor:pointer;padding:0 6px;line-height:1;">✕</button>
+        </span>
       </div>
       <!-- 섹션들 -->
-      <div style="overflow-y:auto;padding:0 12px 70px;" id="inspFPSections">
+      <div style="overflow-y:auto;padding:0 12px 14px;" id="inspFPSections">
         <div id="inspFP_status"></div>
         <div id="inspFP_grade"></div>
         <div id="inspFP_type"></div>
@@ -481,13 +486,15 @@ try{history.replaceState({view:'home'},'','');history.pushState({view:'home'},''
 <div id="v-inspect-list" class="view" style="flex-direction:column;">
   <button id="facListFilterBtn" onclick="toggleFacListFilter()" style="position:absolute;top:6px;right:8px;z-index:10;background:#16161a;border:1px solid rgba(255,255,255,.3);color:#3182f6;padding:4px 10px;border-radius:20px;font-size:11px;font-weight:700;display:flex;align-items:center;gap:4px;cursor:pointer;">⚙️ 필터 <span id="facListFilterBadge" style="display:none;background:#e05050;color:#fff;border-radius:50%;width:17px;height:17px;font-size:9px;font-weight:800;align-items:center;justify-content:center;box-shadow:0 1px 5px rgba(224,80,80,.55);flex-shrink:0;"></span></button>
   <div style="flex:1;overflow-y:auto;padding:42px 12px 80px;" id="facListWrap"></div>
-  <div id="facListFilterPanel" style="display:none;position:absolute;bottom:0;left:0;right:0;z-index:20;background:#16161a;border-radius:11px 11px 0 0;box-shadow:0 -3px 18px rgba(0,0,0,.7);max-height:52%;flex-direction:column;transition:transform .22s cubic-bezier(.4,0,.2,1);touch-action:none;">
-    <div id="facLFPHandle" style="padding:7px 0 3px;flex-shrink:0;cursor:grab;user-select:none;"><div class="sheet-handle"></div></div>
-    <div style="padding:2px 12px 5px;display:flex;justify-content:space-between;align-items:center;flex-shrink:0;border-bottom:1px solid rgba(255,255,255,.06);">
+  <div id="facListFilterPanel" style="display:none;position:absolute;top:42px;left:8px;right:8px;z-index:25;background:#16161a;border:1px solid rgba(255,255,255,.18);border-radius:12px;box-shadow:0 10px 26px rgba(0,0,0,.72);max-height:56%;flex-direction:column;transition:transform .2s ease,opacity .2s ease;">
+    <div style="padding:8px 12px 5px;display:flex;justify-content:space-between;align-items:center;flex-shrink:0;border-bottom:1px solid rgba(255,255,255,.06);">
       <span style="font-size:11px;font-weight:700;color:#3182f6;">🔍 필터 <span id="facListFilterCount" style="color:#e05050;font-size:10px;"></span></span>
-      <button onclick="resetFacListFilter()" style="background:none;border:none;color:rgba(255,255,255,.3);font-size:10px;cursor:pointer;padding:2px 6px;">↺ 초기화</button>
+      <span style="display:flex;gap:2px;">
+        <button onclick="resetFacListFilter()" style="background:none;border:none;color:rgba(255,255,255,.3);font-size:10px;cursor:pointer;padding:2px 6px;">↺ 초기화</button>
+        <button onclick="_closeFacListFilter()" style="background:none;border:none;color:rgba(255,255,255,.5);font-size:14px;cursor:pointer;padding:0 6px;line-height:1;">✕</button>
+      </span>
     </div>
-    <div style="overflow-y:auto;padding:0 12px 70px;" id="facLFPSections">
+    <div style="overflow-y:auto;padding:0 12px 14px;" id="facLFPSections">
       <div id="facLFP_sort"></div>
       <div id="facLFP_status"></div>
       <div id="facLFP_grade"></div>
