@@ -283,16 +283,17 @@ function _toggleUseZones(){
   if(_useZoneLayer){
     _useZoneLayer.forEach(o=>{try{o.setMap(null);}catch(e){}});_useZoneLayer=null;
     const lg=document.getElementById('useZoneLegend');if(lg)lg.remove();
+    _mapCtrlOn('useZoneBtn',false);
     toast('🌿 용도지구 표시 끔');return;
   }
   const go=()=>{
     const _zm=(typeof mapI!=='undefined'&&mapI)?mapI:null;if(!_zm)return;
-    _useZoneLayer=[];
+    _useZoneLayer=[];_mapCtrlOn('useZoneBtn',true);
     (_useZoneData.zones||[]).forEach(z=>{
       (z.rings||[]).forEach(r=>{
         if(r.length<3)return;
         _useZoneLayer.push(new kakao.maps.Polygon({path:r.map(p=>new kakao.maps.LatLng(p[1],p[0])),
-          strokeWeight:1.6,strokeColor:z.color,strokeOpacity:.9,fillColor:z.color,fillOpacity:.16,map:_zm}));
+          strokeWeight:2,strokeColor:z.color,strokeOpacity:.95,fillColor:z.color,fillOpacity:.34,map:_zm}));
       });
     });
     // 범례
@@ -313,9 +314,15 @@ function _toggleUseZones(){
 // park-zones.json v2: zones[{n,color,rings}] + labels[{n,lat,lng}] + info{n:{r,m}} — 공원경계 정합(오차 ~30m)
 // 27|31·28|31·29|32 경계는 실제 도로선 기준. 구역 탭=노란 강조+범위·담당 카드, 시설물 깜빡이 보기
 let _zoneLayer=null,_zoneData=null,_zonePolys=null,_zoneSel=null,_zoneFacBlink=null;
+// 지도 상단 토글 버튼 켬/끔 표시 — 눌려 있는지 한눈에
+function _mapCtrlOn(id,on){
+  const b=document.getElementById(id);if(!b)return;
+  if(on){b.style.background='rgba(49,130,246,.88)';b.style.color='#fff';b.style.borderColor='#7db4ff';b.style.boxShadow='0 0 8px rgba(49,130,246,.55)';}
+  else{b.style.background='';b.style.color='';b.style.borderColor='';b.style.boxShadow='';}
+}
 function _toggleZones(){
-  if(_zoneLayer){_zoneClear();toast('🗺 구역 표시 끔');return;}
-  const go=()=>{_zoneDraw();toast('🗺 순찰 구역 표시 — 구역을 누르면 범위·담당이 나옵니다',4000);};
+  if(_zoneLayer){_zoneClear();_mapCtrlOn('zoneBtn',false);toast('🗺 구역 표시 끔');return;}
+  const go=()=>{_zoneDraw();_mapCtrlOn('zoneBtn',true);toast('🗺 순찰 구역 표시 — 구역을 누르면 범위·담당이 나옵니다',4000);};
   if(_zoneData){go();return;}
   fetch('park-zones.json').then(r=>r.json()).then(zd=>{_zoneData=zd;go();})
     .catch(()=>toast('⚠️ 구역 데이터를 불러오지 못했습니다'));
@@ -427,42 +434,54 @@ function _zoneShowFacs(n){
     document.head.appendChild(st);
   }
   _zoneFacBlink=[];
-  const bounds=new kakao.maps.LatLngBounds();
   facs.forEach(f=>{
     const col=(typeof _facTypeColor==='function'?_facTypeColor(f.type):'#ffd76a');
     const el=document.createElement('div');
     el.style.cssText='cursor:pointer;padding:4px;';
-    el.innerHTML=`<span style="display:block;width:12px;height:12px;border-radius:50%;background:${col};border:1.5px solid #fff;animation:zoneFacBlink 1.2s ease-in-out infinite;"></span>`;
-    el.onclick=function(ev){try{ev.stopPropagation();}catch(e){}_zoneFacGo(f.id);};
+    el.innerHTML=`<span class="zfDot" style="display:block;width:12px;height:12px;border-radius:50%;background:${col};border:1.5px solid #fff;animation:zoneFacBlink 1.2s ease-in-out infinite;"></span>`;
+    el.onclick=function(ev){try{ev.stopPropagation();}catch(e){}_zoneFacFocus(f.id);};
     const pos=new kakao.maps.LatLng(+f.lat,+f.lng);
     const ov=new kakao.maps.CustomOverlay({position:pos,content:el,yAnchor:.5,zIndex:9,clickable:true});
-    ov.setMap(_zm);_zoneFacBlink.push(ov);bounds.extend(pos);
+    ov.setMap(_zm);_zoneFacBlink.push({ov,el,id:f.id});
   });
-  try{_zm.setBounds(bounds,60);}catch(e){}
+  // 지도는 움직이지 않음 — 선택한 구역이 계속 보이도록 유지
   const c=document.getElementById('zoneInfoCard');if(c)c.remove();
-  // 하단 목록 시트
+  // 하단 목록 시트: 탭=강조 깜빡, [이동]=지도 이동+상세, [점검]=점검 등록
   const old=document.getElementById('zoneFacOv');if(old)old.remove();
   const ov=document.createElement('div');ov.id='zoneFacOv';
   ov.style.cssText='position:absolute;bottom:0;left:0;right:0;z-index:30;background:#1c1c1e;border:1px solid rgba(255,255,255,.2);border-radius:16px 16px 0 0;box-shadow:0 -4px 20px rgba(0,0,0,.7);max-height:52vh;display:flex;flex-direction:column;padding-bottom:calc(8px + env(safe-area-inset-bottom));';
   const rows=facs.map(f=>{
     const col=_facTypeColor(f.type);
     const ty=String(f.type||'');
-    return `<div onclick="_zoneFacGo(${f.id})" style="display:flex;align-items:center;gap:8px;padding:7px 4px;border-bottom:1px solid rgba(255,255,255,.04);cursor:pointer;">
+    return `<div id="zfRow${f.id}" onclick="_zoneFacFocus(${f.id})" style="display:flex;align-items:center;gap:8px;padding:7px 4px;border-bottom:1px solid rgba(255,255,255,.04);cursor:pointer;border-radius:8px;">
       <span style="width:26px;height:26px;border-radius:50%;background:${col}30;border:1.5px solid ${col};display:inline-flex;align-items:center;justify-content:center;font-size:12px;flex-shrink:0;">${_esc(ty.split(' ')[0])}</span>
       <span style="flex:1;min-width:0;">
         <span style="display:block;font-size:12px;font-weight:700;color:#dceaf6;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${_esc(f.name||'')}</span>
         <span style="display:block;font-size:9.5px;color:#5d86a3;">${_esc(ty.split(' ').slice(1).join(' ')||'')}</span>
       </span>
+      <button onclick="event.stopPropagation();_zoneFacGo(${f.id})" style="flex-shrink:0;padding:6px 10px;border-radius:8px;border:1px solid rgba(49,130,246,.5);background:rgba(49,130,246,.14);color:#4d9bf5;font-size:11px;font-weight:800;cursor:pointer;">📍 이동</button>
+      <button onclick="event.stopPropagation();_zoneFacListClose();openFacIssueReport(${f.id})" style="flex-shrink:0;padding:6px 10px;border-radius:8px;border:1px solid rgba(255,255,255,.3);background:rgba(255,255,255,.1);color:#e8ecf1;font-size:11px;font-weight:800;cursor:pointer;">🔧 점검</button>
     </div>`;
   }).join('');
   ov.innerHTML=`
     <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 13px 7px;flex-shrink:0;">
-      <span style="font-size:12px;font-weight:800;color:#ffd76a;">🏗 ${_esc(n)}구역 시설물 <span style="font-size:9px;color:#8b9099;font-weight:600;">${facs.length}개 · 누르면 상세</span></span>
+      <span style="font-size:12px;font-weight:800;color:#ffd76a;">🏗 ${_esc(n)}구역 시설물 <span style="font-size:9px;color:#8b9099;font-weight:600;">${facs.length}개 · 탭=지도 강조, 📍이동=상세</span></span>
       <button onclick="_zoneFacListClose()" style="background:none;border:none;color:rgba(255,255,255,.45);font-size:18px;cursor:pointer;padding:0 2px;line-height:1;">×</button>
     </div>
-    <div style="overflow-y:auto;padding:0 13px 10px;">${rows}</div>`;
+    <div id="zoneFacRows" style="overflow-y:auto;padding:0 13px 10px;">${rows}</div>`;
   const host=document.querySelector('#v-inspect-map .mapwrap')||document.getElementById('v-inspect-map');
   (host||document.body).appendChild(ov);
+}
+// 목록 탭 — 지도는 그대로 두고 해당 시설물만 크게 강조 깜빡 + 줄 하이라이트
+function _zoneFacFocus(id){
+  (_zoneFacBlink||[]).forEach(b=>{
+    const dot=b.el&&b.el.querySelector('.zfDot');if(!dot)return;
+    if(b.id===id){dot.style.width='18px';dot.style.height='18px';dot.style.border='2.5px solid #fff';dot.style.opacity='1';dot.style.animationDuration='.7s';try{b.ov.setZIndex(11);}catch(e){}}
+    else{dot.style.width='9px';dot.style.height='9px';dot.style.border='1px solid #fff';dot.style.opacity='.35';dot.style.animationDuration='1.2s';try{b.ov.setZIndex(9);}catch(e){}}
+  });
+  document.querySelectorAll('#zoneFacRows [id^=zfRow]').forEach(r=>{r.style.background='';});
+  const row=document.getElementById('zfRow'+id);
+  if(row){row.style.background='rgba(255,215,106,.12)';try{row.scrollIntoView({block:'nearest'});}catch(e){}}
 }
 function _zoneFacGo(id){
   _zoneFacListClose();
@@ -476,7 +495,7 @@ function _zoneFacListClose(){
 }
 function _zoneBlinkStop(){
   clearTimeout(window._zoneBlinkTm);
-  if(_zoneFacBlink)_zoneFacBlink.forEach(o=>{try{o.setMap(null);}catch(e){}});
+  if(_zoneFacBlink)_zoneFacBlink.forEach(b=>{try{(b.ov||b).setMap(null);}catch(e){}});
   _zoneFacBlink=null;
 }
 // ── 🗺 순찰 담당 구역도(직무현황표 PDF) 뷰어 — 핀치·휠·더블탭 확대, 오프라인 캐시 ──

@@ -802,6 +802,8 @@ function initFirebase(onReady){
           if((d.at||0)<=_maxSharedNotiAt)return;
           if(d.deviceId===_MY_DEVICE_ID)return; // 내가 보낸 것
           _maxSharedNotiAt=Math.max(_maxSharedNotiAt,d.at||0); // watermark는 항상 전진(로그인 후 과거알림 폭주 방지)
+          // 중복 방지 키(dk): 내 대기 발송 취소 신호로 기록하고, 같은 키 알림은 한 번만 표시
+          if(d.dk){const sk=window._notiSeenDk||(window._notiSeenDk={});if(sk['rx:'+d.dk])return;sk['rx:'+d.dk]=1;sk[d.dk]=1;}
           if(!_notiRecipientReady())return; // 미로그인 상태에는 알림 전달 안 함(로그인 화면만 봐야 함)
           if(d.adminOnly&&!(typeof isAdminUser==='function'&&isAdminUser()))return; // 관리자 전용 알림은 관리자만 수신
           if(d.targetKakaoIds&&d.targetKakaoIds.length){ // 대상 지정 알림: 지정된 카카오ID만 수신
@@ -1614,6 +1616,9 @@ function pushNoti(msg,ico,type='info',link=null,pushCat=null,opts){
   // pushCat 미지정 시: 카테고리 정의에 push:false면 OS 푸시 끔(앱 내 종만)
   if(pushCat===null)pushCat=(NOTI_PUSH[type]===false)?'info':type;
   const id=Date.now();
+  // 중복 방지 키(SOS 등 공유 이벤트): 같은 키는 전 기기에서 1회만 표시·발송
+  const dk=(opts&&opts.dedupeKey)?String(opts.dedupeKey):null;
+  if(dk){const sk=window._notiSeenDk||(window._notiSeenDk={});sk[dk]=1;}
   const _myK=String((DB.g('currentUser')||{}).kakaoId||'');
   const _iAmTarget=!targets||(_myK&&targets.indexOf(_myK)>=0);
   // 내 벨에 추가 — 관리자 전용인데 관리자 아니거나 / 대상 지정인데 내가 대상 아니면 추가 안 함
@@ -1629,7 +1634,7 @@ function pushNoti(msg,ico,type='info',link=null,pushCat=null,opts){
   if(_fdb){
     _fdb.collection('sharedNotis').doc(String(id)).set({
       id,msg,ico,type:type||'info',link:link||null,adminOnly:adminOnly,targetKakaoIds:targets||null,
-      at:id,timeStr:now(),deviceId:_MY_DEVICE_ID
+      at:id,timeStr:now(),deviceId:_MY_DEVICE_ID,dk:dk||null
     }).catch(()=>{});
   }
 }
