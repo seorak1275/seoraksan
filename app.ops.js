@@ -781,8 +781,11 @@ function openFacDetail(id){
       </div>
     </div>
     ${_facInfoHtml(f)}
+    ${_facEditReqHtml(f,canMng)}
     <button class="btn" style="width:100%;margin-top:10px;background:rgba(255,255,255,.16);color:#3182f6;border:1px solid rgba(255,255,255,.4);font-weight:800;" onclick="openFacIssueReport(${f.id})">🔧 점검 등록 (사진·등급·점검내용)</button>
+    ${(!canMng&&_isMemberSafe())?`<button class="btn" style="width:100%;margin-top:7px;background:rgba(94,207,143,.13);color:#5fcf8f;border:1px solid rgba(94,207,143,.4);font-weight:800;" onclick="openFacEditReq(${f.id})">✏️ 시설물 정보 수정 요청 (이름·종류·위치 등)</button>`:''}
     ${canMng?`<div style="display:flex;gap:5px;margin-top:7px;">
+      <button onclick="openEditFac(${f.id})" style="${_mBtnS('#3182f6')}">✏️ 정보 수정</button>
       <button onclick="openFacWarn(${f.id})" style="${_mBtnS('#f0a500')}">⚠️ 경고 ${w?'수정/해제':''}</button>
       <button onclick="toggleFacHide(${f.id})" style="${_mBtnS(f.hidden?'#f0a500':'#949aa2')}">${f.hidden?'👁️ 표시':'🙈 숨김'}</button>
     </div>`:''}`;
@@ -792,6 +795,72 @@ function openFacDetail(id){
   if(adminBtns)adminBtns.style.display=canMng?'flex':'none';
   document.getElementById('modalFacDetail').classList.add('on');
   document.getElementById('facPopup').classList.remove('on');
+}
+// ── 시설물 정보 수정 요청 (멤버 → 담당자) — 멤버는 직접 수정 대신 요청을 보내고, 담당자가 확인 후 반영 ──
+function _isMemberSafe(){try{return (typeof _isMember==='function')?_isMember():true;}catch(e){return false;}}
+// 상세 화면에 대기 중인 수정요청 표시 — 담당자에겐 모든 요청+반영버튼, 멤버에겐 본인 요청 상태만
+function _facEditReqHtml(f,canMng){
+  const reqs=(f.editReqs||[]).filter(r=>r&&r.status!=='done');
+  if(!reqs.length)return '';
+  const myK=String((DB.g('currentUser')||{}).kakaoId||'');
+  if(!canMng){
+    const mine=reqs.filter(r=>String(r.byKakaoId||'')===myK);
+    if(!mine.length)return '';
+    return `<div style="margin-top:10px;background:rgba(94,207,143,.08);border:1px solid rgba(94,207,143,.28);border-radius:11px;padding:10px 12px;">
+      <div style="font-size:11px;font-weight:800;color:#5fcf8f;margin-bottom:5px;">✏️ 내 수정 요청 ${mine.length}건 · 검토 대기</div>
+      ${mine.map(r=>`<div style="font-size:11.5px;color:#cbd6cf;line-height:1.5;padding:3px 0;border-top:1px solid rgba(255,255,255,.05);">${_esc(r.text)}<span style="display:block;font-size:9.5px;color:#6b7684;margin-top:1px;">${_fmtWhen(r.at)} 요청</span></div>`).join('')}
+    </div>`;
+  }
+  return `<div style="margin-top:10px;background:rgba(94,207,143,.1);border:1px solid rgba(94,207,143,.4);border-radius:11px;padding:11px 12px;">
+    <div style="font-size:12px;font-weight:800;color:#5fcf8f;margin-bottom:7px;">✏️ 수정 요청 ${reqs.length}건 — 확인 후 반영하세요</div>
+    ${reqs.map(r=>`<div style="display:flex;gap:8px;align-items:flex-start;padding:6px 0;border-top:1px solid rgba(255,255,255,.06);">
+      <span style="flex:1;min-width:0;font-size:12px;color:#e3eaef;line-height:1.5;">${_esc(r.text)}<span style="display:block;font-size:9.5px;color:#6b7684;margin-top:2px;">👤 ${_esc(r.by||'-')} · ${_fmtWhen(r.at)}</span></span>
+      <button onclick="_facEditReqResolve(${f.id},${r.id})" style="flex-shrink:0;padding:5px 9px;border-radius:7px;border:1px solid rgba(94,207,143,.5);background:rgba(94,207,143,.14);color:#5fcf8f;font-size:10.5px;font-weight:800;cursor:pointer;">반영 완료</button>
+    </div>`).join('')}
+  </div>`;
+}
+function openFacEditReq(id){
+  if(!_isMemberSafe()){toast('⚠️ 승인된 멤버만 요청할 수 있습니다');return;}
+  const f=(DB.g('facilities')||[]).find(x=>x.id===id);if(!f)return;
+  const old=document.getElementById('facEditReqOv');if(old)old.remove();
+  const ov=document.createElement('div');ov.id='facEditReqOv';
+  ov.style.cssText='position:fixed;inset:0;z-index:9860;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;padding:18px;';
+  ov.innerHTML=`<div style="background:#16161a;border:1px solid rgba(94,207,143,.4);border-radius:14px;max-width:360px;width:100%;padding:16px;">
+    <div style="font-size:14px;font-weight:800;color:#5fcf8f;margin-bottom:3px;">✏️ 시설물 정보 수정 요청</div>
+    <div style="font-size:11px;color:#8b95a1;margin-bottom:12px;">${_esc(f.type.split(' ')[0])} ${_esc(_facDispName(f))} — 담당자가 확인 후 반영합니다</div>
+    <div style="font-size:11px;color:#a5abb3;font-weight:700;margin-bottom:4px;">어떤 정보가 잘못됐나요? <span style="color:#6b7684;font-weight:400;">(이름·종류·위치·등급 등)</span></div>
+    <textarea id="ferText" class="fi" rows="4" placeholder="예: 이름이 '백운동교량'이 아니라 '백운교량'입니다 / 위치가 실제보다 계곡 위쪽에 찍혀 있습니다" style="width:100%;box-sizing:border-box;resize:vertical;margin-bottom:12px;"></textarea>
+    <div style="display:flex;gap:7px;">
+      <button onclick="document.getElementById('facEditReqOv').remove()" style="flex:1;padding:11px;border-radius:9px;border:1px solid rgba(255,255,255,.15);background:rgba(255,255,255,.05);color:#c4c8ce;font-size:13px;font-weight:700;cursor:pointer;">취소</button>
+      <button onclick="submitFacEditReq(${id})" style="flex:2;padding:11px;border-radius:9px;border:none;background:#2f9e5f;color:#fff;font-size:13px;font-weight:800;cursor:pointer;">요청 보내기</button>
+    </div>
+  </div>`;
+  ov.onclick=function(e){if(e.target===ov)ov.remove();};
+  document.body.appendChild(ov);
+  setTimeout(()=>{try{document.getElementById('ferText').focus();}catch(e){}},50);
+}
+function submitFacEditReq(id){
+  if(!_isMemberSafe()){toast('⚠️ 승인된 멤버만 요청할 수 있습니다');return;}
+  const text=(document.getElementById('ferText')?.value||'').trim();
+  if(text.length<4){toast('⚠️ 수정할 내용을 조금 더 자세히 적어주세요');return;}
+  const facs=DB.g('facilities')||[];const idx=facs.findIndex(x=>x.id===id);if(idx<0)return;
+  const u=DB.g('currentUser')||{};
+  const req={id:Date.now(),by:getAuthor(),byKakaoId:String(u.kakaoId||''),at:Date.now(),text,status:'open'};
+  facs[idx].editReqs=(facs[idx].editReqs||[]).concat([req]);
+  DB.s('facilities',facs);
+  const ov=document.getElementById('facEditReqOv');if(ov)ov.remove();
+  toast('✅ 수정 요청을 보냈습니다 — 담당자 확인 후 반영됩니다');
+  try{_notiFacManagers('✏️ 시설물 수정 요청: '+(_facDispName(facs[idx])||'시설물')+' — '+text.slice(0,40),{app:'inspect',id:id});}catch(e){}
+  try{openFacDetail(id);}catch(e){}
+}
+function _facEditReqResolve(facId,reqId){
+  if(!(_canManageFac()||_isMasterAdmin())){toast('⚠️ 담당자만 처리할 수 있습니다');return;}
+  const facs=DB.g('facilities')||[];const idx=facs.findIndex(x=>x.id===facId);if(idx<0)return;
+  const r=(facs[idx].editReqs||[]).find(x=>x.id===reqId);if(!r)return;
+  r.status='done';r.doneBy=getAuthor();r.doneAt=Date.now();
+  DB.s('facilities',facs);
+  toast('✅ 반영 완료로 표시했습니다');
+  try{openFacDetail(facId);}catch(e){}
 }
 // ── 경고표시 설정/수정/해제 (탐방시설과·개발자) — 사유는 선택, 기간(무제한/종료일) ──
 function openFacWarn(id){

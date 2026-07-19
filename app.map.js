@@ -358,7 +358,7 @@ function _toggleZones(){
 function _zoneClear(){
   if(_zoneLayer)_zoneLayer.forEach(o=>{try{o.setMap(null);}catch(e){}});
   _zoneLayer=null;_zonePolys=null;_zoneSel=null;
-  _zoneBlinkStop();
+  _zoneBlinkStop();_zoneSelBlinkStop();
   const c=document.getElementById('zoneInfoCard');if(c)c.remove();
   const fo=document.getElementById('zoneFacOv');if(fo)fo.remove();
 }
@@ -366,6 +366,17 @@ function _zoneClear(){
 function _zoneStyleReset(pg){
   try{pg.setOptions({strokeWeight:pg._zmine?2.5:1.5,strokeColor:pg._zmine?'#3ddc84':'#ffffff',
     strokeOpacity:pg._zmine?.95:.7,fillColor:pg._zc,fillOpacity:pg._zmine?.24:.12,zIndex:pg._zmine?2:1});}catch(e){}
+}
+// 선택 구역 깜빡임 — 시설물 깜빡이처럼 구역 면을 노랗게 맥동(폴리곤은 CSS 불가 → setOptions 토글)
+let _zoneSelBlinkTm=null;
+function _zoneSelBlinkStop(){if(_zoneSelBlinkTm){clearInterval(_zoneSelBlinkTm);_zoneSelBlinkTm=null;}}
+function _zoneSelBlinkStart(n,polys){
+  _zoneSelBlinkStop();
+  const map=polys||_zonePolys;
+  let on=true;
+  const pulse=()=>{const pgs=(map&&map[n])||[];pgs.forEach(pg=>{try{pg.setOptions({strokeColor:'#ffd76a',strokeWeight:on?4.5:2.5,strokeOpacity:1,fillColor:pg._zc,fillOpacity:on?.5:.18,zIndex:5});}catch(e){}});on=!on;};
+  pulse();
+  _zoneSelBlinkTm=setInterval(pulse,520);
 }
 function _zoneDraw(){
   const _zm=(typeof mapI!=='undefined'&&mapI)?mapI:null; // 시설물 지도에 표시
@@ -407,19 +418,21 @@ function _zoneDraw(){
     toast('⭐ 내 담당 구역: '+_myLbs.map(l=>l.n).join('·')+'구역 — 초록 표시');
   }
 }
-// 구역 선택 — 해당 면을 노랗게 강조하고 정보 카드 표시
+// 구역 선택 — 해당 면을 노랗게 깜빡이며 강조하고 정보 카드 표시
 function _zoneSelect(n){
-  if(_zoneSel&&_zonePolys&&_zonePolys[_zoneSel])_zonePolys[_zoneSel].forEach(_zoneStyleReset);
+  if(_zoneSel&&_zonePolys&&_zonePolys[_zoneSel]){_zoneSelBlinkStop();_zonePolys[_zoneSel].forEach(_zoneStyleReset);}
   _zoneSel=n;
-  if(_zonePolys&&_zonePolys[n])_zonePolys[n].forEach(pg=>{
-    try{pg.setOptions({strokeWeight:3.5,strokeColor:'#ffd76a',strokeOpacity:1,fillColor:pg._zc,fillOpacity:.34,zIndex:5});}catch(e){}
-  });
+  if(_zonePolys&&_zonePolys[n])_zoneSelBlinkStart(n);
   _zoneInfo(n);
 }
 function _zoneUnsel(){
   const c=document.getElementById('zoneInfoCard');if(c)c.remove();
+  _zoneSelBlinkStop();
   if(_zoneSel&&_zonePolys&&_zonePolys[_zoneSel])_zonePolys[_zoneSel].forEach(_zoneStyleReset);
   _zoneSel=null;
+  // 상황판 지도 선택도 함께 해제
+  if(_zoneSelB&&_zonePolysB&&_zonePolysB[_zoneSelB])_zonePolysB[_zoneSelB].forEach(pg=>{try{pg.setOptions({strokeWeight:1.5,strokeColor:'#ffffff',strokeOpacity:.7,fillColor:pg._zc,fillOpacity:.12,zIndex:1});}catch(e){}});
+  _zoneSelB=null;
 }
 function _zoneInfo(n){
   const inf=(_zoneData&&_zoneData.info&&_zoneData.info[n])||null;
@@ -427,11 +440,16 @@ function _zoneInfo(n){
   c=document.createElement('div');c.id='zoneInfoCard';
   c.style.cssText='position:fixed;left:50%;transform:translateX(-50%);bottom:calc(74px + env(safe-area-inset-bottom));z-index:9500;width:calc(100% - 24px);max-width:440px;box-sizing:border-box;background:#16161a;border:1px solid rgba(255,215,106,.4);border-radius:13px;padding:12px 14px;box-shadow:0 6px 20px rgba(0,0,0,.6);';
   const _onBoard=(()=>{try{return document.getElementById('v-board').classList.contains('on');}catch(e){return false;}})();
+  const _me=DB.g('currentUser')||{};const _myName=String(_me.realName||_me.name||'').trim();
+  const _mine=!!(inf&&inf.m&&_myName&&inf.m.indexOf(_myName)>=0);
   c.innerHTML=`<div style="display:flex;align-items:flex-start;gap:8px;">
-      <span style="font-size:14px;font-weight:800;color:#ffd76a;flex-shrink:0;">${_esc(n)}구역</span>
+      <span style="font-size:14px;font-weight:800;color:#ffd76a;flex-shrink:0;">${_esc(n)}구역${_mine?' <span style="font-size:10px;color:#7dffb0;">★내 담당</span>':''}</span>
       <span style="flex:1;font-size:12px;color:#d5d8dc;line-height:1.5;word-break:keep-all;">${inf?_esc(inf.r||''):'범위 정보 없음'}</span>
       <button onclick="_zoneUnsel()" style="background:none;border:none;color:rgba(255,255,255,.5);font-size:19px;cursor:pointer;line-height:1;flex-shrink:0;">×</button></div>
-    ${inf&&inf.m?`<div style="font-size:12px;color:#8fb8ad;margin-top:5px;">담당: <b style="color:#a7e3c4;">${_esc(inf.m)}</b></div>`:''}
+    <div style="display:flex;align-items:center;gap:6px;margin-top:7px;background:${_mine?'rgba(61,220,132,.12)':'rgba(94,207,143,.08)'};border:1px solid ${_mine?'rgba(61,220,132,.4)':'rgba(94,207,143,.25)'};border-radius:8px;padding:6px 9px;">
+      <span style="font-size:11px;">👤</span>
+      <span style="font-size:11px;color:#8fb8ad;font-weight:700;flex-shrink:0;">지역담당</span>
+      <span style="flex:1;font-size:12.5px;font-weight:800;color:${_mine?'#7dffb0':'#a7e3c4'};">${inf&&inf.m?_esc(inf.m):'미지정'}</span></div>
     ${_onBoard?'':`<button onclick="_zoneShowFacs('${_escq(n)}')" style="margin-top:8px;padding:7px 11px;border-radius:8px;border:1px solid rgba(255,215,106,.45);background:rgba(255,215,106,.1);color:#ffd76a;font-size:11px;font-weight:700;cursor:pointer;">🏗 이 구역 시설물 보기</button>`}`;
   if(_onBoard)c.style.zIndex='99600'; // 상황판(전체화면) 위로
   document.body.appendChild(c);
@@ -445,34 +463,43 @@ function _bdBtnOn(id,on){
   b.style.borderColor=on?'#7db4ff':'rgba(255,255,255,.3)';
 }
 function _toggleZonesBoard(){
-  if(_zoneLayerB){_zoneLayerB.forEach(o=>{try{o.setMap(null);}catch(e){}});_zoneLayerB=null;_bdBtnOn('boardZoneBtn',false);
+  if(_zoneLayerB){_zoneLayerB.forEach(o=>{try{o.setMap(null);}catch(e){}});_zoneLayerB=null;_zonePolysB=null;_zoneSelB=null;_zoneSelBlinkStop();_bdBtnOn('boardZoneBtn',false);
     const c=document.getElementById('zoneInfoCard');if(c)c.remove();return;}
   const go=()=>{_zoneDrawBoard();_bdBtnOn('boardZoneBtn',true);};
   if(_zoneData){go();return;}
   fetch('park-zones.json').then(r=>r.json()).then(zd=>{_zoneData=zd;go();})
     .catch(()=>toast('⚠️ 구역 데이터를 불러오지 못했습니다'));
 }
+let _zonePolysB=null,_zoneSelB=null;
 function _zoneDrawBoard(){
   if(!_boardMap||!_zoneData||!window.kakao)return;
   if(_zoneLayerB)_zoneLayerB.forEach(o=>{try{o.setMap(null);}catch(e){}});
-  _zoneLayerB=[];
+  _zoneLayerB=[];_zonePolysB={};_zoneSelB=null;_zoneSelBlinkStop();
   (_zoneData.zones||[]).forEach(z=>{
     (z.rings||[]).forEach(ring=>{
       if(ring.length<3)return;
       const pg=new kakao.maps.Polygon({path:ring.map(p=>new kakao.maps.LatLng(p[0],p[1])),
         strokeWeight:1.5,strokeColor:'#ffffff',strokeOpacity:.7,fillColor:z.color,fillOpacity:.12,zIndex:1,map:_boardMap});
-      kakao.maps.event.addListener(pg,'click',function(){_zoneInfo(z.n);});
-      _zoneLayerB.push(pg);
+      pg._zc=z.color;
+      kakao.maps.event.addListener(pg,'click',function(){_zoneSelectB(z.n);});
+      _zoneLayerB.push(pg);(_zonePolysB[z.n]=_zonePolysB[z.n]||[]).push(pg);
     });
   });
   (_zoneData.labels||[]).forEach(lb=>{
     const el=document.createElement('div');
     el.style.cssText='background:rgba(18,22,30,.85);color:#ffd76a;font-size:12px;font-weight:800;padding:2px 8px;border-radius:9px;border:1px solid rgba(255,215,106,.55);cursor:pointer;line-height:1.4;';
     el.textContent=lb.n;
-    el.onclick=function(ev){try{ev.stopPropagation();}catch(e){}_zoneInfo(lb.n);};
+    el.onclick=function(ev){try{ev.stopPropagation();}catch(e){}_zoneSelectB(lb.n);};
     const ov=new kakao.maps.CustomOverlay({position:new kakao.maps.LatLng(lb.lat,lb.lng),content:el,yAnchor:.5,zIndex:6,clickable:true});
     ov.setMap(_boardMap);_zoneLayerB.push(ov);
   });
+}
+// 상황판 구역 선택 — 시설물 점검 지도와 동일하게 깜빡이며 강조 + 담당 카드
+function _zoneSelectB(n){
+  if(_zoneSelB&&_zonePolysB&&_zonePolysB[_zoneSelB]){_zoneSelBlinkStop();_zonePolysB[_zoneSelB].forEach(pg=>{try{pg.setOptions({strokeWeight:1.5,strokeColor:'#ffffff',strokeOpacity:.7,fillColor:pg._zc,fillOpacity:.12,zIndex:1});}catch(e){}});}
+  _zoneSelB=n;
+  if(_zonePolysB&&_zonePolysB[n])_zoneSelBlinkStart(n,_zonePolysB);
+  _zoneInfo(n);
 }
 function _toggleUseZonesBoard(){
   if(_useZoneLayerB){_useZoneLayerB.forEach(o=>{try{o.setMap(null);}catch(e){}});_useZoneLayerB=null;_bdBtnOn('boardUseZoneBtn',false);
@@ -942,6 +969,7 @@ function closeBoard(){
   try{const lg=document.getElementById('useZoneLegendB');if(lg)lg.remove();}catch(e){}
   try{const c=document.getElementById('zoneInfoCard');if(c)c.remove();}catch(e){}
   try{const u=document.getElementById('useZoneCard');if(u)u.remove();}catch(e){}
+  try{_zoneSelBlinkStop();_zoneSelB=null;}catch(e){}
   goHome();
 }
 
