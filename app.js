@@ -1936,26 +1936,56 @@ function _renderClimbVicPick(){
   var b=document.getElementById('cvpBody');if(!b)return;
   var esc=_esc;
   var D=window._climbVicDate,Q=(window._climbVicQ||'').trim(),C=(window._climbVicCourse||'').trim();
-  var day=(_climbCache||[]).filter(function(r){return r.useDate===D;});
-  var dayTotal=day.length; // 코스 필터 전 그날 전체 팀 수
-  // 폼에서 고른 코스만 표시 (명단 코스명과 느슨 매칭 — 표기 차이 허용). '전체 보기'로 해제
-  if(C)day=day.filter(function(r){var rc=String(r.course||'').trim();return rc===C||rc.indexOf(C)>=0||C.indexOf(rc)>=0;});
-  if(Q)day=day.filter(function(r){var ns=[(r.applicant&&r.applicant.name)||''].concat((r.companions||[]).map(function(c){return c.name;}));return ns.some(function(n){return String(n).indexOf(Q)>=0;});});
-  window._climbVicDay=day;
-  if(!day.length){
-    b.innerHTML='<div style="text-align:center;color:#6b7684;padding:30px 14px;font-size:13px;line-height:2;">'
-      +(C&&dayTotal?('📍 <b style="color:#f0c88a;">'+esc(C)+'</b> 코스 신청 명단이 없습니다<br><span style="font-size:11px;">이 날 다른 코스 '+dayTotal+'팀 있음</span><br><button onclick="window._climbVicCourse=\'\';_renderClimbVicPick();" style="margin-top:8px;background:rgba(240,200,138,.14);color:#f0c88a;border:1px solid rgba(240,200,138,.35);border-radius:8px;padding:8px 16px;font-size:12px;font-weight:800;cursor:pointer;">그날 전체 명단 보기</button>')
-      :(Q?'검색 결과 없음':'이 날짜의 명단이 없습니다'))+'</div>';
+  var dayAll=(_climbCache||[]).filter(function(r){return r.useDate===D;});
+  if(!dayAll.length){
+    b.innerHTML='<div style="text-align:center;color:#6b7684;padding:30px 14px;font-size:13px;">이 날짜의 신청 명단이 없습니다</div>';
+    window._climbVicDay=[];return;
+  }
+  // 이름 검색 중이면 코스 무관 전체에서 찾음 (없으면 '없음' 표시)
+  if(Q){
+    var hits=dayAll.filter(function(r){var ns=[(r.applicant&&r.applicant.name)||''].concat((r.companions||[]).map(function(c){return c.name;}));return ns.some(function(n){return String(n).indexOf(Q)>=0;});});
+    if(!hits.length){window._climbVicDay=[];b.innerHTML='<div style="text-align:center;color:#6b7684;padding:30px 14px;font-size:13px;">🔍 \''+esc(Q)+'\' — 해당 이름 없음</div>';return;}
+    b.innerHTML=_climbVicTeamsHtml(hits,'🔍 \''+esc(Q)+'\' 검색');
     return;
   }
+  // 코스 미선택 → 어느 암벽(코스)인지 고르는 메뉴 먼저
+  if(!C){b.innerHTML=_climbVicCourseMenuHtml(dayAll);window._climbVicDay=[];return;}
+  // 코스 선택됨 → 그 코스 명단만 (표기 차이 허용 느슨 매칭)
+  var day=dayAll.filter(function(r){var rc=String(r.course||'').trim();return rc===C||rc.indexOf(C)>=0||C.indexOf(rc)>=0;});
+  var back='<button onclick="window._climbVicCourse=\'\';_renderClimbVicPick();" style="background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.18);color:#c4c8ce;border-radius:8px;padding:6px 12px;font-size:11.5px;font-weight:700;cursor:pointer;margin-bottom:10px;">◀ 다른 암벽 선택</button>';
+  if(!day.length){
+    window._climbVicDay=[];
+    b.innerHTML=back+'<div style="text-align:center;color:#6b7684;padding:22px 14px;font-size:13px;line-height:1.9;">📍 <b style="color:#f0c88a;">'+esc(C)+'</b> — 이 암벽 신청 명단 없음</div>';
+    return;
+  }
+  b.innerHTML=back+_climbVicTeamsHtml(day,'📍 '+esc(C));
+}
+// 암벽(코스) 선택 메뉴 — 그날 신청된 코스만 지구별로 묶어 버튼으로
+function _climbVicCourseMenuHtml(dayAll){
+  var esc=_esc;
+  var byDist={};
+  dayAll.forEach(function(r){var d=r.district||'기타',c=r.course||'-';(byDist[d]=byDist[d]||{});byDist[d][c]=(byDist[d][c]||0)+(r.total||((r.companions||[]).length+1));});
+  var DORDER=['천화대지구','비선대지구','울산바위지구','소토왕골지구','토왕골지구','한계산성지구','오색지구','기타'];
+  var order=DORDER.filter(function(d){return byDist[d];}).concat(Object.keys(byDist).filter(function(d){return DORDER.indexOf(d)<0;}));
+  var html='<div style="font-size:12px;color:#a5abb3;margin-bottom:10px;line-height:1.6;">어느 <b style="color:#f0c88a;">암벽(코스)</b>인지 누르세요 — 그 명단에서 사고자를 찾습니다.<br><span style="font-size:10.5px;color:#6b7684;">이름을 알면 위 🔍 검색으로 바로 찾아도 됩니다.</span></div>';
+  order.forEach(function(d){
+    html+='<div style="font-size:10px;color:#6b7684;font-weight:800;letter-spacing:.5px;margin:9px 0 5px;">🏔️ '+esc(d)+'</div><div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:4px;">';
+    Object.keys(byDist[d]).forEach(function(c){
+      html+='<button onclick="window._climbVicCourse=\''+_escq(c)+'\';_renderClimbVicPick();" style="background:rgba(240,200,138,.1);border:1px solid rgba(240,200,138,.32);color:#f0d8a8;border-radius:10px;padding:9px 12px;font-size:12.5px;font-weight:800;cursor:pointer;">'+esc(c)+' <span style="font-size:10px;color:#a08a5a;font-weight:600;">'+byDist[d][c]+'명</span></button>';
+    });
+    html+='</div>';
+  });
+  return html;
+}
+// 선택된 코스(또는 검색결과)의 팀·인원 카드 — 탭하면 사고자로 채움
+function _climbVicTeamsHtml(day,header){
+  window._climbVicDay=day;
+  var esc=_esc;
   var pline=function(nm,g,dob,ph,lead,onclk){var age=_climbAge(dob);return '<div onclick="'+onclk+'" style="display:flex;align-items:center;gap:6px;padding:8px 4px;border-bottom:1px solid rgba(255,255,255,.05);cursor:pointer;">'
     +'<span style="font-size:12.5px;font-weight:'+(lead?'800':'600')+';color:'+(lead?'#eef0f2':'#d5d8dc')+';">'+(lead?'👤 ':'└ ')+esc(nm||'-')+'</span>'
     +'<span style="font-size:10px;color:#949aa2;">'+[g,age!=null?age+'세':'',ph||''].filter(Boolean).join(' · ')+'</span>'
     +'<span style="margin-left:auto;font-size:10.5px;color:#5fcf8f;font-weight:800;flex-shrink:0;">사고자로 ›</span></div>';};
-  var html='';
-  if(C)html+='<div style="display:flex;align-items:center;gap:8px;margin-bottom:9px;">'
-    +'<span style="font-size:11px;font-weight:800;color:#f0c88a;background:rgba(240,200,138,.12);border:1px solid rgba(240,200,138,.3);border-radius:14px;padding:3px 11px;">📍 '+esc(C)+' 코스만 · '+day.length+'팀</span>'
-    +'<button onclick="window._climbVicCourse=\'\';_renderClimbVicPick();" style="background:none;border:none;color:#949aa2;font-size:11px;font-weight:700;cursor:pointer;text-decoration:underline;">전체 보기'+(dayTotal>day.length?' ('+dayTotal+'팀)':'')+'</button></div>';
+  var html=header?'<div style="font-size:11px;font-weight:800;color:#f0c88a;background:rgba(240,200,138,.12);border:1px solid rgba(240,200,138,.3);border-radius:14px;padding:3px 11px;display:inline-block;margin-bottom:9px;">'+header+' · '+day.length+'팀</div>':'';
   day.forEach(function(r,ri){
     var a=r.applicant||{};
     html+='<div class="scard" style="margin-bottom:8px;padding:8px 10px;">'
@@ -1965,7 +1995,7 @@ function _renderClimbVicPick(){
       +(r.companions||[]).map(function(c,ci){return pline(c.name,c.gender,c.dob,c.phone,false,'_climbVicFill('+ri+','+ci+')');}).join('')
       +'</div>';
   });
-  b.innerHTML=html;
+  return html;
 }
 function _climbVicSetVictim(p){
   if(!p)return;
@@ -3825,7 +3855,7 @@ function sosToRescue(id){
 // 앱 자체 업데이트 (OTA · Capgo 자체호스팅) — APK 전용. 웹/PWA는 서비스워커가 자동 갱신.
 // 번들(www)의 새 버전을 ota.json으로 알리면, 설치된 앱이 받아서 그 자리에서 교체(재빌드 불필요).
 // ══════════════════════════════════════════
-const OTA_VER='2026.07.19.305';                         // ← 현재 번들 버전 (릴리스마다 올림 · build-ota.sh가 ota.json에 반영)
+const OTA_VER='2026.07.19.306';                         // ← 현재 번들 버전 (릴리스마다 올림 · build-ota.sh가 ota.json에 반영)
 const OTA_MANIFEST='https://seorak1275.github.io/seoraksan/ota.json';
 // 업데이트 확인 폴백 소스 — 일부 기관망·통신사에서 github.io가 막혀 '확인 실패(네트워크)'가 나는 경우 대비.
 // 순서대로 시도: ① GitHub Pages(원본·즉시 반영) ② jsDelivr CDN(공개저장소 미러·거의 모든 망 통과)
