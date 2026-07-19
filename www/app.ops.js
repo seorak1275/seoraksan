@@ -3245,6 +3245,17 @@ function renderAdmMembers(){
   <div style="font-size:11px;color:#a5abb3;margin-bottom:8px;">총 <b style="color:#eaecef;">${fu.length}</b>명 · 관리자 <b style="color:#5dbf8a;">${adminCnt}</b> · 멤버 <b style="color:#3182f6;">${memberCnt}</b>${facMgrCnt?` · 🔧담당 <b style="color:#f0a500;">${facMgrCnt}</b>`:''}${pendingNew.length?` · <b style="color:#e67e22;">신규 ${pendingNew.length}</b>`:''}</div>
   <div style="font-size:10px;color:#8b95a1;background:rgba(240,165,0,.06);border:1px solid rgba(240,165,0,.18);border-radius:8px;padding:7px 9px;margin-bottom:10px;line-height:1.55;">🔧 <b style="color:#f0a500;">시설물 담당자</b>: 순찰자가 올린 <b>시설물 점검</b>을 재평가·회신하는 사람입니다. 지정된 담당자에게만 점검 알림이 갑니다. 이름 옆 🔧 버튼으로 지정하세요.</div>`;
 
+  // 📋 직원 명부 대조 배지 — 명부(일반직·특정직)에 있는 이름이면 초록, 없으면 확인 필요(기간제·외부·개명 가능성)
+  if(typeof _loadRoster==='function'&&typeof _staffRoster!=='undefined'&&!_staffRoster){_loadRoster(j=>{if(j)try{renderAdmMembers();}catch(e){}});}
+  const _rstList=(typeof _staffRoster!=='undefined'&&_staffRoster&&_staffRoster.staff)||null;
+  const rosterBadge=u=>{
+    if(!_rstList||!u.name)return '';
+    const hitD=_rstList.some(s=>s.n===u.name&&s.d===u.dept);
+    const hitN=hitD||_rstList.some(s=>s.n===u.name);
+    return hitD?'<span style="color:#5dbf8a;font-size:9px;font-weight:700;">📋명부일치</span>'
+      :hitN?'<span style="color:#e8c84a;font-size:9px;font-weight:700;">📋이름만 일치(소속 확인)</span>'
+      :'<span style="color:#e6a23c;font-size:9px;font-weight:700;">❔명부에 없음</span>';
+  };
   // ── 신규 승인 대기 섹션 (최상단 강조) ──
   if(pendingNew.length){
     html+=`<div style="background:rgba(230,126,34,.07);border:1px solid rgba(230,126,34,.3);border-radius:11px;padding:11px;margin-bottom:12px;">
@@ -3252,7 +3263,7 @@ function renderAdmMembers(){
       +pendingNew.map(u=>`<div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-top:1px solid rgba(255,255,255,.05);">
         ${u.kakaoImg?`<img src="${_esc(_imgHttps(u.kakaoImg))}" style="width:34px;height:34px;border-radius:50%;object-fit:cover;flex-shrink:0;" onerror="this.style.display='none'">`:`<div style="width:34px;height:34px;border-radius:50%;background:#3a2a18;display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0;">🆕</div>`}
         <div style="flex:1;min-width:0;">
-          <div style="font-size:13px;font-weight:700;color:#eaecef;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${_esc(u.name||'이름없음')}</div>
+          <div style="font-size:13px;font-weight:700;color:#eaecef;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${_esc(u.name||'이름없음')} ${rosterBadge(u)}</div>
           <div style="font-size:10px;color:#9c8060;margin-top:1px;">${_esc(u.dept||'소속 미입력')}${u.rank?' · '+_esc(u.rank):''} <span style="font-family:monospace;color:#6a5030;">ID ${_esc(u.kakaoId)}</span></div>
         </div>
         <button onclick="grantMember('${_escq(u.kakaoId)}')" style="flex-shrink:0;background:#27ae60;color:#fff;border:none;border-radius:8px;padding:8px 13px;font-size:12px;font-weight:800;cursor:pointer;">✅ 승인</button>
@@ -3280,7 +3291,7 @@ function renderAdmMembers(){
         <div style="display:flex;align-items:center;gap:8px;">
           ${u.kakaoImg?`<img src="${_esc(_imgHttps(u.kakaoImg))}" style="width:32px;height:32px;border-radius:50%;object-fit:cover;flex-shrink:0;" onerror="this.style.display='none'">`:`<div style="width:32px;height:32px;border-radius:50%;background:#1a3a5a;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0;">👤</div>`}
           <div style="flex:1;min-width:0;">
-            <div style="font-size:12px;font-weight:700;color:#eaecef;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${_esc(u.name||'이름없음')} ${roleBadge} ${facMgrBadge} ${appBadge}</div>
+            <div style="font-size:12px;font-weight:700;color:#eaecef;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${_esc(u.name||'이름없음')} ${roleBadge} ${facMgrBadge} ${appBadge} ${rosterBadge(u)}</div>
             <div style="font-size:10px;color:#565f6b;margin-top:1px;">${_esc(u.dept)}${u.rank?' · '+_esc(u.rank):''} <span style="font-family:monospace;color:#2a5060;">ID ${_esc(u.kakaoId)}</span></div>
             ${u.reg?`<div style="font-size:9px;color:#3a5a6a;margin-top:1px;">📅 등록 ${new Date(u.reg).toLocaleString('ko-KR',{year:'2-digit',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'})}</div>`:''}
           </div>

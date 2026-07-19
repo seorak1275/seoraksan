@@ -7,6 +7,48 @@ function _renderStaffQuickPick(){
   const wrap=document.getElementById('staffQuickPick');
   if(wrap)wrap.style.display='none';
 }
+// ── 직원 명부(직무현황표 2026.7.15, 일반직·특정직만·전화번호 미포함) 매칭 ──
+// 가입 시 카카오 이름을 명부와 대조 → 일치/유사하면 '본인 확인' 버튼으로 소속 자동 입력,
+// 없으면 안내(개명·기간제·외부). 관리자 직원 화면에는 명부 일치 여부 배지가 붙는다.
+let _staffRoster=null;
+function _loadRoster(cb){
+  if(_staffRoster){cb&&cb(_staffRoster);return;}
+  fetch('staff-roster.json').then(r=>r.json()).then(j=>{_staffRoster=j;cb&&cb(j);}).catch(()=>{cb&&cb(null);});
+}
+function _rosterFind(name){
+  const n=String(name||'').trim();
+  if(!n||n.length<2||!_staffRoster)return {exact:[],near:[]};
+  const list=_staffRoster.staff||[];
+  const exact=list.filter(s=>s.n===n);
+  const near=exact.length?[]:list.filter(s=>{
+    if(s.n===n)return false;
+    if(Math.abs(s.n.length-n.length)>1)return false;
+    if(s.n.includes(n)||n.includes(s.n))return true;
+    if(s.n.length===n.length){let d=0;for(let i=0;i<n.length;i++)if(s.n[i]!==n[i])d++;return d===1;}
+    return false;
+  }).slice(0,4);
+  return {exact,near};
+}
+function _rosterHintRender(name){
+  const box=document.getElementById('rosterHint');if(!box)return;
+  if(!_staffRoster){box.style.display='none';return;}
+  const {exact,near}=_rosterFind(name);
+  const btn=s=>`<button onclick="_rosterPick('${_escq(s.n)}','${_escq(s.d)}','${_escq(s.g||'')}')" style="display:block;width:100%;text-align:left;margin-top:5px;padding:9px 11px;border-radius:9px;border:1px solid rgba(39,174,96,.35);background:rgba(39,174,96,.1);color:#7ec8a0;font-size:12px;font-weight:700;cursor:pointer;">✅ ${_esc(s.n)} · ${_esc(s.d)}${s.g?' · '+_esc(s.g):''} — 본인입니다</button>`;
+  if(exact.length){
+    box.innerHTML=`<div style="font-size:11px;color:#5dbf8a;font-weight:700;">📋 직원 명부에서 찾았습니다${exact.length>1?' — 동명이인이 있어요, 소속을 확인하세요':''}</div>`+exact.map(btn).join('');
+  }else if(near.length){
+    box.innerHTML=`<div style="font-size:11px;color:#e8c84a;font-weight:700;">📋 혹시 이 분입니까? (입력한 이름과 유사)</div>`+near.map(btn).join('');
+  }else{
+    box.innerHTML=`<div style="font-size:10.5px;color:#c79a4a;line-height:1.5;">❔ 직원 명부(일반직·특정직)에 없는 이름입니다.<br>카카오 별명이 실명과 다르면 <b>실명</b>으로 고쳐 쓰세요. 기간제·외부 인원은 그대로 진행하면 관리자 확인 후 승인됩니다.</div>`;
+  }
+  box.style.display='block';
+}
+function _rosterPick(n,d,g){
+  const ni=document.getElementById('uNameIn');if(ni)ni.value=n;
+  const ds=document.getElementById('uDeptIn');if(ds)ds.value=d;
+  toast('📋 명부 확인: '+n+' ('+d+(g?' · '+g:'')+') — 직위만 고르고 저장하세요');
+  try{_rosterHintRender(n);}catch(e){}
+}
 function openChangeUser(){
   const u=DB.g('currentUser')||{};
   const authType=DB.g('authType');
@@ -26,6 +68,21 @@ function openChangeUser(){
   const banner=document.getElementById('kakaoUserBanner');
   if(banner)banner.style.display=(u.kakaoId||u.kakaoImg)?'block':'none';
   _renderStaffQuickPick();
+  // 📋 신규 가입(카카오)일 때 직원 명부 대조 힌트 — 이름칸 위에 표시, 입력할 때마다 갱신
+  try{
+    const _niEl=document.getElementById('uNameIn');
+    let _rb=document.getElementById('rosterHint');
+    if(isKakao&&!_pDone0&&_niEl){
+      if(!_rb){
+        _rb=document.createElement('div');_rb.id='rosterHint';
+        _rb.style.cssText='margin-bottom:9px;display:none;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.1);border-radius:10px;padding:9px 11px;';
+        const _anchor=_niEl.closest('.fg')||_niEl;
+        _anchor.parentElement.insertBefore(_rb,_anchor);
+      }
+      _loadRoster(()=>_rosterHintRender(_niEl.value||u.realName||u.name||''));
+      _niEl.oninput=function(){_rosterHintRender(this.value);};
+    }else if(_rb){_rb.style.display='none';if(_niEl)_niEl.oninput=null;}
+  }catch(e){}
   // 개인정보 잠금: '관리자 승인(멤버 등록)'이 끝난 뒤부터 — 가입 입력~승인 대기 중엔 본인이 자유롭게 수정 가능
   // (프로필 채움만으로 잠그면 가입 직후 오타도 못 고치고, 재설치·기기변경 자동복원 첫 로그인도 잠겨버림)
   // 승인 후엔 전원(관리자 본인 포함) 열람 전용 — 변경은 '관리자에게 정정 요청' 또는 관리자 전용→직원 탭에서만
@@ -1285,7 +1342,6 @@ function openHeatFull(tab){
   ov.innerHTML=`<div style="flex-shrink:0;display:flex;align-items:center;gap:8px;padding:calc(10px + env(safe-area-inset-top)) 12px 10px;border-bottom:1px solid rgba(255,255,255,.1);">
       <span style="font-size:14px;font-weight:800;color:#eaecef;">🔥 사고 다발 구간</span>
       <span style="font-size:10px;color:#8b95a1;flex:1;">${_esc(window._statExpFrom||'')} ~ ${_esc(window._statExpTo||'')}</span>
-      <button class="press-fx" onclick="_heatPdf('${tab||'rescue'}')" style="background:rgba(49,130,246,.14);border:1px solid rgba(49,130,246,.4);color:#4d9bf5;border-radius:8px;padding:7px 12px;font-size:12px;font-weight:700;cursor:pointer;">🖨 PDF</button>
       <button onclick="document.getElementById('heatFullOv').remove()" style="background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.2);color:#d5d8dc;border-radius:8px;padding:7px 12px;font-size:12px;font-weight:700;cursor:pointer;">✕ 닫기</button></div>
     <div id="heatFullMap" style="flex:1;min-height:0;"></div>
     <div style="flex-shrink:0;max-height:24vh;overflow-y:auto;padding:9px 14px calc(10px + env(safe-area-inset-bottom));background:#16161a;border-top:1px solid rgba(255,255,255,.1);">
@@ -1394,7 +1450,6 @@ function _renderHeatMap(tab){
   if(top){
     top.innerHTML=`<div style="display:flex;gap:6px;margin:2px 0 7px;">
       <button class="press-fx" onclick="openHeatFull('${tab}')" style="flex:1;padding:8px;border-radius:8px;border:1px solid rgba(49,130,246,.4);background:rgba(49,130,246,.12);color:#4d9bf5;font-size:11.5px;font-weight:700;cursor:pointer;">⛶ 크게 보기</button>
-      <button class="press-fx" onclick="_heatPdf('${tab}')" style="flex:1;padding:8px;border-radius:8px;border:1px solid rgba(255,255,255,.2);background:rgba(255,255,255,.06);color:#c4c8ce;font-size:11.5px;font-weight:700;cursor:pointer;">🖨 PDF 저장</button>
     </div>`+cells.slice(0,5).map((c,i)=>`<div style="display:flex;align-items:center;gap:7px;padding:3px 0;">
       <span style="font-size:9px;font-weight:800;color:${i===0?'#e74c3c':'#a5abb3'};width:14px;">${i+1}</span>
       <span style="font-size:11px;color:#c4c8ce;flex:1;">${c.label}</span>

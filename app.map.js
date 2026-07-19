@@ -277,6 +277,65 @@ function _paintPark(map,d){
   });
 }
 // ── 🔧 상황판 세로선 진단 — 레이어를 하나씩 꺼서 원인 특정 (사용자 A/B 테스트용) ──
+// ── 🗺 순찰 담당 구역도(직무현황표 PDF) 뷰어 — 핀치·휠·더블탭 확대, 오프라인 캐시 ──
+function openPatrolMap(){
+  let ov=document.getElementById('patrolMapOv');if(ov)ov.remove();
+  ov=document.createElement('div');ov.id='patrolMapOv';
+  ov.style.cssText='position:fixed;inset:0;z-index:99400;background:#0b0b0d;display:flex;flex-direction:column;';
+  ov.innerHTML=`<div style="flex-shrink:0;display:flex;align-items:center;gap:8px;padding:calc(8px + env(safe-area-inset-top)) 12px 8px;border-bottom:1px solid rgba(255,255,255,.1);">
+      <span style="font-size:13px;font-weight:800;color:#eaecef;">🗺 순찰 담당 구역도</span>
+      <span style="font-size:10px;color:#6b7684;flex:1;">두 손가락·더블탭·휠로 확대</span>
+      <a href="patrol-map.jpg" download="설악산_순찰구역도.jpg" style="background:rgba(49,130,246,.14);border:1px solid rgba(49,130,246,.4);color:#4d9bf5;border-radius:8px;padding:7px 11px;font-size:12px;font-weight:700;text-decoration:none;">⬇ 저장</a>
+      <button onclick="document.getElementById('patrolMapOv').remove()" style="background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.2);color:#d5d8dc;border-radius:8px;padding:7px 12px;font-size:12px;font-weight:700;cursor:pointer;">✕</button></div>
+    <div id="pmWrap" style="flex:1;min-height:0;overflow:hidden;position:relative;touch-action:none;">
+      <img id="pmImg" src="patrol-map.jpg" style="position:absolute;left:0;top:0;transform-origin:0 0;max-width:none;user-select:none;-webkit-user-drag:none;" draggable="false">
+    </div>`;
+  document.body.appendChild(ov);
+  _pmInit();
+}
+function _pmInit(){
+  const wrap=document.getElementById('pmWrap'),img=document.getElementById('pmImg');
+  if(!wrap||!img)return;
+  let s=1,tx=0,ty=0,minS=1;
+  const apply=()=>{img.style.transform='translate('+tx+'px,'+ty+'px) scale('+s+')';};
+  const fit=()=>{
+    const W=wrap.clientWidth,H=wrap.clientHeight;
+    if(!img.naturalWidth||!W)return;
+    minS=Math.min(W/img.naturalWidth,H/img.naturalHeight);
+    s=minS;tx=(W-img.naturalWidth*s)/2;ty=(H-img.naturalHeight*s)/2;apply();
+  };
+  img.onload=fit;if(img.complete)fit();
+  const clamp=()=>{
+    const W=wrap.clientWidth,H=wrap.clientHeight,iw=img.naturalWidth*s,ih=img.naturalHeight*s;
+    tx=iw<=W?(W-iw)/2:Math.min(0,Math.max(W-iw,tx));
+    ty=ih<=H?(H-ih)/2:Math.min(0,Math.max(H-ih,ty));
+  };
+  const zoomAt=(px,py,ns)=>{ns=Math.max(minS,Math.min(ns,minS*10));tx=px-(px-tx)*(ns/s);ty=py-(py-ty)*(ns/s);s=ns;clamp();apply();};
+  const pts=new Map();let lastD=0,lastMid=null,lastTap=0;
+  wrap.onpointerdown=e=>{
+    try{wrap.setPointerCapture(e.pointerId);}catch(_){}
+    pts.set(e.pointerId,{x:e.clientX,y:e.clientY});
+    if(pts.size===1){
+      const t=Date.now(),r=wrap.getBoundingClientRect();
+      if(t-lastTap<300)zoomAt(e.clientX-r.left,e.clientY-r.top,s<minS*2.5?minS*3.2:minS);
+      lastTap=t;
+    }
+  };
+  wrap.onpointermove=e=>{
+    if(!pts.has(e.pointerId))return;
+    const prev=pts.get(e.pointerId);pts.set(e.pointerId,{x:e.clientX,y:e.clientY});
+    if(pts.size===1){tx+=e.clientX-prev.x;ty+=e.clientY-prev.y;clamp();apply();}
+    else if(pts.size===2){
+      const a=[...pts.values()],d=Math.hypot(a[0].x-a[1].x,a[0].y-a[1].y);
+      const mid={x:(a[0].x+a[1].x)/2,y:(a[0].y+a[1].y)/2},r=wrap.getBoundingClientRect();
+      if(lastD){if(lastMid){tx+=mid.x-lastMid.x;ty+=mid.y-lastMid.y;}zoomAt(mid.x-r.left,mid.y-r.top,s*d/lastD);}
+      lastD=d;lastMid=mid;
+    }
+  };
+  const up=e=>{pts.delete(e.pointerId);if(pts.size<2){lastD=0;lastMid=null;}};
+  wrap.onpointerup=up;wrap.onpointercancel=up;
+  wrap.onwheel=e=>{e.preventDefault();const r=wrap.getBoundingClientRect();zoomAt(e.clientX-r.left,e.clientY-r.top,s*(e.deltaY<0?1.2:1/1.2));};
+}
 // 🔦 세로선 원인 스캔 — 화면 안쪽에 세로 경계(왼/오른 가장자리)를 가진 큰 요소를 전부 분홍 테두리로 표시.
 // 세로선과 겹치는 테두리가 있으면 앱 요소가 범인(전 기기 공통 수정 가능), 없으면 표시장치/드라이버 쪽.
 function _seamScan(){

@@ -71,7 +71,10 @@ if(window.Kakao&&!Kakao.isInitialized()) Kakao.init(KAKAO_KEY);
   },15000);
 })();
 // 카카오 redirect 콜백: ?code= 파라미터 조기 감지
-(function(){var p=new URLSearchParams(location.search);var c=p.get('code');if(c){history.replaceState(null,'',location.pathname);window._kakaoAuthCode=c;}})();
+(function(){var p=new URLSearchParams(location.search);var c=p.get('code');if(c){history.replaceState(null,'',location.pathname);window._kakaoAuthCode=c;}
+// 아이폰 엣지 스와이프(뒤로가기)가 카카오 로그인 리다이렉트 등 '이전 문서'로 빠져 앱 전체가
+// 리로드(로고+로딩)되던 것 방지 — 같은 문서 버퍼 항목을 깔아 스와이프가 앱 안(popstate)에서 처리되게
+try{history.replaceState({view:'home'},'','');history.pushState({view:'home'},'','');}catch(e){}})();
 // Capacitor 네이티브: 카카오톡 인증 후 앱으로 돌아올 때 appUrlOpen 이벤트 처리
 (function(){function _setupKakaoAppLink(){var App=window.Capacitor&&window.Capacitor.Plugins&&window.Capacitor.Plugins.App;if(!App)return;App.addListener('appUrlOpen',function(data){var url=data&&data.url||'';var m=url.match(/[?&]code=([^&#]+)/);if(m&&typeof _handleKakaoCode==='function')_handleKakaoCode(decodeURIComponent(m[1]),'kakao'+KAKAO_KEY+'://oauth');});}if(document.readyState==='loading'){document.addEventListener('DOMContentLoaded',_setupKakaoAppLink);}else{_setupKakaoAppLink();}})();
 </script>
@@ -320,8 +323,9 @@ if(window.Kakao&&!Kakao.isInitialized()) Kakao.init(KAKAO_KEY);
         <button class="map-ctrl" id="resCatFilterBtn" onclick="toggleResCatFilter()" style="position:static;pointer-events:auto;margin-left:auto;display:flex;align-items:center;gap:4px;border-color:rgba(39,174,96,.5);color:#27ae60;">🗺️ 시설물 <span id="resCatFilterBadge" style="display:none;background:#27ae60;color:#fff;border-radius:50%;width:15px;height:15px;font-size:9px;font-weight:800;align-items:center;justify-content:center;flex-shrink:0;"></span></button>
         <button class="map-ctrl" id="resMapFilterBtn" onclick="toggleResMapFilter()" style="position:static;pointer-events:auto;display:flex;align-items:center;gap:4px;border-color:rgba(192,57,43,.5);color:#e05050;">🚨 구조 <span id="resMapFilterBadge" style="display:none;background:#e05050;color:#fff;border-radius:50%;width:15px;height:15px;font-size:9px;font-weight:800;align-items:center;justify-content:center;flex-shrink:0;"></span></button>
       </div>
-      <div style="display:flex;">
+      <div style="display:flex;gap:6px;">
         <button class="map-ctrl" id="sosReqBtn" onclick="openSosRequest()" style="position:static;pointer-events:auto;border-color:#ffe14d;background:rgba(192,57,43,.7);color:#fff;font-weight:700;">🆘 조난·사고자 위치요청</button>
+        <button class="map-ctrl" onclick="openPatrolMap()" style="position:static;pointer-events:auto;">🗺 구역도</button>
       </div>
     </div>
     <button class="fab-gps" onclick="gpsTo('rescue')" title="내 위치">
@@ -436,6 +440,7 @@ if(window.Kakao&&!Kakao.isInitialized()) Kakao.init(KAKAO_KEY);
       </div>
     </div>
     <button class="map-ctrl" onclick="toggleMapType('inspect')">위성/일반</button>
+    <button class="map-ctrl" onclick="openPatrolMap()" style="left:96px;">🗺 구역도</button>
     <button class="map-ctrl" id="inspFilterBtn" onclick="toggleInspFilter()" style="left:auto;right:10px;display:flex;align-items:center;gap:4px;">
       <span id="inspFilterIco">⚙️</span> 필터 <span id="inspFilterBadge" style="display:none;background:#e05050;color:#fff;border-radius:50%;width:17px;height:17px;font-size:9px;font-weight:800;align-items:center;justify-content:center;box-shadow:0 1px 5px rgba(224,80,80,.55);flex-shrink:0;"></span>
     </button>
