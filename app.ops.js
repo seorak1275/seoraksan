@@ -94,7 +94,7 @@ function openNewHazard(){
   document.getElementById('hz_loc').value='';document.getElementById('hz_gps').value='';
   initHazMiniMap();
   document.getElementById('hz_desc').value='';const _ha=document.getElementById('hz_author');_ha.value=getAuthor();_ha.disabled=true;
-  document.getElementById('prevHaz').innerHTML='📸 현장 사진';
+  {const pv=document.getElementById('prevHaz');pv.dataset.url='';pv.innerHTML='📸 현장 사진';} // 직전 첨부 잔재가 새 등록에 딸려가지 않게
   document.getElementById('hazFireTimelineWrap').style.display='none';
   document.getElementById('hazFireMobilizeWrap').style.display='none';
   document.getElementById('hazFireLeadWrap').style.display='none';
