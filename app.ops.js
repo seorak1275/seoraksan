@@ -3368,7 +3368,7 @@ function renderAdmMembers(){
   </div>
   <div style="display:flex;align-items:center;gap:5px;margin-bottom:10px;">
     <span style="font-size:10px;color:#565f6b;font-weight:700;flex-shrink:0;">정렬</span>
-    ${[['recent','🕑 최신순'],['senior','🎖 짬순'],['name','가나다순']].map(([v,l])=>`<div onclick="setAdmMemberSort('${v}')" style="padding:4px 10px;border-radius:20px;font-size:10px;font-weight:700;cursor:pointer;${_sort===v?'background:#1a4a6e;color:#3182f6;':'background:#1c1c1e;color:#565f6b;border:1px solid #1a3a5a;'}">${l}</div>`).join('')}
+    ${[['recent','🕑 최신순'],['senior','🎖 직급순'],['name','가나다순']].map(([v,l])=>`<div onclick="setAdmMemberSort('${v}')" style="padding:4px 10px;border-radius:20px;font-size:10px;font-weight:700;cursor:pointer;${_sort===v?'background:#1a4a6e;color:#3182f6;':'background:#1c1c1e;color:#565f6b;border:1px solid #1a3a5a;'}">${l}</div>`).join('')}
   </div>`;
 
   if(!fu.length){
