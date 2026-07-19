@@ -277,6 +277,38 @@ function _paintPark(map,d){
   });
 }
 // ── 🔧 상황판 세로선 진단 — 레이어를 하나씩 꺼서 원인 특정 (사용자 A/B 테스트용) ──
+// ── 🌿 용도지구 오버레이 — 공단 공식 SHP(용도지구_변경) 그대로(EPSG:5174→WGS84, 0.5m 이내 단순화) ──
+let _useZoneLayer=null,_useZoneData=null;
+function _toggleUseZones(){
+  if(_useZoneLayer){
+    _useZoneLayer.forEach(o=>{try{o.setMap(null);}catch(e){}});_useZoneLayer=null;
+    const lg=document.getElementById('useZoneLegend');if(lg)lg.remove();
+    toast('🌿 용도지구 표시 끔');return;
+  }
+  const go=()=>{
+    const _zm=(typeof mapI!=='undefined'&&mapI)?mapI:null;if(!_zm)return;
+    _useZoneLayer=[];
+    (_useZoneData.zones||[]).forEach(z=>{
+      (z.rings||[]).forEach(r=>{
+        if(r.length<3)return;
+        _useZoneLayer.push(new kakao.maps.Polygon({path:r.map(p=>new kakao.maps.LatLng(p[1],p[0])),
+          strokeWeight:1.6,strokeColor:z.color,strokeOpacity:.9,fillColor:z.color,fillOpacity:.16,map:_zm}));
+      });
+    });
+    // 범례
+    let lg=document.getElementById('useZoneLegend');if(lg)lg.remove();
+    lg=document.createElement('div');lg.id='useZoneLegend';
+    lg.style.cssText='position:fixed;left:12px;bottom:calc(74px + env(safe-area-inset-bottom));z-index:9400;background:rgba(15,15,17,.92);border:1px solid rgba(255,255,255,.2);border-radius:11px;padding:8px 11px;display:flex;flex-direction:column;gap:3px;';
+    const seen={};
+    (_useZoneData.zones||[]).forEach(z=>{if(seen[z.grade])return;seen[z.grade]=1;
+      lg.insertAdjacentHTML('beforeend',`<div style="display:flex;align-items:center;gap:6px;font-size:10px;color:#d5d8dc;"><span style="width:10px;height:10px;border-radius:3px;background:${z.color};display:inline-block;"></span>${_esc(z.grade)}</div>`);});
+    document.body.appendChild(lg);
+    toast('🌿 용도지구 표시 — 공단 공식 데이터(변경 최신)');
+  };
+  if(_useZoneData){go();return;}
+  fetch('park-usezones.json').then(r=>r.json()).then(d=>{_useZoneData=d;go();})
+    .catch(()=>toast('⚠️ 용도지구 데이터를 불러오지 못했습니다'));
+}
 // ── 🗺 순찰 구역 오버레이(벡터) — 직무현황 PDF의 구역 경계를 좌표 변환해 실제 지도 위에 표시 ──
 // park-zones.json: 지구 색면 6개 + 구역 분할선 50개 + 번호 라벨(탭=범위·담당) — 공원경계 정합 기반(오차 ~30m)
 let _zoneLayer=null,_zoneData=null;

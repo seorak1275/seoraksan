@@ -4,7 +4,7 @@
 // - PWA 오프라인 캐싱 (app shell)
 // - FCM 백그라운드 메시지 수신 → 시스템 알림 표시
 // ──────────────────────────────────────────────
-const _CACHE = 'seoraksan-v318';
+const _CACHE = 'seoraksan-v319';
 // 지도 타일 캐시(2단) — 셸 버전과 무관하게 유지(배포해도 안 지움). 한 번 본 타일은 오프라인·저속에서도 즉시 표시
 // park: '설악산 인근 미리받기'분 보관 — 다른 지역 열람에 밀려나지 않음
 // recent: 일반 열람 임시 저장 — 소량만 유지(전국을 둘러봐도 이 상한까지만, 오래된 것부터 자동 정리)
@@ -57,7 +57,7 @@ function _putAdaptive(c, req, res) {
 let _parkModeUntil = 0; // 미리받기 진행 중 표시 — 클라이언트가 스텝마다 갱신(TILE_MODE_PARK 메시지)
 // 프로젝트 경로(/seoraksan/) 배포이므로 반드시 상대 경로 사용
 // v10: 단일 index.html → index.html + style.css + app.js 분리에 따라 셸 캐시에 추가
-const _SHELL = ['./', './index.html', './style.css', './app.core.js', './app.map.js', './app.rescue.js', './app.report.js', './app.ops.js', './app.js', './park-boundary.json', './tpl-status.hwpx', './tpl-trend.hwpx', './tpl-safety.hwpx', './manifest.json', './icons/icon-180.png', './icons/icon-192.png', './icons/icon-512.png', './patrol-map.jpg', './staff-roster.json', './park-zones.json'];
+const _SHELL = ['./', './index.html', './style.css', './app.core.js', './app.map.js', './app.rescue.js', './app.report.js', './app.ops.js', './app.js', './park-boundary.json', './tpl-status.hwpx', './tpl-trend.hwpx', './tpl-safety.hwpx', './manifest.json', './icons/icon-180.png', './icons/icon-192.png', './icons/icon-512.png', './patrol-map.jpg', './staff-roster.json', './park-zones.json', './park-usezones.json'];
 
 // Firebase Messaging SDK (SW 컨텍스트용)
 importScripts('https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js');
