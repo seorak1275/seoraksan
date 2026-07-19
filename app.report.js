@@ -478,7 +478,7 @@ function _initTlTeams(r){
 }
 
 function _snapshotTeams(){
-  return _tlTeams.map(t=>({id:t.id,name:t.name,type:t.type,members:(t.members||[]).slice(),agType:t.agType||null,agRegion:t.agRegion||'',hwTeam:t.hwTeam||null,memberCount:t.memberCount||0,requestedAt:t.requestedAt||t.createdAt||null,arrivedAt:t.arrivedAt||null,createdAt:t.createdAt||null}));
+  return _tlTeams.map(t=>({id:t.id,name:t.name,type:t.type,members:_senSort(t.members||[]),agType:t.agType||null,agRegion:t.agRegion||'',hwTeam:t.hwTeam||null,memberCount:t.memberCount||0,requestedAt:t.requestedAt||t.createdAt||null,arrivedAt:t.arrivedAt||null,createdAt:t.createdAt||null}));
 }
 function _persistTeams(){
   if(!_tlWpResId)return;
@@ -722,7 +722,7 @@ function _collectLogEntries(r){
       const _ico=t.type==='heli'?'🚁':t.type==='vehicle'?'🚗':'🥾';
       const _base=t.wps&&t.wps[0]?t.wps[0].name.replace(/^\d{2}-\d{2}\s*/,''):'';
       const _tgt=t.wps&&t.wps.length>1?t.wps[t.wps.length-1].name.replace(/^\d{2}-\d{2}\s*/,''):'';
-      const _mem=t.members&&t.members.length?t.members.join(', '):'';
+      const _mem=t.members&&t.members.length?_senJoin(t.members):'';
       logEntries.push({k:_tKey(t.createdAt),t:_tShow(t.createdAt),ico:_ico,label:t.name+' 출동',sub:(_mem?_mem+' · ':'')+(_base&&_tgt?_base+' → '+_tgt:''),type:'team',tid:t.id,kind:'dispatch'});
     }
     // 팀 조우 기록이 같은 분에 있으면 도착 줄 생략(조우=도착 대체) — 중복 표시 방지
@@ -1506,7 +1506,7 @@ async function _safetyHwpxGen(rid){
   const _npsTeams2=(r.teams||[]).filter(t=>!String(t.id||'').startsWith('agency_'));
   const _teamNames2=new Set(_npsTeams2.flatMap(t=>t.members||[]));
   const _loose2=[...new Set((r.members||[]).filter(n=>n&&!_teamNames2.has(n)))]; // 팀에 안 묶인 초동 인원
-  const _npsParts=_npsTeams2.filter(t=>(t.members||[]).length).map(t=>t.name+' '+t.members.length+'명('+t.members.join(', ')+')');
+  const _npsParts=_npsTeams2.filter(t=>(t.members||[]).length).map(t=>t.name+' '+t.members.length+'명('+_senJoin(t.members)+')');
   if(_loose2.length)_npsParts.push(_loose2.join(', '));
   const _agS=(r.teams||[]).filter(t=>String(t.id||'').startsWith('agency_')).map(t=>t.name+(t.memberCount?' '+t.memberCount+'명':'')).join(', ');
   const helpers=[_npsParts.join(', ')||r.author||'',_agS?'유관기관 '+_agS:''].filter(Boolean).join(' / ');
@@ -1563,7 +1563,7 @@ function _safetyReportHtml(rid){
   if(r.situation)lines.push('- '+r.situation);
   if(r.extra&&!['','-','없음','해당없음','미상'].includes(String(r.extra).trim()))lines.push('- '+r.extra);
   // 지원자: 출동 대원 + 작성자
-  const helpers=[...new Set([...(r.members||[]),r.author].filter(Boolean))].join(', ');
+  const helpers=_senJoin([...new Set([...(r.members||[]),r.author].filter(Boolean))]);
   const title='탐방객 안전지원 활동 현황';
   const body=`
     <table style="border-collapse:collapse;width:100%;margin-bottom:8px;"><tr>
@@ -1803,7 +1803,7 @@ function renderTimeline(r,viewMode,outId){
     {const _npsT=(r.teams||[]).filter(t=>!String(t.id||'').startsWith('agency_'));
      const _tn=new Set(_npsT.flatMap(t=>t.members||[]));
      const _loose=[...new Set((r.members||[]).filter(n=>n&&!_tn.has(n)))];
-     const _np=_npsT.filter(t=>(t.members||[]).length).map(t=>_esc(t.name)+' '+t.members.length+'명('+t.members.map(m=>_esc(m)).join(', ')+')');
+     const _np=_npsT.filter(t=>(t.members||[]).length).map(t=>_esc(t.name)+' '+t.members.length+'명('+_senJoinEsc(t.members)+')');
      if(_loose.length)_np.push(_loose.map(m=>_esc(m)).join(', '));
      const _ag=(r.teams||[]).filter(t=>String(t.id||'').startsWith('agency_')).map(t=>_esc(t.name)+(t.memberCount?' '+t.memberCount+'명':''));
      const _all=_np.concat(_ag.length?['유관기관 '+_ag.join(', ')]:[]);
@@ -1871,15 +1871,15 @@ function renderTimeline(r,viewMode,outId){
           const tot=((r.members||[]).length)+(r.teams||[]).reduce((a,t)=>a+_teamCnt(t),0)+(r.extraTeams||[]).reduce((a,t)=>a+((t.members||[]).length),0);
           return `<div style="font-size:11px;color:#3182f6;font-weight:700;margin-bottom:7px;">👥 출동 인원${tot?` <span style="color:#aab4c0;">· 총 ${tot}명</span>`:''}</div>`;
         })()}
-        ${(r.members&&r.members.length)?`<div style="font-size:11px;color:#c4c8ce;margin-bottom:3px;"><span style="color:#7ec8a0;font-weight:600;">🏃 초동팀 <span style="color:#aab4c0;font-size:10px;">${r.members.length}명</span></span> <span style="color:#c4c8ce;">— ${_esc(r.members.join(', '))}</span></div>`:''}
+        ${(r.members&&r.members.length)?`<div style="font-size:11px;color:#c4c8ce;margin-bottom:3px;"><span style="color:#7ec8a0;font-weight:600;">🏃 초동팀 <span style="color:#aab4c0;font-size:10px;">${r.members.length}명</span></span> <span style="color:#c4c8ce;">— ${_esc(_senJoin(r.members))}</span></div>`:''}
         ${(r.teams&&r.teams.length)?r.teams.map(t=>{
           const cnt=_teamCnt(t);
-          const mem=(t.members&&t.members.length)?` <span style="color:#c4c8ce;font-weight:400;">— ${_esc(t.members.join(', '))}</span>`:'';
+          const mem=(t.members&&t.members.length)?` <span style="color:#c4c8ce;font-weight:400;">— ${_esc(_senJoin(t.members))}</span>`:'';
           return `<div style="font-size:11px;color:#c4c8ce;margin-bottom:3px;"><span style="color:#7ec8a0;font-weight:600;">${_teamIco(t)} ${_esc(_deptShort(t.name))}${cnt?` <span style="color:#aab4c0;font-size:10px;">${cnt}명</span>`:''}</span>${mem}</div>`;
         }).join(''):''}
         ${(()=>{const mr=(r.mobilizeResp||[]).filter(x=>x&&x.status==='eta');return mr.length?`<div style="font-size:11px;color:#c4c8ce;margin-bottom:3px;"><span style="color:#e8b34a;font-weight:600;">🚨 응소 <span style="color:#aab4c0;font-size:10px;">${mr.length}명</span></span> <span style="color:#c4c8ce;">— ${_esc(mr.map(x=>x.name+(x.eta?' ('+x.eta+' 도착예정)':'')).join(', '))}</span></div>`:'';})()}
         ${(!r.members||!r.members.length)&&(!r.teams||!r.teams.length)&&!(r.mobilizeResp||[]).some(x=>x&&x.status==='eta')?'<div style="font-size:11px;color:rgba(255,255,255,.3);">미기재 — 타임라인에서 팀을 출동시키면 자동 표시됩니다</div>':''}
-        ${(r.extraTeams&&r.extraTeams.length)?r.extraTeams.map(t=>`<div style="font-size:11px;color:#c4c8ce;margin-bottom:3px;"><span style="color:#7ec8a0;font-weight:600;">${_esc(_deptShort(t.teamName))}${(t.members||[]).length?` <span style="color:#aab4c0;font-size:10px;">${(t.members||[]).length}명</span>`:''}</span>${(t.members||[]).length?` <span style="color:#c4c8ce;">— ${_esc((t.members||[]).join(', '))}</span>`:''}</div>`).join(''):''}
+        ${(r.extraTeams&&r.extraTeams.length)?r.extraTeams.map(t=>`<div style="font-size:11px;color:#c4c8ce;margin-bottom:3px;"><span style="color:#7ec8a0;font-weight:600;">${_esc(_deptShort(t.teamName))}${(t.members||[]).length?` <span style="color:#aab4c0;font-size:10px;">${(t.members||[]).length}명</span>`:''}</span>${(t.members||[]).length?` <span style="color:#c4c8ce;">— ${_esc(_senJoin(t.members||[]))}</span>`:''}</div>`).join(''):''}
         ${(r.agencies)?(()=>{
           const ag=r.agencies;const parts=[];
           if(ag.hwandongha)parts.push(`🚒 ${(DB.g('extAgencyDisplayName')||'환동해 특수대응단').split(' ')[0]} ${ag.hwTeam||'?'}팀`);
@@ -2501,13 +2501,13 @@ function _buildReportText(r){
   if(r.handover&&r.handover.to)L.push('인계: '+r.handover.to+(r.handover.time?' ('+r.handover.time+')':''));
   // 출동 인원
   const teamParts=[];
-  if(r.members&&r.members.length)teamParts.push('초동팀 '+r.members.join(', '));
+  if(r.members&&r.members.length)teamParts.push('초동팀 '+_senJoin(r.members));
   (r.teams||[]).forEach(t=>{
     const _ops=[];
     if(t.transportMethod)_ops.push(t.transportMethod);
-    teamParts.push(t.name+(t.members&&t.members.length?' ('+t.members.join(', ')+')':'')+(t.memberCount?' '+t.memberCount+'명':'')+(_ops.length?' ['+_ops.join(', ')+']':''));
+    teamParts.push(t.name+(t.members&&t.members.length?' ('+_senJoin(t.members)+')':'')+(t.memberCount?' '+t.memberCount+'명':'')+(_ops.length?' ['+_ops.join(', ')+']':''));
   });
-  (r.extraTeams||[]).forEach(t=>{teamParts.push(t.teamName+(t.members&&t.members.length?' ('+t.members.join(', ')+')':''));});
+  (r.extraTeams||[]).forEach(t=>{teamParts.push(t.teamName+(t.members&&t.members.length?' ('+_senJoin(t.members)+')':''));});
   if(teamParts.length)L.push('출동인원: '+teamParts.join(' / '));
   // 통합 타임라인 (타임테이블 + 위치통과 + 팀 출동/도착/탑승/이송전환 + CPR 상세)
   const baseDate=(r.date||'').slice(0,10);

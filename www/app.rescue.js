@@ -53,7 +53,70 @@ function _rosterPick(n,d,g){
   toast('📋 명부 확인: '+n+' ('+d+(g?' · '+g:'')+') — 맞으면 저장하세요');
   try{_rosterHintRender(n);}catch(e){}
 }
-// 정확히 일치: 명부 정보(이름·소속·급수)로 바로 로그인 완료 — 직위는 명부에 없어 선택 사항
+// ── 급수(급) → 직위 자동 추정 + 개인별 직책 예외 ──
+// 6~10급=주임 / 5급=계장 / 4급=팀장 / 3급=과장 / 1급=소장 (2급 없음). 분소장·대장·과장·소장은 이름 예외로 지정.
+const _RANK_BY_NAME={
+  '손경완':'특수산악구조대장',
+  '박수준':'분소장','이해일':'분소장','권기현':'분소장','안현우':'분소장','손장익':'분소장',
+  '김상희':'과장','최승철':'과장','김지숙':'과장','박종영':'과장',
+  '노윤경':'소장'
+};
+function _rankFromGrade(grade,name){
+  const nm=String(name||'').trim();
+  if(_RANK_BY_NAME[nm])return _RANK_BY_NAME[nm];
+  const g=parseInt(String(grade||'').replace(/[^\d]/g,''));
+  if(isNaN(g))return '';
+  if(g<=1)return '소장';
+  if(g<=3)return '과장';   // 3급(2급 없음)
+  if(g===4)return '팀장';
+  if(g===5)return '계장';
+  return '주임';           // 6~10급
+}
+// ── 짬순(연공) 정렬 — 명부의 급수(낮을수록 선임) + 분소 내 명부 순서(위=선임)로 이름을 정렬 ──
+// 보고서·목록 등 '이름을 순서대로 나열'하는 곳은 이 함수로 정렬한다.
+let _senMap=null;
+function _buildSenMap(){
+  if(_senMap)return _senMap;
+  if(!_staffRoster)return null;
+  _senMap={};
+  ((_staffRoster.staff)||[]).forEach((s,i)=>{
+    const g=parseInt(String(s.g||'').replace(/[^\d]/g,''));
+    // 이름 예외 직책은 선임 가중치를 준다(소장>대장·분소장>과장>급수순)
+    const r=_RANK_BY_NAME[s.n];
+    const titleW=r==='소장'?0:(r==='특수산악구조대장'||r==='분소장')?1:r==='과장'?2:99;
+    _senMap[s.n]=Math.min(titleW,(isNaN(g)?9:g))*10000+i;
+  });
+  return _senMap;
+}
+function _staffSenScore(name){
+  const m=_buildSenMap();const n=String(name||'').trim();
+  return (m&&m[n]!=null)?m[n]:9999999; // 명부에 없으면 맨 뒤
+}
+function _senSort(names){
+  return (names||[]).slice().sort((a,b)=>{
+    const d=_staffSenScore(a)-_staffSenScore(b);
+    return d!==0?d:String(a).localeCompare(String(b),'ko');
+  });
+}
+function _senJoin(names){return _senSort(names).join(', ');}
+function _senJoinEsc(names){return _senSort(names).map(m=>(typeof _esc==='function'?_esc(m):m)).join(', ');}
+// 기존 회원 급수 자동 보완 — 이름이 명부와 정확히(유일하게) 일치하면 급수 채우고, 직위 없으면 급수로 추정
+function _backfillGradeFromRoster(){
+  const u=DB.g('currentUser')||{};
+  if(!u||!(u.realName||u.name)||u.grade)return; // 이미 급수 있으면 skip
+  if(!_staffRoster)return;
+  const nm=String(u.realName||u.name).trim();
+  const hit=(_staffRoster.staff||[]).filter(s=>s.n===nm);
+  if(hit.length!==1)return; // 동명이인·불일치는 자동 처리 안 함
+  const merged=Object.assign({},u,{grade:hit[0].g||''});
+  if(!merged.rank)merged.rank=_rankFromGrade(hit[0].g,nm)||'';
+  DB.s('currentUser',merged);
+  try{if(typeof updateUserUI==='function')updateUserUI();}catch(e){}
+  try{if(typeof renderSettings==='function'&&document.getElementById('v-settings'))renderSettings();}catch(e){}
+}
+// 명부 조기 로드(짬순 정렬 가용화) + 급수 보완
+setTimeout(function(){try{_loadRoster(function(){try{_backfillGradeFromRoster();}catch(e){}});}catch(e){}},1200);
+// 정확히 일치: 명부 정보(이름·소속·급수)로 바로 로그인 완료 — 직위는 급수로 자동 추정
 function _rosterConfirm(n,d,g){
   const ni=document.getElementById('uNameIn');if(ni)ni.value=n;
   const ds=document.getElementById('uDeptIn');if(ds)ds.value=d;
@@ -272,11 +335,13 @@ function saveUser(){
   const name=document.getElementById('uNameIn').value.trim();
   if(!name){toast('⚠️ 이름을 입력해주세요');return;}
   const dept=document.getElementById('uDeptIn').value;
-  const rank=getSelPills('rankPills')[0]||'';   // 직위 — 명부에 없어 선택 사항(비워도 로그인 가능)
   if(!dept){toast('⚠️ 소속 과/분소를 선택해주세요');return;}
   const existing=DB.g('currentUser')||{};
   const grade=window._pendingGrade||existing.grade||''; // 급수(5급·6급 등) — 명부에서 자동 채움
   window._pendingGrade='';
+  // 직위: 직접 고른 값 우선, 없으면 급수+이름으로 자동 추정(6~10급=주임/5급=계장/4급=팀장/3급=과장/1급=소장, 개인 예외 반영)
+  let rank=getSelPills('rankPills')[0]||existing.rank||'';
+  if(!rank&&(grade||name))rank=_rankFromGrade(grade,name)||'';
   // 승인은 관리자가 직원 탭에서 '멤버' 지정으로만 부여(승인코드 제거). 여기선 프로필만 저장.
   const saved={...existing,realName:name,name,dept,rank,grade};
   DB.s('currentUser',saved);
