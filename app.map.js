@@ -309,42 +309,49 @@ function _toggleUseZones(){
   fetch('park-usezones.json').then(r=>r.json()).then(d=>{_useZoneData=d;go();})
     .catch(()=>toast('⚠️ 용도지구 데이터를 불러오지 못했습니다'));
 }
-// ── 🗺 순찰 구역 오버레이(벡터) — 직무현황 PDF의 구역 경계를 좌표 변환해 실제 지도 위에 표시 ──
-// park-zones.json: 지구 색면 6개 + 구역 분할선 50개 + 번호 라벨(탭=범위·담당) — 공원경계 정합 기반(오차 ~30m)
-let _zoneLayer=null,_zoneData=null;
+// ── 🗺 순찰 구역 오버레이(폴리곤) — 직무현황 PDF의 구역을 벡터화·좌표 변환한 49개 면 ──
+// park-zones.json v2: zones[{n,color,rings}] + labels[{n,lat,lng}] + info{n:{r,m}} — 공원경계 정합(오차 ~30m)
+// 27|31·28|31·29|32 경계는 실제 도로선 기준. 구역 탭=노란 강조+범위·담당 카드, 시설물 깜빡이 보기
+let _zoneLayer=null,_zoneData=null,_zonePolys=null,_zoneSel=null,_zoneFacBlink=null;
 function _toggleZones(){
   if(_zoneLayer){_zoneClear();toast('🗺 구역 표시 끔');return;}
-  const go=()=>{_zoneDraw();toast('🗺 순찰 구역 표시 — 번호를 누르면 범위·담당이 나옵니다',4000);};
+  const go=()=>{_zoneDraw();toast('🗺 순찰 구역 표시 — 구역을 누르면 범위·담당이 나옵니다',4000);};
   if(_zoneData){go();return;}
   fetch('park-zones.json').then(r=>r.json()).then(zd=>{_zoneData=zd;go();})
     .catch(()=>toast('⚠️ 구역 데이터를 불러오지 못했습니다'));
 }
 function _zoneClear(){
   if(_zoneLayer)_zoneLayer.forEach(o=>{try{o.setMap(null);}catch(e){}});
-  _zoneLayer=null;
+  _zoneLayer=null;_zonePolys=null;_zoneSel=null;
+  _zoneBlinkStop();
   const c=document.getElementById('zoneInfoCard');if(c)c.remove();
+}
+// 구역 폴리곤 기본 스타일(내 구역=초록 테두리·진한 채움)로 복원
+function _zoneStyleReset(pg){
+  try{pg.setOptions({strokeWeight:pg._zmine?2.5:1.5,strokeColor:pg._zmine?'#3ddc84':'#ffffff',
+    strokeOpacity:pg._zmine?.95:.7,fillColor:pg._zc,fillOpacity:pg._zmine?.24:.12,zIndex:pg._zmine?2:1});}catch(e){}
 }
 function _zoneDraw(){
   const _zm=(typeof mapI!=='undefined'&&mapI)?mapI:null; // 시설물 지도에 표시
   if(!_zm||!_zoneData||!window.kakao)return;
-  _zoneClear();_zoneLayer=[];
+  _zoneClear();_zoneLayer=[];_zonePolys={};
   const zd=_zoneData;
   // 내 담당 구역 — 로그인한 이름이 담당자에 포함된 구역은 초록으로 강조
   const _me=DB.g('currentUser')||{};
   const _myName=String(_me.realName||_me.name||'').trim();
   const _isMine=n=>{const inf=zd.info&&zd.info[n];return !!(_myName&&inf&&inf.m&&inf.m.indexOf(_myName)>=0);};
   const _myLbs=[];
-  (zd.districts||[]).forEach(d=>{
-    (d.rings||[]).forEach(ring=>{
+  (zd.zones||[]).forEach(z=>{
+    const mine=_isMine(z.n);
+    (z.rings||[]).forEach(ring=>{
       if(ring.length<3)return;
-      _zoneLayer.push(new kakao.maps.Polygon({path:ring.map(p=>new kakao.maps.LatLng(p[0],p[1])),
-        strokeWeight:2.5,strokeColor:d.color,strokeOpacity:.95,fillColor:d.color,fillOpacity:.10,zIndex:1,map:_zm}));
+      const pg=new kakao.maps.Polygon({path:ring.map(p=>new kakao.maps.LatLng(p[0],p[1])),
+        strokeWeight:mine?2.5:1.5,strokeColor:mine?'#3ddc84':'#ffffff',strokeOpacity:mine?.95:.7,
+        fillColor:z.color,fillOpacity:mine?.24:.12,zIndex:mine?2:1,map:_zm});
+      pg._zn=z.n;pg._zc=z.color;pg._zmine=mine;
+      kakao.maps.event.addListener(pg,'click',function(){_zoneSelect(z.n);});
+      _zoneLayer.push(pg);(_zonePolys[z.n]=_zonePolys[z.n]||[]).push(pg);
     });
-  });
-  (zd.lines||[]).forEach(l=>{
-    if(l.length<2)return;
-    _zoneLayer.push(new kakao.maps.Polyline({path:l.map(p=>new kakao.maps.LatLng(p[0],p[1])),
-      strokeWeight:1.8,strokeColor:'#ffffff',strokeOpacity:.8,zIndex:2,map:_zm}));
   });
   (zd.labels||[]).forEach(lb=>{
     const mine=_isMine(lb.n);
@@ -353,8 +360,8 @@ function _zoneDraw(){
       ?'background:rgba(15,54,32,.92);color:#7dffb0;font-size:12px;font-weight:900;padding:3px 9px;border-radius:10px;border:1.5px solid #3ddc84;cursor:pointer;line-height:1.4;box-shadow:0 0 8px rgba(61,220,132,.5);'
       :'background:rgba(18,22,30,.85);color:#ffd76a;font-size:11px;font-weight:800;padding:2px 7px;border-radius:9px;border:1px solid rgba(255,215,106,.55);cursor:pointer;line-height:1.4;';
     el.textContent=mine?('★'+lb.n):lb.n;
-    el.onclick=function(ev){try{ev.stopPropagation();}catch(e){}_zoneInfo(lb.n);};
-    const ov=new kakao.maps.CustomOverlay({position:new kakao.maps.LatLng(lb.lat,lb.lng),content:el,yAnchor:.5,zIndex:mine?7:6,clickable:true});
+    el.onclick=function(ev){try{ev.stopPropagation();}catch(e){}_zoneSelect(lb.n);};
+    const ov=new kakao.maps.CustomOverlay({position:new kakao.maps.LatLng(lb.lat,lb.lng),content:el,yAnchor:.5,zIndex:6,clickable:true});
     ov.setMap(_zm);_zoneLayer.push(ov);
     if(mine)_myLbs.push(lb);
   });
@@ -364,18 +371,82 @@ function _zoneDraw(){
     toast('⭐ 내 담당 구역: '+_myLbs.map(l=>l.n).join('·')+'구역 — 초록 표시');
   }
 }
+// 구역 선택 — 해당 면을 노랗게 강조하고 정보 카드 표시
+function _zoneSelect(n){
+  if(_zoneSel&&_zonePolys&&_zonePolys[_zoneSel])_zonePolys[_zoneSel].forEach(_zoneStyleReset);
+  _zoneSel=n;
+  if(_zonePolys&&_zonePolys[n])_zonePolys[n].forEach(pg=>{
+    try{pg.setOptions({strokeWeight:3.5,strokeColor:'#ffd76a',strokeOpacity:1,fillColor:pg._zc,fillOpacity:.34,zIndex:5});}catch(e){}
+  });
+  _zoneInfo(n);
+}
+function _zoneUnsel(){
+  const c=document.getElementById('zoneInfoCard');if(c)c.remove();
+  if(_zoneSel&&_zonePolys&&_zonePolys[_zoneSel])_zonePolys[_zoneSel].forEach(_zoneStyleReset);
+  _zoneSel=null;
+}
 function _zoneInfo(n){
   const inf=(_zoneData&&_zoneData.info&&_zoneData.info[n])||null;
   let c=document.getElementById('zoneInfoCard');if(c)c.remove();
   c=document.createElement('div');c.id='zoneInfoCard';
-  c.style.cssText='position:fixed;left:12px;right:12px;bottom:calc(74px + env(safe-area-inset-bottom));z-index:9500;background:#16161a;border:1px solid rgba(255,215,106,.4);border-radius:13px;padding:12px 14px;box-shadow:0 6px 20px rgba(0,0,0,.6);';
-  c.innerHTML=`<div style="display:flex;align-items:center;gap:8px;">
-      <span style="font-size:14px;font-weight:800;color:#ffd76a;">${_esc(n)}구역</span>
-      <span style="flex:1;font-size:12px;color:#d5d8dc;line-height:1.5;">${inf?_esc(inf.r||''):'범위 정보 없음'}</span>
-      <button onclick="document.getElementById('zoneInfoCard').remove()" style="background:none;border:none;color:rgba(255,255,255,.5);font-size:19px;cursor:pointer;line-height:1;">×</button></div>
+  c.style.cssText='position:fixed;left:50%;transform:translateX(-50%);bottom:calc(74px + env(safe-area-inset-bottom));z-index:9500;width:calc(100% - 24px);max-width:440px;box-sizing:border-box;background:#16161a;border:1px solid rgba(255,215,106,.4);border-radius:13px;padding:12px 14px;box-shadow:0 6px 20px rgba(0,0,0,.6);';
+  c.innerHTML=`<div style="display:flex;align-items:flex-start;gap:8px;">
+      <span style="font-size:14px;font-weight:800;color:#ffd76a;flex-shrink:0;">${_esc(n)}구역</span>
+      <span style="flex:1;font-size:12px;color:#d5d8dc;line-height:1.5;word-break:keep-all;">${inf?_esc(inf.r||''):'범위 정보 없음'}</span>
+      <button onclick="_zoneUnsel()" style="background:none;border:none;color:rgba(255,255,255,.5);font-size:19px;cursor:pointer;line-height:1;flex-shrink:0;">×</button></div>
     ${inf&&inf.m?`<div style="font-size:12px;color:#8fb8ad;margin-top:5px;">담당: <b style="color:#a7e3c4;">${_esc(inf.m)}</b></div>`:''}
-    <button onclick="openPatrolMap()" style="margin-top:8px;padding:7px 11px;border-radius:8px;border:1px solid rgba(49,130,246,.4);background:rgba(49,130,246,.12);color:#4d9bf5;font-size:11px;font-weight:700;cursor:pointer;">📄 원본 구역도 이미지 보기</button>`;
+    <button onclick="_zoneShowFacs('${_escq(n)}')" style="margin-top:8px;padding:7px 11px;border-radius:8px;border:1px solid rgba(255,215,106,.45);background:rgba(255,215,106,.1);color:#ffd76a;font-size:11px;font-weight:700;cursor:pointer;">🏗 이 구역 시설물 보기</button>`;
   document.body.appendChild(c);
+}
+// 구역 폴리곤 내부 판정(레이캐스팅) — rings는 [lat,lng] 순서
+function _zonePip(n,la,ln){
+  const zs=((_zoneData&&_zoneData.zones)||[]).filter(z=>z.n===n);
+  for(const z of zs)for(const ring of (z.rings||[])){
+    let ins=false;
+    for(let i=0,j=ring.length-1;i<ring.length;j=i++){
+      const yi=ring[i][0],xi=ring[i][1],yj=ring[j][0],xj=ring[j][1];
+      if(((yi>la)!==(yj>la))&&(ln<(xj-xi)*(la-yi)/(yj-yi)+xi))ins=!ins;
+    }
+    if(ins)return true;
+  }
+  return false;
+}
+// 이 구역 시설물 보기 — 구역 안 시설물을 깜빡이 오버레이로 8초 표시 + 화면 맞춤
+function _zoneShowFacs(n){
+  const _zm=(typeof mapI!=='undefined'&&mapI)?mapI:null;if(!_zm||!window.kakao)return;
+  _zoneBlinkStop();
+  const _meta=DB.g('catFacMeta')||{};const admin=(typeof isAdminUser==='function')&&isAdminUser();
+  const facs=(DB.g('facilities')||[]).filter(f=>f.lat&&f.lng&&_facVisibleTo(f)
+    &&(admin||!(_meta[f.type]||{}).adminOnly)&&_zonePip(n,+f.lat,+f.lng));
+  if(!facs.length){toast(n+'구역 안에 등록된 시설물이 없습니다');return;}
+  if(!document.getElementById('zoneBlinkCss')){
+    const st=document.createElement('style');st.id='zoneBlinkCss';
+    st.textContent='@keyframes zoneFacBlink{0%,100%{box-shadow:0 0 0 0 rgba(255,215,106,.85);opacity:1;}50%{box-shadow:0 0 0 13px rgba(255,215,106,0);opacity:.5;}}';
+    document.head.appendChild(st);
+  }
+  _zoneFacBlink=[];
+  const bounds=new kakao.maps.LatLngBounds();
+  facs.forEach(f=>{
+    const col=(typeof _facTypeColor==='function'?_facTypeColor(f.type):'#ffd76a');
+    const el=document.createElement('div');
+    el.style.cssText='display:flex;flex-direction:column;align-items:center;gap:2px;cursor:pointer;';
+    el.innerHTML=`<span style="width:15px;height:15px;border-radius:50%;background:${col};border:2px solid #fff;animation:zoneFacBlink 1s ease-in-out infinite;"></span>
+      <span style="background:rgba(10,12,16,.88);color:#ffe9a8;font-size:10px;font-weight:800;padding:1px 6px;border-radius:7px;border:1px solid rgba(255,215,106,.5);white-space:nowrap;">${_esc(f.name||'')}</span>`;
+    el.onclick=function(ev){try{ev.stopPropagation();}catch(e){}try{openFacFromMap(f.id);}catch(e){}};
+    const pos=new kakao.maps.LatLng(+f.lat,+f.lng);
+    const ov=new kakao.maps.CustomOverlay({position:pos,content:el,yAnchor:.5,zIndex:9,clickable:true});
+    ov.setMap(_zm);_zoneFacBlink.push(ov);bounds.extend(pos);
+  });
+  try{_zm.setBounds(bounds,60);}catch(e){}
+  const c=document.getElementById('zoneInfoCard');if(c)c.remove();
+  toast('🏗 '+n+'구역 시설물 '+facs.length+'개 — 깜빡이 표시(8초)',3500);
+  clearTimeout(window._zoneBlinkTm);
+  window._zoneBlinkTm=setTimeout(_zoneBlinkStop,8000);
+}
+function _zoneBlinkStop(){
+  clearTimeout(window._zoneBlinkTm);
+  if(_zoneFacBlink)_zoneFacBlink.forEach(o=>{try{o.setMap(null);}catch(e){}});
+  _zoneFacBlink=null;
 }
 // ── 🗺 순찰 담당 구역도(직무현황표 PDF) 뷰어 — 핀치·휠·더블탭 확대, 오프라인 캐시 ──
 function openPatrolMap(){
