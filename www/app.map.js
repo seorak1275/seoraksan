@@ -586,13 +586,18 @@ function _zoneShowFacs(n){
   _zoneFacBlink=[];
   facs.forEach(f=>{
     const col=(typeof _facTypeColor==='function'?_facTypeColor(f.type):'#ffd76a');
+    // 일반 시설물 점검지도에서 시설물 눌렀을 때와 '완전히 동일'하게 —
+    // 실제 핀(.mpin p-fac: 아이콘+종류색 테두리·바탕)에 선택 강조(.mpin-sel: 청록 물결)만 얹는다.
     const el=document.createElement('div');
-    el.style.cssText='cursor:pointer;padding:6px;';
-    // 일반 시설물 점검지도에서 시설물 눌렀을 때와 똑같은 청록 물결 강조(.zfSel = .mpin-sel 이식), 가운데는 시설 종류색 점
-    el.innerHTML=`<span class="zfSel"><i style="background:${col};"></i></span>`;
+    el.className='mpin p-fac mpin-sel';
+    el.innerHTML=String(f.type||'').split(' ')[0];
+    el.style.borderColor=col;
+    el.style.background=`linear-gradient(0deg,${col}44,${col}44),#1c1c1e`;
+    el.style.cursor='pointer';
+    el.style.transition='transform .18s ease,opacity .18s ease';
     el.onclick=function(ev){try{ev.stopPropagation();}catch(e){}_zoneFacFocus(f.id);};
     const pos=new kakao.maps.LatLng(+f.lat,+f.lng);
-    const ov=new kakao.maps.CustomOverlay({position:pos,content:el,yAnchor:.5,zIndex:9,clickable:true});
+    const ov=new kakao.maps.CustomOverlay({position:pos,content:el,zIndex:9,clickable:true});
     ov.setMap(_zm);_zoneFacBlink.push({ov,el,id:f.id});
   });
   // 지도는 움직이지 않음 — 선택한 구역이 계속 보이도록 유지
@@ -629,9 +634,9 @@ function _zoneShowFacs(n){
 // 목록 탭 — 지도는 그대로 두고 해당 시설물만 크게 강조 깜빡 + 줄 하이라이트
 function _zoneFacFocus(id){
   (_zoneFacBlink||[]).forEach(b=>{
-    const dot=b.el&&b.el.querySelector('.zfSel');if(!dot)return;
-    if(b.id===id){dot.classList.add('zfBig');dot.style.opacity='1';try{b.ov.setZIndex(12);}catch(e){}}
-    else{dot.classList.remove('zfBig');dot.style.opacity='.5';try{b.ov.setZIndex(9);}catch(e){}}
+    const el=b.el;if(!el)return;
+    if(b.id===id){el.style.transform='scale(1.3)';el.style.opacity='1';try{b.ov.setZIndex(12);}catch(e){}}
+    else{el.style.transform='';el.style.opacity='.55';try{b.ov.setZIndex(9);}catch(e){}}
   });
   document.querySelectorAll('#zoneFacRows [id^=zfRow]').forEach(r=>{r.style.background='';});
   const row=document.getElementById('zfRow'+id);

@@ -1,1 +1,1 @@
-{"version":"2026.07.20.319","url":"https://seorak1275.github.io/seoraksan/bundle.zip","notes":"지역담당구역·이구역시설물 하단바: X버튼 제거→손잡이 내려서 닫기(다른 목록과 동일) · 이구역시설물 반짝이를 일반 시설물 선택과 같은 청록 물결로 통일"}
+{"version":"2026.07.20.320","url":"https://seorak1275.github.io/seoraksan/bundle.zip","notes":"이 구역 시설물 반짝이를 일반 시설물 선택과 완전 동일하게 — 실제 핀(.mpin p-fac)에 청록 강조(.mpin-sel) 그대로 적용(아이콘·종류색 유지)"}
