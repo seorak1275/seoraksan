@@ -446,18 +446,46 @@ function _zoneUnsel(){
   if(_zoneSelB&&_zonePolysB&&_zonePolysB[_zoneSelB])_zonePolysB[_zoneSelB].forEach(pg=>{try{pg.setOptions({strokeWeight:1.5,strokeColor:'#ffffff',strokeOpacity:.7,fillColor:pg._zc,fillOpacity:.12,zIndex:1});}catch(e){}});
   _zoneSelB=null;
 }
+// 떠 있는 하단 카드 공통: X버튼 대신 손잡이를 아래로 내려서 닫기(다른 목록 바텀시트와 동일 감각).
+// 카드가 translateX(-50%)로 가운데 정렬돼 있으므로 기준 transform(_baseTf)을 보존한 채 Y만 끌어내린다.
+function _bindDragClose(p,closeFn){
+  if(!p||p._dragC)return;p._dragC=true;
+  const base=p._baseTf||'';
+  const h=p.querySelector('.sheetGrab')||p;
+  let y0=null,t0=0;
+  const start=y=>{y0=y;t0=Date.now();p.style.transition='none';};
+  const move=y=>{if(y0==null)return;p.style.transform=(base+' translateY('+Math.max(0,y-y0)+'px)').trim();};
+  const end=y=>{
+    if(y0==null)return;
+    const dy=y-y0,dt=Date.now()-t0,vel=dt>0?dy/dt:0;y0=null;
+    if(dy>40||(dy>12&&vel>0.4)){
+      p.style.transition='transform .18s ease-in';
+      p.style.transform=(base+' translateY(130%)').trim();
+      setTimeout(()=>{try{closeFn();}catch(e){}},170);
+    }else{
+      p.style.transition='transform .2s cubic-bezier(.4,0,.2,1)';
+      p.style.transform=base;
+      setTimeout(()=>{p.style.transition='';},210);
+    }
+  };
+  h.addEventListener('touchstart',e=>{start(e.touches[0].clientY);},{passive:true});
+  h.addEventListener('touchmove',e=>{move(e.touches[0].clientY);},{passive:true});
+  h.addEventListener('touchend',e=>{end(e.changedTouches[0].clientY);});
+  h.addEventListener('mousedown',e=>{start(e.clientY);const mv=ev=>move(ev.clientY);const up=ev=>{end(ev.clientY);document.removeEventListener('mousemove',mv);document.removeEventListener('mouseup',up);};document.addEventListener('mousemove',mv);document.addEventListener('mouseup',up);e.preventDefault();});
+}
 function _zoneInfo(n){
   const inf=(_zoneData&&_zoneData.info&&_zoneData.info[n])||null;
   let c=document.getElementById('zoneInfoCard');if(c)c.remove();
   c=document.createElement('div');c.id='zoneInfoCard';
-  c.style.cssText='position:fixed;left:50%;transform:translateX(-50%);bottom:calc(74px + env(safe-area-inset-bottom));z-index:9500;width:calc(100% - 24px);max-width:440px;box-sizing:border-box;background:#16161a;border:1px solid rgba(255,215,106,.4);border-radius:13px;padding:12px 14px;box-shadow:0 6px 20px rgba(0,0,0,.6);';
+  c.style.cssText='position:fixed;left:50%;transform:translateX(-50%);bottom:calc(74px + env(safe-area-inset-bottom));z-index:9500;width:calc(100% - 24px);max-width:440px;box-sizing:border-box;background:#16161a;border:1px solid rgba(255,215,106,.4);border-radius:13px;padding:2px 14px 12px;box-shadow:0 6px 20px rgba(0,0,0,.6);';
+  c._baseTf='translateX(-50%)';
   const _onBoard=(()=>{try{return document.getElementById('v-board').classList.contains('on');}catch(e){return false;}})();
   const _me=DB.g('currentUser')||{};const _myName=String(_me.realName||_me.name||'').trim();
   const _mine=!!(inf&&inf.m&&_myName&&inf.m.indexOf(_myName)>=0);
-  c.innerHTML=`<div style="display:flex;align-items:flex-start;gap:8px;">
+  c.innerHTML=`<div class="sheetGrab" style="padding:8px 0 8px;margin:0 -14px;cursor:grab;touch-action:none;"><div class="dbhandle"></div></div>
+    <div style="display:flex;align-items:flex-start;gap:8px;">
       <span style="font-size:14px;font-weight:800;color:#ffd76a;flex-shrink:0;">${_esc(n)}구역${_mine?' <span style="font-size:10px;color:#7dffb0;">★내 담당</span>':''}</span>
-      <span style="flex:1;font-size:12px;color:#d5d8dc;line-height:1.5;word-break:keep-all;">${inf?_esc(inf.r||''):'범위 정보 없음'}</span>
-      <button onclick="_zoneUnsel()" style="background:none;border:none;color:rgba(255,255,255,.5);font-size:19px;cursor:pointer;line-height:1;flex-shrink:0;">×</button></div>
+      <span style="flex:1;font-size:12px;color:#d5d8dc;line-height:1.5;word-break:keep-all;">${inf?_esc(inf.r||''):'범위 정보 없음'}</span></div>
     <div style="display:flex;align-items:center;gap:6px;margin-top:7px;background:${_mine?'rgba(61,220,132,.12)':'rgba(94,207,143,.08)'};border:1px solid ${_mine?'rgba(61,220,132,.4)':'rgba(94,207,143,.25)'};border-radius:8px;padding:6px 9px;">
       <span style="font-size:11px;">👤</span>
       <span style="font-size:11px;color:#8fb8ad;font-weight:700;flex-shrink:0;">지역담당</span>
@@ -465,6 +493,7 @@ function _zoneInfo(n){
     ${_onBoard?'':`<button onclick="_zoneShowFacs('${_escq(n)}')" style="margin-top:8px;padding:7px 11px;border-radius:8px;border:1px solid rgba(255,215,106,.45);background:rgba(255,215,106,.1);color:#ffd76a;font-size:11px;font-weight:700;cursor:pointer;">🏗 이 구역 시설물 보기</button>`}`;
   if(_onBoard)c.style.zIndex='99600'; // 상황판(전체화면) 위로
   document.body.appendChild(c);
+  _bindDragClose(c,_zoneUnsel);
 }
 // ── 상황판 지도용 구역·용도 레이어 — 같은 데이터를 큰 지도에서 그대로 (표시 전용, 탭=범위·담당 카드) ──
 let _zoneLayerB=null,_useZoneLayerB=null;
@@ -554,17 +583,13 @@ function _zoneShowFacs(n){
     &&(admin||!(_meta[f.type]||{}).adminOnly)&&_zonePip(n,+f.lat,+f.lng));
   if(!facs.length){toast(n+'구역 안에 등록된 시설물이 없습니다');return;}
   facs.sort((a,b)=>String(a.name||'').localeCompare(String(b.name||''),'ko',{numeric:true}));
-  if(!document.getElementById('zoneBlinkCss')){
-    const st=document.createElement('style');st.id='zoneBlinkCss';
-    st.textContent='@keyframes zoneFacBlink{0%,100%{box-shadow:0 0 0 0 rgba(255,215,106,.55);opacity:.95;}50%{box-shadow:0 0 0 7px rgba(255,215,106,0);opacity:.6;}}';
-    document.head.appendChild(st);
-  }
   _zoneFacBlink=[];
   facs.forEach(f=>{
     const col=(typeof _facTypeColor==='function'?_facTypeColor(f.type):'#ffd76a');
     const el=document.createElement('div');
-    el.style.cssText='cursor:pointer;padding:4px;';
-    el.innerHTML=`<span class="zfDot" style="display:block;width:12px;height:12px;border-radius:50%;background:${col};border:1.5px solid #fff;animation:zoneFacBlink 1.2s ease-in-out infinite;"></span>`;
+    el.style.cssText='cursor:pointer;padding:6px;';
+    // 일반 시설물 점검지도에서 시설물 눌렀을 때와 똑같은 청록 물결 강조(.zfSel = .mpin-sel 이식), 가운데는 시설 종류색 점
+    el.innerHTML=`<span class="zfSel"><i style="background:${col};"></i></span>`;
     el.onclick=function(ev){try{ev.stopPropagation();}catch(e){}_zoneFacFocus(f.id);};
     const pos=new kakao.maps.LatLng(+f.lat,+f.lng);
     const ov=new kakao.maps.CustomOverlay({position:pos,content:el,yAnchor:.5,zIndex:9,clickable:true});
@@ -577,6 +602,7 @@ function _zoneShowFacs(n){
   const ov=document.createElement('div');ov.id='zoneFacOv';
   // 구역 정보 카드와 동일한 떠 있는 하단바 스타일(가운데 정렬·라운드·최대폭 제한)
   ov.style.cssText='position:absolute;bottom:calc(74px + env(safe-area-inset-bottom));left:50%;transform:translateX(-50%);width:calc(100% - 24px);max-width:440px;box-sizing:border-box;z-index:30;background:#16161a;border:1px solid rgba(255,215,106,.4);border-radius:13px;box-shadow:0 6px 20px rgba(0,0,0,.6);max-height:46vh;display:flex;flex-direction:column;padding-bottom:6px;';
+  ov._baseTf='translateX(-50%)';
   const rows=facs.map(f=>{
     const col=_facTypeColor(f.type);
     const ty=String(f.type||'');
@@ -591,20 +617,21 @@ function _zoneShowFacs(n){
     </div>`;
   }).join('');
   ov.innerHTML=`
-    <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 13px 7px;flex-shrink:0;">
+    <div class="sheetGrab" style="padding:7px 0 2px;cursor:grab;touch-action:none;flex-shrink:0;"><div class="dbhandle"></div></div>
+    <div style="display:flex;align-items:center;padding:4px 13px 7px;flex-shrink:0;">
       <span style="font-size:12px;font-weight:800;color:#ffd76a;">🏗 ${_esc(n)}구역 시설물 <span style="font-size:9px;color:#8b9099;font-weight:600;">${facs.length}개 · 탭=지도 강조, 📍이동=상세</span></span>
-      <button onclick="_zoneFacListClose()" style="background:none;border:none;color:rgba(255,255,255,.45);font-size:18px;cursor:pointer;padding:0 2px;line-height:1;">×</button>
     </div>
     <div id="zoneFacRows" style="overflow-y:auto;padding:0 13px 10px;">${rows}</div>`;
   const host=document.querySelector('#v-inspect-map .mapwrap')||document.getElementById('v-inspect-map');
   (host||document.body).appendChild(ov);
+  _bindDragClose(ov,_zoneFacListClose);
 }
 // 목록 탭 — 지도는 그대로 두고 해당 시설물만 크게 강조 깜빡 + 줄 하이라이트
 function _zoneFacFocus(id){
   (_zoneFacBlink||[]).forEach(b=>{
-    const dot=b.el&&b.el.querySelector('.zfDot');if(!dot)return;
-    if(b.id===id){dot.style.width='18px';dot.style.height='18px';dot.style.border='2.5px solid #fff';dot.style.opacity='1';dot.style.animationDuration='.7s';try{b.ov.setZIndex(11);}catch(e){}}
-    else{dot.style.width='9px';dot.style.height='9px';dot.style.border='1px solid #fff';dot.style.opacity='.35';dot.style.animationDuration='1.2s';try{b.ov.setZIndex(9);}catch(e){}}
+    const dot=b.el&&b.el.querySelector('.zfSel');if(!dot)return;
+    if(b.id===id){dot.classList.add('zfBig');dot.style.opacity='1';try{b.ov.setZIndex(12);}catch(e){}}
+    else{dot.classList.remove('zfBig');dot.style.opacity='.5';try{b.ov.setZIndex(9);}catch(e){}}
   });
   document.querySelectorAll('#zoneFacRows [id^=zfRow]').forEach(r=>{r.style.background='';});
   const row=document.getElementById('zfRow'+id);
