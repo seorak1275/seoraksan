@@ -403,15 +403,17 @@ function _zoneDraw(){
   const _myName=String(_me.realName||_me.name||'').trim();
   const _isMine=n=>{const inf=zd.info&&zd.info[n];return !!(_myName&&inf&&inf.m&&inf.m.indexOf(_myName)>=0);};
   const _myLbs=[];
+  const _rc={}; // 구역별 링 일련번호 — 꼭짓점 보정 키("링번호,점번호")의 기준(그리기·판정·원격갱신 동일 규칙)
   (zd.zones||[]).forEach(z=>{
     const mine=_isMine(z.n);
-    const off=_zoneOff(z.n)||{dlat:0,dlng:0}; // 앱 내 위치 조정(zoneEdits) 보정 반영
+    const off=_zoneOff(z.n); // 앱 내 경계 조정(zoneEdits) 보정 반영
     (z.rings||[]).forEach(ring=>{
+      const ri=_rc[z.n]=(_rc[z.n]===undefined?0:_rc[z.n]+1); // 짧아서 스킵되는 링도 번호는 소비 — _zonePip과 번호 일치
       if(ring.length<3)return;
-      const pg=new kakao.maps.Polygon({path:ring.map(p=>new kakao.maps.LatLng(p[0]+off.dlat,p[1]+off.dlng)),
+      const pg=new kakao.maps.Polygon({path:_zeRingPath(ring,ri,off),
         strokeWeight:mine?2.5:1.5,strokeColor:mine?'#3ddc84':'#ffffff',strokeOpacity:mine?.95:.7,
         fillColor:z.color,fillOpacity:mine?.24:.12,zIndex:mine?2:1,map:_zm});
-      pg._zn=z.n;pg._zc=z.color;pg._zmine=mine;pg._ring=ring; // 원본 링 보관 — 위치 조정 시 재계산용
+      pg._zn=z.n;pg._zc=z.color;pg._zmine=mine;pg._ring=ring;pg._ri=ri; // 원본 링·번호 보관 — 조정 시 재계산용
       kakao.maps.event.addListener(pg,'click',function(){_zoneSelect(z.n);});
       _zoneLayer.push(pg);(_zonePolys[z.n]=_zonePolys[z.n]||[]).push(pg);
     });
@@ -526,13 +528,15 @@ function _zoneDrawBoard(){
   if(!_boardMap||!_zoneData||!window.kakao)return;
   if(_zoneLayerB)_zoneLayerB.forEach(o=>{try{o.setMap(null);}catch(e){}});
   _zoneLayerB=[];_zonePolysB={};_zoneSelB=null;_zoneSelBlinkStop();
+  const _rcB={}; // 링 번호 규칙은 _zoneDraw와 동일해야 꼭짓점 보정이 같은 자리에 적용됨
   (_zoneData.zones||[]).forEach(z=>{
-    const off=_zoneOff(z.n)||{dlat:0,dlng:0}; // 위치 조정 보정 반영(상황판도 동일)
+    const off=_zoneOff(z.n); // 경계 조정 보정 반영(상황판도 동일)
     (z.rings||[]).forEach(ring=>{
+      const ri=_rcB[z.n]=(_rcB[z.n]===undefined?0:_rcB[z.n]+1);
       if(ring.length<3)return;
-      const pg=new kakao.maps.Polygon({path:ring.map(p=>new kakao.maps.LatLng(p[0]+off.dlat,p[1]+off.dlng)),
+      const pg=new kakao.maps.Polygon({path:_zeRingPath(ring,ri,off),
         strokeWeight:1.5,strokeColor:'#ffffff',strokeOpacity:.7,fillColor:z.color,fillOpacity:.12,zIndex:1,map:_boardMap});
-      pg._zc=z.color;pg._zn=z.n;pg._ring=ring; // 원본 링 보관 — 원격 보정 수신 시 제자리 갱신용
+      pg._zc=z.color;pg._zn=z.n;pg._ring=ring;pg._ri=ri; // 원본 링·번호 보관 — 원격 보정 수신 시 제자리 갱신용
       kakao.maps.event.addListener(pg,'click',function(){_zoneSelectB(z.n);});
       _zoneLayerB.push(pg);(_zonePolysB[z.n]=_zonePolysB[z.n]||[]).push(pg);
     });
@@ -576,12 +580,17 @@ function _toggleUseZonesBoard(){
 }
 // 구역 폴리곤 내부 판정(레이캐스팅) — rings는 [lat,lng] 순서
 function _zonePip(n,la,ln){
-  const _o=_zoneOff(n);if(_o){la-=(_o.dlat||0);ln-=(_o.dlng||0);} // 위치 조정 보정 — 이동한 경계 기준으로 판정
+  // 경계 조정 보정(전체 이동+꼭짓점별 부분 수정)을 링에 적용한 '실제 표시 경계' 기준으로 판정
+  const adj=_zoneOff(n)||{};const dla=adj.dlat||0,dln=adj.dlng||0,vs=adj.verts||null;
   const zs=((_zoneData&&_zoneData.zones)||[]).filter(z=>z.n===n);
+  let ri=-1;
   for(const z of zs)for(const ring of (z.rings||[])){
+    ri++; // 링 번호 소비 규칙이 _zoneDraw와 동일해야 verts 키가 같은 링에 적용됨
     let ins=false;
     for(let i=0,j=ring.length-1;i<ring.length;j=i++){
-      const yi=ring[i][0],xi=ring[i][1],yj=ring[j][0],xj=ring[j][1];
+      const vi=vs&&vs[ri+','+i],vj=vs&&vs[ri+','+j];
+      const yi=ring[i][0]+dla+(vi?vi[0]:0),xi=ring[i][1]+dln+(vi?vi[1]:0);
+      const yj=ring[j][0]+dla+(vj?vj[0]:0),xj=ring[j][1]+dln+(vj?vj[1]:0);
       if(((yi>la)!==(yj>la))&&(ln<(xj-xi)*(la-yi)/(yj-yi)+xi))ins=!ins;
     }
     if(ins)return true;
@@ -673,23 +682,32 @@ function _zoneBlinkStop(){
 }
 // ── 📐 구역 위치 조정(관리자 전용) — 경계 모양은 그대로 두고 구역 전체를 이동해 오차 보정 ──
 // 보정값은 공유DB(zoneEdits: {구역n:{dlat,dlng}})에 저장 → 재배포 없이 전 직원 지도·상황판·구역판정에 반영
-let _zoneEditN=null,_zoneEditCur=null,_zoneEditStep=5;
+let _zoneEditN=null,_zoneEditCur=null,_zoneEditStep=5,_zeMode='part',_zeRadius=150,_zeGrab=null,_zeCircle=null;
 const _ZE_MLAT=111000,_ZE_MLNG=87520; // 설악산 위도(38.17°) 기준 위·경도 1도당 미터
-function _zoneOff(n){const e=DB.g('zoneEdits')||{};const o=e&&e[n];return (o&&(o.dlat||o.dlng))?o:null;}
+// 보정 데이터: zoneEdits[n]={dlat,dlng,verts:{"링번호,점번호":[Δlat,Δlng]}} — dlat/dlng=전체 이동, verts=부분 수정(움직인 꼭짓점만)
+function _zoneOff(n){const e=DB.g('zoneEdits')||{};const o=e&&e[n];if(!o)return null;
+  return (o.dlat||o.dlng||(o.verts&&Object.keys(o.verts).length))?o:null;}
+// 원본 링 + 전체 이동 + 꼭짓점별 부분 보정 → 표시 경로 (그리기·편집·판정·원격 갱신이 전부 이 규칙 하나를 씀)
+function _zeRingPath(ring,ri,adj){
+  const dla=(adj&&adj.dlat)||0,dln=(adj&&adj.dlng)||0,vs=(adj&&adj.verts)||null;
+  return ring.map((p,vi)=>{const vd=vs&&vs[ri+','+vi];
+    return new kakao.maps.LatLng(p[0]+dla+(vd?vd[0]:0),p[1]+dln+(vd?vd[1]:0));});
+}
 function _zoneEditStart(n){
   if(!(typeof isAdminUser==='function'&&isAdminUser())){try{_showAdminDenied();}catch(e){}return;}
   if(_zoneEditN)return;
   if(!_zonePolys||!_zonePolys[n]||!_zonePolys[n].length){toast('구역 표시를 켠 상태에서만 조정할 수 있습니다');return;}
   _zoneSelBlinkStop();
-  const off=_zoneOff(n)||{dlat:0,dlng:0};
-  _zoneEditN=n;_zoneEditCur={dlat:off.dlat||0,dlng:off.dlng||0};
+  const off=_zoneOff(n)||{};
+  _zoneEditN=n;_zeMode='part';_zeGrab=null;
+  _zoneEditCur={dlat:off.dlat||0,dlng:off.dlng||0,verts:Object.assign({},off.verts||{})};
   // 깜빡임 대신 정적 강조 — 조정 중 위치를 또렷하게
   _zonePolys[n].forEach(pg=>{try{pg.setOptions({strokeColor:'#7db4ff',strokeWeight:3.5,strokeOpacity:1,fillColor:pg._zc,fillOpacity:.4,zIndex:5});}catch(e){}});
   const c=document.getElementById('zoneInfoCard');if(c)c.remove();
   const fo=document.getElementById('zoneFacOv');if(fo)fo.remove();_zoneBlinkStop();
   try{mapI.setDraggable(false);}catch(e){}
   _zeBindDrag();_zePanel();
-  toast('📐 지도를 한 손가락으로 끌면 구역이 통째로 움직입니다',3500);
+  toast('🖐 경계선을 잡고 끌면 파란 원 안만 따라 움직입니다 · 전체 이동은 패널에서 전환',3800);
 }
 // 지도 픽셀 이동 → 좌표 이동으로 환산해 구역을 끌기 (지도 자체는 잠금)
 function _zeBindDrag(){
@@ -697,15 +715,58 @@ function _zeBindDrag(){
   let last=null;
   const p2c=(x,y)=>{try{const r=host.getBoundingClientRect();
     return mapI.getProjection().coordsFromContainerPoint(new kakao.maps.Point(x-r.left,y-r.top));}catch(e){return null;}};
-  const dn=(x,y)=>{last=p2c(x,y);};
+  // 화면 픽셀 → 미터 환산(잡기 판정 반경을 줌 배율에 맞춤)과 두 점 사이 미터 거리
+  const mPerPx=()=>{try{const pr=mapI.getProjection();
+    const a=pr.coordsFromContainerPoint(new kakao.maps.Point(0,0)),b=pr.coordsFromContainerPoint(new kakao.maps.Point(100,0));
+    return Math.abs((b.getLng()-a.getLng())*_ZE_MLNG)/100;}catch(e){return 5;}};
+  const distM=(la1,ln1,la2,ln2)=>{const dy=(la1-la2)*_ZE_MLAT,dx=(ln1-ln2)*_ZE_MLNG;return Math.sqrt(dx*dx+dy*dy);};
+  const dn=(x,y)=>{
+    const ll=p2c(x,y);if(!ll)return;last=ll;
+    if(_zeMode!=='part')return;
+    // 🖐 부분 수정: 터치 지점에서 가장 가까운 경계 꼭짓점을 잡는다(화면 약 35px 이내, 없으면 무시)
+    _zeGrab=null;
+    const th=Math.max(20,mPerPx()*35),cur=_zoneEditCur;let best=null;
+    ((_zonePolys&&_zonePolys[_zoneEditN])||[]).forEach(pg=>{
+      if(!pg._ring)return;
+      pg._ring.forEach((p,vi)=>{
+        const vd=cur.verts[pg._ri+','+vi];
+        const la=p[0]+cur.dlat+(vd?vd[0]:0),ln=p[1]+cur.dlng+(vd?vd[1]:0);
+        const d=distM(ll.getLat(),ll.getLng(),la,ln);
+        if(d<th&&(!best||d<best.d))best={pg,vi,d,la,ln};
+      });
+    });
+    if(!best)return;
+    // 잡은 점 기준, 같은 링에서 영향 반경 내 꼭짓점 가중치(코사인 감쇠 — 잡은 점 1, 반경 끝 0)를 미리 계산
+    const R=_zeRadius,w={},base={};
+    best.pg._ring.forEach((p,vi)=>{
+      const vd=cur.verts[best.pg._ri+','+vi];
+      const la=p[0]+cur.dlat+(vd?vd[0]:0),ln=p[1]+cur.dlng+(vd?vd[1]:0);
+      const d=distM(best.la,best.ln,la,ln);
+      if(d<R){w[vi]=.5+.5*Math.cos(Math.PI*d/R);base[vi]=vd?[vd[0],vd[1]]:[0,0];}
+    });
+    _zeGrab={pg:best.pg,ri:best.pg._ri,w,base,startLa:ll.getLat(),startLn:ll.getLng()};
+    // 영향 반경 표시(파란 원) — 어디까지 따라 움직이는지 한눈에
+    try{_zeCircleHide();_zeCircle=new kakao.maps.Circle({center:new kakao.maps.LatLng(best.la,best.ln),radius:R,
+      strokeWeight:1.5,strokeColor:'#7db4ff',strokeOpacity:.9,fillColor:'#7db4ff',fillOpacity:.1,zIndex:4});
+      _zeCircle.setMap(mapI);}catch(e){}
+  };
   const mv=(x,y)=>{
     if(!last||!_zoneEditN)return;
     const cur=p2c(x,y);if(!cur)return;
-    _zoneEditCur.dlat+=cur.getLat()-last.getLat();
-    _zoneEditCur.dlng+=cur.getLng()-last.getLng();
-    last=cur;_zoneEditApply();
+    if(_zeMode==='part'){
+      const g=_zeGrab;if(!g)return;
+      // 잡기 시작점 대비 총 이동량 × 감쇠 가중치 → 꼭짓점별 보정 갱신(누적 오차 없음)
+      const tLa=cur.getLat()-g.startLa,tLn=cur.getLng()-g.startLn,vs=_zoneEditCur.verts;
+      Object.keys(g.w).forEach(vi=>{vs[g.ri+','+vi]=[g.base[vi][0]+tLa*g.w[vi],g.base[vi][1]+tLn*g.w[vi]];});
+      try{g.pg.setPath(_zeRingPath(g.pg._ring,g.ri,_zoneEditCur));}catch(e){}
+      const m=document.getElementById('zeMeters');if(m)m.textContent=_zeMetersStr();
+    }else{
+      _zoneEditCur.dlat+=cur.getLat()-last.getLat();
+      _zoneEditCur.dlng+=cur.getLng()-last.getLng();
+      last=cur;_zoneEditApply();
+    }
   };
-  const up=()=>{last=null;};
+  const up=()=>{last=null;if(_zeGrab){_zeGrab=null;_zePruneVerts();_zeCircleHide();}};
   const H={host};
   H.ts=e=>{if(e.touches.length!==1){last=null;return;}dn(e.touches[0].clientX,e.touches[0].clientY);};
   H.tm=e=>{if(e.touches.length!==1)return;mv(e.touches[0].clientX,e.touches[0].clientY);e.preventDefault();};
@@ -733,13 +794,19 @@ function _zeUnbindDrag(){
     document.removeEventListener('mousemove',H.mm);document.removeEventListener('mouseup',H.mu);
   }catch(e){}
 }
+function _zeCircleHide(){try{if(_zeCircle)_zeCircle.setMap(null);}catch(e){}_zeCircle=null;}
+function _zePruneVerts(){ // 사실상 0인 꼭짓점 보정 정리 — 저장 용량·불필요 항목 방지
+  const vs=_zoneEditCur&&_zoneEditCur.verts;if(!vs)return;
+  Object.keys(vs).forEach(k=>{const v=vs[k];
+    if(Math.abs(v[0]*_ZE_MLAT)<0.3&&Math.abs(v[1]*_ZE_MLNG)<0.3)delete vs[k];});
+}
 // 현재 보정값을 선택 구역 폴리곤·라벨에 즉시 반영
 function _zoneEditApply(){
   const n=_zoneEditN;if(!n)return;
   const d=_zoneEditCur;
   ((_zonePolys&&_zonePolys[n])||[]).forEach(pg=>{
     if(!pg._ring)return;
-    try{pg.setPath(pg._ring.map(p=>new kakao.maps.LatLng(p[0]+d.dlat,p[1]+d.dlng)));}catch(e){}
+    try{pg.setPath(_zeRingPath(pg._ring,pg._ri,d));}catch(e){}
   });
   (_zoneLayer||[]).forEach(o=>{
     if(o._lbN!==n&&String(o._lbN)!==String(n))return;
@@ -751,7 +818,8 @@ function _zeMetersStr(){
   const d=_zoneEditCur||{dlat:0,dlng:0};
   const ew=d.dlng*_ZE_MLNG,ns=d.dlat*_ZE_MLAT;
   const f=(v,pos,neg)=>Math.abs(v)<.5?'0m':((v>0?pos:neg)+Math.abs(v).toFixed(0)+'m');
-  return '↔ '+f(ew,'동 ','서 ')+' · ↕ '+f(ns,'북 ','남 ');
+  const nv=d.verts?Object.keys(d.verts).length:0;
+  return '↔ '+f(ew,'동 ','서 ')+' · ↕ '+f(ns,'북 ','남 ')+(nv?' · ✏️'+nv+'점':'');
 }
 function _zoneEditNudge(dxM,dyM){ // 미터 단위 미세 이동 (dx=동+, dy=북+)
   if(!_zoneEditN)return;
@@ -759,10 +827,19 @@ function _zoneEditNudge(dxM,dyM){ // 미터 단위 미세 이동 (dx=동+, dy=�
   _zoneEditCur.dlat+=dyM/_ZE_MLAT;
   _zoneEditApply();
 }
-function _zoneEditReset(){ // 보정 전부 제거 미리보기 — 저장을 눌러야 확정
+function _zoneEditReset(){ // 보정 전부 제거(전체 이동+부분 수정) 미리보기 — 저장을 눌러야 확정
   if(!_zoneEditN)return;
-  _zoneEditCur={dlat:0,dlng:0};_zoneEditApply();
-  toast('원본 위치로 되돌렸습니다 — 저장을 눌러야 확정됩니다');
+  _zoneEditCur={dlat:0,dlng:0,verts:{}};_zeGrab=null;_zeCircleHide();_zoneEditApply();
+  toast('원본 경계로 되돌렸습니다 — 저장을 눌러야 확정됩니다');
+}
+function _zeSetMode(m){_zeMode=m;_zeGrab=null;_zeCircleHide();_zePanel();}
+function _zeSetRadius(r){
+  _zeRadius=r;
+  document.querySelectorAll('#zoneEditPanel .zeRad').forEach(b=>{
+    const on=+b.dataset.r===r;
+    b.style.background=on?'rgba(49,130,246,.85)':'rgba(255,255,255,.08)';
+    b.style.color=on?'#fff':'#a5abb3';
+  });
 }
 function _zeSetStep(s){
   _zoneEditStep=s;
@@ -776,25 +853,38 @@ function _zePanel(){
   let p=document.getElementById('zoneEditPanel');if(p)p.remove();
   p=document.createElement('div');p.id='zoneEditPanel';
   p.style.cssText='position:fixed;left:50%;transform:translateX(-50%);bottom:calc(74px + env(safe-area-inset-bottom));z-index:9500;width:calc(100% - 24px);max-width:440px;box-sizing:border-box;background:#16161a;border:1px solid rgba(49,130,246,.5);border-radius:13px;padding:11px 13px;box-shadow:0 6px 20px rgba(0,0,0,.6);';
-  const st=s=>`<button class="zeStep" data-s="${s}" onclick="_zeSetStep(${s})" style="flex:1;padding:6px 0;border-radius:7px;border:1px solid rgba(255,255,255,.2);background:${s===_zoneEditStep?'rgba(49,130,246,.85)':'rgba(255,255,255,.08)'};color:${s===_zoneEditStep?'#fff':'#a5abb3'};font-size:11px;font-weight:800;cursor:pointer;">${s}m</button>`;
+  const chip=on=>`background:${on?'rgba(49,130,246,.85)':'rgba(255,255,255,.08)'};color:${on?'#fff':'#a5abb3'};`;
+  const st=s=>`<button class="zeStep" data-s="${s}" onclick="_zeSetStep(${s})" style="flex:1;padding:6px 0;border-radius:7px;border:1px solid rgba(255,255,255,.2);${chip(s===_zoneEditStep)}font-size:11px;font-weight:800;cursor:pointer;">${s}m</button>`;
+  const rd=r=>`<button class="zeRad" data-r="${r}" onclick="_zeSetRadius(${r})" style="flex:1;padding:6px 0;border-radius:7px;border:1px solid rgba(255,255,255,.2);${chip(r===_zeRadius)}font-size:11px;font-weight:800;cursor:pointer;">${r}m</button>`;
   const ar=(t,dx,dy)=>`<button onclick="_zoneEditNudge(${dx}*_zoneEditStep,${dy}*_zoneEditStep)" style="width:38px;height:34px;border-radius:8px;border:1px solid rgba(255,255,255,.25);background:rgba(255,255,255,.08);color:#e8ecf1;font-size:14px;cursor:pointer;">${t}</button>`;
+  const part=_zeMode==='part';
   p.innerHTML=`
     <div style="display:flex;align-items:center;gap:8px;">
-      <span style="font-size:13px;font-weight:800;color:#7db4ff;">📐 ${_esc(_zoneEditN)}구역 위치 조정</span>
+      <span style="font-size:13px;font-weight:800;color:#7db4ff;">📐 ${_esc(_zoneEditN)}구역 경계 조정</span>
       <span id="zeMeters" style="flex:1;text-align:right;font-size:11px;color:#9aa4b0;font-weight:700;">${_zeMetersStr()}</span></div>
-    <div style="font-size:10px;color:#6b7684;margin-top:3px;line-height:1.5;">지도를 한 손가락으로 끌면 구역이 통째로 움직입니다 · 화살표=미세 이동 · 두 손가락=지도 확대</div>
-    <div style="display:flex;align-items:center;gap:12px;margin-top:9px;">
+    <div style="display:flex;gap:5px;margin-top:8px;">
+      <button onclick="_zeSetMode('part')" style="flex:1;padding:7px 0;border-radius:8px;border:1px solid rgba(255,255,255,.2);${chip(part)}font-size:11.5px;font-weight:800;cursor:pointer;">🖐 부분 수정</button>
+      <button onclick="_zeSetMode('whole')" style="flex:1;padding:7px 0;border-radius:8px;border:1px solid rgba(255,255,255,.2);${chip(!part)}font-size:11.5px;font-weight:800;cursor:pointer;">↔ 전체 이동</button>
+    </div>
+    ${part?`
+    <div style="font-size:10px;color:#6b7684;margin-top:7px;line-height:1.5;">경계선을 잡고 끌면 <b style="color:#9fc3e8;">파란 원 안</b>의 경계만 부드럽게 따라 움직입니다</div>
+    <div style="display:flex;align-items:center;gap:7px;margin-top:8px;">
+      <span style="font-size:10.5px;color:#8b95a1;font-weight:700;flex-shrink:0;">영향 범위</span>
+      <div style="flex:1;display:flex;gap:5px;">${rd(50)}${rd(150)}${rd(400)}</div>
+    </div>`:`
+    <div style="font-size:10px;color:#6b7684;margin-top:7px;line-height:1.5;">지도를 한 손가락으로 끌면 구역이 통째로 움직입니다 · 화살표=미세 이동</div>
+    <div style="display:flex;align-items:center;gap:12px;margin-top:8px;">
       <div style="display:grid;grid-template-columns:38px 38px 38px;gap:4px;justify-items:center;flex-shrink:0;">
         <span></span>${ar('▲',0,1)}<span></span>
         ${ar('◀',-1,0)}${ar('▼',0,-1)}${ar('▶',1,0)}
       </div>
-      <div style="flex:1;display:flex;flex-direction:column;gap:6px;min-width:0;">
+      <div style="flex:1;display:flex;flex-direction:column;gap:6px;min-width:0;justify-content:center;">
         <div style="display:flex;gap:5px;">${st(1)}${st(5)}${st(20)}</div>
-        <button onclick="_zoneEditReset()" style="padding:6px 0;border-radius:7px;border:1px solid rgba(255,160,80,.4);background:rgba(255,160,80,.08);color:#f0b070;font-size:11px;font-weight:700;cursor:pointer;">↺ 원본 위치로(보정 제거)</button>
       </div>
-    </div>
-    <div style="display:flex;gap:7px;margin-top:10px;">
-      <button onclick="_zoneEditEnd(true)" style="flex:1.5;padding:10px 0;border-radius:9px;border:none;background:#1e7a4e;color:#fff;font-size:12px;font-weight:800;cursor:pointer;">💾 저장 — 전 직원 반영</button>
+    </div>`}
+    <div style="display:flex;gap:6px;margin-top:10px;">
+      <button onclick="_zoneEditReset()" style="flex:1;padding:10px 0;border-radius:9px;border:1px solid rgba(255,160,80,.4);background:rgba(255,160,80,.08);color:#f0b070;font-size:11px;font-weight:700;cursor:pointer;">↺ 원본</button>
+      <button onclick="_zoneEditEnd(true)" style="flex:1.6;padding:10px 0;border-radius:9px;border:none;background:#1e7a4e;color:#fff;font-size:12px;font-weight:800;cursor:pointer;">💾 저장 — 전 직원 반영</button>
       <button onclick="_zoneEditEnd(false)" style="flex:1;padding:10px 0;border-radius:9px;border:1px solid rgba(255,255,255,.25);background:rgba(255,255,255,.07);color:#d5d8dc;font-size:12px;font-weight:700;cursor:pointer;">✕ 취소</button>
     </div>`;
   document.body.appendChild(p);
@@ -802,12 +892,17 @@ function _zePanel(){
 function _zoneEditEnd(save){
   const n=_zoneEditN;if(!n)return;
   if(save){
+    _zePruneVerts();
     const e=Object.assign({},DB.g('zoneEdits')||{});
     const d=_zoneEditCur;
-    if(Math.abs(d.dlat*_ZE_MLAT)<0.3&&Math.abs(d.dlng*_ZE_MLNG)<0.3)delete e[n]; // 사실상 0 = 보정 삭제
-    else e[n]={dlat:+d.dlat.toFixed(6),dlng:+d.dlng.toFixed(6)};
+    const vs={};Object.keys(d.verts||{}).forEach(k=>{vs[k]=[+d.verts[k][0].toFixed(6),+d.verts[k][1].toFixed(6)];});
+    const noOff=Math.abs(d.dlat*_ZE_MLAT)<0.3&&Math.abs(d.dlng*_ZE_MLNG)<0.3;
+    if(noOff&&!Object.keys(vs).length)delete e[n]; // 전체 이동·부분 수정 모두 없음 = 보정 삭제
+    else{const o={dlat:noOff?0:+d.dlat.toFixed(6),dlng:noOff?0:+d.dlng.toFixed(6)};if(Object.keys(vs).length)o.verts=vs;e[n]=o;}
+    // Firestore 단일문서 1MB 한계 보호 — 초과 시 저장 중단(편집 세션 유지, 원본/일부 되돌린 뒤 재시도 가능)
+    if(JSON.stringify(e).length>900000){toast('⚠️ 보정 데이터가 너무 큽니다 — ↺ 원본으로 일부 구역 보정을 줄인 뒤 다시 저장하세요',4500);return;}
     DB.s('zoneEdits',e);
-    toast('💾 '+n+'구역 위치 저장 — 모든 직원 지도에 반영됩니다');
+    toast('💾 '+n+'구역 경계 저장 — 모든 직원 지도에 반영됩니다');
   }
   _zoneEditAbort(); // 저장·취소 공통 — abort가 저장된 보정 기준으로 좌표까지 복원
   try{_zoneSelect(n);}catch(e){} // 조정 종료 후 다시 선택 상태(깜빡임+카드)로
@@ -815,9 +910,9 @@ function _zoneEditEnd(save){
 function _zoneEditAbort(){ // 편집 상태 해제 — 저장/취소·화면 전환·레이어 끔 공통
   if(!_zoneEditN)return;
   const n=_zoneEditN;
-  // 미저장 드래그 좌표 → 저장된 보정(없으면 원본) 기준으로 폴리곤·라벨 복원 — 탭 이동으로 중단돼도 화면·판정 일치
-  try{const off=_zoneOff(n)||{dlat:0,dlng:0};_zoneEditCur={dlat:off.dlat||0,dlng:off.dlng||0};_zoneEditApply();}catch(e){}
-  _zoneEditN=null;_zoneEditCur=null;
+  // 미저장 드래그 → 저장된 보정(없으면 원본) 기준으로 폴리곤·라벨 복원 — 탭 이동으로 중단돼도 화면·판정 일치
+  try{const off=_zoneOff(n)||{};_zoneEditCur={dlat:off.dlat||0,dlng:off.dlng||0,verts:Object.assign({},off.verts||{})};_zoneEditApply();}catch(e){}
+  _zoneEditN=null;_zoneEditCur=null;_zeGrab=null;_zeCircleHide();
   _zeUnbindDrag();
   const p=document.getElementById('zoneEditPanel');if(p)p.remove();
   try{mapI.setDraggable(true);}catch(e){}
@@ -827,9 +922,9 @@ function _zoneEditAbort(){ // 편집 상태 해제 — 저장/취소·화면 전
 // _zoneDraw() 재호출 대신 setPath/setPosition만 쓰는 이유: 재센터·토스트 부작용 없이 선택·깜빡임 상태 유지
 function _zoneRemoteRefresh(){
   if(_zoneEditN)return; // 이 기기에서 조정 중이면 보류 — 저장/취소 시 자체 반영
-  const shift=o=>{try{ // 점검지도·상황판 공통: 원본 좌표+보정으로 제자리 이동(재그리기 부작용 — 깜빡임 중단·선택 해제 — 없음)
-    if(o._ring){const off=_zoneOff(o._zn)||{dlat:0,dlng:0};o.setPath(o._ring.map(p=>new kakao.maps.LatLng(p[0]+off.dlat,p[1]+off.dlng)));}
-    else if(o._lbN!=null){const off=_zoneOff(o._lbN)||{dlat:0,dlng:0};o.setPosition(new kakao.maps.LatLng(o._lbLat+off.dlat,o._lbLng+off.dlng));}
+  const shift=o=>{try{ // 점검지도·상황판 공통: 원본 좌표+보정(전체 이동+부분 수정)으로 제자리 이동(재그리기 부작용 없음)
+    if(o._ring){o.setPath(_zeRingPath(o._ring,o._ri,_zoneOff(o._zn)));}
+    else if(o._lbN!=null){const off=_zoneOff(o._lbN)||{};o.setPosition(new kakao.maps.LatLng(o._lbLat+(off.dlat||0),o._lbLng+(off.dlng||0)));}
   }catch(e){}};
   (_zoneLayer||[]).forEach(shift);
   (_zoneLayerB||[]).forEach(shift);
