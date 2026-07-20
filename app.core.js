@@ -111,7 +111,7 @@ const _FB_CFG={
 // history: 점검이력은 무제한으로 계속 쌓이는 로그성 데이터라 단일문서 그대로 두면 매 점검마다 전체가 전원에게 재전송됨 → 건별 문서로 전환
 const _SHARED_COLL=['rescues','hazards','facilities','history','facIssues'];
 // _SHARED_DOC: 단일 문서에 JSON 배열 저장 (관리자 전용, 동시 쓰기 없음)
-const _SHARED_DOC=['alertOps','alertLog','catFac','catFacMeta','pendingUsers','approvedUsers','deletedKakaoIds','adminOwnerKakaoId','adminApprovalCode','extAgencies','extAgencyCode','extAgencyDisplayName','geminiApiKey','kmaProxyUrl','_acl','loginLog','trailStatus','crisisLevel','weatherBrief','weatherLog','trailLog','sosBlocked','autoApprove','pushLog','devKakaoId','notiPolicy','customResTypes','facManagers','climbDates','climbCancels','homeHidden','climbAccidents','otaInfo','climbAgg','facTrash','fcmVapidKey'];
+const _SHARED_DOC=['alertOps','alertLog','catFac','catFacMeta','pendingUsers','approvedUsers','deletedKakaoIds','adminOwnerKakaoId','adminApprovalCode','extAgencies','extAgencyCode','extAgencyDisplayName','geminiApiKey','kmaProxyUrl','_acl','loginLog','trailStatus','crisisLevel','weatherBrief','weatherLog','trailLog','sosBlocked','autoApprove','pushLog','devKakaoId','notiPolicy','customResTypes','facManagers','climbDates','climbCancels','homeHidden','climbAccidents','otaInfo','climbAgg','facTrash','fcmVapidKey','zoneEdits'];
 // otaInfo: ota.json의 Firestore 미러 {version,url,notes,at} — 웹 방문자가 자동 갱신. github 계열이 막힌 망의 APK가 업데이트 정보를 받는 최후 폴백 통로
 // homeHidden: 관리자가 홈 화면에서 숨긴 메뉴 키 목록(미완성 기능 감추기용) — 전 직원 동기화 적용
 // climbAccidents: 수동 등록한 암벽 사고자 [{id,date,name,note,by,at}] — 엑셀 상태값은 다운로드 시점따라 달라 신뢰 불가라 사고는 직접 등록
@@ -508,6 +508,7 @@ function _mergeSharedArray(base,local,server){
 // 예전엔 base 없는 기기가 저장하면 '로컬 우선'으로 서버 목록을 통째로 교체 →
 // climbDates 63일이 새로 업로드한 기기의 4일로 덮어써지는 사고가 실제 발생(2026-07 점검에서 복구).
 const _UNION_DOC=['climbDates'];
+const _DICT_MERGE_DOC=['zoneEdits']; // {키:값} 딕셔너리 문서 — 키 단위 3-way 병합(다른 관리자가 저장한 다른 구역 보정 보존)
 // 온디맨드 로그 문서: 실시간 구독 없이 '화면 열 때만' 읽는 append 전용 로그 — 병합은 객체 합집합(항목 유실 없음)
 const _ONDEMAND_CAP={pushLog:30,weatherLog:60,trailLog:100};
 function _txMergeDoc(key,base,localVal){
@@ -524,6 +525,14 @@ function _txMergeDoc(key,base,localVal){
       [].concat(localVal,Array.isArray(serverVal)?serverVal:[]).forEach(x=>{const j=JSON.stringify(x);if(seen.has(j))return;seen.add(j);out.push(x);});
       out.sort((a,b)=>(((b&&(b.at||b.atMs))||0)-((a&&(a.at||a.atMs))||0)));
       merged=out.slice(0,_ONDEMAND_CAP[key]||100);
+    }else if(_DICT_MERGE_DOC.includes(key)&&localVal&&typeof localVal==='object'&&!Array.isArray(localVal)){
+      // 딕셔너리 키 단위 3-way 병합: 서버 상태에서 출발해 로컬에서 '실제 바뀐 키'만 반영, 로컬에서 지운 키(base에 있었는데 없음)만 삭제
+      // → 오프라인 큐 재전송·동시 저장에서도 다른 관리자가 저장한 다른 구역 보정이 유실되지 않음
+      const sv=(serverVal&&typeof serverVal==='object'&&!Array.isArray(serverVal))?serverVal:{};
+      const bv=(base&&typeof base==='object'&&!Array.isArray(base))?base:{};
+      merged=Object.assign({},sv);
+      Object.keys(localVal).forEach(kk=>{if(JSON.stringify(localVal[kk])!==JSON.stringify(bv[kk]))merged[kk]=localVal[kk];});
+      Object.keys(bv).forEach(kk=>{if(!(kk in localVal))delete merged[kk];});
     }else{
       merged=(Array.isArray(localVal)&&Array.isArray(serverVal)&&Array.isArray(base))
         ?_mergeSharedArray(base,localVal,serverVal):localVal;
@@ -767,6 +776,8 @@ function initFirebase(onReady){
       _fdb.collection('appData').doc(k).onSnapshot(snap=>{
         _fs[k]=snap.exists?(()=>{try{return JSON.parse(snap.data().d);}catch{return null;}})():null;
         _fsDocBase[k]=_fs[k]; // 서버 확정 상태 = 다음 쓰기의 병합 기준
+        // 구역 위치 보정 수신: 켜져 있는 구역 레이어를 즉시 제자리 갱신(부팅 첫 스냅샷 포함, 미로드 시 no-op)
+        if(k==='zoneEdits')try{typeof _zoneRemoteRefresh==='function'&&_zoneRemoteRefresh();}catch(e){}
         if(!loaded.has(k)){loaded.add(k);_checkReady();}
         else{
           // 원격 업데이트: 표지판/시설 캐시 무효화 후 리렌더 (catFacMeta가 표지판 표시에 영향)

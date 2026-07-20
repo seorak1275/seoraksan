@@ -1,1 +1,1 @@
-{"version":"2026.07.20.320","url":"https://seorak1275.github.io/seoraksan/bundle.zip","notes":"이 구역 시설물 반짝이를 일반 시설물 선택과 완전 동일하게 — 실제 핀(.mpin p-fac)에 청록 강조(.mpin-sel) 그대로 적용(아이콘·종류색 유지)"}
+{"version":"2026.07.20.321","url":"https://seorak1275.github.io/seoraksan/bundle.zip","notes":"구역 위치 조정(관리자) — 지역담당구역을 앱에서 드래그·화살표로 통째 이동해 오차 보정, 공유DB(zoneEdits) 저장으로 전 직원 실시간 반영(점검지도·상황판·구역판정 일치, 구역별 병합으로 동시편집 보존)"}
