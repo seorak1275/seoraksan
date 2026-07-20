@@ -1,1 +1,1 @@
-{"version":"2026.07.20.317","url":"https://seorak1275.github.io/seoraksan/bundle.zip","notes":"로딩화면 데스크톱에서 휴대폰 폭으로 가운데 정렬(양옆 레터박스) — 넓은 화면 과대 표시 수정"}
+{"version":"2026.07.20.318","url":"https://seorak1275.github.io/seoraksan/bundle.zip","notes":"로딩화면 데스크톱 정렬 버그 긴급수정 — 인라인 inset:0가 미디어쿼리를 이겨 왼쪽으로 잘리던 문제(위치값을 style블록으로 이전)"}

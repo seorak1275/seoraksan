@@ -81,13 +81,15 @@ try{history.replaceState({view:'home'},'','');history.pushState({view:'home'},''
 <link rel="stylesheet" href="style.css">
 
 <style>
-  /* 데스크톱 등 넓은 화면에서는 로딩화면을 휴대폰 폭으로 가운데 정렬(양옆은 검은 레터박스) — 모바일과 동일한 비율 유지 */
+  /* 로딩화면 내부: 기본(모바일)은 전체, 넓은 화면(데스크톱)에서는 휴대폰 폭으로 가운데 정렬 — 양옆 검은 레터박스.
+     ※ 위치값은 반드시 이 스타일블록에서만 지정(인라인 inset:0가 미디어쿼리를 이겨 왼쪽으로 밀리던 버그 방지) */
+  #loadingInner{position:absolute;top:0;left:0;right:0;bottom:0;overflow:hidden;}
   @media (min-width:560px){
-    #loadingInner{max-width:460px;left:50%;right:auto;transform:translateX(-50%);}
+    #loadingInner{left:50%;right:auto;width:100%;max-width:460px;transform:translateX(-50%);}
   }
 </style>
 <div id="loadingScreen" style="position:fixed;inset:0;background:#0f0f11;z-index:9999;overflow:hidden;pointer-events:auto;">
-  <div id="loadingInner" style="position:absolute;inset:0;overflow:hidden;">
+  <div id="loadingInner">
   <!-- 대청봉 정상석 사진(상단) -->
   <div style="position:absolute;top:0;left:0;right:0;height:72%;background:#0f0f11 url('splash.jpg') center center/cover no-repeat;"></div>
   <!-- 하단으로 갈수록 검게 페이드아웃 -->
