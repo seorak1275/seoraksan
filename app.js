@@ -1825,6 +1825,7 @@ function openClimbRosterForRescue(rid){
 function _renderClimbRoster(all){
   const b=document.getElementById('climbInner');if(!b)return;
   const D=_climbRosterDate||_ymd(new Date());
+  try{_logAccess&&_logAccess('암벽 이용자 명단',D);}catch(e){}
   const dates=Array.from(new Set((all||[]).map(r=>r.useDate))).sort();
   const idx=dates.indexOf(D);
   const _wd=['일','월','화','수','목','금','토'];
@@ -3657,6 +3658,7 @@ function _drawSosPins(){
 }
 function _sosPinPopup(id){
   const p=(_sosPings||[]).find(x=>x.id===id);if(!p)return;
+  try{_logAccess&&_logAccess('조난자 정보',p.name||'익명');}catch(e){}
   window._sosPopupId=id; // 스냅샷 갱신 시 이 대화만 갱신(입력 보존)
   const has=p.lat&&p.lng;
   const mm=p.ts?Math.round((Date.now()-(p.ts||0))/60000):null;
@@ -3863,7 +3865,7 @@ function sosToRescue(id){
 // 앱 자체 업데이트 (OTA · Capgo 자체호스팅) — APK 전용. 웹/PWA는 서비스워커가 자동 갱신.
 // 번들(www)의 새 버전을 ota.json으로 알리면, 설치된 앱이 받아서 그 자리에서 교체(재빌드 불필요).
 // ══════════════════════════════════════════
-const OTA_VER='2026.07.20.322';                         // ← 현재 번들 버전 (릴리스마다 올림 · build-ota.sh가 ota.json에 반영)
+const OTA_VER='2026.07.20.323';                         // ← 현재 번들 버전 (릴리스마다 올림 · build-ota.sh가 ota.json에 반영)
 const OTA_MANIFEST='https://seorak1275.github.io/seoraksan/ota.json';
 // 업데이트 확인 폴백 소스 — 일부 기관망·통신사에서 github.io가 막혀 '확인 실패(네트워크)'가 나는 경우 대비.
 // 순서대로 시도: ① GitHub Pages(원본·즉시 반영) ② jsDelivr CDN(공개저장소 미러·거의 모든 망 통과)

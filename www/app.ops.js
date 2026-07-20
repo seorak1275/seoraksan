@@ -3271,6 +3271,7 @@ function admDelRes(id){
     });
 }
 function renderAdmMembers(){
+  try{_logAccess&&_logAccess('직원 개인정보','직원 명단 열람');}catch(e){}
   // 자동 승인 ON이면 목록을 그리기 직전에 로그인 이력까지 전원 멤버로 일괄 처리(승인버튼 잔존 방지)
   if(typeof isAdminUser==='function'&&isAdminUser()&&_isAutoApprove()){try{_autoApproveSweep();}catch(e){}}
   const pending=DB.g('pendingUsers')||[];
@@ -3865,6 +3866,35 @@ function _loadAllErrLogs(){
 function _clearPushLog(){if(!confirm('푸시 보낸 내역을 모두 지울까요?'))return;DB.s('pushLog',[]);try{renderAdmSys();}catch(e){}toast('🗑 보낸 내역 삭제됨');}
 // 개인 지정 시 위 소속·전체 선택 해제(개인 발송이 우선함을 시각적으로 명확히)
 function _pushPersonChanged(sel){if(sel&&sel.value){const a=document.getElementById('pushAll');if(a)a.checked=false;document.querySelectorAll('.pushDept:checked').forEach(c=>{c.checked=false;});}}
+// ── 개인정보 접근 기록 조회/정리 (관리자) — accessLog 컬렉션 최근순 ──
+function _loadAccessLog(){
+  const el=document.getElementById('accessLogWrap');
+  if(!_fdb){if(el)el.innerHTML='<div style="font-size:11px;color:#e05050;">서버 미연결</div>';return;}
+  if(el)el.innerHTML='<div style="font-size:11px;color:#6b7684;">불러오는 중…</div>';
+  _fdb.collection('accessLog').orderBy('at','desc').limit(100).get().then(function(snap){
+    if(!el)return;
+    const rows=snap.docs.map(d=>d.data());
+    if(!rows.length){el.innerHTML='<div style="font-size:11px;color:rgba(255,255,255,.25);">기록 없음</div>';return;}
+    el.innerHTML=rows.map(function(r){
+      const t=r.at?new Date(r.at).toLocaleString('ko-KR',{month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'}):'';
+      const who=(r.by||'미상')+(r.dept?'·'+r.dept:'');
+      const plat=r.plat==='APP'?'📱':'🌐';
+      return '<div style="font-size:10.5px;padding:4px 0;border-bottom:1px solid rgba(255,255,255,.04);">'
+        +'<span style="color:#a5abb3;font-weight:700;">'+_esc(who)+'</span> <span style="color:#6b7684;">'+plat+' '+t+'</span><br>'
+        +'<span style="color:#7fb0e0;">'+_esc(r.what||'')+'</span>'+(r.detail?' <span style="color:#8b95a1;">· '+_esc(r.detail)+'</span>':'')+'</div>';
+    }).join('');
+  }).catch(function(){if(el)el.innerHTML='<div style="font-size:11px;color:#e05050;">조회 실패</div>';});
+}
+function _clearAccessLog(){
+  if(!(typeof _isMasterAdmin==='function'&&_isMasterAdmin())){toast('⚠️ 마스터 관리자만 가능');return;}
+  if(!_fdb){toast('서버 미연결');return;}
+  if(!confirm('개인정보 접근 기록을 삭제할까요?\n※ 감사 증적이므로 법정 보관기간을 먼저 확인하세요.'))return;
+  const el=document.getElementById('accessLogWrap');if(el)el.innerHTML='<div style="font-size:11px;color:#6b7684;">삭제 중…</div>';
+  _fdb.collection('accessLog').limit(400).get().then(function(snap){
+    let n=0;const ps=[];snap.docs.forEach(function(d){n++;ps.push(d.ref.delete().catch(function(){}));});
+    Promise.all(ps).then(function(){if(el)el.innerHTML='<div style="font-size:11px;color:rgba(255,255,255,.25);">기록 없음</div>';toast('🗑️ 접근 기록 '+n+'건 삭제됨'+(n>=400?' (더 있으면 한 번 더)':''));});
+  }).catch(function(){toast('삭제 실패');if(el)el.innerHTML='';});
+}
 function renderAdmSys(){
   // pushLog는 온디맨드 문서 — 화면 열 때 1회 갱신(60초 내 재렌더는 캐시 재사용)
   if(typeof _refreshDoc==='function'&&(!window._pushLogFreshAt||Date.now()-window._pushLogFreshAt>60000)){
@@ -3929,6 +3959,15 @@ function renderAdmSys(){
         </span>
       </div>
       <div id="allErrLogs" style="max-height:220px;overflow-y:auto;"><div style="font-size:11px;color:rgba(255,255,255,.25);">‘불러오기’를 누르면 모든 기기의 오류를 모아 봅니다(관리자 전용)</div></div>
+    </div>
+    <div class="scard sel-ok" style="margin-bottom:8px;">
+      <div class="stitle">🔎 개인정보 접근 기록 <span style="font-size:9px;font-weight:400;color:#6b7684;">누가·언제·무엇을 열람</span></div>
+      <div style="font-size:10.5px;color:#8b95a1;margin-bottom:7px;line-height:1.6;">암벽 이용자 명단·조난자 정보·직원 개인정보 열람 이력입니다. <span style="color:#6b7684;">(개인정보보호법 접근기록 보관용)</span></div>
+      <div style="display:flex;justify-content:flex-end;gap:5px;margin-bottom:6px;">
+        <button onclick="_loadAccessLog()" style="background:rgba(255,255,255,.12);color:#3182f6;border:1px solid rgba(255,255,255,.28);border-radius:14px;padding:3px 10px;font-size:10px;font-weight:700;cursor:pointer;">불러오기 ↻</button>
+        <button onclick="_clearAccessLog()" style="background:rgba(192,57,43,.1);color:#e0857a;border:1px solid rgba(192,57,43,.28);border-radius:14px;padding:3px 10px;font-size:10px;font-weight:700;cursor:pointer;">삭제</button>
+      </div>
+      <div id="accessLogWrap" style="max-height:240px;overflow-y:auto;"><div style="font-size:11px;color:rgba(255,255,255,.25);">‘불러오기’를 누르면 개인정보 열람 이력을 모아 봅니다(관리자 전용)</div></div>
     </div>
     <div class="scard" style="margin-bottom:8px;">
       <div class="stitle">🔔 알림 받는 대상 안내</div>

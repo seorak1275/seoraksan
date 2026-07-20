@@ -39,6 +39,28 @@ function _uploadErr(msg){
     }).catch(function(){});
   }catch(e){}
 }
+// ── 개인정보 접근 감사 로그 — 누가·언제·무엇(개인정보)을 열람했는지 errLogs와 동일 방식(이벤트당 1문서)으로 기록.
+//    개인정보보호법 접근기록 보관용. 폭주 방지: 같은 (열람자+대상+상세)은 5분당 1건만 기록. 관리자 시스템 화면에서 조회.
+var _accSeen={};
+function _logAccess(what,detail){
+  try{
+    var db=(typeof _fdb!=='undefined'&&_fdb)?_fdb:null;if(!db)return;
+    var u={};try{u=DB.g('currentUser')||{};}catch(e){}
+    var nowMs=Date.now();
+    var key=String(u.kakaoId||'')+'|'+what+'|'+(detail||'');
+    if(_accSeen[key]&&nowMs-_accSeen[key]<5*60000)return; // 5분 내 동일 열람 중복 제거
+    _accSeen[key]=nowMs;
+    db.collection('accessLog').add({
+      what:String(what||'').slice(0,60),
+      detail:String(detail||'').slice(0,120),
+      by:(u.realName||u.name||''),dept:(u.dept||''),
+      kakaoId:String(u.kakaoId||''),
+      dev:(typeof _MY_DEVICE_ID!=='undefined'?_MY_DEVICE_ID:''),
+      plat:(typeof _isNativeApp==='function'&&_isNativeApp())?'APP':'WEB',
+      at:nowMs
+    }).catch(function(){});
+  }catch(e){}
+}
 // 카카오 프로필 사진 URL은 http:// 로 오는데, 앱이 https://localhost 출처라 혼합콘텐츠로 차단됨 → https로 승격
 function _imgHttps(u){return String(u||'').replace(/^http:\/\//i,'https://');}
 // 개발자(나) 카카오ID — 항상 관리자·삭제/역할변경 불가·전체초기화 권한. (재등록 불필요)

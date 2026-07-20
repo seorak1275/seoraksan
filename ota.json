@@ -1,1 +1,1 @@
-{"version":"2026.07.20.322","url":"https://seorak1275.github.io/seoraksan/bundle.zip","notes":"구역 경계 부분 수정(고무줄) — 경계선을 잡고 끌면 영향 반경(50/150/400m) 안의 꼭짓점만 부드럽게 따라 이동, 전체 이동 모드와 전환 사용, 움직인 점만 공유DB 저장(구역별 병합·실시간 반영)"}
+{"version":"2026.07.20.323","url":"https://seorak1275.github.io/seoraksan/bundle.zip","notes":"개인정보 접근 감사로그 추가 — 암벽명단·조난자·직원정보 열람 기록(_logAccess), 관리자 시스템에 조회/삭제 카드"}
