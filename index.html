@@ -843,7 +843,7 @@ try{history.replaceState({view:'home'},'','');history.pushState({view:'home'},''
     <div class="fg"><span class="fl">위치 (구간 선택)</span><select id="facLocIn" class="fsel"></select></div>
     <div class="fg">
       <span class="fl">GPS 좌표</span>
-      <div class="gps-row"><input type="text" id="facGpsIn" class="fi" placeholder="🗺 지도 또는 📍GPS로 입력" readonly style="opacity:.75;">
+      <div class="gps-row"><input type="text" id="facGpsIn" class="fi" placeholder="🗺 지도·📍GPS 또는 탭하여 직접 입력" readonly style="opacity:.75;" onclick="if(this.readOnly){this.readOnly=false;this.style.opacity='1';this.placeholder='위도, 경도 (예: 38.11940, 128.46540)';setTimeout(()=>{try{this.focus();this.setSelectionRange(this.value.length,this.value.length);}catch(e){}},0);}">
         <button class="sm-btn" onclick="_facToggleMap()">🗺 지도</button>
         <button class="sm-btn" onclick="gpsFromPhone('facGpsIn')">📍GPS</button>
       </div>

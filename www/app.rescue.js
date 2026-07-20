@@ -529,11 +529,16 @@ async function sendCustomPush(){
   const title=(document.getElementById('pushTitleInp')?.value||'설악산 현장관리').trim()||'설악산 현장관리';
   const body=(document.getElementById('pushBodyInp')?.value||'').trim();
   if(!body){toast('⚠️ 보낼 내용을 입력하세요');document.getElementById('pushBodyInp')?.focus();return;}
+  // 개인 지정이 있으면 그 사람에게만 발송(소속·전체 무시)
+  const psel=document.getElementById('pushPerson');
+  const pname=psel&&psel.value?psel.value:'';
+  const pkakao=(pname&&psel.selectedOptions&&psel.selectedOptions[0])?(psel.selectedOptions[0].dataset.kakao||''):'';
   // 받는 대상: '전체' 체크 또는 아무 소속도 안 고르면 전체, 아니면 선택한 소속들
   const allChk=document.getElementById('pushAll')&&document.getElementById('pushAll').checked;
   const depts=[].slice.call(document.querySelectorAll('.pushDept:checked')).map(c=>c.value);
   let tgtLabel,filterTok;
-  if(allChk||!depts.length){tgtLabel='전체';filterTok=function(){return true;};}
+  if(pname){tgtLabel='개인 · '+pname;filterTok=function(v){return (pkakao&&String(v.kakaoId||'')===pkakao)||String(v.name||'')===pname;};}
+  else if(allChk||!depts.length){tgtLabel='전체';filterTok=function(){return true;};}
   else{tgtLabel='소속 · '+depts.join(', ');const set=new Set(depts);filterTok=function(v){return set.has(v.dept||'');};}
   if(!confirm('['+tgtLabel+']에게 푸시를 발송합니다.\n\n제목: '+title+'\n내용: '+body+'\n\n발송할까요?'))return;
   toast('📨 푸시 발송 중…');

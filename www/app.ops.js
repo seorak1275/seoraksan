@@ -1527,6 +1527,7 @@ function openAddFac(){
   const _fa=document.getElementById('facAuthor');_fa.value=getAuthor();_fa.disabled=true;
   {const pv=document.getElementById('prevFac');pv.dataset.url='';pv.innerHTML='📸 촬영 또는 앨범';} // 이전 편집 사진 잔재 제거
   try{gpsFromMap('facGpsIn','inspect');}catch(e){}
+  {const g=document.getElementById('facGpsIn');if(g){g.readOnly=true;g.style.opacity='.75';g.placeholder='🗺 지도·📍GPS 또는 탭하여 직접 입력';}}
   try{_resetFacFormMap();}catch(e){} // 지도 선택기 초기화(🗺 버튼으로 열림)
   // 위치: 구간 선택식 — 지도 십자선 근처 표지판의 구간을 기본 선택(수기 입력 폐지 → 데이터 통일)
   const _ic=window._lastInspectCrosshairCoord;
@@ -1568,6 +1569,7 @@ function openEditFac(id){
   document.getElementById('facNameIn').value=f.name||'';
   _fillFacLocSel(f.loc||''); // 구간 셀렉트 — 레거시 자유입력 값은 '(기존값)' 옵션으로 유지
   document.getElementById('facGpsIn').value=f.lat&&f.lng?f.lat.toFixed(5)+', '+f.lng.toFixed(5):'';
+  {const g=document.getElementById('facGpsIn');if(g){g.readOnly=true;g.style.opacity='.75';g.placeholder='🗺 지도·📍GPS 또는 탭하여 직접 입력';}}
   document.getElementById('facInstall').value=f.install||'';
   {const g=document.getElementById('facGradeSel');if(g)g.value=f.grade||'';}
   {const e=document.getElementById('facMgmtIn');if(e)e.value=f.mgmt||'';}
@@ -3859,6 +3861,10 @@ function _loadAllErrLogs(){
     try{_fdb.collection('errLogs').where('at','<',Date.now()-7*86400000).limit(40).get().then(function(s){s.docs.forEach(function(d){d.ref.delete().catch(function(){});});}).catch(function(){});}catch(e){}
   }).catch(function(){if(el)el.innerHTML='<div style="font-size:11px;color:#e05050;">불러오기 실패(색인 생성 중일 수 있음 — 잠시 후 재시도)</div>';});
 }
+// 푸시 보낸 내역 비우기
+function _clearPushLog(){if(!confirm('푸시 보낸 내역을 모두 지울까요?'))return;DB.s('pushLog',[]);try{renderAdmSys();}catch(e){}toast('🗑 보낸 내역 삭제됨');}
+// 개인 지정 시 위 소속·전체 선택 해제(개인 발송이 우선함을 시각적으로 명확히)
+function _pushPersonChanged(sel){if(sel&&sel.value){const a=document.getElementById('pushAll');if(a)a.checked=false;document.querySelectorAll('.pushDept:checked').forEach(c=>{c.checked=false;});}}
 function renderAdmSys(){
   // pushLog는 온디맨드 문서 — 화면 열 때 1회 갱신(60초 내 재렌더는 캐시 재사용)
   if(typeof _refreshDoc==='function'&&(!window._pushLogFreshAt||Date.now()-window._pushLogFreshAt>60000)){
@@ -3867,6 +3873,10 @@ function renderAdmSys(){
   }
   const unseenCnt=_getUnseenCount();
   document.getElementById('admSysWrap').innerHTML=`
+    <div class="scard" style="margin-bottom:8px;background:rgba(26,74,110,.15);border:1px solid rgba(49,130,246,.35);">
+      <button onclick="var c=document.getElementById('pushComposeCard');if(c)c.scrollIntoView({behavior:'smooth',block:'start'});" style="width:100%;background:#1a4a6e;color:#fff;border:none;padding:13px;border-radius:9px;font-size:13.5px;font-weight:800;cursor:pointer;">📲 직원에게 알림 보내기 →</button>
+      <div style="font-size:10.5px;color:#6b7684;margin-top:6px;text-align:center;">전체·소속·개인 지정 발송 · 꺼진 폰까지 도달</div>
+    </div>
     ${(()=>{try{ // 🗑 시설물 휴지통 — 삭제된 시설 복구(시설과·담당자), 영구삭제(개발자)
       const tr=DB.g('facTrash')||[];
       if(!tr.length)return '';
@@ -3907,11 +3917,6 @@ function renderAdmSys(){
       <div style="font-size:11px;color:#8b95a1;margin-bottom:8px;">현재 버전 <b style="color:#d5d8dc;">${OTA_VER}</b> · 앱(APK)은 재설치 없이 최신 코드로 자체 업데이트됩니다. (웹은 새로고침 시 자동)</div>
       <button onclick="_otaCheck(true)" style="width:100%;padding:11px;border-radius:8px;border:1px solid rgba(255,255,255,.4);background:rgba(255,255,255,.12);color:#3182f6;font-size:13px;font-weight:700;cursor:pointer;">🔄 업데이트 확인 / 적용</button>
     </div>
-    <div class="scard" style="margin-bottom:8px;">
-      <div class="stitle">🆘 조난·사고자 위치 접수</div>
-      <div style="font-size:11px;color:#8b95a1;margin-bottom:8px;">악용·오작동 시 전체 접수를 차단할 수 있습니다. 차단 중엔 1회용 링크도 발급되지 않고 수신 위치가 표시되지 않습니다.</div>
-      ${(()=>{const blk=!!DB.g('sosBlocked');return `<button onclick="toggleSosBlock()" style="width:100%;padding:11px;border-radius:8px;border:1px solid ${blk?'rgba(39,174,96,.4)':'rgba(192,57,43,.4)'};background:${blk?'rgba(39,174,96,.12)':'rgba(192,57,43,.12)'};color:${blk?'#27ae60':'#e05050'};font-size:13px;font-weight:700;cursor:pointer;">${blk?'⛔ 현재 차단됨 — 탭하여 접수 허용':'🆗 현재 허용됨 — 탭하여 접수 차단'}</button>`;})()}
-    </div>
     <div class="scard sel-ok" style="margin-bottom:8px;">
       <div class="stitle">🐞 오류 기록 <button onclick="localStorage.removeItem('_errLog');renderAdmSys();" style="float:right;background:none;border:none;color:rgba(255,255,255,.3);font-size:10px;cursor:pointer;">내 기록 비우기</button></div>
       <div style="font-size:10px;color:#6b7684;font-weight:700;margin:4px 0 3px;">📱 내 기기</div>
@@ -3937,7 +3942,7 @@ function renderAdmSys(){
         <div style="font-size:11px;color:#c4c8ce;line-height:1.85;">새 직원 가입 승인 요청 · 관리자 권한 요청 · 정보 정정 요청</div>
       </div>
     </div>
-    <div class="scard" style="margin-bottom:8px;">
+    <div class="scard" id="pushComposeCard" style="margin-bottom:8px;">
       <div class="stitle">📲 푸시 알림 (꺼진 폰까지)</div>
       <div style="font-size:11px;color:#8b95a1;margin-bottom:8px;">구조 1보·위험상황 발생 시 자동 발송됩니다. 아래에서 <b style="color:#5dbf8a;">받는 대상을 골라</b> 직접 작성해 푸시할 수 있습니다.</div>
       <div class="fg"><span class="fl">받는 대상 <span style="color:#6b7684;font-weight:400;">(소속 선택 · 복수 가능, 비우면 전체)</span></span>
@@ -3952,6 +3957,17 @@ function renderAdmSys(){
           </div>`;
         })()}
       </div>
+      <div class="fg"><span class="fl">특정 개인에게만 <span style="color:#6b7684;font-weight:400;">(선택하면 위 소속·전체는 무시)</span></span>
+        ${(()=>{
+          const seen={};const ppl=[];
+          [].concat(DB.g('members')||[],DB.g('loginLog')||[]).forEach(e=>{if(!e||!e.name)return;const nm=String(e.name).trim();if(!nm)return;const kk=String(e.kakaoId||'');const key=kk||nm;if(seen[key])return;seen[key]=1;ppl.push({nm,kk,dept:e.dept||''});});
+          ppl.sort((a,b)=>a.nm.localeCompare(b.nm,'ko'));
+          return `<select id="pushPerson" class="fi" onchange="_pushPersonChanged(this)" style="font-size:13px;">
+            <option value="">— 개인 지정 안 함 —</option>
+            ${ppl.map(p=>`<option value="${_esc(p.nm)}" data-kakao="${_esc(p.kk)}">${_esc(p.nm)}${p.dept?' · '+_esc(p.dept):''}</option>`).join('')}
+          </select>`;
+        })()}
+      </div>
       <div class="fg"><span class="fl">제목</span>
         <input id="pushTitleInp" class="fi" type="text" value="설악산 현장관리" maxlength="40" style="font-size:13px;">
       </div>
@@ -3963,7 +3979,7 @@ function renderAdmSys(){
         <button onclick="renderAdmSys()" style="background:rgba(255,255,255,.05);color:#8b95a1;border:1px solid rgba(255,255,255,.1);padding:10px 12px;border-radius:8px;font-size:12px;cursor:pointer;">↻ 새로고침</button>
       </div>
       ${(()=>{const log=DB.g('pushLog')||[];if(!log.length)return '';
-        return `<div style="margin-top:11px;"><div style="font-size:10px;color:#6b7684;font-weight:700;margin-bottom:4px;">🕘 보낸 내역</div>`
+        return `<div style="margin-top:11px;"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;"><span style="font-size:10px;color:#6b7684;font-weight:700;">🕘 보낸 내역</span><button onclick="_clearPushLog()" style="background:rgba(192,57,43,.1);color:#e0857a;border:1px solid rgba(192,57,43,.28);border-radius:12px;padding:2px 10px;font-size:9.5px;font-weight:700;cursor:pointer;">🗑 지우기</button></div>`
           +log.slice(0,8).map(p=>`<div style="font-size:10px;color:#a5abb3;padding:4px 0;border-bottom:1px solid rgba(255,255,255,.04);"><span style="color:#aab4c0;font-weight:700;">${_esc(p.target||'전체')}</span> · ${_esc(p.body||'')}<br><span style="color:#6b7684;font-size:9px;">${p.by?_esc(p.by)+' · ':''}${p.at?new Date(p.at).toLocaleString('ko-KR',{month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'}):''}${p.sent!=null?' · '+p.sent+'대 발송':''}</span></div>`).join('')
           +`</div>`;
       })()}

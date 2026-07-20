@@ -26,7 +26,7 @@ function renderSettings(){
           <div style="flex:1;min-width:0;">
             <div class="set-anm">${_esc(u.realName||u.name||'미설정')}</div>
             <div class="set-ade">${_esc(u.dept||'소속 미설정')}${u.rank?' · '+_esc(u.rank):''}${u.grade?' · '+_esc(u.grade):''}</div>
-            <div style="font-size:11px;font-weight:700;margin-top:4px;color:${_appr?'#5fcf8f':'#e8a04a'};">● ${_appr?'승인됨':'승인 대기'}</div>
+            ${_appr?'':`<div style="font-size:11px;font-weight:700;margin-top:4px;color:#e8a04a;">● 승인 대기</div>`}
           </div>
         </div>
         <button class="set-row tap" onclick="openChangeUser()"><div class="set-ic">✏️</div><div class="set-bd"><div class="set-lb">계정 정보 수정</div></div><span class="set-cv">›</span></button>
@@ -46,8 +46,6 @@ function renderSettings(){
       <div class="set-card">
         <button class="set-row tap" onclick="_otaCheck(true)"><div class="set-ic">🔄</div><div class="set-bd"><div class="set-lb">업데이트 확인 · 적용</div><div class="set-sb">버전 ${OTA_VER} · 재설치 없이 자체 갱신</div></div><span class="set-cv">›</span></button>
         <a class="set-row tap" href="https://github.com/seorak1275/seoraksan/releases/latest" target="_blank" style="text-decoration:none;"><div class="set-ic">📱</div><div class="set-bd"><div class="set-lb">안드로이드 APK 다운로드</div><div class="set-sb">최신 빌드 (GitHub Releases)</div></div><span class="set-cv">↗</span></a>
-        ${(!_isNativeApp()&&matchMedia('(pointer:fine)').matches)?`<button class="set-row tap" onclick="_dlSeamFix()"><div class="set-ic">🖥</div><div class="set-bd"><div class="set-lb">PC 세로선 보정 바로가기 받기</div><div class="set-sb">화면에 세로 이음선이 보이는 PC용 — 받은 파일로 실행하면 보정된 상태로 열립니다 (설정 변경 불필요)</div></div><span class="set-cv">⬇</span></button>
-        <button class="set-row tap" onclick="_seamScan()"><div class="set-ic">🔦</div><div class="set-bd"><div class="set-lb">세로선 원인 스캔</div><div class="set-sb">세로선이 보일 때 누르면 후보 요소를 분홍 테두리로 10초간 표시 — 선과 겹치면 캡처해서 보내주세요</div></div><span class="set-cv">›</span></button>`:''}
       </div>
 
       <div class="set-hd">오프라인 지도 · 무통신 대비</div>
@@ -3419,7 +3417,7 @@ function _initSosWatch(){
     _fdb.collection('sos').onSnapshot(function(snap){
       window._sosRetryMs=0; // 수신 성공 → 재시도 백오프 초기화
       // 팀이 발급(active:true)했고 48시간 이내인 것만 — 밤샘·다일 구조 커버, 옛 링크 자동 무효
-      _sosPings=DB.g('sosBlocked')?[]:snap.docs.map(d=>d.data()).filter(p=>p&&p.active===true&&Date.now()-(p.issuedAt||p.ts||0)<48*3600000);
+      _sosPings=snap.docs.map(d=>d.data()).filter(p=>p&&p.active===true&&Date.now()-(p.issuedAt||p.ts||0)<48*3600000);
       // 위치가 새로 수신된 조난자 알림(최초 스냅샷·미수신 토큰은 제외)
       const seen=window._sosSeen||(window._sosSeen={});
       const seenOpen=window._sosSeenOpen||(window._sosSeenOpen={});
@@ -3482,7 +3480,6 @@ function _sosVictimUrl(tok){return 'https://seorak1275.github.io/seoraksan/?sos=
 // 새 1회용 링크 발급 (토큰 생성 → active:true 문서 생성)
 function _sosNewLink(){
   if(!_fdb){toast('연결 준비 중 — 잠시 후 다시');return;}
-  if(DB.g('sosBlocked')){toast('⚠️ 조난 접수가 차단되어 있습니다 (관리자 → 시스템에서 해제)');return;}
   const tok=Math.random().toString(36).slice(2,7); // 5자리 토큰
   const by=(typeof getAuthor==='function')?getAuthor():'구조대';
   _fdb.collection('sos').doc(tok).set({id:tok,active:true,issuedAt:Date.now(),by:by},{merge:true})
@@ -3866,7 +3863,7 @@ function sosToRescue(id){
 // 앱 자체 업데이트 (OTA · Capgo 자체호스팅) — APK 전용. 웹/PWA는 서비스워커가 자동 갱신.
 // 번들(www)의 새 버전을 ota.json으로 알리면, 설치된 앱이 받아서 그 자리에서 교체(재빌드 불필요).
 // ══════════════════════════════════════════
-const OTA_VER='2026.07.20.313';                         // ← 현재 번들 버전 (릴리스마다 올림 · build-ota.sh가 ota.json에 반영)
+const OTA_VER='2026.07.20.314';                         // ← 현재 번들 버전 (릴리스마다 올림 · build-ota.sh가 ota.json에 반영)
 const OTA_MANIFEST='https://seorak1275.github.io/seoraksan/ota.json';
 // 업데이트 확인 폴백 소스 — 일부 기관망·통신사에서 github.io가 막혀 '확인 실패(네트워크)'가 나는 경우 대비.
 // 순서대로 시도: ① GitHub Pages(원본·즉시 반영) ② jsDelivr CDN(공개저장소 미러·거의 모든 망 통과)
