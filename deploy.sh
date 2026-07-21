@@ -27,7 +27,7 @@ NEWV="$(date +%Y.%m.%d).$((BUILD+1))"
 sed -i.bak "s/const OTA_VER='$OLD'/const OTA_VER='$NEWV'/" www/app.js && rm -f www/app.js.bak
 
 # ③ www → 루트 미러
-for f in index.html style.css app.core.js app.map.js app.rescue.js app.report.js app.ops.js app.js park-boundary.json; do
+for f in index.html style.css app.core.js app.map.js app.rescue.js app.report.js app.ops.js app.js park-boundary.json equip-seed.json equip-seed-photos.json; do
   cp -f "www/$f" "$f"
 done
 
