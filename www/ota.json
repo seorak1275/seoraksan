@@ -1,1 +1,1 @@
-{"version":"2026.07.21.333","url":"https://seorak1275.github.io/seoraksan/bundle.zip","notes":"개별목록 묶음 개선 — 같은 제품 1줄(상태는 안에서 요약: N개·⚠️점검M), 펼치면 개별을 칩 격자로 한눈에(점검대상 빨강)"}
+{"version":"2026.07.21.334","url":"https://seorak1275.github.io/seoraksan/bundle.zip","notes":"장비관리 검토 지적 5건 수정 — 위치필터 표시·초기화·실사범위 반영, _escq &이스케이프(XSS 방어), 위치 정확일치, 위치일괄지정 실패 시 서버 재동기화"}

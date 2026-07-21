@@ -2532,7 +2532,7 @@ function _eqFilter(all){
     if(_eqF.region&&it.region!==_eqF.region)return false;
     if(_eqF.person){if(_eqF.person===EQ_UNASSIGNED){if(it.person)return false;}else if(it.person!==_eqF.person)return false;}
     if(_eqF.maker&&it.maker!==_eqF.maker)return false;
-    if(_eqF.loc){const L=String(it.loc||'').trim();if(_eqF.loc.length===1){if(L.charAt(0)!==_eqF.loc)return false;}else if(L!==_eqF.loc)return false;}
+    if(_eqF.loc){if(String(it.loc||'').trim()!==_eqF.loc)return false;}
     if(q){const s=((it.name||'')+' '+(it.mgmtNo||'')+' '+(it.maker||'')+' '+(it.serial||'')+' '+(it.cat2||'')+' '+(it.person||'')).toLowerCase();if(s.indexOf(q)<0)return false;}
     return true;
   });
@@ -2542,7 +2542,7 @@ function _eqSortedFiltered(){
   list.sort((a,b)=>{const c1=EQ_CAT1.indexOf(a.cat1)-EQ_CAT1.indexOf(b.cat1);if(c1)return c1;const c2=String(a.cat2||'').localeCompare(String(b.cat2||''),'ko');if(c2)return c2;return String(a.mgmtNo||'').localeCompare(String(b.mgmtNo||''),'ko',{numeric:true});});
   return list;
 }
-function _eqActiveCount(){let n=0;['cat1','cat2','cond','region','person','maker'].forEach(k=>{if(_eqF[k])n++;});if((_eqF.q||'').trim())n++;return n;}
+function _eqActiveCount(){let n=0;['cat1','cat2','cond','region','person','maker','loc'].forEach(k=>{if(_eqF[k])n++;});if((_eqF.q||'').trim())n++;return n;}
 // 검색: 검색 input은 재렌더 대상 밖(#equipInner의 고정 input)이라 파괴 안 됨 → 결과만 갱신(포커스 유지)
 function equipSearch(v){_eqF.q=v||'';_renderEquipResults();}
 function equipSetF(k,v){_eqF[k]=(_eqF[k]===v)?'':v;if(k==='cat1')_eqF.cat2='';_renderEquipChips();_renderEquipResults();}
@@ -2580,6 +2580,7 @@ function _renderEquipChips(){
   const regions=EQ_REGIONS.filter(r=>all.some(it=>it.region===r));
   const sel=(k,label,opts)=>`<select onchange="equipSelF('${k}',this.value)" style="flex:1;min-width:0;background:${_eqF[k]?'rgba(94,207,143,.12)':'#131316'};color:${_eqF[k]?'#8fe0b0':'#9aa4ad'};border:1px solid rgba(255,255,255,.2);border-radius:8px;padding:7px 6px;font-size:11px;"><option value="">${label}</option>${opts.map(o=>`<option value="${_esc(o)}" ${_eqF[k]===o?'selected':''}>${_esc(o)}</option>`).join('')}</select>`;
   h+=`<div style="display:flex;gap:5px;margin-top:2px;">${sel('region','전지역',regions)}${sel('person','담당전체',persons)}${sel('maker','제조사',makers)}</div>`;
+  if(_eqF.loc)h+=`<div style="margin-top:6px;"><span onclick="equipSelF(\'loc\',\'\')" style="display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:700;cursor:pointer;background:rgba(240,184,64,.14);border:1px solid rgba(240,184,64,.4);color:#f0b840;border-radius:14px;padding:4px 11px;">📍 위치 ${_esc(_eqF.loc)} ✕</span></div>`;
   el.innerHTML=h;
 }
 // 같은 제품(품명·규격·상태·담당·지역·위치 동일)을 한 줄로 묶고 수량 표시 → 128개도 한 줄. 탭하면 개별 펼침.
@@ -2960,7 +2961,7 @@ async function equipReassignDo(fromPerson,toPerson){
 // ── ✅ 전체 점검(실사) ──
 let _eqAudit=null,_eqLastAudit=null;
 function _eqScopeLabel(){
-  const p=[];if(_eqF.cat1)p.push(_eqF.cat1);if(_eqF.cat2)p.push(_eqF.cat2);if(_eqF.region)p.push(EQ_REGION_SHORT[_eqF.region]||_eqF.region);if(_eqF.person)p.push(_eqF.person===EQ_UNASSIGNED?'미지정':_eqF.person);if(_eqF.cond==='BC')p.push('주의·교체');if(_eqF.cond==='A')p.push('A양호');if(_eqF.maker)p.push(_eqF.maker);if((_eqF.q||'').trim())p.push('"'+_eqF.q.trim()+'"');
+  const p=[];if(_eqF.cat1)p.push(_eqF.cat1);if(_eqF.cat2)p.push(_eqF.cat2);if(_eqF.region)p.push(EQ_REGION_SHORT[_eqF.region]||_eqF.region);if(_eqF.person)p.push(_eqF.person===EQ_UNASSIGNED?'미지정':_eqF.person);if(_eqF.cond==='BC')p.push('주의·교체');if(_eqF.cond==='A')p.push('A양호');if(_eqF.maker)p.push(_eqF.maker);if(_eqF.loc)p.push('📍'+_eqF.loc);if((_eqF.q||'').trim())p.push('"'+_eqF.q.trim()+'"');
   return p.length?p.join(' · '):'전체';
 }
 function equipAuditStart(){
@@ -3148,7 +3149,7 @@ async function equipLocAssignDo(ids,loc){
     if(typeof _busyDone==='function')_busyDone();
     toast('✅ '+n+'건 위치 '+(loc||'지움')+' 설정',3500);
     _equipRender();
-  }catch(e){targets.forEach((it,i)=>{it.loc=orig[i];});if(typeof _busyDone==='function')_busyDone();toast('⚠️ 실패: '+((e&&e.message)||e),4000);}
+  }catch(e){if(typeof _busyDone==='function')_busyDone();toast('⚠️ 실패 — 서버와 재동기화: '+((e&&e.message)||e),4500);try{_eqData=null;await _equipLoadAll(true);}catch(e2){targets.forEach((it,i)=>{it.loc=orig[i];});}_equipRender();}
 }
 
 // QR 지연 로드(인쇄 시에만)
@@ -4691,7 +4692,7 @@ function sosToRescue(id){
 // 앱 자체 업데이트 (OTA · Capgo 자체호스팅) — APK 전용. 웹/PWA는 서비스워커가 자동 갱신.
 // 번들(www)의 새 버전을 ota.json으로 알리면, 설치된 앱이 받아서 그 자리에서 교체(재빌드 불필요).
 // ══════════════════════════════════════════
-const OTA_VER='2026.07.21.333';                         // ← 현재 번들 버전 (릴리스마다 올림 · build-ota.sh가 ota.json에 반영)
+const OTA_VER='2026.07.21.334';                         // ← 현재 번들 버전 (릴리스마다 올림 · build-ota.sh가 ota.json에 반영)
 const OTA_MANIFEST='https://seorak1275.github.io/seoraksan/ota.json';
 // 업데이트 확인 폴백 소스 — 일부 기관망·통신사에서 github.io가 막혀 '확인 실패(네트워크)'가 나는 경우 대비.
 // 순서대로 시도: ① GitHub Pages(원본·즉시 반영) ② jsDelivr CDN(공개저장소 미러·거의 모든 망 통과)
