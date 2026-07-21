@@ -532,7 +532,7 @@ function _closeResListFilter(){_fpClose('resListFilterPanel');}
 //   · 트레일: 앱 내부 직선거리 GPS 안내(등산로 적합, 오프라인 가능)
 //   · 도로: 각 시설의 🚗 버튼 → 카카오맵 앱으로 차량 길안내 핸드오프(REST키 불필요)
 // ═══════════════════════════════════════════════════════════════════
-var _facNav={on:false,watch:null,voice:true,signOnly:false,announced:{},heading:null,lastLa:null,lastLn:null,wake:null,list:[]};
+var _facNav={on:false,watch:null,voice:true,signOnly:false,announced:{},heading:null,lastLa:null,lastLn:null,wake:null,list:[],map:null,meMk:null,meEl:null,line:null,facMks:[],follow:true,sim:null,simIv:null};
 var _FN_TH=[1000,500,300,150,80,30]; // 안내 거리 임계(내림차순)
 function _fnBearing(la1,ln1,la2,ln2){var r=Math.PI/180;var y=Math.sin((ln2-ln1)*r)*Math.cos(la2*r);var x=Math.cos(la1*r)*Math.sin(la2*r)-Math.sin(la1*r)*Math.cos(la2*r)*Math.cos((ln2-ln1)*r);return (Math.atan2(y,x)/r+360)%360;}
 function _fnRel(b,h){if(h==null||isNaN(h))return null;return ((b-h+540)%360)-180;} // +우측 / -좌측
@@ -563,16 +563,20 @@ function openFacNav(){
     '<button onclick="history.back()" style="background:none;border:none;color:#3182f6;font-size:14px;font-weight:800;cursor:pointer;">← 닫기</button>'+
     '<span style="font-size:15px;font-weight:800;">🧭 시설물 내비</span>'+
     '<span style="flex:1;"></span>'+
+    '<button id="fnSimBtn" onclick="facNavSimToggle()" style="background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.2);color:#eef0f2;border-radius:8px;padding:5px 9px;font-size:11px;font-weight:800;cursor:pointer;">🧪 시뮬</button>'+
     '<button id="fnVoiceBtn" onclick="facNavToggleVoice()" style="background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.2);color:#eef0f2;border-radius:8px;padding:5px 9px;font-size:11px;font-weight:800;cursor:pointer;">🔊 음성</button>'+
     '<button id="fnSignBtn" onclick="facNavToggleSign()" style="background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.2);color:#eef0f2;border-radius:8px;padding:5px 9px;font-size:11px;font-weight:800;cursor:pointer;">전체</button>'+
   '</div>'+
-  '<div style="flex:1;overflow-y:auto;padding:14px;">'+
-    '<div id="fnPrimary" style="text-align:center;padding:18px 10px 12px;">'+
+  '<div id="fnMap" style="flex:0 0 46%;min-height:190px;background:#0c0f14;position:relative;">'+
+    '<button onclick="_facNavRecenter()" title="내 위치로" style="position:absolute;right:9px;bottom:9px;z-index:5;width:40px;height:40px;border-radius:50%;background:#1c1c1e;color:#3182f6;border:1.5px solid rgba(255,255,255,.35);font-size:16px;cursor:pointer;">📍</button>'+
+  '</div>'+
+  '<div style="flex:1;overflow-y:auto;padding:12px 14px;">'+
+    '<div id="fnPrimary" style="text-align:center;padding:6px 10px 10px;">'+
       '<div style="font-size:12px;color:#8b95a1;">GPS 잡는 중…</div>'+
     '</div>'+
     '<div id="fnList" style="margin-top:6px;"></div>'+
-    '<div id="fnAcc" style="text-align:center;font-size:10.5px;color:#565f6b;margin-top:14px;"></div>'+
-    '<div style="text-align:center;font-size:10.5px;color:#565f6b;margin-top:6px;line-height:1.7;">진행방향 앞쪽 시설을 가까운 순으로 안내합니다.<br>움직이면 방향(직진·좌·우)이 표시돼요. 🚗 = 카카오맵 차량 길안내.</div>'+
+    '<div id="fnAcc" style="text-align:center;font-size:10.5px;color:#565f6b;margin-top:12px;"></div>'+
+    '<div style="text-align:center;font-size:10.5px;color:#565f6b;margin-top:6px;line-height:1.7;">지도에 내 위치(파란 화살표)·목표까지 노란선 표시.<br>진행방향 앞 시설을 가까운 순으로 음성 안내 · 🚗 = 카카오맵 차량 길안내.</div>'+
   '</div>';
   (document.getElementById('app')||document.body).appendChild(ov);
   try{history.pushState({view:'facnav'},'','');}catch(e){}
@@ -585,7 +589,9 @@ function openFacNav(){
 }
 function closeFacNav(){
   _facNav.on=false;
+  if(_facNav.simIv){clearInterval(_facNav.simIv);_facNav.simIv=null;}_facNav.sim=null;
   try{if(_facNav.watch!=null)navigator.geolocation.clearWatch(_facNav.watch);}catch(e){}_facNav.watch=null;
+  _facNav.map=null;_facNav.meMk=null;_facNav.meEl=null;_facNav.line=null;_facNav.facMks=[];
   try{window.speechSynthesis&&window.speechSynthesis.cancel();}catch(e){}
   try{if(_facNav.wake&&_facNav.wake.release)_facNav.wake.release();}catch(e){}_facNav.wake=null;
   var ov=document.getElementById('facNavOv');if(ov)ov.remove();
@@ -595,9 +601,11 @@ function facNavToggleSign(){_facNav.signOnly=!_facNav.signOnly;_facNav.announced
 function _facNavSyncBtns(){
   var v=document.getElementById('fnVoiceBtn');if(v){v.textContent=_facNav.voice?'🔊 음성':'🔇 꺼짐';v.style.background=_facNav.voice?'rgba(94,207,143,.16)':'rgba(255,255,255,.08)';v.style.borderColor=_facNav.voice?'rgba(94,207,143,.5)':'rgba(255,255,255,.2)';v.style.color=_facNav.voice?'#8fe0ab':'#8b95a1';}
   var s=document.getElementById('fnSignBtn');if(s){s.textContent=_facNav.signOnly?'📍 표지판만':'전체';s.style.background=_facNav.signOnly?'rgba(240,184,64,.16)':'rgba(255,255,255,.08)';s.style.borderColor=_facNav.signOnly?'rgba(240,184,64,.5)':'rgba(255,255,255,.2)';s.style.color=_facNav.signOnly?'#f0c060':'#eef0f2';}
+  var sm=document.getElementById('fnSimBtn');if(sm){var run=!!_facNav.simIv;sm.textContent=run?'⏹ 시뮬중':'🧪 시뮬';sm.style.background=run?'rgba(255,107,91,.18)':'rgba(255,255,255,.08)';sm.style.borderColor=run?'rgba(255,107,91,.5)':'rgba(255,255,255,.2)';sm.style.color=run?'#ff9a90':'#eef0f2';}
 }
 function _facNavOnErr(e){var p=document.getElementById('fnPrimary');if(p)p.innerHTML='<div style="font-size:13px;color:#ffb0a0;">⚠️ GPS 오류 — 위치 권한을 확인하세요</div>';}
 function _facNavOnPos(pos){
+  if(_facNav.simIv)return; // 시뮬 중엔 실제 GPS 무시
   var la=pos.coords.latitude,ln=pos.coords.longitude;
   var hd=(pos.coords.heading!=null&&!isNaN(pos.coords.heading)&&pos.coords.speed>0.6)?pos.coords.heading:null;
   // 헤딩 미제공(정지)이면 직전 위치로 이동방향 추정
@@ -616,6 +624,7 @@ function _facNavCompute(la,ln,hd,acc){
   var list=use.slice(0,5);
   _facNav.list=list;
   _facNavRender(list,acc,hd);
+  _facNavUpdateMap(la,ln,hd,list);
   var pr=list[0];
   if(pr&&_facNav.voice)_facNavMaybeAnnounce(pr);
 }
@@ -649,6 +658,92 @@ function _facNavRender(list,acc,hd){
   document.getElementById('fnList').innerHTML=rest.length?('<div style="font-size:11px;color:#6b7684;margin:14px 4px 6px;">다음 안내</div>'+rest.map(function(e){var d=_fnDisp(e.f),c=(typeof _facTypeColor==='function')?_facTypeColor(e.f.type):'#3182f6';var dirtxt=e.rel==null?'':(Math.abs(e.rel)<22?'· 직진':e.rel>0?'· 오른편':'· 왼편');return '<div onclick="facNavRoad(\''+_escq(e.f.id)+'\')" style="display:flex;align-items:center;gap:9px;padding:9px 11px;background:#12151b;border:1px solid rgba(255,255,255,.07);border-radius:10px;margin-bottom:5px;cursor:pointer;"><span style="width:9px;height:9px;border-radius:50%;background:'+c+';flex-shrink:0;"></span><span style="flex:1;min-width:0;font-size:12.5px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+_esc(d.main)+'</span><span style="font-size:10px;color:#6b7684;">'+dirtxt+'</span><span style="font-size:13px;font-weight:800;color:#7fd0ff;flex-shrink:0;">'+_fnDistShort(e.d)+'</span></div>';}).join('')):'';
   var ae=document.getElementById('fnAcc');if(ae)ae.textContent=acc!=null?('GPS 정확도 ±'+Math.round(acc)+'m'+(hd!=null?' · 방향 '+Math.round(hd)+'°':'')):'';
 }
+// ── 앱 내부 카카오맵: 내 위치(화살표)·목표까지 선 실시간 표시 ──
+function _facNavInitMap(la,ln){
+  if(_facNav.map)return;
+  if(!(window.kakao&&kakao.maps&&kakao.maps.Map))return;
+  var el=document.getElementById('fnMap');if(!el)return;
+  _facNav.map=new kakao.maps.Map(el,{center:new kakao.maps.LatLng(la,ln),level:3});
+  try{_facNav.map.setMapTypeId(kakao.maps.MapTypeId.HYBRID);}catch(e){}
+  // 내 위치 화살표(파란 퍽)
+  var me=document.createElement('div');
+  me.style.cssText='position:relative;width:30px;height:30px;';
+  me.innerHTML='<div style="position:absolute;inset:0;border-radius:50%;background:rgba(49,130,246,.28);box-shadow:0 0 0 2px rgba(49,130,246,.55);"></div>'+
+    '<div id="fnMeArrow" style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%) rotate(0deg);font-size:22px;line-height:1;color:#3182f6;text-shadow:0 0 3px #000;">▲</div>';
+  _facNav.meEl=me;
+  _facNav.meMk=new kakao.maps.CustomOverlay({position:new kakao.maps.LatLng(la,ln),content:me,zIndex:200,xAnchor:0.5,yAnchor:0.5});
+  _facNav.meMk.setMap(_facNav.map);
+  _facNav.line=new kakao.maps.Polyline({strokeWeight:5,strokeColor:'#ffd23f',strokeOpacity:.92,strokeStyle:'solid'});
+  _facNav.line.setMap(_facNav.map);
+  kakao.maps.event.addListener(_facNav.map,'dragstart',function(){_facNav.follow=false;});
+  setTimeout(function(){try{_facNav.map.relayout();_facNav.map.setCenter(new kakao.maps.LatLng(la,ln));}catch(e){}},120);
+}
+function _facNavUpdateMap(la,ln,hd,list){
+  if(!_facNav.map)_facNavInitMap(la,ln);
+  if(!_facNav.map)return;
+  var meLL=new kakao.maps.LatLng(la,ln);
+  if(_facNav.meMk)_facNav.meMk.setPosition(meLL);
+  var ar=document.getElementById('fnMeArrow');if(ar)ar.style.transform='translate(-50%,-50%) rotate('+(hd==null?0:hd)+'deg)';
+  if(_facNav.follow){try{_facNav.map.setCenter(meLL);}catch(e){}}
+  var pr=list[0];
+  if(_facNav.line)_facNav.line.setPath(pr?[meLL,new kakao.maps.LatLng(pr.f.lat,pr.f.lng)]:[]);
+  // 목표 핀(가까운 순 상위) 갱신
+  _facNav.facMks.forEach(function(m){try{m.setMap(null);}catch(e){}});_facNav.facMks=[];
+  list.forEach(function(e,i){
+    var col=(typeof _facTypeColor==='function')?_facTypeColor(e.f.type):'#3182f6';
+    var lbl=_fnIsSign(e.f)?_fnCode(e.f):'';
+    var el=document.createElement('div');
+    el.style.cssText='transform:translate(-50%,-100%);text-align:center;';
+    el.innerHTML='<div style="min-width:14px;height:14px;padding:0 4px;border-radius:8px;background:'+col+';border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:900;color:#fff;">'+(i===0?'●':(i+1))+'</div>'+(lbl?'<div style="font-size:9px;font-weight:800;color:#fff;text-shadow:0 0 3px #000,0 0 3px #000;margin-top:1px;white-space:nowrap;">'+_esc(lbl)+'</div>':'');
+    var ov=new kakao.maps.CustomOverlay({position:new kakao.maps.LatLng(e.f.lat,e.f.lng),content:el,zIndex:120,xAnchor:0.5,yAnchor:1});
+    ov.setMap(_facNav.map);_facNav.facMks.push(ov);
+  });
+}
+function _facNavRecenter(){_facNav.follow=true;if(_facNav.map&&_facNav.lastLa!=null){try{_facNav.map.setCenter(new kakao.maps.LatLng(_facNav.lastLa,_facNav.lastLn));}catch(e){}}}
+
+// ── 🧪 시뮬레이션: 실제 이동 없이 '가고 있다고 가정'하고 지도·화살표·거리·음성 재생 ──
+function _fnDest(la,ln,brg,d){var R=6371000,r=Math.PI/180,b=brg*r,la1=la*r,dr=d/R;var la2=Math.asin(Math.sin(la1)*Math.cos(dr)+Math.cos(la1)*Math.sin(dr)*Math.cos(b));var ln2=ln*r+Math.atan2(Math.sin(b)*Math.sin(dr)*Math.cos(la1),Math.cos(dr)-Math.sin(la1)*Math.sin(la2));return{lat:la2/r,lng:((ln2/r+540)%360)-180};}
+function _fnInterp(a,b,f){return{lat:a.lat+(b.lat-a.lat)*f,lng:a.lng+(b.lng-a.lng)*f};}
+function _fnChain(anchor,cands,n){var pool=cands.slice(),chain=[],cur=anchor;for(var k=0;k<n&&pool.length;k++){var bi=-1,bd=Infinity;for(var i=0;i<pool.length;i++){var d=_haversine(cur.lat,cur.lng,pool[i].lat,pool[i].lng);if(d>0.5&&d<bd){bd=d;bi=i;}}if(bi<0)break;var nx=pool.splice(bi,1)[0];chain.push({lat:nx.lat,lng:nx.lng});cur=nx;}return chain;}
+function facNavSimToggle(){ if(_facNav.simIv)return _facNavSimStop(false); _facNavSimStart(); }
+function _facNavSimStart(){
+  var facs=(DB.g('facilities')||[]).filter(function(f){return f.lat&&f.lng&&(typeof _facVisibleTo!=='function'||_facVisibleTo(f));});
+  if(_facNav.signOnly)facs=facs.filter(_fnIsSign);
+  if(facs.length<2){toast('⚠️ 시뮬용 시설(좌표)이 부족합니다');return;}
+  // 시작 기준: 내 위치가 있으면 가장 가까운 시설, 없으면 표지판(없으면 첫 시설)
+  var anchor;
+  if(_facNav.lastLa!=null){anchor=facs.reduce(function(m,f){return _haversine(_facNav.lastLa,_facNav.lastLn,f.lat,f.lng)<_haversine(_facNav.lastLa,_facNav.lastLn,m.lat,m.lng)?f:m;},facs[0]);}
+  else{anchor=facs.filter(_fnIsSign)[0]||facs[0];}
+  var chain=_fnChain({lat:anchor.lat,lng:anchor.lng},facs,6);
+  if(chain.length<2){toast('⚠️ 시뮬 경로를 만들 시설이 부족합니다');return;}
+  var brg01=_fnBearing(chain[0].lat,chain[0].lng,chain[1].lat,chain[1].lng);
+  var start=_fnDest(chain[0].lat,chain[0].lng,(brg01+180)%360,450); // 첫 목표 450m 앞에서 출발
+  _facNav.sim={pts:[start].concat(chain),seg:0,into:0,step:16};
+  _facNav.announced={};_facNav.follow=true;
+  _facNavSyncBtns();
+  if(_facNav.voice)_facNavSpeak('시뮬레이션 시작. 이동을 가정합니다');
+  var first=_facNav.sim.pts[0];_facNavFeed(first.lat,first.lng,brg01);
+  _facNav.simIv=setInterval(_facNavSimTick,650);
+}
+function _facNavSimTick(){
+  var s=_facNav.sim;if(!s){return;}
+  var rem=s.step;
+  while(rem>0&&s.seg<s.pts.length-1){
+    var a=s.pts[s.seg],b=s.pts[s.seg+1];
+    var segLen=_haversine(a.lat,a.lng,b.lat,b.lng)||0.1;
+    var left=segLen-s.into;
+    if(rem<left){s.into+=rem;rem=0;}else{rem-=left;s.seg++;s.into=0;}
+  }
+  if(s.seg>=s.pts.length-1){var last=s.pts[s.pts.length-1];_facNavFeed(last.lat,last.lng,_facNav.heading||0);_facNavSimStop(true);return;}
+  var a2=s.pts[s.seg],b2=s.pts[s.seg+1];
+  var segLen2=_haversine(a2.lat,a2.lng,b2.lat,b2.lng)||0.1;
+  var cur=_fnInterp(a2,b2,s.into/segLen2);
+  var hd=_fnBearing(a2.lat,a2.lng,b2.lat,b2.lng);
+  _facNavFeed(cur.lat,cur.lng,hd);
+}
+function _facNavFeed(la,ln,hd){_facNav.heading=hd;_facNav.lastLa=la;_facNav.lastLn=ln;_facNavCompute(la,ln,hd,5);}
+function _facNavSimStop(done){if(_facNav.simIv){clearInterval(_facNav.simIv);_facNav.simIv=null;}_facNav.sim=null;_facNavSyncBtns();if(done&&_facNav.voice)_facNavSpeak('시뮬레이션 종료');}
+
 // 🚗 카카오맵 차량 길안내 핸드오프 (등산로 X, 도로 이동용)
 function facNavRoad(id){
   var f=(DB.g('facilities')||[]).find(function(x){return String(x.id)===String(id);});
