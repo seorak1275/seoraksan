@@ -374,6 +374,7 @@ function _toggleZones(){
 }
 function _zoneClear(){
   try{_zoneAuditClose();}catch(e){} // 검사 하이라이트·유령·패널 정리
+  {const _q=document.getElementById('zoneAdminPanel');if(_q)_q.remove();} // 구역관리 패널도 함께 정리(레이어 끔 시 잔류 방지)
   if(_zoneLayer)_zoneLayer.forEach(o=>{try{o.setMap(null);}catch(e){}});
   _zoneLayer=null;_zonePolys=null;_zoneSel=null;
   _zoneBlinkStop();_zoneSelBlinkStop();

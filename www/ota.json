@@ -1,1 +1,1 @@
-{"version":"2026.07.21.326","url":"https://seorak1275.github.io/seoraksan/bundle.zip","notes":"손드래그 위치조정 편집기 삭제, 🛠 구역관리 패널 추가(KML/GeoJSON 내보내기·원본 되돌리기·검사) — 정밀 편집은 Google Earth/QGIS 외부 편집 방식으로 전환"}
+{"version":"2026.07.21.327","url":"https://seorak1275.github.io/seoraksan/bundle.zip","notes":"구역관리 패널: 구역 표시 끌 때 함께 정리(잔류 방지) — 검증 지적 반영"}
