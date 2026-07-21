@@ -465,6 +465,7 @@ try{history.replaceState({view:'home'},'','');history.pushState({view:'home'},''
       <button class="map-ctrl" style="position:static;pointer-events:auto;" onclick="toggleMapType('inspect')">위성/일반</button>
       <button class="map-ctrl" id="zoneBtn" style="position:static;pointer-events:auto;" onclick="_toggleZones()">🗺 구역</button>
       <button class="map-ctrl" id="useZoneBtn" style="position:static;pointer-events:auto;" onclick="_toggleUseZones()">🌿 용도</button>
+      <button class="map-ctrl" id="zoneAuditBtn" style="position:static;pointer-events:auto;display:none;" onclick="_zoneAudit()">🔍 검사</button>
       <button class="map-ctrl" id="inspFilterBtn" style="position:static;pointer-events:auto;margin-left:auto;display:flex;align-items:center;gap:4px;" onclick="toggleInspFilter()">
         <span id="inspFilterIco">⚙️</span> 필터 <span id="inspFilterBadge" style="display:none;background:#e05050;color:#fff;border-radius:50%;width:17px;height:17px;font-size:9px;font-weight:800;align-items:center;justify-content:center;box-shadow:0 1px 5px rgba(224,80,80,.55);flex-shrink:0;"></span>
       </button>

@@ -350,7 +350,9 @@ function _useZoneUnsel(){
 // 구역·용도 오버레이 화면요소 정리 — 화면 전환·홈 이동 시 범례·카드가 남지 않도록
 function _zoneOverlayCleanup(){
   try{_zoneEditAbort();}catch(e){} // 편집 패널·드래그 캡처가 화면 전환 후 남지 않도록
-  ['useZoneLegend','useZoneLegendB','useZoneCard','zoneInfoCard','zoneFacOv','zoneEditPanel'].forEach(id=>{const e=document.getElementById(id);if(e)e.remove();});
+  try{_zoneAuditClose();}catch(e){} // 검사 하이라이트·유령·패널도 함께 정리
+  const _ab=document.getElementById('zoneAuditBtn');if(_ab)_ab.style.display='none';
+  ['useZoneLegend','useZoneLegendB','useZoneCard','zoneInfoCard','zoneFacOv','zoneEditPanel','zoneAuditPanel'].forEach(id=>{const e=document.getElementById(id);if(e)e.remove();});
 }
 // ── 🗺 순찰 구역 오버레이(폴리곤) — 직무현황 PDF의 구역을 벡터화·좌표 변환한 49개 면 ──
 // park-zones.json v2: zones[{n,color,rings}] + labels[{n,lat,lng}] + info{n:{r,m}} — 공원경계 정합(오차 ~30m)
@@ -363,14 +365,18 @@ function _mapCtrlOn(id,on){
   else{b.style.background='';b.style.color='';b.style.borderColor='';b.style.boxShadow='';}
 }
 function _toggleZones(){
-  if(_zoneLayer){_zoneClear();_mapCtrlOn('zoneBtn',false);toast('🗺 구역 표시 끔');return;}
-  const go=()=>{_zoneDraw();_mapCtrlOn('zoneBtn',true);toast('🗺 순찰 구역 표시 — 구역을 누르면 범위·담당이 나옵니다',4000);};
+  const _ab=document.getElementById('zoneAuditBtn');
+  if(_zoneLayer){_zoneClear();_mapCtrlOn('zoneBtn',false);if(_ab)_ab.style.display='none';toast('🗺 구역 표시 끔');return;}
+  const go=()=>{_zoneDraw();_mapCtrlOn('zoneBtn',true);
+    if(_ab)_ab.style.display=(typeof isAdminUser==='function'&&isAdminUser())?'':'none'; // 검사 버튼은 관리자에게만
+    toast('🗺 순찰 구역 표시 — 구역을 누르면 범위·담당이 나옵니다',4000);};
   if(_zoneData){go();return;}
   fetch('park-zones.json').then(r=>r.json()).then(zd=>{_zoneData=zd;go();})
     .catch(()=>toast('⚠️ 구역 데이터를 불러오지 못했습니다'));
 }
 function _zoneClear(){
   try{_zoneEditAbort();}catch(e){} // 위치 조정 중이면 편집 상태부터 해제(지도 드래그 복원 등)
+  try{_zoneAuditClose();}catch(e){} // 검사 하이라이트·유령·패널 정리
   if(_zoneLayer)_zoneLayer.forEach(o=>{try{o.setMap(null);}catch(e){}});
   _zoneLayer=null;_zonePolys=null;_zoneSel=null;
   _zoneBlinkStop();_zoneSelBlinkStop();
@@ -928,6 +934,113 @@ function _zoneRemoteRefresh(){
   }catch(e){}};
   (_zoneLayer||[]).forEach(shift);
   (_zoneLayerB||[]).forEach(shift);
+}
+// ── 🔍 구역 검사(관리자) — 편집한 경계의 겹침·공원경계 이탈·변경량을 '실제 저장 데이터'로 점검·시각화 ──
+// (편집 데이터 zoneEdits는 공유DB에만 있어 서버 밖에선 못 봄 → 앱 안에서 라이브로 검사)
+let _zaHi=[],_zaGhost=[];
+function _zaClearHi(){(_zaHi||[]).forEach(o=>{try{o.setMap(null);}catch(e){}});_zaHi=[];}
+function _zaClearGhost(){(_zaGhost||[]).forEach(o=>{try{o.setMap(null);}catch(e){}});_zaGhost=[];}
+// 점(px,py) ∈ 다각형(ring=[[x,y]..]) 레이캐스팅
+function _zaPip(px,py,ring){let ins=false;for(let i=0,j=ring.length-1;i<ring.length;j=i++){const xi=ring[i][0],yi=ring[i][1],xj=ring[j][0],yj=ring[j][1];if(((yi>py)!==(yj>py))&&(px<(xj-xi)*(py-yi)/(yj-yi)+xi))ins=!ins;}return ins;}
+function _zaBbox(pts){let a=1e9,b=-1e9,c=1e9,d=-1e9;for(const p of pts){if(p[0]<a)a=p[0];if(p[0]>b)b=p[0];if(p[1]<c)c=p[1];if(p[1]>d)d=p[1];}return[a,b,c,d];}
+function _zaBoxHit(A,B){return !(A[1]<B[0]||B[1]<A[0]||A[3]<B[2]||B[3]<A[2]);}
+// 원본 링+보정 → 표시 좌표 [lat,lng] 숫자배열(검사·비교용)
+function _zaAdjRing(n,ring,ri){const adj=_zoneOff(n)||{};const dla=adj.dlat||0,dln=adj.dlng||0,vs=adj.verts||null;return ring.map((p,vi)=>{const vd=vs&&vs[ri+','+vi];return [p[0]+dla+(vd?vd[0]:0),p[1]+dln+(vd?vd[1]:0)];});}
+function _zoneAudit(){
+  if(!(typeof isAdminUser==='function'&&isAdminUser())){try{_showAdminDenied();}catch(e){}return;}
+  if(!_zoneData){toast('구역 데이터를 불러오는 중입니다');return;}
+  if(!_parkBoundary){toast('공원 경계 불러오는 중...');fetch('./park-boundary.json').then(r=>r.json()).then(d=>{_parkBoundary=d;_zoneAudit();}).catch(()=>toast('⚠️ 공원 경계를 불러오지 못했습니다'));return;}
+  toast('🔍 구역 검사 중...',1500);
+  setTimeout(_zoneAuditRun,30); // 화면 페인트 후 실행(무거운 계산으로 멈춘 듯 보이지 않게)
+}
+function _zoneAuditRun(){
+  _zaClearHi();
+  // 원본(orig)·편집적용(now) 링을 함께 보관 — 검사는 '편집 전 대비 증가분(delta)'으로 판정한다.
+  // (구역 데이터와 공원경계가 서로 다른 출처라 ~30m 어긋나 있어, 절대 겹침/이탈은 편집과 무관하게 늘 발생 → 델타만이 사용자 편집의 영향을 가려냄)
+  const zones=[],byN={},_rc={};
+  (_zoneData.zones||[]).forEach(z=>{
+    (z.rings||[]).forEach(ring=>{
+      const ri=_rc[z.n]=(_rc[z.n]===undefined?0:_rc[z.n]+1);
+      if(ring.length<3)return;
+      let zn=byN[z.n];if(!zn){zn=byN[z.n]={n:z.n,orig:[],now:[],pts:[]};zones.push(zn);}
+      zn.orig.push(ring);
+      const adj=_zaAdjRing(z.n,ring,ri);
+      zn.now.push(adj);for(const p of adj)zn.pts.push(p);
+    });
+  });
+  zones.forEach(z=>{z.bbox=_zaBbox(z.pts);const off=_zoneOff(z.n);z.edited=!!off;z.moveM=off?Math.round(Math.hypot((off.dlat||0)*_ZE_MLAT,(off.dlng||0)*_ZE_MLNG)):0;z.vN=off&&off.verts?Object.keys(off.verts).length:0;});
+  // 공원 경계 큰 링만 [lng,lat]→[lat,lng] 변환(편집 구역만 검사하므로 다운샘플 없이 정밀하게)
+  const parkRings=((_parkBoundary&&_parkBoundary.rings)||[]).filter(r=>r.length>=20).map(r=>r.map(p=>[p[1],p[0]]));
+  const inPark=(la,ln)=>parkRings.some(pr=>_zaPip(la,ln,pr));
+  const outScan=rings=>{let c=0;const pts=[];rings.forEach(r=>{const st=Math.max(1,Math.floor(r.length/150));for(let i=0;i<r.length;i+=st){if(!inPark(r[i][0],r[i][1])){c++;pts.push(r[i]);}}});return {c,pts};};
+  const inCnt=(Pr,Qr)=>{let c=0;Pr.forEach(r=>{const st=Math.max(1,Math.floor(r.length/120));for(let t=0;t<r.length;t+=st){const p=r[t];if(Qr.some(qr=>_zaPip(p[0],p[1],qr)))c++;}});return c;};
+  const ovPair=(Pr,Qr)=>inCnt(Pr,Qr)+inCnt(Qr,Pr);
+  const edited=zones.filter(z=>z.edited);
+  // 경계 이탈: 편집으로 공원 밖 꼭짓점이 새로 5개 이상 늘어난 구역
+  const outZones=[];
+  edited.forEach(z=>{const ob=outScan(z.orig).c,on=outScan(z.now);if(on.c-ob>=5)outZones.push({n:z.n,out:on.pts,added:on.c-ob});});
+  // 겹침: 편집 구역이 낀 쌍 중, 이웃 안으로 파고든 정도가 원본 대비 6점 이상 늘어난 경우
+  const overlaps=[],seen={};
+  edited.forEach(A=>{zones.forEach(B=>{
+    if(A.n===B.n)return;const key=[A.n,B.n].sort().join('|');if(seen[key])return;seen[key]=1;
+    if(!_zaBoxHit(A.bbox,B.bbox))return;
+    const base=ovPair(A.orig,B.orig),now=ovPair(A.now,B.now);
+    if(now-base>=6)overlaps.push({a:A.n,b:B.n,depth:now-base});
+  });});
+  overlaps.sort((a,b)=>b.depth-a.depth);
+  _zaHiDraw(outZones,overlaps,byN);
+  _zoneAuditPanel({outZones,overlaps,edited,byN});
+}
+function _zaHiDraw(outZones,overlaps,byN){
+  _zaClearHi();
+  const ll=p=>new kakao.maps.LatLng(p[0],p[1]);
+  const ovN=new Set();overlaps.forEach(o=>{ovN.add(o.a);ovN.add(o.b);});
+  ovN.forEach(n=>{const z=byN[n];if(!z)return;z.now.forEach(r=>{const pl=new kakao.maps.Polyline({path:r.map(ll),strokeWeight:4,strokeColor:'#ff9500',strokeOpacity:.95,zIndex:8});pl.setMap(mapI);_zaHi.push(pl);});});
+  outZones.forEach(oz=>{const z=byN[oz.n];if(z)z.now.forEach(r=>{const pl=new kakao.maps.Polyline({path:r.map(ll),strokeWeight:4,strokeColor:'#ff3b30',strokeOpacity:.95,zIndex:9});pl.setMap(mapI);_zaHi.push(pl);});
+    oz.out.slice(0,40).forEach(p=>{const el=document.createElement('div');el.style.cssText='width:9px;height:9px;border-radius:50%;background:#ff3b30;border:1.5px solid #fff;box-shadow:0 0 6px rgba(255,59,48,.9);';const ov=new kakao.maps.CustomOverlay({position:ll(p),content:el,zIndex:11});ov.setMap(mapI);_zaHi.push(ov);});
+  });
+}
+function _zoneGhostToggle(){
+  const b=document.getElementById('zaGhostBtn');
+  if(_zaGhost.length){_zaClearGhost();if(b){b.style.background='rgba(255,255,255,.08)';b.style.color='#a5abb3';}return;}
+  (_zoneData.zones||[]).forEach(z=>{if(!_zoneOff(z.n))return; // 편집된 구역의 '원본' 경계를 회색 점선으로 겹쳐 표시
+    (z.rings||[]).forEach(ring=>{if(ring.length<3)return;const pl=new kakao.maps.Polyline({path:ring.map(p=>new kakao.maps.LatLng(p[0],p[1])),strokeWeight:2,strokeColor:'#b8c0cc',strokeOpacity:.85,strokeStyle:'shortdash',zIndex:7});pl.setMap(mapI);_zaGhost.push(pl);});
+  });
+  if(!_zaGhost.length)toast('아직 변경된 구역이 없습니다');
+  else if(b){b.style.background='rgba(184,192,204,.85)';b.style.color='#16161a';}
+}
+function _zoneAuditJump(n){
+  const z=(_zonePolys&&_zonePolys[n]&&_zonePolys[n][0]);let ctr=null;
+  try{if(z&&z._ring){const b=_zaBbox(_zaAdjRing(n,z._ring,z._ri||0));ctr=new kakao.maps.LatLng((b[0]+b[1])/2,(b[2]+b[3])/2);}}catch(e){}
+  try{if(ctr&&mapI){mapI.setLevel(Math.min(mapI.getLevel(),6));mapI.panTo(ctr);}}catch(e){}
+}
+function _zoneAuditClose(){const p=document.getElementById('zoneAuditPanel');if(p)p.remove();_zaClearHi();_zaClearGhost();}
+function _zoneAuditPanel(R){
+  const {outZones,overlaps,edited}=R;
+  let p=document.getElementById('zoneAuditPanel');if(p)p.remove();
+  p=document.createElement('div');p.id='zoneAuditPanel';p._baseTf='translateX(-50%)';
+  p.style.cssText='position:fixed;left:50%;transform:translateX(-50%);bottom:calc(74px + env(safe-area-inset-bottom));z-index:9500;width:calc(100% - 24px);max-width:460px;box-sizing:border-box;background:#16161a;border:1px solid rgba(255,255,255,.18);border-radius:13px;box-shadow:0 6px 20px rgba(0,0,0,.6);max-height:56vh;display:flex;flex-direction:column;';
+  const row=(bg,txt,n)=>`<div onclick="_zoneAuditJump('${_escq(n)}')" style="display:flex;align-items:center;gap:7px;padding:8px 6px;border-bottom:1px solid rgba(255,255,255,.05);cursor:pointer;font-size:12px;color:#dbe2ea;"><span style="width:7px;height:7px;border-radius:50%;background:${bg};flex-shrink:0;"></span>${txt}</div>`;
+  const ok='<div style="padding:9px 6px;font-size:12px;color:#7ec8a0;">문제 없음 ✅</div>';
+  const ovH=overlaps.length?overlaps.map(o=>row('#ff9500',`<b>${_esc(o.a)}</b>구역 ↔ <b>${_esc(o.b)}</b>구역 <span style="color:#8b9099;">겹침(정도 ${o.depth})</span>`,o.a)).join(''):ok;
+  const outH=outZones.length?outZones.map(o=>row('#ff3b30',`<b>${_esc(o.n)}</b>구역 — <span style="color:#ff8a7a;">경계 밖으로 밀려남 ${o.out.length}곳</span>`,o.n)).join(''):ok;
+  const edH=edited.length?edited.slice().sort((a,b)=>b.moveM-a.moveM).map(z=>row('#7db4ff',`<b>${_esc(z.n)}</b>구역 — ${z.moveM?('통째 '+z.moveM+'m'):''}${z.vN?((z.moveM?' · ':'')+'부분 '+z.vN+'점'):''}${(!z.moveM&&!z.vN)?'미세':''}`,z.n)).join(''):'<div style="padding:9px 6px;font-size:12px;color:#8b9099;">아직 변경한 구역이 없습니다</div>';
+  const sec=(t,body)=>`<div style="font-size:11px;font-weight:800;color:#9aa4b0;padding:9px 6px 3px;">${t}</div>${body}`;
+  p.innerHTML=`
+    <div class="sheetGrab" style="padding:7px 0 2px;cursor:grab;touch-action:none;flex-shrink:0;"><div class="dbhandle"></div></div>
+    <div style="display:flex;align-items:center;gap:8px;padding:2px 13px 8px;flex-shrink:0;">
+      <span style="font-size:13px;font-weight:800;color:#e8ecf1;">🔍 구역 검사</span>
+      <span style="font-size:10.5px;color:#8b9099;">겹침 ${overlaps.length} · 이탈 ${outZones.length} · 변경 ${edited.length}</span>
+      <button id="zaGhostBtn" onclick="_zoneGhostToggle()" style="margin-left:auto;padding:6px 9px;border-radius:8px;border:1px solid rgba(255,255,255,.2);background:rgba(255,255,255,.08);color:#a5abb3;font-size:10.5px;font-weight:800;cursor:pointer;">👻 원본 겹쳐보기</button>
+    </div>
+    <div style="overflow-y:auto;padding:0 13px 12px;">
+      ${sec('⚠️ 편집으로 새로 겹치게 된 구역',ovH)}
+      ${sec('🚧 편집으로 공원 경계를 벗어난 구역',outH)}
+      ${sec('✏️ 변경한 구역 (전/후 비교는 👻 버튼)',edH)}
+      <div style="font-size:10px;color:#5d6570;padding:9px 4px 0;line-height:1.6;">원래 데이터의 어긋남은 빼고 <b>내 편집이 새로 만든 문제만</b> 표시합니다. 빨강=경계 밖·주황=겹침·회색 점선=원본 위치. 항목 탭=이동 · 고칠 땐 구역 탭→📐.</div>
+    </div>`;
+  document.body.appendChild(p);
+  try{_bindDragClose(p,_zoneAuditClose);}catch(e){}
 }
 // ── 🗺 순찰 담당 구역도(직무현황표 PDF) 뷰어 — 핀치·휠·더블탭 확대, 오프라인 캐시 ──
 function openPatrolMap(){
