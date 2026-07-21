@@ -1,1 +1,1 @@
-{"version":"2026.07.21.334","url":"https://seorak1275.github.io/seoraksan/bundle.zip","notes":"장비관리 검토 지적 5건 수정 — 위치필터 표시·초기화·실사범위 반영, _escq &이스케이프(XSS 방어), 위치 정확일치, 위치일괄지정 실패 시 서버 재동기화"}
+{"version":"2026.07.21.335","url":"https://seorak1275.github.io/seoraksan/bundle.zip","notes":"장비 개별목록: 같은 제품 펼치면 공통제원(제조사~인증) 1회 + 보유자별(관리번호·일련번호·상태) 정리"}

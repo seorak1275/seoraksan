@@ -2586,7 +2586,17 @@ function _renderEquipChips(){
 // 같은 제품(품명·규격·상태·담당·지역·위치 동일)을 한 줄로 묶고 수량 표시 → 128개도 한 줄. 탭하면 개별 펼침.
 let _eqExpanded={};
 function equipToggleGroup(k){_eqExpanded[k]=!_eqExpanded[k];_renderEquipResults();}
-function _eqGroupKey(it){return [it.name||'',it.cat2||'',it.maker||'',it.person||'',it.region||'',it.loc||''].join('§');} // 상태는 묶음 안에서 요약(품명·담당·위치 같으면 한 줄)
+function _eqGroupKey(it){return [it.name||'',it.cat2||'',it.maker||''].join('§');} // 같은 제품(품명·종류·제조사)이면 한 줄 — 보유자는 펼침 안에서 소제목으로 구분
+// 보유자(누가 가지고 있나): 개인이면 이름, 아니면 보관장소
+function _eqHolder(it){
+  const p=(it.person||'').trim();
+  if(p&&p!=='공용'&&p!=='창고')return{k:'p§'+p,label:p,icon:'👤',person:true};
+  const rg=it.region||'';
+  if(rg==='방재창고')return{k:'s§방재',label:'방재창고(본소)',icon:'🏢',person:false};
+  if(rg==='안전관리반')return{k:'s§안전',label:'안전관리반',icon:'🏛️',person:false};
+  if(rg==='대피소')return{k:'s§대피',label:'대피소',icon:'⛺',person:false};
+  return{k:'s§특구',label:'특구대 장비창고',icon:'📦',person:false};
+}
 function _renderEquipResults(){
   const el=document.getElementById('equipResults');if(!el)return;
   const list=_eqSortedFiltered();
@@ -2619,13 +2629,34 @@ function _renderEquipResults(){
       <div style="flex:1;min-width:0;">
         <div style="display:flex;align-items:center;gap:6px;"><span style="font-size:12.5px;font-weight:800;color:#eef0f2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${_esc(it.name||'-')}</span>${n>1?`<span style="flex-shrink:0;font-size:11px;font-weight:900;color:#7fd0ff;background:rgba(127,208,255,.16);border-radius:5px;padding:1px 7px;">${n}개</span>`:''}${condBadge}</div>
         <div style="font-size:10px;color:#8b95a1;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${meta2}${it.maker?' · '+_esc(it.maker):''}</div>
-        <div style="font-size:9.5px;color:#6b7684;margin-top:1px;">${it.person?'👤'+_esc(it.person):''}${it.region?' · '+_esc(EQ_REGION_SHORT[it.region]||it.region):''}${it.loc?' · 📍'+_esc(it.loc):''}</div>
+        <div style="font-size:9.5px;color:#6b7684;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${n>1?(()=>{const hc={};g.items.forEach(x=>{const hd=_eqHolder(x);hc[hd.label]=(hc[hd.label]||0)+1;});const ks=Object.keys(hc);return ks.slice(0,4).map(k=>_esc(k)+' '+hc[k]).join(' · ')+(ks.length>4?' …':'');})():`${it.person?'👤'+_esc(it.person):''}${it.region?' · '+_esc(EQ_REGION_SHORT[it.region]||it.region):''}${it.loc?' · 📍'+_esc(it.loc):''}`}</div>
       </div>
       <span style="font-size:12px;color:rgba(255,255,255,.35);flex-shrink:0;">${n>1?(exp?'▾닫기':'▸개별'):'›'}</span>
     </div>`;
     if(exp){
-      const mem=g.items.slice().sort((a,b)=>String(a.mgmtNo||'').localeCompare(String(b.mgmtNo||''),'ko',{numeric:true}));
-      card+=`<div style="display:flex;flex-wrap:wrap;gap:5px;margin:2px 2px 9px 10px;">`+mem.map((x,i)=>{const bad=_eqCondBad(x.cond);return `<span onclick="openEquipDetail('${_escq(x.id)}')" style="cursor:pointer;font-size:10.5px;background:${bad?'rgba(255,107,91,.14)':'#141619'};border:1px solid ${bad?'rgba(255,107,91,.45)':'rgba(255,255,255,.12)'};border-radius:7px;padding:4px 8px;color:${bad?'#ff9a90':'#c9dcec'};white-space:nowrap;">${_esc(x.mgmtNo||('#'+(i+1)))}${bad?' · '+_esc(x.cond):''}</span>`;}).join('')+`</div>`;
+      // 1) 공통 제원(제조사~인증) — 같은 제품이라 한 번만
+      const sp=[['제조사',it.maker],['타입',it.type],['등급',it.grade],['인증',it.cert],['EN',it.en],['MBS',it.mbs],['WLL',it.wll]]
+        .filter(p=>p[1]).map(p=>`<span style="white-space:nowrap;"><span style="color:#5d86a3;">${p[0]}</span> <span style="color:#c9dcec;">${_esc(p[1])}</span></span>`).join('<span style="color:#3a4450;"> · </span>');
+      const sth=(it.photos&&it.photos.length)?`<img src="${it.photos[0]}" style="width:50px;height:50px;border-radius:9px;object-fit:cover;flex-shrink:0;">`:`<div style="width:50px;height:50px;border-radius:9px;flex-shrink:0;background:rgba(255,255,255,.06);display:flex;align-items:center;justify-content:center;font-size:22px;">${EQ_CAT1_ICON[it.cat1]||'📦'}</div>`;
+      let ex_h=`<div style="margin:0 2px 10px 8px;border-left:2px solid rgba(127,208,255,.28);padding-left:9px;">`;
+      ex_h+=`<div style="display:flex;gap:9px;align-items:flex-start;background:#12151b;border:1px solid rgba(255,255,255,.08);border-radius:10px;padding:9px 10px;margin-bottom:6px;">${sth}<div style="flex:1;min-width:0;"><div style="font-size:12px;font-weight:800;color:#eef0f2;margin-bottom:3px;">${_esc(it.name||'')} <span style="color:#7fd0ff;">${n}점</span></div><div style="font-size:10px;line-height:1.75;">${sp||'<span style="color:#6b7684;">공통 제원 미입력 — 개별 항목에서 입력</span>'}</div></div></div>`;
+      // 2) 보유자별(누가 가지고 있나) — 소제목 아래로 관리번호·일련번호·상태 쭈르르
+      const hgm={};g.items.forEach(x=>{const hd=_eqHolder(x);(hgm[hd.k]=hgm[hd.k]||{hd,arr:[]}).arr.push(x);});
+      const hks=Object.keys(hgm).sort((a,b)=>{const A=hgm[a].hd,B=hgm[b].hd;if(A.person!==B.person)return A.person?1:-1;return A.label.localeCompare(B.label,'ko');});
+      hks.forEach(hk=>{
+        const hd=hgm[hk].hd,arr=hgm[hk].arr;
+        arr.sort((a,b)=>String(a.mgmtNo||'').localeCompare(String(b.mgmtNo||''),'ko',{numeric:true}));
+        const hbad=arr.filter(x=>_eqCondBad(x.cond)).length;
+        ex_h+=`<div style="display:flex;align-items:center;gap:6px;margin:10px 0 4px;"><span style="font-size:12px;">${hd.icon}</span><span style="font-size:11.5px;font-weight:800;color:#d7c48a;">${_esc(hd.label)}</span><span style="font-size:10px;color:#6b7684;">${arr.length}점${hbad?` · <span style="color:#ff8a80;">점검 ${hbad}</span>`:''}</span><span style="flex:1;height:1px;background:rgba(255,255,255,.06);"></span></div>`;
+        ex_h+=arr.map(x=>{const bad=_eqCondBad(x.cond);const cl=EQ_COND_LBL[x.cond]||x.cond||'';return `<div onclick="openEquipDetail('${_escq(x.id)}')" class="scard" style="display:flex;align-items:center;gap:8px;margin-bottom:3px;padding:7px 9px;cursor:pointer;">
+          <span style="flex-shrink:0;min-width:52px;font-size:11.5px;font-weight:800;color:#eef0f2;">${_esc(x.mgmtNo||'-')}</span>
+          <span style="flex:1;min-width:0;font-family:ui-monospace,'DejaVu Sans Mono',monospace;font-size:10.5px;color:#9bb8cc;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${_esc(x.serial||'—')}</span>
+          <span style="flex-shrink:0;font-size:9.5px;font-weight:800;color:${EQ_COND_COL[x.cond]||'#8b95a1'};background:${bad?'rgba(255,107,91,.14)':'rgba(94,207,143,.1)'};border-radius:5px;padding:2px 7px;">${_esc(x.cond||'?')}${cl?' '+_esc(cl):''}</span>
+          <span style="flex-shrink:0;font-size:11px;color:rgba(255,255,255,.3);">›</span>
+        </div>`;}).join('');
+      });
+      ex_h+=`</div>`;
+      card+=ex_h;
     }
     return card;
   }).join('');
@@ -4692,7 +4723,7 @@ function sosToRescue(id){
 // 앱 자체 업데이트 (OTA · Capgo 자체호스팅) — APK 전용. 웹/PWA는 서비스워커가 자동 갱신.
 // 번들(www)의 새 버전을 ota.json으로 알리면, 설치된 앱이 받아서 그 자리에서 교체(재빌드 불필요).
 // ══════════════════════════════════════════
-const OTA_VER='2026.07.21.334';                         // ← 현재 번들 버전 (릴리스마다 올림 · build-ota.sh가 ota.json에 반영)
+const OTA_VER='2026.07.21.335';                         // ← 현재 번들 버전 (릴리스마다 올림 · build-ota.sh가 ota.json에 반영)
 const OTA_MANIFEST='https://seorak1275.github.io/seoraksan/ota.json';
 // 업데이트 확인 폴백 소스 — 일부 기관망·통신사에서 github.io가 막혀 '확인 실패(네트워크)'가 나는 경우 대비.
 // 순서대로 시도: ① GitHub Pages(원본·즉시 반영) ② jsDelivr CDN(공개저장소 미러·거의 모든 망 통과)
