@@ -2469,7 +2469,7 @@ async function equipSeedImport(){
 
 // ── 화면 ──
 let _eqView='list',_eqSel=null,_eqTab='list',_eqFormPhotos=[],_eqNavIds=[];
-let _eqF={q:'',cat1:'',cat2:'',cond:'',region:'',person:'',maker:''};
+let _eqF={q:'',cat1:'',cat2:'',cond:'',region:'',person:'',maker:'',loc:''};
 function openEquip(){
   if(!_canEquipView()){toast('⚠️ 특수산악구조대 전용입니다');return;}
   let ov=document.getElementById('equipPanel');if(ov)ov.remove();
@@ -2505,8 +2505,8 @@ function _renderEquipTabs(){
   const b=document.getElementById('equipBody');if(!b)return;
   _equipSetTitle('🧰 구조대 장비 관리');
   const all=_eqData||[];
-  const tb=(lbl,t)=>`<button onclick="equipTab('${t}')" style="flex:1;padding:9px 4px;border:none;border-radius:8px;font-size:12px;font-weight:800;cursor:pointer;background:${_eqTab===t?'rgba(255,255,255,.18)':'transparent'};color:${_eqTab===t?'#a5abb3':'#6a8296'};">${lbl}</button>`;
-  let html=`<div style="display:flex;gap:3px;background:#131316;border:1px solid rgba(255,255,255,.15);border-radius:10px;padding:3px;margin-bottom:11px;">${tb('📋 개별','list')}${tb('📦 종류·수량','qty')}${tb('🧑 인원별','person')}</div>`;
+  const tb=(lbl,t)=>`<button onclick="equipTab('${t}')" style="flex:1;padding:9px 2px;border:none;border-radius:8px;font-size:11.5px;font-weight:800;cursor:pointer;background:${_eqTab===t?'rgba(255,255,255,.18)':'transparent'};color:${_eqTab===t?'#a5abb3':'#6a8296'};">${lbl}</button>`;
+  let html=`<div style="display:flex;gap:3px;background:#131316;border:1px solid rgba(255,255,255,.15);border-radius:10px;padding:3px;margin-bottom:11px;">${tb('📋 개별','list')}${tb('📦 수량','qty')}${tb('🧑 인원','person')}${tb('🗺️ 위치','zone')}</div>`;
   if(!all.length){
     b.innerHTML=html+`<div style="text-align:center;color:#8b95a1;font-size:13px;padding:34px 14px;line-height:1.7;">아직 등록된 장비가 없습니다.
       ${_canEquipManage()?`<div style="margin-top:16px;"><button onclick="equipSeedImport()" style="background:rgba(94,207,143,.16);color:#5fcf8f;border:1px solid rgba(94,207,143,.4);border-radius:11px;padding:13px 18px;font-size:13.5px;font-weight:800;cursor:pointer;">📥 외설악 장비관리표 불러오기</button>
@@ -2517,6 +2517,7 @@ function _renderEquipTabs(){
   html+=`<div id="equipInner"></div>`;
   b.innerHTML=html;
   if(_eqTab==='qty')return _renderEquipQty(all);
+  if(_eqTab==='zone')return _renderEquipZones(all);
   if(_eqTab==='person')return _renderEquipPerson(all);
   return _renderEquipList(all);
 }
@@ -2531,6 +2532,7 @@ function _eqFilter(all){
     if(_eqF.region&&it.region!==_eqF.region)return false;
     if(_eqF.person){if(_eqF.person===EQ_UNASSIGNED){if(it.person)return false;}else if(it.person!==_eqF.person)return false;}
     if(_eqF.maker&&it.maker!==_eqF.maker)return false;
+    if(_eqF.loc){const L=String(it.loc||'').trim();if(_eqF.loc.length===1){if(L.charAt(0)!==_eqF.loc)return false;}else if(L!==_eqF.loc)return false;}
     if(q){const s=((it.name||'')+' '+(it.mgmtNo||'')+' '+(it.maker||'')+' '+(it.serial||'')+' '+(it.cat2||'')+' '+(it.person||'')).toLowerCase();if(s.indexOf(q)<0)return false;}
     return true;
   });
@@ -2545,8 +2547,8 @@ function _eqActiveCount(){let n=0;['cat1','cat2','cond','region','person','maker
 function equipSearch(v){_eqF.q=v||'';_renderEquipResults();}
 function equipSetF(k,v){_eqF[k]=(_eqF[k]===v)?'':v;if(k==='cat1')_eqF.cat2='';_renderEquipChips();_renderEquipResults();}
 function equipSelF(k,v){_eqF[k]=v||'';_renderEquipChips();_renderEquipResults();}
-function equipResetF(){_eqF={q:'',cat1:'',cat2:'',cond:'',region:'',person:'',maker:''};const si=document.getElementById('eqSearchInput');if(si)si.value='';_renderEquipChips();_renderEquipResults();}
-function equipGotoList(f){_eqF={q:'',cat1:'',cat2:'',cond:'',region:'',person:'',maker:''};if(f)Object.assign(_eqF,f);_eqTab='list';_eqView='list';_equipRender();}
+function equipResetF(){_eqF={q:'',cat1:'',cat2:'',cond:'',region:'',person:'',maker:'',loc:''};const si=document.getElementById('eqSearchInput');if(si)si.value='';_renderEquipChips();_renderEquipResults();}
+function equipGotoList(f){_eqF={q:'',cat1:'',cat2:'',cond:'',region:'',person:'',maker:'',loc:''};if(f)Object.assign(_eqF,f);_eqTab='list';_eqView='list';_equipRender();}
 
 // ── 📋 개별 목록: 툴바+검색(고정) + 칩(#equipChips) + 결과(#equipResults) ──
 function _renderEquipList(all){
@@ -2724,7 +2726,7 @@ function _renderEquipDetail(){
   h+=`<div class="scard" style="padding:11px 13px;margin-bottom:11px;">
     ${row('제조사',_esc(it.maker||''))}${row('타입',_esc(it.type||''))}${row('등급',_esc(it.grade||''))}
     ${row('생산연도',_esc(it.year||''))}${row('일련번호',_esc(it.serial||''))}
-    ${row('담당',it.person?'👤 '+_esc(it.person):'')}${row('지역',_esc(it.region||''))}${row('비고',_esc(it.note||''))}
+    ${row('담당',it.person?'👤 '+_esc(it.person):'')}${row('지역',_esc(it.region||''))}${row('보관위치',it.loc?'📍 '+_esc(it.loc):'')}${row('비고',_esc(it.note||''))}
   </div>`;
   if(it.cert||it.en||it.mbs||it.wll){
     h+=`<div style="font-size:11.5px;font-weight:800;color:#a5abb3;margin:2px 0 6px;">🛡️ 안전 제원</div>
@@ -2806,6 +2808,7 @@ function _renderEquipForm(){
   h+=half(_eqRow('제조사',inp('ef_maker',ex&&ex.maker,'예: PETZL')),_eqRow('타입',inp('ef_type',ex&&ex.type,'')));
   h+=half(_eqRow('생산연도',inp('ef_year',ex&&ex.year,'')),_eqRow('일련번호',inp('ef_serial',ex&&ex.serial,'')));
   h+=half(_eqRow('지역',regSel),_eqRow('담당',inp('ef_person',ex&&ex.person,'공용/창고/이름')));
+  h+=_eqRow('보관위치 (건물 안 코드, 예: A3·C1)',inp('ef_loc',ex&&ex.loc,'예: A3 (하드웨어벽 3번)'));
   h+=_eqRow('등급',inp('ef_grade',ex&&ex.grade,''));
   h+=`<div style="font-size:11px;font-weight:800;color:#8b95a1;margin:6px 0 6px;">🛡️ 안전 제원(선택)</div>`;
   h+=half(_eqRow('인증',inp('ef_cert',ex&&ex.cert,'예: CE0082')),_eqRow('EN',inp('ef_en',ex&&ex.en,'예: EN362')));
@@ -2842,7 +2845,7 @@ async function submitEquipForm(){
   item.name=name;item.cat1=g('ef_cat1')||'기타';item.cat2=g('ef_cat2');
   item.mgmtNo=g('ef_mgmt');item.cond=g('ef_cond')||'A';
   item.maker=g('ef_maker');item.type=g('ef_type');item.year=g('ef_year');item.serial=g('ef_serial');
-  item.region=g('ef_region');item.person=g('ef_person');item.grade=g('ef_grade');
+  item.region=g('ef_region');item.person=g('ef_person');item.grade=g('ef_grade');item.loc=String(g('ef_loc')||'').trim().toUpperCase();
   item.cert=g('ef_cert');item.en=g('ef_en');item.mbs=g('ef_mbs');item.wll=g('ef_wll');item.note=g('ef_note');
   item.photos=_eqFormPhotos.slice();
   try{
@@ -3052,6 +3055,137 @@ async function equipExportXlsx(){
     if(typeof _busyDone==='function')_busyDone();
     toast('📊 엑셀 '+rows.length+'건 저장');
   }catch(e){if(typeof _busyDone==='function')_busyDone();toast('⚠️ 엑셀 생성 실패: '+((e&&e.message)||e),4000);}
+}
+// ── 📍 보관위치 (건물별 → 구역 A~E, 코드 예: A3·C1) ── 위치코드는 건물(지역) 안에서만 유효
+const EQ_ZONES=[
+  {k:'A',label:'하드웨어 벽',icon:'🔗',desc:'카라비너·퀵드로우·하강기·도르레·어센더'},
+  {k:'B',label:'로프·섬유 선반',icon:'🪢',desc:'로프·슬링·자일'},
+  {k:'C',label:'개인 배낭 큐비',icon:'🎒',desc:'대원별 배낭(C1=이름)'},
+  {k:'D',label:'동계·기타 선반',icon:'🧊',desc:'비콘·스토브·크램폰·침낭'},
+  {k:'E',label:'공구·기타',icon:'🧰',desc:''}
+];
+const EQ_ZONE_MAP=(()=>{const m={};EQ_ZONES.forEach(z=>{m[z.k]=z;});return m;})();
+const EQ_BUILDING={'특수산악구조대':{label:'특구대 컨테이너',icon:'📦',zones:true},'방재창고':{label:'방재창고(본소)',icon:'🏢'},'안전관리반':{label:'안전관리반',icon:'🏛️'},'대피소':{label:'대피소',icon:'⛺'}};
+function _eqZoneOf(loc){return String(loc||'').trim().charAt(0).toUpperCase();}
+
+// 🗺️ 배치도 — 건물(지역) → (특구대 컨테이너는 구역 A~E) → 위치코드·수량
+function _renderEquipZones(all){
+  const inner=document.getElementById('equipInner');if(!inner)return;
+  const canM=_canEquipManage();
+  const locChip=(L,n)=>`<span onclick="equipGotoList({loc:'${_escq(L)}'})" style="cursor:pointer;font-size:11px;background:#0e2436;border:1px solid rgba(255,255,255,.15);border-radius:8px;padding:4px 9px;color:#c9dcec;font-weight:700;margin:0 5px 5px 0;display:inline-block;">${_esc(L)} <span style="color:#7fb0f0;">${n}</span></span>`;
+  let h='';
+  if(canM)h+=`<div style="display:flex;gap:6px;margin-bottom:10px;"><button onclick="equipLocLabels()" style="flex:1;background:rgba(49,130,246,.12);color:#8bb4f0;border:1px solid rgba(49,130,246,.3);border-radius:9px;padding:9px;font-size:12px;font-weight:800;cursor:pointer;">🏷️ 선반 라벨·QR 인쇄</button></div>
+    <div style="font-size:10.5px;color:#8b95a1;margin-bottom:10px;line-height:1.5;">건물별 보관위치 · 코드는 건물 안에서만 유효(컨테이너 A1 ≠ 방재창고 A1). 위치 지정: 개별 목록에서 <b>필터로 묶어 → 📍위치지정</b>.</div>`;
+  const order=['특수산악구조대','방재창고','안전관리반','대피소'];
+  const present=order.filter(r=>all.some(it=>it.region===r));
+  const others=Array.from(new Set(all.map(it=>it.region).filter(r=>r&&order.indexOf(r)<0)));
+  const noReg=all.filter(it=>!String(it.region||'').trim()).length;
+  present.concat(others).forEach(rg=>{
+    const items=all.filter(it=>it.region===rg);
+    const bld=EQ_BUILDING[rg]||{label:rg,icon:'🏠'};
+    const noloc=items.filter(it=>!String(it.loc||'').trim()).length;
+    const byLoc={};items.forEach(it=>{const L=String(it.loc||'').trim();if(L)(byLoc[L]=byLoc[L]||[]).push(it);});
+    const locKeys=Object.keys(byLoc).sort((a,b)=>a.localeCompare(b,'ko',{numeric:true}));
+    h+=`<div style="margin:14px 0 8px;"><span onclick="equipGotoList({region:'${_escq(rg)}'})" style="cursor:pointer;font-size:14px;font-weight:800;color:#eef0f2;">${bld.icon} ${_esc(bld.label)}</span> <span style="font-size:11px;color:#6b7684;">${items.length}점</span>${noloc?` · <span style="font-size:11px;color:#f0b840;">위치 미지정 ${noloc}</span>`:''}</div>`;
+    if(bld.zones){
+      // 구역 A~E
+      EQ_ZONES.forEach(z=>{
+        const zk=locKeys.filter(L=>_eqZoneOf(L)===z.k);if(!zk.length)return;
+        h+=`<div class="scard" style="padding:9px 11px;margin-bottom:6px;"><div style="font-size:12px;font-weight:800;color:#a5abb3;margin-bottom:6px;">${z.icon} ${z.k}. ${_esc(z.label)}</div><div style="display:flex;flex-wrap:wrap;">${zk.map(L=>locChip(L,byLoc[L].length)).join('')}</div></div>`;
+      });
+      const misc=locKeys.filter(L=>!EQ_ZONE_MAP[_eqZoneOf(L)]);
+      if(misc.length)h+=`<div class="scard" style="padding:9px 11px;margin-bottom:6px;"><div style="font-size:12px;font-weight:800;color:#a5abb3;margin-bottom:6px;">기타 코드</div><div style="display:flex;flex-wrap:wrap;">${misc.map(L=>locChip(L,byLoc[L].length)).join('')}</div></div>`;
+      if(!locKeys.length)h+=`<div style="font-size:11px;color:#6b7684;padding:2px 2px 8px;">아직 위치가 지정되지 않았습니다.</div>`;
+    }else{
+      if(locKeys.length)h+=`<div class="scard" style="padding:9px 11px;margin-bottom:6px;"><div style="display:flex;flex-wrap:wrap;">${locKeys.map(L=>locChip(L,byLoc[L].length)).join('')}</div></div>`;
+      else h+=`<div style="font-size:11px;color:#6b7684;padding:2px 2px 8px;">위치 미지정.</div>`;
+    }
+  });
+  if(noReg)h+=`<div style="font-size:11px;color:#8b95a1;margin-top:10px;">건물(지역) 미지정 ${noReg}점 — 개별 목록에서 '정보 수정'으로 지역을 넣어주세요.</div>`;
+  h+=`<div style="font-size:9.5px;color:#565f6b;text-align:center;padding:12px 0 6px;">구역·위치를 눌러 해당 장비 보기 · 위치 변경은 개별 목록 📍위치지정 또는 '정보 수정'</div>`;
+  inner.innerHTML=h;
+}
+
+// 📍 위치 일괄 지정 (현재 목록에 위치코드 부여) — 관리번호·마킹 불변, 보관위치만
+function equipLocAssignStart(){
+  if(!_canEquipManage()){toast('⚠️ 권한 없음');return;}
+  const list=_eqSortedFiltered();
+  if(!list.length){toast('먼저 개별 목록에서 대상을 좁혀주세요');return;}
+  const regs=Array.from(new Set(list.map(x=>x.region).filter(Boolean)));
+  const regHint=regs.length===1?('건물: '+(EQ_BUILDING[regs[0]]?EQ_BUILDING[regs[0]].label:regs[0])+'\n'):(regs.length>1?'⚠️ 여러 건물이 섞여 있습니다 — 같은 건물로 좁혀서 지정하세요.\n':'');
+  const cur=list[0]&&list[0].loc?list[0].loc:'';
+  const code=prompt('이 목록 '+list.length+'건에 보관위치를 지정합니다.\n'+regHint+'\n구역-번호 (예: A3=하드웨어벽 3, C1=개인배낭 1)\n비우면 위치 지움.',cur);
+  if(code==null)return;
+  equipLocAssignDo(list.map(x=>String(x.id)),String(code).trim().toUpperCase());
+}
+async function equipLocAssignDo(ids,loc){
+  if(!_canEquipManage()){toast('⚠️ 권한 없음');return;}
+  const targets=(_eqData||[]).filter(it=>ids.indexOf(String(it.id))>=0);
+  if(!targets.length){toast('대상 없음');return;}
+  if(typeof _fdb==='undefined'||!_fdb){toast('⚠️ 온라인에서 실행하세요');return;}
+  if(!confirm(targets.length+'건의 보관위치를 '+(loc?"'"+loc+"'":'(지움)')+'(으)로 설정할까요?'))return;
+  const orig=targets.map(it=>it.loc);
+  if(typeof _busy==='function')_busy('📍 위치 지정 중…');
+  try{
+    const by=(DB.g('currentUser')||{}).name||getAuthor();const now=Date.now();
+    let batch=_fdb.batch(),ops=0,n=0;
+    for(const it of targets){
+      it.loc=loc;it.updatedAt=now;it.updatedBy=by;
+      batch.set(_fdb.collection('equipInv').doc(String(it.id)),it);
+      ops++;n++;
+      if(ops>=400){await batch.commit();batch=_fdb.batch();ops=0;if(typeof _busy==='function')_busy('📍 '+n+'건…');}
+    }
+    if(ops>0)await batch.commit();
+    _equipWriteOffline(_eqData);
+    if(typeof _busyDone==='function')_busyDone();
+    toast('✅ '+n+'건 위치 '+(loc||'지움')+' 설정',3500);
+    _equipRender();
+  }catch(e){targets.forEach((it,i)=>{it.loc=orig[i];});if(typeof _busyDone==='function')_busyDone();toast('⚠️ 실패: '+((e&&e.message)||e),4000);}
+}
+
+// QR 지연 로드(인쇄 시에만)
+let _qrLoading=null;
+function _loadQR(){
+  if(window.qrcode)return Promise.resolve(window.qrcode);
+  if(_qrLoading)return _qrLoading;
+  _qrLoading=new Promise((res,rej)=>{const s=document.createElement('script');s.src='https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js';s.onload=()=>window.qrcode?res(window.qrcode):rej(new Error('qr load fail'));s.onerror=()=>rej(new Error('qr net fail'));document.head.appendChild(s);});
+  return _qrLoading;
+}
+function _qrDataUrl(text){try{const qr=window.qrcode(0,'M');qr.addData(String(text));qr.make();return qr.createDataURL(4,8);}catch(e){return '';}}
+// 🏷️ 선반 라벨·QR 인쇄 — 건물+위치코드별 1장(대형 코드·품목·QR). QR=그 위치로 열리는 링크
+async function equipLocLabels(){
+  const all=_eqData||[];
+  const groups={};all.forEach(it=>{const L=String(it.loc||'').trim();if(!L)return;const rg=it.region||'';const key=rg+''+L;(groups[key]=groups[key]||{rg,loc:L,items:[]}).items.push(it);});
+  const keys=Object.keys(groups).sort((a,b)=>a.localeCompare(b,'ko',{numeric:true}));
+  if(!keys.length){toast('위치가 지정된 장비가 없습니다 — 먼저 위치를 지정하세요');return;}
+  if(typeof _busy==='function')_busy('🏷️ 라벨 생성 중…');
+  try{try{await _loadQR();}catch(e){}
+    const base='https://seorak1275.github.io/seoraksan/';
+    const cards=keys.map(k=>{
+      const g=groups[k];const bld=EQ_BUILDING[g.rg]||{label:g.rg||'',icon:'🏠'};
+      const names={};g.items.forEach(it=>{names[it.name||'-']=(names[it.name||'-']||0)+1;});
+      const list=Object.keys(names).sort((a,b)=>a.localeCompare(b,'ko')).map(n=>`<div style="font-size:12px;padding:1px 0;">• ${_esc(n)} <b>${names[n]}</b></div>`).join('');
+      const qr=window.qrcode?_qrDataUrl(base+'?equipReg='+encodeURIComponent(g.rg)+'&equipLoc='+encodeURIComponent(g.loc)):'';
+      return `<div style="border:2px solid #111;border-radius:8px;padding:12px 14px;margin:0 0 10px;page-break-inside:avoid;display:flex;gap:12px;">
+        <div style="flex:1;min-width:0;"><div style="font-size:11px;color:#666;">${_esc(bld.icon+' '+bld.label)}</div><div style="font-size:32px;font-weight:900;letter-spacing:1px;">${_esc(g.loc)}</div><div style="font-size:11px;color:#444;margin:0 0 8px;">총 ${g.items.length}점</div>${list}</div>
+        ${qr?`<div style="text-align:center;flex-shrink:0;"><img src="${qr}" style="width:96px;height:96px;"><div style="font-size:9px;color:#666;">앱에서 열기</div></div>`:''}
+      </div>`;
+    }).join('');
+    const doc=`<!doctype html><html><head><meta charset="utf-8"><title>보관위치 라벨</title><style>@page{size:A4;margin:12mm;}body{font-family:'Malgun Gothic',sans-serif;color:#111;margin:0;padding:14px;}h1{font-size:16px;margin:0 0 12px;}</style></head><body><h1>🧰 구조대 장비 보관위치 라벨 (${keys.length}칸 · ${_equipTodayY()})</h1>${cards}<div style="font-size:10px;color:#888;margin-top:10px;">각 칸(선반·고리·큐비)에 붙이세요. QR을 찍으면 그 위치 재고가 앱에 열립니다.</div></body></html>`;
+    if(typeof _busyDone==='function')_busyDone();
+    if(typeof _docPreviewOverlay==='function')_docPreviewOverlay(doc,'보관위치 라벨 인쇄');
+    else{const w=window.open('','_blank');if(w){w.document.write(doc);w.document.close();}}
+  }catch(e){if(typeof _busyDone==='function')_busyDone();toast('⚠️ 라벨 생성 실패: '+((e&&e.message)||e),4000);}
+}
+// QR 딥링크: ?equipReg=..&equipLoc=.. 로 열면 그 위치 목록으로 (부팅 시 1회 시도)
+function _equipDeepLink(){
+  try{
+    const p=new URLSearchParams(location.search);const L=p.get('equipLoc');if(!L)return;
+    if(!_canEquipView())return;
+    const reg=p.get('equipReg')||'';
+    openEquip();
+    setTimeout(()=>{try{equipGotoList(reg?{region:reg,loc:L}:{loc:L});}catch(e){}},700);
+  }catch(e){}
 }
 function _updateEquipMenu(){const el=document.getElementById('mbEquip');if(!el)return;el.style.display=_canEquipView()?'':'none';}
 
@@ -4549,7 +4683,7 @@ function sosToRescue(id){
 // 앱 자체 업데이트 (OTA · Capgo 자체호스팅) — APK 전용. 웹/PWA는 서비스워커가 자동 갱신.
 // 번들(www)의 새 버전을 ota.json으로 알리면, 설치된 앱이 받아서 그 자리에서 교체(재빌드 불필요).
 // ══════════════════════════════════════════
-const OTA_VER='2026.07.21.331';                         // ← 현재 번들 버전 (릴리스마다 올림 · build-ota.sh가 ota.json에 반영)
+const OTA_VER='2026.07.21.332';                         // ← 현재 번들 버전 (릴리스마다 올림 · build-ota.sh가 ota.json에 반영)
 const OTA_MANIFEST='https://seorak1275.github.io/seoraksan/ota.json';
 // 업데이트 확인 폴백 소스 — 일부 기관망·통신사에서 github.io가 막혀 '확인 실패(네트워크)'가 나는 경우 대비.
 // 순서대로 시도: ① GitHub Pages(원본·즉시 반영) ② jsDelivr CDN(공개저장소 미러·거의 모든 망 통과)
@@ -4945,6 +5079,7 @@ window.onload=function(){
       try{_startKmaWarnPoll();}catch(e){}
       try{_initSosWatch();}catch(e){} // 🆘 조난·사고자 위치 실시간 구독
       try{setTimeout(_climbPrefetchToday,8000);}catch(e){} // 🧗 출동 대비: 오늘·내일 암벽 명단 자동 저장(음영지역 진입 대비)
+      try{setTimeout(function(){if(typeof _equipDeepLink==='function')_equipDeepLink();},2500);}catch(e){} // 🧰 라벨 QR(?equipLoc=) 딥링크 → 그 위치 목록 열기
       try{setTimeout(_autoPreloadParkTiles,25000);}catch(e){} // 🗺️ 설악산 타일 자동 미리받기(7일마다, 요금 배려) — 깜빡임 없는 지도
       // 위험상황 비활성화: 정적 버튼(지도 FAB·통계 탭) 숨김
       try{if(typeof _HAZ_OFF!=='undefined'&&_HAZ_OFF){['hazFab','rsTabHaz'].forEach(function(id){var el=document.getElementById(id);if(el)el.style.display='none';});}}catch(e){}
