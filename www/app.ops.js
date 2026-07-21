@@ -526,6 +526,135 @@ function toggleResListFilter(){
   if(p.style.display==='flex')_closeResListFilter();else _fpOpen('resListFilterPanel',_updateResFilterPanels);
 }
 function _closeResListFilter(){_fpClose('resListFilterPanel');}
+
+// ═══════════════════════════════════════════════════════════════════
+// 🧭 시설물 내비게이션 — GPS로 진행방향 앞쪽 시설물을 "200m 앞 다목적위치표지판 3-5" 음성+화면 안내
+//   · 트레일: 앱 내부 직선거리 GPS 안내(등산로 적합, 오프라인 가능)
+//   · 도로: 각 시설의 🚗 버튼 → 카카오맵 앱으로 차량 길안내 핸드오프(REST키 불필요)
+// ═══════════════════════════════════════════════════════════════════
+var _facNav={on:false,watch:null,voice:true,signOnly:false,announced:{},heading:null,lastLa:null,lastLn:null,wake:null,list:[]};
+var _FN_TH=[1000,500,300,150,80,30]; // 안내 거리 임계(내림차순)
+function _fnBearing(la1,ln1,la2,ln2){var r=Math.PI/180;var y=Math.sin((ln2-ln1)*r)*Math.cos(la2*r);var x=Math.cos(la1*r)*Math.sin(la2*r)-Math.sin(la1*r)*Math.cos(la2*r)*Math.cos((ln2-ln1)*r);return (Math.atan2(y,x)/r+360)%360;}
+function _fnRel(b,h){if(h==null||isNaN(h))return null;return ((b-h+540)%360)-180;} // +우측 / -좌측
+function _fnIsSign(f){return !!(f.type&&f.type.indexOf('다목적위치표지판')>=0);}
+function _fnCode(f){var m=String(f.name||'').match(/\d{2}-\d{1,3}/);return m?m[0]:'';}
+function _fnDisp(f){ // 화면 표시용
+  if(_fnIsSign(f)){var c=_fnCode(f);return{main:'다목적위치표지판 '+(c||String(f.name||'').trim()),sub:_facZoneLbl?(_facZoneLbl(f)||''):''};}
+  return{main:String(f.name||f.type||'시설').trim(),sub:(String(f.type||'').split(' ').slice(1).join(' ')||f.type||'')};
+}
+function _fnSay(f){ // 음성용 라벨(짧게)
+  if(_fnIsSign(f)){var c=_fnCode(f);return '표지판 '+(c?c.split('-').map(function(s){return String(+s);}).join('에 ')+'번':'');}
+  return (String(f.type||'시설').split(/[ /]/)[0]);
+}
+function _fnDistTxt(d){return d>=1000?(d/1000).toFixed(1)+'킬로미터':(Math.round(d/10)*10)+'미터';}
+function _fnDistShort(d){return d>=1000?(d/1000).toFixed(1)+'km':Math.round(d)+'m';}
+function _facNavSpeak(t){try{if(!('speechSynthesis'in window))return;var u=new SpeechSynthesisUtterance(t);u.lang='ko-KR';u.rate=1.03;u.pitch=1;window.speechSynthesis.cancel();window.speechSynthesis.speak(u);}catch(e){}}
+function openFacNav(){
+  var facs=(DB.g('facilities')||[]).filter(function(f){return f.lat&&f.lng;});
+  if(!facs.length){toast('⚠️ 좌표가 등록된 시설물이 없습니다');return;}
+  if(!navigator.geolocation){toast('⚠️ 이 기기는 GPS 미지원');return;}
+  var ov=document.getElementById('facNavOv');if(ov)ov.remove();
+  ov=document.createElement('div');ov.id='facNavOv';
+  ov.style.cssText='position:fixed;inset:0;z-index:9700;background:#0b0e13;display:flex;flex-direction:column;color:#eef0f2;';
+  ov.innerHTML=''+
+  '<div style="display:flex;align-items:center;gap:8px;padding:calc(8px + env(safe-area-inset-top)) 12px 9px;border-bottom:1px solid rgba(255,255,255,.12);flex-shrink:0;">'+
+    '<button onclick="history.back()" style="background:none;border:none;color:#3182f6;font-size:14px;font-weight:800;cursor:pointer;">← 닫기</button>'+
+    '<span style="font-size:15px;font-weight:800;">🧭 시설물 내비</span>'+
+    '<span style="flex:1;"></span>'+
+    '<button id="fnVoiceBtn" onclick="facNavToggleVoice()" style="background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.2);color:#eef0f2;border-radius:8px;padding:5px 9px;font-size:11px;font-weight:800;cursor:pointer;">🔊 음성</button>'+
+    '<button id="fnSignBtn" onclick="facNavToggleSign()" style="background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.2);color:#eef0f2;border-radius:8px;padding:5px 9px;font-size:11px;font-weight:800;cursor:pointer;">전체</button>'+
+  '</div>'+
+  '<div style="flex:1;overflow-y:auto;padding:14px;">'+
+    '<div id="fnPrimary" style="text-align:center;padding:18px 10px 12px;">'+
+      '<div style="font-size:12px;color:#8b95a1;">GPS 잡는 중…</div>'+
+    '</div>'+
+    '<div id="fnList" style="margin-top:6px;"></div>'+
+    '<div id="fnAcc" style="text-align:center;font-size:10.5px;color:#565f6b;margin-top:14px;"></div>'+
+    '<div style="text-align:center;font-size:10.5px;color:#565f6b;margin-top:6px;line-height:1.7;">진행방향 앞쪽 시설을 가까운 순으로 안내합니다.<br>움직이면 방향(직진·좌·우)이 표시돼요. 🚗 = 카카오맵 차량 길안내.</div>'+
+  '</div>';
+  (document.getElementById('app')||document.body).appendChild(ov);
+  try{history.pushState({view:'facnav'},'','');}catch(e){}
+  _facNav.on=true;_facNav.announced={};_facNav.heading=null;_facNav.lastLa=null;_facNav.lastLn=null;
+  _facNavSyncBtns();
+  try{window.speechSynthesis&&window.speechSynthesis.resume();}catch(e){}
+  if(_facNav.voice)_facNavSpeak('시설물 안내를 시작합니다');
+  try{if(navigator.wakeLock&&navigator.wakeLock.request)navigator.wakeLock.request('screen').then(function(w){_facNav.wake=w;}).catch(function(){});}catch(e){}
+  _facNav.watch=navigator.geolocation.watchPosition(_facNavOnPos,_facNavOnErr,{enableHighAccuracy:true,timeout:20000,maximumAge:1500});
+}
+function closeFacNav(){
+  _facNav.on=false;
+  try{if(_facNav.watch!=null)navigator.geolocation.clearWatch(_facNav.watch);}catch(e){}_facNav.watch=null;
+  try{window.speechSynthesis&&window.speechSynthesis.cancel();}catch(e){}
+  try{if(_facNav.wake&&_facNav.wake.release)_facNav.wake.release();}catch(e){}_facNav.wake=null;
+  var ov=document.getElementById('facNavOv');if(ov)ov.remove();
+}
+function facNavToggleVoice(){_facNav.voice=!_facNav.voice;if(!_facNav.voice){try{window.speechSynthesis&&window.speechSynthesis.cancel();}catch(e){}}_facNavSyncBtns();}
+function facNavToggleSign(){_facNav.signOnly=!_facNav.signOnly;_facNav.announced={};_facNavSyncBtns();if(_facNav.lastLa!=null)_facNavCompute(_facNav.lastLa,_facNav.lastLn,_facNav.heading,null);}
+function _facNavSyncBtns(){
+  var v=document.getElementById('fnVoiceBtn');if(v){v.textContent=_facNav.voice?'🔊 음성':'🔇 꺼짐';v.style.background=_facNav.voice?'rgba(94,207,143,.16)':'rgba(255,255,255,.08)';v.style.borderColor=_facNav.voice?'rgba(94,207,143,.5)':'rgba(255,255,255,.2)';v.style.color=_facNav.voice?'#8fe0ab':'#8b95a1';}
+  var s=document.getElementById('fnSignBtn');if(s){s.textContent=_facNav.signOnly?'📍 표지판만':'전체';s.style.background=_facNav.signOnly?'rgba(240,184,64,.16)':'rgba(255,255,255,.08)';s.style.borderColor=_facNav.signOnly?'rgba(240,184,64,.5)':'rgba(255,255,255,.2)';s.style.color=_facNav.signOnly?'#f0c060':'#eef0f2';}
+}
+function _facNavOnErr(e){var p=document.getElementById('fnPrimary');if(p)p.innerHTML='<div style="font-size:13px;color:#ffb0a0;">⚠️ GPS 오류 — 위치 권한을 확인하세요</div>';}
+function _facNavOnPos(pos){
+  var la=pos.coords.latitude,ln=pos.coords.longitude;
+  var hd=(pos.coords.heading!=null&&!isNaN(pos.coords.heading)&&pos.coords.speed>0.6)?pos.coords.heading:null;
+  // 헤딩 미제공(정지)이면 직전 위치로 이동방향 추정
+  if(hd==null&&_facNav.lastLa!=null){var moved=_haversine(_facNav.lastLa,_facNav.lastLn,la,ln);if(moved>4)hd=_fnBearing(_facNav.lastLa,_facNav.lastLn,la,ln);}
+  if(hd!=null)_facNav.heading=hd;
+  _facNav.lastLa=la;_facNav.lastLn=ln;
+  _facNavCompute(la,ln,_facNav.heading,pos.coords.accuracy);
+}
+function _facNavCompute(la,ln,hd,acc){
+  var facs=(DB.g('facilities')||[]).filter(function(f){return f.lat&&f.lng&&(typeof _facVisibleTo!=='function'||_facVisibleTo(f));});
+  if(_facNav.signOnly)facs=facs.filter(_fnIsSign);
+  var en=facs.map(function(f){var d=_haversine(la,ln,f.lat,f.lng);var b=_fnBearing(la,ln,f.lat,f.lng);return{f:f,d:d,b:b,rel:_fnRel(b,hd)};});
+  en.sort(function(a,b){return a.d-b.d;});
+  var ahead=en.filter(function(e){return e.rel==null||Math.abs(e.rel)<80;});
+  var use=ahead.length?ahead:en;
+  var list=use.slice(0,5);
+  _facNav.list=list;
+  _facNavRender(list,acc,hd);
+  var pr=list[0];
+  if(pr&&_facNav.voice)_facNavMaybeAnnounce(pr);
+}
+function _facNavMaybeAnnounce(e){
+  var id=String(e.f.id),d=e.d;
+  var idx=-1;for(var i=0;i<_FN_TH.length;i++){if(d<=_FN_TH[i])idx=i;}
+  if(idx<0)return; // 아직 1km 밖
+  var prev=_facNav.announced[id];
+  if(prev!=null&&prev>=idx)return; // 이미 이 거리대(또는 더 가까이) 안내함
+  _facNav.announced[id]=idx;
+  var dir='';
+  if(e.rel!=null){var a=e.rel;dir=Math.abs(a)<22?'직진 ':(a>=110?'뒤쪽 오른편 ':a<=-110?'뒤쪽 왼편 ':a>0?'오른편 ':'왼편 ');}
+  if(d<30)_facNavSpeak(dir+_fnSay(e.f)+' 인근입니다');
+  else _facNavSpeak(_fnDistTxt(d)+' 앞 '+dir+_fnSay(e.f));
+}
+function _facNavRender(list,acc,hd){
+  var pe=document.getElementById('fnPrimary');if(!pe)return;
+  if(!list.length){pe.innerHTML='<div style="font-size:13px;color:#8b95a1;">주변 시설물이 없습니다</div>';document.getElementById('fnList').innerHTML='';return;}
+  var pr=list[0],disp=_fnDisp(pr.f),col=(typeof _facTypeColor==='function')?_facTypeColor(pr.f.type):'#3182f6';
+  var arrow='';
+  if(pr.rel!=null){var deg=pr.rel;var dw=Math.abs(deg)<22?'직진':deg>=110?'뒤 오른쪽':deg<=-110?'뒤 왼쪽':deg>0?'오른쪽':'왼쪽';
+    arrow='<div style="margin:6px auto 2px;width:60px;height:60px;display:flex;align-items:center;justify-content:center;"><div style="font-size:46px;line-height:1;transform:rotate('+deg+'deg);color:'+col+';">⬆️</div></div><div style="font-size:12px;color:#a5abb3;font-weight:700;">'+dw+'</div>';}
+  else arrow='<div style="font-size:11px;color:#6b7684;margin:4px 0;">움직이면 방향이 표시됩니다</div>';
+  pe.innerHTML=''+
+    '<div style="font-size:12px;color:#8b95a1;margin-bottom:4px;">'+(disp.sub?_esc(disp.sub):'&nbsp;')+'</div>'+
+    '<div style="display:flex;align-items:center;justify-content:center;gap:8px;"><span style="width:11px;height:11px;border-radius:50%;background:'+col+';flex-shrink:0;"></span><span style="font-size:19px;font-weight:800;">'+_esc(disp.main)+'</span></div>'+
+    '<div style="font-size:44px;font-weight:900;letter-spacing:-1px;margin:8px 0 2px;color:#eef0f2;">'+_fnDistShort(pr.d)+'</div>'+
+    arrow+
+    '<button onclick="facNavRoad(\''+_escq(pr.f.id)+'\')" style="margin-top:10px;background:rgba(255,214,0,.14);color:#ffd23f;border:1px solid rgba(255,214,0,.4);border-radius:10px;padding:9px 16px;font-size:12.5px;font-weight:800;cursor:pointer;">🚗 카카오맵 차량 길안내</button>';
+  var rest=list.slice(1);
+  document.getElementById('fnList').innerHTML=rest.length?('<div style="font-size:11px;color:#6b7684;margin:14px 4px 6px;">다음 안내</div>'+rest.map(function(e){var d=_fnDisp(e.f),c=(typeof _facTypeColor==='function')?_facTypeColor(e.f.type):'#3182f6';var dirtxt=e.rel==null?'':(Math.abs(e.rel)<22?'· 직진':e.rel>0?'· 오른편':'· 왼편');return '<div onclick="facNavRoad(\''+_escq(e.f.id)+'\')" style="display:flex;align-items:center;gap:9px;padding:9px 11px;background:#12151b;border:1px solid rgba(255,255,255,.07);border-radius:10px;margin-bottom:5px;cursor:pointer;"><span style="width:9px;height:9px;border-radius:50%;background:'+c+';flex-shrink:0;"></span><span style="flex:1;min-width:0;font-size:12.5px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+_esc(d.main)+'</span><span style="font-size:10px;color:#6b7684;">'+dirtxt+'</span><span style="font-size:13px;font-weight:800;color:#7fd0ff;flex-shrink:0;">'+_fnDistShort(e.d)+'</span></div>';}).join('')):'';
+  var ae=document.getElementById('fnAcc');if(ae)ae.textContent=acc!=null?('GPS 정확도 ±'+Math.round(acc)+'m'+(hd!=null?' · 방향 '+Math.round(hd)+'°':'')):'';
+}
+// 🚗 카카오맵 차량 길안내 핸드오프 (등산로 X, 도로 이동용)
+function facNavRoad(id){
+  var f=(DB.g('facilities')||[]).find(function(x){return String(x.id)===String(id);});
+  if(!f||!f.lat){toast('⚠️ 좌표 없음');return;}
+  var nm=_fnDisp(f).main.replace(/[,]/g,' ');
+  var url='https://map.kakao.com/link/to/'+encodeURIComponent(nm)+','+f.lat+','+f.lng;
+  try{window.open(url,'_blank');}catch(e){location.href=url;}
+}
 // ── 시설물 종류별 고정 색 (핀·목록·팝업 공통 — 종류를 색으로 즉시 구분) ──
 const FAC_TYPE_COLORS={'다목적위치표지판':'#6b7684','교량':'#3182f6','데크/계단':'#e67e22','안전난간':'#46ad5f','대피소':'#7ec8a0','탐방지원센터':'#f0c060','사찰':'#c8845a','건축물':'#d4699b','목재계단':'#a5912c','계곡시설':'#2fa3c4','장소':'#b055c9'};
 function _facTypeColor(t){
@@ -573,7 +702,7 @@ function _facInfoHtml(f){
     sRow('위치',_esc(_facZoneLbl(f)||'')),
     sRow('지점',_esc(_facSignDesc(f))),
     sRow('관리번호',f.mgmt?`<span style="font-family:monospace;font-size:10.5px;letter-spacing:.2px;">${_esc(f.mgmt)}</span>`:''),
-    sRow('좌표',f.lat?`<span style="font-family:monospace;font-size:10.5px;">${f.lat.toFixed(5)}, ${f.lng.toFixed(5)}</span>`:''),
+    sRow('좌표',f.lat?`<span style="font-family:monospace;font-size:10.5px;">${f.lat.toFixed(5)}, ${f.lng.toFixed(5)}</span> <span onclick="event.stopPropagation();facNavRoad('${_escq(f.id)}')" style="cursor:pointer;color:#ffd23f;font-weight:800;white-space:nowrap;">🚗 도로안내</span>`:''),
     sRow('설치',_esc(f.install||'')),
     sRow('등록',_esc(f.author||''))
   ].join('');
