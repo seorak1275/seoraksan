@@ -532,7 +532,20 @@ function _closeResListFilter(){_fpClose('resListFilterPanel');}
 //   · 트레일: 앱 내부 직선거리 GPS 안내(등산로 적합, 오프라인 가능)
 //   · 도로: 각 시설의 🚗 버튼 → 카카오맵 앱으로 차량 길안내 핸드오프(REST키 불필요)
 // ═══════════════════════════════════════════════════════════════════
-var _facNav={on:false,watch:null,voice:true,signOnly:false,announced:{},heading:null,lastLa:null,lastLn:null,wake:null,list:[],map:null,meMk:null,meEl:null,line:null,facMks:[],follow:true,sim:null,simIv:null,spdIdx:0,dest:null,trails:null,trailLines:[]};
+var _facNav={on:false,watch:null,voice:true,signOnly:false,announced:{},heading:null,lastLa:null,lastLn:null,wake:null,list:[],map:null,meMk:null,meEl:null,line:null,facMks:[],follow:true,sim:null,simIv:null,spdIdx:0,dest:null,trails:null,trailLines:[],audioCtx:null,audioSrc:null};
+// 화면 꺼짐/백그라운드에서 더 오래 유지 — 무음 오디오 루프(안드로이드 WebView가 '재생 중'으로 보고 프로세스 유지)
+function _facNavKeepAlive(on){
+  try{
+    if(on){
+      if(!_facNav.audioCtx){var AC=window.AudioContext||window.webkitAudioContext;if(!AC)return;_facNav.audioCtx=new AC();var buf=_facNav.audioCtx.createBuffer(1,_facNav.audioCtx.sampleRate,_facNav.audioCtx.sampleRate);var src=_facNav.audioCtx.createBufferSource();src.buffer=buf;src.loop=true;src.connect(_facNav.audioCtx.destination);src.start();_facNav.audioSrc=src;}
+      if(_facNav.audioCtx.resume)_facNav.audioCtx.resume();
+    }else{
+      try{_facNav.audioSrc&&_facNav.audioSrc.stop();}catch(e){}
+      try{_facNav.audioCtx&&_facNav.audioCtx.close();}catch(e){}
+      _facNav.audioCtx=null;_facNav.audioSrc=null;
+    }
+  }catch(e){}
+}
 var _FN_TH=[1000,500,300,150,80,30]; // 안내 거리 임계(내림차순)
 var _FN_SPD=[{k:'🚶 느림',v:1.4},{k:'🏃 보통',v:5},{k:'🚗 빠름',v:13}]; // 시뮬 속도(m/s)
 var _FN_SIM_MS=450; // 시뮬 틱(ms)
@@ -605,6 +618,7 @@ function openFacNav(){
   _facNavSyncBtns();_facNavSpdSync();
   try{_facNavLoadVoices();if(window.speechSynthesis)window.speechSynthesis.onvoiceschanged=_facNavLoadVoices;}catch(e){}
   try{window.speechSynthesis&&window.speechSynthesis.resume();}catch(e){}
+  _facNavKeepAlive(true); // 무음 오디오로 백그라운드 유지 시도(안드로이드)
   if(_facNav.voice)_facNavSpeak('시설물 안내를 시작합니다');
   try{if(navigator.wakeLock&&navigator.wakeLock.request)navigator.wakeLock.request('screen').then(function(w){_facNav.wake=w;}).catch(function(){});}catch(e){}
   _facNav.watch=navigator.geolocation.watchPosition(_facNavOnPos,_facNavOnErr,{enableHighAccuracy:true,timeout:20000,maximumAge:1500});
@@ -612,6 +626,7 @@ function openFacNav(){
 function closeFacNav(){
   _facNav.on=false;
   if(_facNav.simIv){clearInterval(_facNav.simIv);_facNav.simIv=null;}_facNav.sim=null;
+  _facNavKeepAlive(false);
   try{if(_facNav.watch!=null)navigator.geolocation.clearWatch(_facNav.watch);}catch(e){}_facNav.watch=null;
   _facNav.map=null;_facNav.meMk=null;_facNav.meEl=null;_facNav.line=null;_facNav.facMks=[];_facNav.trailLines=[];_facNav.dest=null;
   try{window.speechSynthesis&&window.speechSynthesis.cancel();}catch(e){}
