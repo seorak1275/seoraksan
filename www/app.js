@@ -1293,6 +1293,7 @@ function renderHomeActive(){
   const badFac=(DB.g('facilities')||[]).filter(f=>f.status==='bad');
   const total=og.length+haz.length+badFac.length;
   try{_updateClimbMenu();}catch(e){}
+  try{_updateEquipMenu();}catch(e){}
   if(!total){
     // 첫 동기화 전(콜드 부팅)엔 '없음'으로 단정하지 않고 스켈레톤 자리표시 — 데이터 도착 시 자동 교체
     if(!window._dbFirstReady){
@@ -2371,6 +2372,443 @@ function openFullTimeline(){
   renderPhaseBar((r.reports||[]).length,(r.reports||[]).length+1);
   renderTimeline(r,'brief');
 }
+
+
+// ══════════════════════════════════════════════════════════════
+// 🧰 구조대 장비 관리 (특수산악구조대 전용)
+//  · 장비이력카드(관리번호·장비명·분류·제작사·취득·부대품·수량·상태) + 관리일지(수정내역)
+//  · HWPX 사진 용량 문제 대체 — 사진은 압축 데이터URL로 문서에 직접 저장(오프라인·동기화 모두 해결)
+//  · 열람·관리 모두 특수산악구조대·마스터·개발자만 (홈 버튼도 이들에게만 노출, 외부기관 제외)
+//  · 저장: Firestore 'rescueEquip' 컬렉션(건별 문서) — 열 때 로드+오프라인 캐시(암벽명단과 동일 패턴).
+//    사진 용량 탓에 전체 실시간 동기화엔 넣지 않는다(특구대만 열람하므로 문제없음).
+// ══════════════════════════════════════════════════════════════
+const EQUIP_CATS=['구조공용장비','개인안전장비','암벽구조장비','빙벽구조장비','설상구조장비','기타구조장비'];
+const EQUIP_CAT_ICON={'구조공용장비':'🧰','개인안전장비':'🦺','암벽구조장비':'🧗','빙벽구조장비':'🧊','설상구조장비':'🏔️','기타구조장비':'📦'};
+const EQUIP_STATUS=['양호','노후','불량','손상','수리예정','수리완료','사용불가','불용','폐기','이상 무'];
+const EQUIP_BAD=['불용','폐기','불량','사용불가','손상'];
+const EQUIP_REASONS=['-','신규 구매','추가구매','개인지급','본소장비이동','관리자 변경','레이저마킹','파손','수리완료','폐기','불용'];
+function _equipIsBad(s){s=String(s||'');return EQUIP_BAD.some(function(k){return s.indexOf(k)>=0;});}
+function _equipStatusColor(s){return _equipIsBad(s)?'#ff7a6e':(String(s||'').indexOf('노후')>=0||String(s||'').indexOf('수리예정')>=0?'#f0a44a':'#5fcf8f');}
+const EQUIP_SEED=[{"category":"구조공용장비","mgmtNo":"들것-001","name":"구조용들것","maker":"UT 2000","madeAt":"-","gotAt":"2024. 1.","price":"-","parts":"","photoNote":"UT 2000 2개","log":[{"date":"2024.01.01","qty":"2","reason":"-","status":"양호","receiver":"김종식","confirmer":"손경완","note":""},{"date":"2024.01.15","qty":"2","reason":"-","status":"양호","receiver":"윤태종","confirmer":"손경완","note":""}],"curStatus":"양호","curQty":"2","disused":false,"id":"eq001","seed":true},{"category":"구조공용장비","mgmtNo":"들것-002","name":"구조용들것","maker":"","madeAt":"-","gotAt":"2025","price":"-","parts":"","photoNote":"암벽용 들것 2개","log":[{"date":"2025.01.01","qty":"2","reason":"신규구매","status":"양호","receiver":"윤태종","confirmer":"손경완","note":""}],"curStatus":"양호","curQty":"2","disused":false,"id":"eq002","seed":true},{"category":"구조공용장비","mgmtNo":"업기벨트-001","name":"업기벨트","maker":"ROCK & ICE","madeAt":"-","gotAt":"2024. 1.","price":"-","parts":"","photoNote":"업기벨트 4개","log":[{"date":"2024.01.01","qty":"4","reason":"-","status":"양호","receiver":"김종식","confirmer":"손경완","note":""},{"date":"2024.01.15","qty":"4","reason":"-","status":"양호","receiver":"윤태종","confirmer":"손경완","note":""}],"curStatus":"양호","curQty":"4","disused":false,"id":"eq003","seed":true},{"category":"구조공용장비","mgmtNo":"구조용써치-001","name":"구조용써치","maker":"","madeAt":"-","gotAt":"2024. 1.","price":"-","parts":"-","photoNote":"16개","log":[{"date":"2024.01.01","qty":"4","reason":"-","status":"양호","receiver":"김종식","confirmer":"손경완","note":""},{"date":"2024.01.15","qty":"4","reason":"-","status":"양호","receiver":"윤태종","confirmer":"손경완","note":""}],"curStatus":"양호","curQty":"4","disused":false,"id":"eq004","seed":true},{"category":"구조공용장비","mgmtNo":"캠코더-001","name":"캠코더(고프로)","maker":"고프로","madeAt":"-","gotAt":"2024. 1.","price":"-","parts":"-","photoNote":"3개","log":[{"date":"2024.01.01","qty":"3","reason":"-","status":"양호","receiver":"김종식","confirmer":"손경완","note":""},{"date":"2024.01.15","qty":"3","reason":"-","status":"양호","receiver":"윤태종","confirmer":"손경완","note":""}],"curStatus":"양호","curQty":"3","disused":false,"id":"eq005","seed":true},{"category":"기타구조장비","mgmtNo":"충전기-001","name":"액션캠 보조배터리","maker":"텔레신","madeAt":"-","gotAt":"2025.12.14.","price":"78,200","parts":"","photoNote":"텔레신 휴대용 배터리 충전기(3슬롯 고속 충전) 1개","log":[{"date":"2025.12.14.","qty":"1","reason":"-","status":"양호","receiver":"윤태종","confirmer":"손경완","note":""},{"date":"2026.01.01.","qty":"1","reason":"-","status":"양호","receiver":"양지석","confirmer":"손경완","note":""},{"date":"2026.5.30.","qty":"1","reason":"","status":"불용","receiver":"양지석","confirmer":"손경완","note":"별을 따는 소년들 구조출동 중 파손"}],"curStatus":"불용","curQty":"1","disused":true,"id":"eq006","seed":true},{"category":"구조공용장비","mgmtNo":"로프-001","name":"스테틱로프","maker":"베알 11mm/70m 스테틱","madeAt":"2023. 12.","gotAt":"2024. 7.","price":"-","parts":"-","photoNote":"11mm, 빨강, 각 100,70,50m(200m분할)","log":[{"date":"2024.07.01","qty":"3동","reason":"-","status":"양호","receiver":"윤태종","confirmer":"손경완","note":""}],"curStatus":"양호","curQty":"3동","disused":false,"id":"eq007","seed":true},{"category":"구조공용장비","mgmtNo":"로프-002","name":"스테틱로프","maker":"베알 11mm/70m 스테틱","madeAt":"2024. 1.","gotAt":"2024. 8.","price":"-","parts":"-","photoNote":"11mm, 파랑, 각 90,50,50m(200m분할)","log":[{"date":"2024.07.01","qty":"3동","reason":"-","status":"양호","receiver":"윤태종","confirmer":"손경완","note":""}],"curStatus":"양호","curQty":"3동","disused":false,"id":"eq008","seed":true},{"category":"구조공용장비","mgmtNo":"로프-003","name":"스테틱로프","maker":"베알 11mm/70m 스테틱","madeAt":"2024. 2.","gotAt":"2024. 8.","price":"-","parts":"-","photoNote":"11mm, 노랑, 각 90,50,50m(200m분할)","log":[{"date":"2024.07.01","qty":"3동","reason":"-","status":"양호","receiver":"윤태종","confirmer":"손경완","note":""}],"curStatus":"양호","curQty":"3동","disused":false,"id":"eq009","seed":true},{"category":"구조공용장비","mgmtNo":"로프-004","name":"보조로프","maker":"페츨 8mm/200m 보조로프","madeAt":"2023. 6.","gotAt":"2025. 12.","price":"-","parts":"-","photoNote":"8mm, 하양, 200m","log":[{"date":"2025.12.01","qty":"200m","reason":"-","status":"양호","receiver":"윤태종","confirmer":"손경완","note":""}],"curStatus":"양호","curQty":"200m","disused":false,"id":"eq010","seed":true},{"category":"구조공용장비","mgmtNo":"로프-006","name":"싱글다이나믹로프","maker":"에델바이스 퍼포먼스 에버드라이 유니코어 9.2mm/70m","madeAt":"2022","gotAt":"2024. 1.","price":"-","parts":"자일주머니 4개","photoNote":"9.2m/70m 4개","log":[{"date":"2024.01.01","qty":"4","reason":"-","status":"양호","receiver":"김종식","confirmer":"손경완","note":""},{"date":"2024.01.15","qty":"4","reason":"-","status":"양호","receiver":"윤태종","confirmer":"손경완","note":""}],"curStatus":"양호","curQty":"4","disused":false,"id":"eq011","seed":true},{"category":"구조공용장비","mgmtNo":"로프-007","name":"더블다이나믹로프","maker":"에델바이스 엘리트로프 7.88mm/80M","madeAt":"2021","gotAt":"2024. 1.","price":"-","parts":"자일주머니 4개","photoNote":"7.88mm/80M 4개","log":[{"date":"2024.01.01","qty":"4","reason":"-","status":"양호","receiver":"김종식","confirmer":"손경완","note":""},{"date":"2024.01.15","qty":"4","reason":"-","status":"양호","receiver":"윤태종","confirmer":"손경완","note":""}],"curStatus":"양호","curQty":"4","disused":false,"id":"eq012","seed":true},{"category":"기타구조장비","mgmtNo":"슬링-001","name":"25mm 슬링 100m","maker":"에델리드","madeAt":"-","gotAt":"2025.12.14.","price":"408,000","parts":"","photoNote":"25mm 슬링 100m 2개","log":[{"date":"2025.12.14.","qty":"2","reason":"-","status":"양호","receiver":"윤태종","confirmer":"손경완","note":""},{"date":"2026.01.01.","qty":"2","reason":"-","status":"양호","receiver":"양지석","confirmer":"손경완","note":""}],"curStatus":"양호","curQty":"2","disused":false,"id":"eq013","seed":true},{"category":"개인안전장비","mgmtNo":"어센더-001","name":"어센더","maker":"캠프 터보핸드프로 등강기","madeAt":"2020","gotAt":"2024.01.","price":"-","parts":"","photoNote":"캠프 터보핸드프로 등강기 좌4 우4","log":[{"date":"2024.01.01","qty":"4set","reason":"개인지급","status":"양호","receiver":"김종식","confirmer":"손경완","note":""},{"date":"2024.01.15","qty":"4set","reason":"-","status":"양호","receiver":"윤태종","confirmer":"손경완","note":""}],"curStatus":"양호","curQty":"4set","disused":false,"id":"eq014","seed":true},{"category":"개인안전장비","mgmtNo":"어센더-002","name":"어센더","maker":"페츨 어센션","madeAt":"2004~2024","gotAt":"2024.01.","price":"-","parts":"","photoNote":"페츨 어센션 좌 7, 우 8","log":[{"date":"2026.01.01","qty":"7set, 우 1","reason":"개인지급, 방재창고","status":"양호","receiver":"김종식","confirmer":"손경완","note":""}],"curStatus":"양호","curQty":"7set, 우 1","disused":false,"id":"eq015","seed":true},{"category":"개인안전장비","mgmtNo":"어센더-003","name":"풋스텝","maker":"페츨 풋코드","madeAt":"2023","gotAt":"2024.01","price":"-","parts":"","photoNote":"페츨 풋코드 8개","log":[{"date":"2024.01.01","qty":"4","reason":"개인지급","status":"양호","receiver":"김종식","confirmer":"손경완","note":""},{"date":"2024.01.15","qty":"8","reason":"추가구매","status":"양호","receiver":"윤태종","confirmer":"손경완","note":""}],"curStatus":"양호","curQty":"8","disused":false,"id":"eq016","seed":true},{"category":"개인안전장비","mgmtNo":"하강기-001","name":"하강기","maker":"I’D S","madeAt":"2024. 2.","gotAt":"2024. 5.","price":"-","parts":"","photoNote":"I’D S 6개","log":[{"date":"2026.01.01","qty":"6","reason":"-","status":"양호","receiver":"양지석","confirmer":"손경완","note":""}],"curStatus":"양호","curQty":"6","disused":false,"id":"eq017","seed":true},{"category":"개인안전장비","mgmtNo":"하강기-002","name":"하강기","maker":"클러치","madeAt":"2023","gotAt":"2024. 1.","price":"-","parts":"","photoNote":"클러치 2개","log":[{"date":"2026.01.01","qty":"2","reason":"관리자 변경","status":"양호","receiver":"양지석","confirmer":"손경완","note":""}],"curStatus":"양호","curQty":"2","disused":false,"id":"eq018","seed":true},{"category":"개인안전장비","mgmtNo":"하강기-003","name":"하강기","maker":"DMM 피봇","madeAt":"2023","gotAt":"2024. 1.","price":"-","parts":"","photoNote":"DMM 피봇 하강기 4개","log":[{"date":"2024.01.01","qty":"4","reason":"개인지급","status":"양호","receiver":"김종식","confirmer":"손경완","note":""},{"date":"2026. 6. 14.","qty":"1","reason":"","status":"폐기","receiver":"김종식","confirmer":"손경완","note":"6. 14. 울산바위 구조출동 중 파손으로 인한 폐기"}],"curStatus":"폐기","curQty":"1","disused":true,"id":"eq019","seed":true},{"category":"개인안전장비","mgmtNo":"하강기-004","name":"하강기","maker":"캠프 드루이드","madeAt":"2022","gotAt":"2024. 1.","price":"-","parts":"","photoNote":"캠프 드루이드 4개","log":[{"date":"2024.01.01","qty":"4","reason":"개인지급","status":"양호","receiver":"김종식","confirmer":"손경완","note":""}],"curStatus":"양호","curQty":"4","disused":false,"id":"eq020","seed":true},{"category":"개인안전장비","mgmtNo":"하강기-005","name":"하강기","maker":"ATC가이드","madeAt":"2024","gotAt":"2024. 5.","price":"-","parts":"","photoNote":"ATC가이드 5개","log":[{"date":"2024.07.01","qty":"4","reason":"개인지급","status":"양호","receiver":"윤태종","confirmer":"손경완","note":""},{"date":"2026.07.11.","qty":"1","reason":"개인지급","status":"양호","receiver":"김종식","confirmer":"손경완","note":"김종식 장비 구매"}],"curStatus":"양호","curQty":"1","disused":false,"id":"eq021","seed":true},{"category":"구조공용장비","mgmtNo":"카라비너-001","name":"O형 잠금 카라비너","maker":"페츨 OK 스크류락","madeAt":"2018","gotAt":"2024. 1.","price":"-","parts":"","photoNote":"O형 잠금 카라비너 112개","log":[{"date":"2024.01.01","qty":"24","reason":"-","status":"양호","receiver":"김종식","confirmer":"손경완","note":""},{"date":"2024.01.15","qty":"24","reason":"-","status":"양호","receiver":"윤태종","confirmer":"손경완","note":""},{"date":"2024.12.10","qty":"112","reason":"본소장비이동","status":"양호","receiver":"윤태종","confirmer":"손경완","note":""}],"curStatus":"양호","curQty":"112","disused":false,"id":"eq022","seed":true},{"category":"개인안전장비","mgmtNo":"카라비너-004","name":"롤클립 카라비너","maker":"페츨 롤클립","madeAt":"2022","gotAt":"2024.01","price":"-","parts":"","photoNote":"페츨 롤클립 8개","log":[{"date":"2024.01.01","qty":"8","reason":"개인지급","status":"양호","receiver":"김종식","confirmer":"손경완","note":"인당 2개"}],"curStatus":"양호","curQty":"8","disused":false,"id":"eq023","seed":true},{"category":"개인안전장비","mgmtNo":"카라비너-005","name":"회전방지 잠금 카라비너","maker":"캠프 아톰 빌레이 락","madeAt":"2023","gotAt":"2024. 1.","price":"-","parts":"","photoNote":"캠프 아톰 빌레이 락 8개","log":[{"date":"2024.01.01","qty":"8","reason":"개인지급","status":"양호","receiver":"김종식","confirmer":"손경완","note":""}],"curStatus":"양호","curQty":"8","disused":false,"id":"eq024","seed":true},{"category":"개인안전장비","mgmtNo":"카라비너-006","name":"락 카라비너","maker":"캠프 니트로 락 카라비너","madeAt":"2023","gotAt":"2024. 1.","price":"-","parts":"","photoNote":"캠프 니트로 락 카라비너 8개","log":[{"date":"2024.01.01","qty":"8","reason":"개인지급","status":"양호","receiver":"김종식","confirmer":"손경완","note":"인당 2개"}],"curStatus":"양호","curQty":"8","disused":false,"id":"eq025","seed":true},{"category":"개인안전장비","mgmtNo":"카라비너-007","name":"락 카라비너","maker":"캠프 뉴 포톤락카라비너","madeAt":"2021","gotAt":"2024. 1.","price":"-","parts":"","photoNote":"캠프 뉴 포톤락카라비너 8개","log":[{"date":"2024.01.01","qty":"8","reason":"개인지급","status":"양호","receiver":"김종식","confirmer":"손경완","note":"인당 1개"}],"curStatus":"양호","curQty":"8","disused":false,"id":"eq026","seed":true},{"category":"개인안전장비","mgmtNo":"카라비너-009","name":"O형 카라비너","maker":"캠프 오발 XL","madeAt":"2023","gotAt":"2024.01.","price":"-","parts":"","photoNote":"캠프 오발 XL 8개","log":[{"date":"2024.01.01","qty":"8","reason":"개인지급","status":"양호","receiver":"김종식","confirmer":"손경완","note":"인당 2개"}],"curStatus":"양호","curQty":"8","disused":false,"id":"eq027","seed":true},{"category":"구조공용장비","mgmtNo":"카라비너-010","name":"O형 카라비너","maker":"콩 오발론 카라비너","madeAt":"-","gotAt":"2024. 1.","price":"-","parts":"","photoNote":"O형 카라비너 8개","log":[{"date":"2024.01.01","qty":"8","reason":"-","status":"양호","receiver":"김종식","confirmer":"손경완","note":""},{"date":"2024.01.15","qty":"8","reason":"-","status":"양호","receiver":"윤태종","confirmer":"손경완","note":""}],"curStatus":"양호","curQty":"8","disused":false,"id":"eq028","seed":true},{"category":"구조공용장비","mgmtNo":"카라비너-011","name":"장비걸이","maker":"안나푸르나","madeAt":"-","gotAt":"2025.","price":"-","parts":"","photoNote":"캐리툴 8개","log":[{"date":"2026.01.01","qty":"8","reason":"개인지급","status":"앵호","receiver":"양지석","confirmer":"손경완","note":""}],"curStatus":"앵호","curQty":"8","disused":false,"id":"eq029","seed":true},{"category":"구조공용장비","mgmtNo":"퀵드로우-002","name":"퀵드로우","maker":"페츨 스피릿 11cm","madeAt":"2013 / 2014 / 2015","gotAt":"2024. 1.","price":"-","parts":"","photoNote":"페츨 스피릿 11cm 16개","log":[{"date":"2024.01.01","qty":"12","reason":"-","status":"노후","receiver":"김종식","confirmer":"손경완","note":"도그본 교체예정"},{"date":"2024.01.15","qty":"12","reason":"-","status":"노후","receiver":"윤태종","confirmer":"손경완","note":""},{"date":"2024.12.10","qty":"16","reason":"본소장비이동","status":"양호","receiver":"윤태종","confirmer":"손경완","note":"도그본 교체"}],"curStatus":"양호","curQty":"16","disused":false,"id":"eq030","seed":true},{"category":"구조공용장비","mgmtNo":"퀵드로우-001","name":"퀵드로우","maker":"페츨 디진17cm","madeAt":"2018","gotAt":"2024. 1.","price":"-","parts":"","photoNote":"페츨 디진17cm 16개","log":[{"date":"2024.01.01","qty":"14","reason":"-","status":"양호","receiver":"김종식","confirmer":"손경완","note":""},{"date":"2024.01.15","qty":"14","reason":"-","status":"양호","receiver":"윤태종","confirmer":"손경완","note":""},{"date":"2024.12.10","qty":"16","reason":"본소장비이동","status":"양호","receiver":"윤태종","confirmer":"손경완","note":""}],"curStatus":"양호","curQty":"16","disused":false,"id":"eq031","seed":true},{"category":"구조공용장비","mgmtNo":"도르레-001","name":"외도르레","maker":"페츨 레스큐","madeAt":"2018","gotAt":"2024. 1.","price":"-","parts":"","photoNote":"레스큐도르레 4개","log":[{"date":"2024.01.01","qty":"4","reason":"-","status":"양호","receiver":"김종식","confirmer":"손경완","note":""},{"date":"2024.01.15","qty":"4","reason":"-","status":"양호","receiver":"윤태종","confirmer":"손경완","note":""},{"date":"2024.12.10","qty":"6","reason":"본소장비이동","status":"양호","receiver":"윤태종","confirmer":"손경완","note":""}],"curStatus":"양호","curQty":"6","disused":false,"id":"eq032","seed":true},{"category":"구조공용장비","mgmtNo":"도르레-002","name":"외도르레","maker":"락엑소티카 옴니블럭 2.0","madeAt":"2024. 2.","gotAt":"2024. 1.","price":"-","parts":"","photoNote":"옴니블럭 2.0 10개","log":[{"date":"2024.","qty":"10","reason":"-","status":"양호","receiver":"윤태종","confirmer":"손경완","note":""}],"curStatus":"양호","curQty":"10","disused":false,"id":"eq033","seed":true},{"category":"구조공용장비","mgmtNo":"도르레-003","name":"외도르레","maker":"락엑소티카 쿠테나이","madeAt":"2024. 05.","gotAt":"","price":"-","parts":"","photoNote":"쿠테나이 2개","log":[{"date":"2025.12.10","qty":"2","reason":"레이저마킹","status":"양호","receiver":"윤태종","confirmer":"손경완","note":""}],"curStatus":"양호","curQty":"2","disused":false,"id":"eq034","seed":true},{"category":"구조공용장비","mgmtNo":"클립 스틱-001","name":"베타스틱 에보 스탠다드","maker":"TRANGO","madeAt":"2018","gotAt":"2026. 7. 11.","price":"106,400","parts":"","photoNote":"베타스틱 에보 스탠다드","log":[{"date":"2026.7.11.","qty":"1","reason":"신규 구매","status":"양호","receiver":"양지석","confirmer":"손경완","note":""}],"curStatus":"양호","curQty":"1","disused":false,"id":"eq035","seed":true},{"category":"개인안전장비","mgmtNo":"확보줄-001","name":"확보줄","maker":"페츨 커넥트 어드더스트 랜야드","madeAt":"2023","gotAt":"2024. 1.","price":"-","parts":"","photoNote":"커넥트 어드더스트 랜야드 8개","log":[{"date":"2024.01.01","qty":"8","reason":"개인지급","status":"양호","receiver":"김종식","confirmer":"손경완","note":"인당 2개 지급"},{"date":"2024.03.01","qty":"16","reason":"개인지급","status":"양호","receiver":"윤태종","confirmer":"손경완","note":"인당 2개 지급"}],"curStatus":"양호","curQty":"16","disused":false,"id":"eq036","seed":true},{"category":"암벽구조장비","mgmtNo":"캠-001","name":"캠","maker":"BD(블렉다이아몬드)","madeAt":"2016","gotAt":"2024","price":"-","parts":"","photoNote":"0.3/0.4/0.5/0.75/1/2/3/4/5/6 각 3개","log":[{"date":"2024.01.01","qty":"1set","reason":"-","status":"양호","receiver":"김종식","confirmer":"손경완","note":""}],"curStatus":"양호","curQty":"1set","disused":false,"id":"eq037","seed":true},{"category":"암벽구조장비","mgmtNo":"로프보호대-001","name":"로프 보호대","maker":"페츨","madeAt":"-","gotAt":"2024. 1.","price":"-","parts":"","photoNote":"페츨 2개","log":[{"date":"2024.01.01","qty":"2","reason":"-","status":"양호","receiver":"김종식","confirmer":"손경완","note":""},{"date":"2024.01.15","qty":"2","reason":"-","status":"양호","receiver":"윤태종","confirmer":"손경완","note":""}],"curStatus":"양호","curQty":"2","disused":false,"id":"eq038","seed":true},{"category":"암벽구조장비","mgmtNo":"로프보호대-002","name":"로프 보호대","maker":"베알","madeAt":"-","gotAt":"2024. 1.","price":"-","parts":"","photoNote":"베알 8개","log":[{"date":"2026.01.01","qty":"8","reason":"-","status":"양호","receiver":"양지석","confirmer":"손경완","note":""}],"curStatus":"양호","curQty":"8","disused":false,"id":"eq039","seed":true},{"category":"암벽구조장비","mgmtNo":"로프보호대-003","name":"로프 보호대","maker":"캔바스 로프보호대","madeAt":"-","gotAt":"2024. 1.","price":"-","parts":"","photoNote":"캔바스로프보호대(중3, 대3)","log":[{"date":"2026.01.01","qty":"6","reason":"-","status":"양호","receiver":"양지석","confirmer":"손경완","note":""}],"curStatus":"양호","curQty":"6","disused":false,"id":"eq040","seed":true},{"category":"암벽구조장비","mgmtNo":"로프보호대-004","name":"로프보호대 트랙커","maker":"SMC","madeAt":"-","gotAt":"2026. 7.","price":"216,000","parts":"","photoNote":"로프보호대 트랙커","log":[{"date":"2027.7.11","qty":"2","reason":"신규 구매","status":"양호","receiver":"양지석","confirmer":"손경완","note":""}],"curStatus":"양호","curQty":"2","disused":false,"id":"eq041","seed":true},{"category":"암벽구조장비","mgmtNo":"로프보호대-005","name":"로프보호대 플레스","maker":"SMC","madeAt":"-","gotAt":"2026. 7.","price":"40,000","parts":"","photoNote":"로프보호대 플레스","log":[{"date":"2027.7.11","qty":"2","reason":"신규 구매","status":"양호","receiver":"양지석","confirmer":"손경완","note":""}],"curStatus":"양호","curQty":"2","disused":false,"id":"eq042","seed":true},{"category":"구조공용장비","mgmtNo":"라이트-001","name":"울트라 3.0L LED","maker":"크레모아","madeAt":"2014","gotAt":"2026. 7.","price":"107,000","parts":"","photoNote":"울트라 3.0L LED 2개","log":[{"date":"2026.7.11","qty":"2","reason":"신규 구매","status":"양호","receiver":"양지석","confirmer":"손경완","note":""}],"curStatus":"양호","curQty":"2","disused":false,"id":"eq043","seed":true},{"category":"구조공용장비","mgmtNo":"타프-001","name":"타프 라지","maker":"피엘라벤","madeAt":"","gotAt":"2026. 7.","price":"230,000","parts":"","photoNote":"타프 라지","log":[{"date":"2026.7.11","qty":"1","reason":"신규 구매","status":"양호","receiver":"양지석","confirmer":"손경완","note":""}],"curStatus":"양호","curQty":"1","disused":false,"id":"eq044","seed":true},{"category":"구조공용장비","mgmtNo":"2024-004","name":"확보판","maker":"페츨POW","madeAt":"2014","gotAt":"-","price":"-","parts":"","photoNote":"확보판 4개","log":[{"date":"2024.01.01","qty":"4","reason":"-","status":"양호","receiver":"김종식","confirmer":"손경완","note":""},{"date":"2024.01.15","qty":"4","reason":"-","status":"양호","receiver":"윤태종","confirmer":"손경완","note":""}],"curStatus":"양호","curQty":"4","disused":false,"id":"eq045","seed":true},{"category":"개인안전장비","mgmtNo":"2026-1","name":"델타n 8mm+바","maker":"페츨","madeAt":"2023","gotAt":"2026. 7. 11.","price":"18,200","parts":"","photoNote":"델타n 8mm+바","log":[{"date":"2026.7.11.","qty":"8","reason":"개인지급","status":"양호","receiver":"양지석","confirmer":"손경완","note":""}],"curStatus":"양호","curQty":"8","disused":false,"id":"eq046","seed":true},{"category":"개인안전장비","mgmtNo":"2024-017","name":"안전벨트","maker":"페츨 펠콘 마운틴","madeAt":"2023","gotAt":"2024. 1.","price":"-","parts":"","photoNote":"1호(3개)/ 2호(1개)","log":[{"date":"2024.01.01","qty":"4","reason":"개인지급","status":"양호","receiver":"김종식","confirmer":"손경완","note":""}],"curStatus":"양호","curQty":"4","disused":false,"id":"eq047","seed":true},{"category":"개인안전장비","mgmtNo":"2024-019","name":"안전헬멧","maker":"캠프 스톰 헬멧 BD 캐피탄","madeAt":"2022","gotAt":"2024. 1.","price":"-","parts":"","photoNote":"캠프 스톰 헬멧 BD 캐피탄 4개","log":[{"date":"2024.01.01","qty":"4","reason":"개인지급","status":"양호","receiver":"김종식","confirmer":"손경완","note":""}],"curStatus":"양호","curQty":"4","disused":false,"id":"eq048","seed":true},{"category":"개인안전장비","mgmtNo":"2024-022","name":"구조용 칼","maker":"페츨 스파타","madeAt":"2023","gotAt":"2024. 1.","price":"-","parts":"","photoNote":"페츨 스파타 7개","log":[{"date":"2024.01.01","qty":"4","reason":"개인지급","status":"양호","receiver":"김종식","confirmer":"손경완","note":""},{"date":"2024.01.15","qty":"8","reason":"개인지급","status":"양호","receiver":"윤태종","confirmer":"손경완","note":""}],"curStatus":"양호","curQty":"8","disused":false,"id":"eq049","seed":true},{"category":"개인안전장비","mgmtNo":"2024-026","name":"글러브","maker":"캠프 클라이머 글러브","madeAt":"2021","gotAt":"2024. 01.","price":"-","parts":"","photoNote":"캠프 클라이머 글러브 8set","log":[{"date":"2024.01.01","qty":"4 set","reason":"개인지급","status":"양호","receiver":"김종식","confirmer":"손경완","note":""},{"date":"2026.01.01","qty":"4 set","reason":"추가구매","status":"양호","receiver":"양지석","confirmer":"손경완","note":""},{"date":"2026.5.21.","qty":"2 set","reason":"","status":"폐기","receiver":"염원종, 장기수","confirmer":"손경완","note":"기능상실로 폐기"}],"curStatus":"폐기","curQty":"2 set","disused":true,"id":"eq050","seed":true},{"category":"개인안전장비","mgmtNo":"2024-028","name":"구조용 배낭","maker":"캠프 M45","madeAt":"2021","gotAt":"2024.01.","price":"-","parts":"","photoNote":"캠프 M45 4개","log":[{"date":"2024.01.01","qty":"4","reason":"개인지급","status":"양호","receiver":"김종식","confirmer":"손경완","note":""},{"date":"2026. 2. 11.","qty":"2","reason":"사용불가","status":"불용","receiver":"김종식, 김택찬","confirmer":"설악산사무소-11","note":"44(2026. 2. 14.)"}],"curStatus":"불용","curQty":"2","disused":true,"id":"eq051","seed":true},{"category":"개인안전장비","mgmtNo":"2024-034","name":"오토블럭 슬링","maker":"베알 5.5mm Jammy 루프슬링 5cm","madeAt":"2023","gotAt":"2024. 1.","price":"-","parts":"","photoNote":"베알 5.5mm Jammy 루프슬링 5cm 4개","log":[{"date":"2024.01.01","qty":"4","reason":"개인지급","status":"양호","receiver":"김종식","confirmer":"손경완","note":""}],"curStatus":"양호","curQty":"4","disused":false,"id":"eq052","seed":true},{"category":"개인안전장비","mgmtNo":"2024-035","name":"다이니마슬링","maker":"페츨 퓨어 아노 60cm","madeAt":"2022","gotAt":"2024. 1.","price":"-","parts":"","photoNote":"페츨 퓨어 아노 60cm 8개","log":[{"date":"2024.01.01","qty":"8","reason":"개인지급","status":"양호","receiver":"김종식","confirmer":"손경완","note":"인당 2개"}],"curStatus":"양호","curQty":"8","disused":false,"id":"eq053","seed":true},{"category":"개인안전장비","mgmtNo":"2024-036","name":"다이니마슬링","maker":"페츨 퓨어 아노 120cm","madeAt":"2022","gotAt":"2024. 1.","price":"-","parts":"","photoNote":"페츨 퓨어 아노 120cm 8개","log":[{"date":"2024.01.01","qty":"8","reason":"개인지급","status":"양호","receiver":"김종식","confirmer":"손경완","note":"인당 2개"}],"curStatus":"양호","curQty":"8","disused":false,"id":"eq054","seed":true},{"category":"개인안전장비","mgmtNo":"2024-037","name":"텐덤 푸르직","maker":"스털링 8mm 푸르직코드 55cm","madeAt":"2023","gotAt":"2024. 1.","price":"-","parts":"","photoNote":"스털링 8mm 푸르직코드 55cm 8개","log":[{"date":"2024.01.01","qty":"8","reason":"개인지급","status":"양호","receiver":"김종식","confirmer":"손경완","note":"인당 2개"}],"curStatus":"양호","curQty":"8","disused":false,"id":"eq055","seed":true},{"category":"개인안전장비","mgmtNo":"2024-038","name":"텐덤 푸르직","maker":"스털링 8mm 푸르직코드 40cm","madeAt":"2023","gotAt":"2024. 1.","price":"-","parts":"","photoNote":"스털링 8mm 푸르직코드 40cm 4개","log":[{"date":"2024.01.01","qty":"4","reason":"개인지급","status":"양호","receiver":"김종식","confirmer":"손경완","note":"인당 1개"}],"curStatus":"양호","curQty":"4","disused":false,"id":"eq056","seed":true},{"category":"개인안전장비","mgmtNo":"2024-039","name":"헤드램프","maker":"페츨 아이코 코어","madeAt":"2021","gotAt":"2024. 1.","price":"-","parts":"","photoNote":"페츨 아이코 코어 4개","log":[{"date":"2024.01.01","qty":"4","reason":"개인지급","status":"양호","receiver":"김종식","confirmer":"손경완","note":""}],"curStatus":"양호","curQty":"4","disused":false,"id":"eq057","seed":true},{"category":"빙벽구조장비","mgmtNo":"2024-040","name":"빙벽화","maker":"잠발란 아이거","madeAt":"2023","gotAt":"2024. 1.","price":"-","parts":"","photoNote":"잠발란 아이거 8개","log":[{"date":"2024.01.01","qty":"4","reason":"개인지급","status":"양호","receiver":"김종식","confirmer":"손경완","note":""}],"curStatus":"양호","curQty":"4","disused":false,"id":"eq058","seed":true},{"category":"빙벽구조장비","mgmtNo":"빙벽구조-001","name":"아이스바일","maker":"페츨노믹4","madeAt":"2023","gotAt":"2024. 1.","price":"-","parts":"","photoNote":"페츨노믹4 4set","log":[{"date":"2024.01.01","qty":"4set","reason":"-","status":"양호","receiver":"김종식","confirmer":"손경완","note":""},{"date":"2026.02.24","qty":"4set","reason":"-","status":"이상 무","receiver":"-","confirmer":"-","note":"노믹4 리콜 해당사항 없음"}],"curStatus":"이상 무","curQty":"4set","disused":false,"id":"eq059","seed":true},{"category":"빙벽구조장비","mgmtNo":"2024-041","name":"아이스바일","maker":"BD코브라","madeAt":"2016","gotAt":"2024. 1.","price":"-","parts":"","photoNote":"BD코브라 1set","log":[{"date":"2024.01.01","qty":"1set","reason":"-","status":"양호","receiver":"김종식","confirmer":"손경완","note":""}],"curStatus":"양호","curQty":"1set","disused":false,"id":"eq060","seed":true},{"category":"빙벽구조장비","mgmtNo":"2024-042","name":"아이스바일","maker":"BD바이퍼","madeAt":"2016","gotAt":"2024. 1.","price":"-","parts":"","photoNote":"BD바이퍼 1set","log":[{"date":"2024.01.01","qty":"1set","reason":"-","status":"양호","receiver":"김종식","confirmer":"손경완","note":""}],"curStatus":"양호","curQty":"1set","disused":false,"id":"eq061","seed":true},{"category":"빙벽구조장비","mgmtNo":"2024-043","name":"아이스바일","maker":"페츨쿼크","madeAt":"2011","gotAt":"2024. 1.","price":"-","parts":"","photoNote":"페츨쿼크 1set","log":[{"date":"2024.01.01","qty":"1set","reason":"-","status":"양호","receiver":"김종식","confirmer":"손경완","note":""}],"curStatus":"양호","curQty":"1set","disused":false,"id":"eq062","seed":true},{"category":"빙벽구조장비","mgmtNo":"빙벽장비-004","name":"아이스스크류","maker":"페츨 레이져 스피드라이트 17cm","madeAt":"2015/2016/2017","gotAt":"2024. 1.","price":"-","parts":"","photoNote":"페츨 레이져 스피드라이트 17cm 21개","log":[{"date":"2024.01.01","qty":"17","reason":"-","status":"양호","receiver":"김종식","confirmer":"손경완","note":""},{"date":"2024.01.15","qty":"17","reason":"-","status":"양호","receiver":"윤태종","confirmer":"손경완","note":""},{"date":"2024.12.10","qty":"21","reason":"본소장비","status":"양호","receiver":"윤태종","confirmer":"손경완","note":""}],"curStatus":"양호","curQty":"21","disused":false,"id":"eq063","seed":true},{"category":"빙벽구조장비","mgmtNo":"2024-046","name":"크램폰","maker":"페츨링스","madeAt":"2019 / 2023","gotAt":"2024. 1.","price":"-","parts":"크램폰 케이스 페츨5개, 트랑고3개","photoNote":"링스 5개(신) 링스 3개(구)","log":[{"date":"2024.01.01","qty":"8","reason":"개인지급","status":"양호","receiver":"김종식","confirmer":"손경완","note":""}],"curStatus":"양호","curQty":"8","disused":false,"id":"eq064","seed":true},{"category":"설상구조장비","mgmtNo":"2024-048","name":"눈삽","maker":"BD 디플로이(3,7)","madeAt":"2010","gotAt":"2024. 1.","price":"-","parts":"","photoNote":"디플로이3(7개), 디플로이7(3개)","log":[{"date":"2024.01.01","qty":"10","reason":"-","status":"양호","receiver":"김종식","confirmer":"손경완","note":""}],"curStatus":"양호","curQty":"10","disused":false,"id":"eq065","seed":true},{"category":"설상구조장비","mgmtNo":"2024-049","name":"탐침봉","maker":"alpidex 320cm","madeAt":"-","gotAt":"2024. 1.","price":"-","parts":"","photoNote":"8개","log":[{"date":"2024.01.01","qty":"8","reason":"-","status":"양호","receiver":"김종식","confirmer":"손경완","note":""}],"curStatus":"양호","curQty":"8","disused":false,"id":"eq066","seed":true},{"category":"기타구조장비","mgmtNo":"2024-050","name":"쉘터","maker":"RAB 쉘터(4인/8인)","madeAt":"2018","gotAt":"2024. 1.","price":"-","parts":"","photoNote":"8인 1개 / 4인 1개","log":[{"date":"2024.01.01","qty":"2","reason":"-","status":"양호","receiver":"김종식","confirmer":"손경완","note":""}],"curStatus":"양호","curQty":"2","disused":false,"id":"eq067","seed":true},{"category":"기타구조장비","mgmtNo":"2024-051","name":"침낭","maker":"DANA ALPINIST B","madeAt":"-","gotAt":"2024. 1.","price":"-","parts":"","photoNote":"동계침낭 2개","log":[{"date":"2024.01.01","qty":"2","reason":"-","status":"양호","receiver":"김종식","confirmer":"손경완","note":""}],"curStatus":"양호","curQty":"2","disused":false,"id":"eq068","seed":true},{"category":"기타구조장비","mgmtNo":"기타장비-001","name":"리액터스토브","maker":"MSR","madeAt":"-","gotAt":"2025.12.14.","price":"360,000","parts":"","photoNote":"리액터 1.7리터 스토브 시스템 2개","log":[{"date":"2025.12.14.","qty":"2","reason":"-","status":"양호","receiver":"윤태종","confirmer":"손경완","note":""},{"date":"2026.01.01.","qty":"2","reason":"-","status":"양호","receiver":"양지석","confirmer":"손경완","note":""}],"curStatus":"양호","curQty":"2","disused":false,"id":"eq069","seed":true},{"category":"기타구조장비","mgmtNo":"기타장비-001","name":"리액터포트셋트","maker":"MSR","madeAt":"-","gotAt":"2025.12.14.","price":"160,000","parts":"","photoNote":"리액터 포트세트 2.5L 2개","log":[{"date":"2025.12.14.","qty":"2","reason":"-","status":"양호","receiver":"윤태종","confirmer":"손경완","note":""},{"date":"2026.01.01.","qty":"2","reason":"-","status":"양호","receiver":"양지석","confirmer":"손경완","note":""}],"curStatus":"양호","curQty":"2","disused":false,"id":"eq070","seed":true},{"category":"기타구조장비","mgmtNo":"기타장비-001","name":"엑스기로리쉬","maker":"캠프","madeAt":"-","gotAt":"2025.12.14.","price":"100,000","parts":"","photoNote":"캠프 X-자이로리쉬 8개","log":[{"date":"2025.12.14.","qty":"2","reason":"-","status":"양호","receiver":"윤태종","confirmer":"손경완","note":""},{"date":"2026. 2. 26.","qty":"6","reason":"-","status":"양호","receiver":"양지석","confirmer":"손경완","note":""}],"curStatus":"양호","curQty":"6","disused":false,"id":"eq071","seed":true},{"category":"기타구조장비","mgmtNo":"기타장비-001","name":"비콘","maker":"arva","madeAt":"-","gotAt":"2025.12.18.","price":"-","parts":"","photoNote":"비콘 12개","log":[{"date":"2025.12.18.","qty":"12","reason":"-","status":"양호","receiver":"윤태종","confirmer":"손경완","note":""},{"date":"2026.01.01.","qty":"12","reason":"-","status":"양호","receiver":"양지석","confirmer":"손경완","note":""},{"date":"2026.01.22.","qty":"1","reason":"2번 파손","status":"불량","receiver":"양지석","confirmer":"손경완","note":"수리예정"},{"date":"2026. 2. 7.","qty":"1","reason":"2번","status":"수리완료","receiver":"양지석","confirmer":"손경완","note":"품의서번호 20260205-0203"}],"curStatus":"수리완료","curQty":"1","disused":true,"id":"eq072","seed":true},{"category":"기타구조장비","mgmtNo":"기타장비-001","name":"로프 배낭","maker":"페츨 트랜스포트","madeAt":"-","gotAt":"2025.8.27.","price":"-","parts":"","photoNote":"트랜스포트 4개","log":[{"date":"2025.08.27.","qty":"4","reason":"-","status":"양호","receiver":"윤태종","confirmer":"손경완","note":""},{"date":"2026.01.01.","qty":"4","reason":"-","status":"양호","receiver":"양지석","confirmer":"손경완","note":""}],"curStatus":"양호","curQty":"4","disused":false,"id":"eq073","seed":true},{"category":"기타구조장비","mgmtNo":"기타장비-001","name":"쿠르펄스","maker":"쿠르펄스","madeAt":"-","gotAt":"2025.8.27.","price":"-","parts":"","photoNote":"쿠르펄스","log":[{"date":"2025.08.27.","qty":"4","reason":"-","status":"양호","receiver":"윤태종","confirmer":"손경완","note":""},{"date":"2026.01.01.","qty":"4","reason":"-","status":"양호","receiver":"양지석","confirmer":"손경완","note":""}],"curStatus":"양호","curQty":"4","disused":false,"id":"eq074","seed":true}];
+
+// ── 권한: 특수산악구조대 소속 + 마스터/개발자만 (외부기관·타부서 제외) ──
+function _canEquipView(){try{if(typeof isExternal==='function'&&isExternal())return false;var u=DB.g('currentUser')||{};if(u.dept==='특수산악구조대')return true;if(typeof _isMasterAdmin==='function'&&_isMasterAdmin())return true;if(typeof _isDeveloper==='function'&&_isDeveloper(u.kakaoId))return true;}catch(e){}return false;}
+function _canEquipManage(){return _canEquipView();} // 팀 내부 도구 — 열람 가능하면 편집도 가능
+
+// ── 데이터 계층: Firestore 'rescueEquip' 컬렉션(건별) + 오프라인 캐시 ──
+let _equipCache=null;
+async function _equipLoadAll(force){
+  if(_equipCache&&!force)return _equipCache;
+  if(typeof _fdb==='undefined'||!_fdb){window._equipOffline=true;return (_equipCache=_equipReadOffline());}
+  try{
+    const snap=await _fdb.collection('rescueEquip').get();
+    const all=[];snap.forEach(d=>{const v=d.data()||{};v.id=v.id||d.id;all.push(v);});
+    _equipCache=all;_equipWriteOffline(all);window._equipOffline=false;
+    return all;
+  }catch(e){
+    const off=_equipReadOffline(); // 오프라인·통신실패 → 마지막 캐시로 폴백
+    if(off.length){_equipCache=off;window._equipOffline=true;return off;}
+    throw e;
+  }
+}
+function _equipWriteOffline(all){
+  try{localStorage.setItem('_equipOffline',JSON.stringify({at:Date.now(),recs:all||[]}));return;}catch(e){}
+  // 용량 초과(사진 누적) → 사진만 빼고 핵심 데이터(목록·이력·설명)라도 오프라인 저장. 온라인 복귀 시 사진 포함 재조회됨.
+  try{const lite=(all||[]).map(x=>{const c=Object.assign({},x);if(c.photos&&c.photos.length)c.photos=[];return c;});localStorage.setItem('_equipOffline',JSON.stringify({at:Date.now(),recs:lite,noPhotos:true}));}catch(e2){}
+}
+function _equipReadOffline(){try{const v=JSON.parse(localStorage.getItem('_equipOffline')||'null');return (v&&Array.isArray(v.recs))?v.recs:[];}catch(e){return [];}}
+function _equipById(id){return (_equipCache||[]).find(x=>String(x.id)===String(id))||null;}
+function _equipLastLog(item){const l=item&&item.log;return (l&&l.length)?l[l.length-1]:null;}
+async function _equipPut(item){
+  if(typeof _fdb==='undefined'||!_fdb)throw new Error('DB 미연결 — 온라인에서 저장하세요');
+  const size=(JSON.stringify(item)||'').length; // Firestore 문서 1MB 한계 — 사진 누적 방어
+  if(size>980000)throw new Error('용량 초과('+Math.round(size/1024)+'KB) — 사진 수를 줄여주세요');
+  item.updatedAt=Date.now();item.updatedBy=(DB.g('currentUser')||{}).name||getAuthor();
+  await _fdb.collection('rescueEquip').doc(String(item.id)).set(item);
+  if(!_equipCache)_equipCache=[];
+  const i=_equipCache.findIndex(x=>String(x.id)===String(item.id));
+  if(i>=0)_equipCache[i]=item;else _equipCache.push(item);
+  _equipWriteOffline(_equipCache);
+  return item;
+}
+async function _equipRemove(id){
+  if(typeof _fdb==='undefined'||!_fdb)throw new Error('DB 미연결 — 온라인에서 삭제하세요');
+  await _fdb.collection('rescueEquip').doc(String(id)).delete();
+  _equipCache=(_equipCache||[]).filter(x=>String(x.id)!==String(id));
+  _equipWriteOffline(_equipCache);
+}
+// 파일(PDF) 기초자료 일괄 불러오기 — 컬렉션이 비었을 때(또는 누락분) 시드 74건 등록. 사진은 각 장비에서 직접 첨부.
+async function equipSeedImport(){
+  if(!_canEquipManage()){toast('⚠️ 특수산악구조대·관리자만 가능');return;}
+  if(!confirm('📥 파일의 기초 장비자료 '+EQUIP_SEED.length+'건을 불러올까요?\n\n· 사진은 포함되지 않습니다(각 장비에서 직접 촬영·첨부)\n· 이미 등록된 장비는 건너뜁니다(중복 없음)'))return;
+  if(typeof _busy==='function')_busy('📥 불러오는 중…');
+  try{
+    await _equipLoadAll(true);
+    const have=new Set((_equipCache||[]).map(x=>String(x.id)));
+    let n=0;
+    for(const s of EQUIP_SEED){
+      if(have.has(String(s.id)))continue;
+      const item=Object.assign({},s,{photos:[],createdAt:Date.now(),by:(DB.g('currentUser')||{}).name||getAuthor()});
+      delete item.disused;delete item.seed;
+      const last=_equipLastLog(item);item.curStatus=last?last.status:(item.curStatus||'양호');item.curQty=last?last.qty:(item.curQty||'');
+      await _equipPut(item);n++;
+    }
+    if(typeof _busyDone==='function')_busyDone();
+    toast('✅ '+n+'건 불러왔습니다'+(n<EQUIP_SEED.length?' (나머지는 이미 등록됨)':''),4000);
+    _equipCache=null;await _equipLoadAll(true);_equipView='list';_equipRender();
+  }catch(e){if(typeof _busyDone==='function')_busyDone();toast('⚠️ 불러오기 실패: '+((e&&e.message)||e),4000);}
+}
+
+// ── 화면(전체화면 패널) — 내부 뷰: list(목록/현황 탭) · detail · form · log ──
+let _equipView='list',_equipSel=null,_equipTab='list',_equipCatF='',_equipQ='',_equipFormPhotos=[];
+function openEquip(){
+  if(!_canEquipView()){toast('⚠️ 특수산악구조대 전용입니다');return;}
+  let ov=document.getElementById('equipPanel');if(ov)ov.remove();
+  ov=document.createElement('div');ov.id='equipPanel';
+  // #app 안에 절대배치 — 다른 홈 화면과 같은 프레임(중앙정렬·같은 높이) 상속 (암벽 패널과 동일)
+  ov.style.cssText='position:absolute;inset:0;z-index:9600;background:#0f0f11;display:flex;flex-direction:column;';
+  ov.innerHTML=`<div style="display:flex;align-items:center;gap:8px;padding:calc(6px + env(safe-area-inset-top)) 10px 8px;border-bottom:1px solid rgba(255,255,255,.15);flex-shrink:0;">
+      <button class="back-btn" onclick="equipBack()">← 뒤로</button>
+      <span id="equipTitle" style="font-size:16px;font-weight:800;color:#eef0f2;">🧰 구조대 장비 관리</span>
+    </div>
+    <div id="equipBody" style="flex:1;overflow-y:auto;padding:14px;"><div style="text-align:center;color:#6b7684;font-size:13px;padding:40px 0;">불러오는 중…</div></div>`;
+  (document.getElementById('app')||document.body).appendChild(ov);
+  _equipView='list';_equipSel=null;_equipTab='list';_equipCatF='';_equipQ='';
+  _equipLoadAll().then(()=>{_equipRender();}).catch(e=>{
+    const b=document.getElementById('equipBody');if(b)b.innerHTML='<div style="text-align:center;color:#ff8a73;padding:40px 0;">불러오기 실패 — 온라인 상태를 확인하세요<br><button onclick="openEquip()" style="margin-top:12px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);color:#ccc;border-radius:8px;padding:8px 16px;cursor:pointer;">다시 시도</button></div>';
+  });
+}
+function equipBack(){
+  if(_equipView!=='list'){_equipView='list';_equipSel=null;_equipRender();return;}
+  history.back();
+}
+function _equipSetTitle(t){const el=document.getElementById('equipTitle');if(el)el.textContent=t;}
+function _equipRender(){
+  const b=document.getElementById('equipBody');if(!b)return;
+  b.scrollTop=0;
+  if(_equipView==='detail')return _renderEquipDetail();
+  if(_equipView==='form')return _renderEquipForm();
+  if(_equipView==='log')return _renderEquipLogForm();
+  return _renderEquipList();
+}
+function equipTab(t){_equipTab=t;_equipView='list';_equipRender();}
+
+// ── 📋 목록 + 📊 현황 ──
+function equipSearch(v){_equipQ=(v||'').trim();_renderEquipList();}
+function equipCatFilter(c){_equipCatF=c||'';_renderEquipList();}
+function _renderEquipList(){
+  const b=document.getElementById('equipBody');if(!b)return;
+  _equipSetTitle('🧰 구조대 장비 관리');
+  const all=_equipCache||[];
+  const tb=(lbl,t)=>`<button onclick="equipTab('${t}')" style="flex:1;padding:9px 6px;border:none;border-radius:8px;font-size:12.5px;font-weight:800;cursor:pointer;background:${_equipTab===t?'rgba(255,255,255,.18)':'transparent'};color:${_equipTab===t?'#a5abb3':'#6a8296'};">${lbl}</button>`;
+  let html=`<div style="display:flex;gap:4px;background:#131316;border:1px solid rgba(255,255,255,.15);border-radius:10px;padding:3px;margin-bottom:12px;">${tb('📋 장비 목록','list')}${tb('📊 현황','stats')}</div>`;
+  if(_equipTab==='stats'){b.innerHTML=html+'<div id="equipInner"></div>';_renderEquipStats(all);return;}
+  // 목록 툴바
+  html+=`<div style="display:flex;gap:6px;margin-bottom:10px;">
+      <input value="${_esc(_equipQ)}" oninput="equipSearch(this.value)" placeholder="🔍 장비명·관리번호·제작사 검색" style="flex:1;background:#131316;color:#d5d8dc;border:1px solid rgba(255,255,255,.2);border-radius:9px;padding:9px 11px;font-size:12.5px;">
+      ${_canEquipManage()?`<button onclick="openEquipForm()" style="background:rgba(94,207,143,.14);color:#5fcf8f;border:1px solid rgba(94,207,143,.35);border-radius:9px;padding:9px 12px;font-size:12.5px;font-weight:800;cursor:pointer;white-space:nowrap;">➕ 추가</button>`:''}
+    </div>`;
+  if(!all.length){
+    b.innerHTML=html+`<div style="text-align:center;color:#8b95a1;font-size:13px;padding:34px 14px;line-height:1.7;">
+      아직 등록된 장비가 없습니다.
+      ${_canEquipManage()?`<div style="margin-top:16px;"><button onclick="equipSeedImport()" style="background:rgba(94,207,143,.16);color:#5fcf8f;border:1px solid rgba(94,207,143,.4);border-radius:11px;padding:13px 18px;font-size:13.5px;font-weight:800;cursor:pointer;">📥 파일 기초자료 불러오기 (${EQUIP_SEED.length}건)</button>
+      <div style="font-size:11px;color:#6b7684;margin-top:8px;">장비이력카드 ${EQUIP_SEED.length}건을 한 번에 등록합니다 · 사진은 각 장비에서 첨부</div></div>`:'<div style="font-size:11.5px;color:#6b7684;margin-top:8px;">등록 권한이 있는 대원이 자료를 불러오면 표시됩니다.</div>'}
+    </div>`;
+    return;
+  }
+  // 카테고리 칩(개수)
+  const cnt={};all.forEach(it=>{cnt[it.category]=(cnt[it.category]||0)+1;});
+  const chip=(lbl,val)=>`<span onclick="equipCatFilter('${val}')" style="display:inline-block;padding:6px 12px;margin:0 5px 6px 0;border-radius:15px;font-size:11.5px;font-weight:700;cursor:pointer;border:1px solid ${_equipCatF===val?'#a5abb3':'rgba(255,255,255,.22)'};background:${_equipCatF===val?'rgba(255,255,255,.2)':'#131316'};color:${_equipCatF===val?'#aed8ee':'#949aa2'};white-space:nowrap;">${_esc(lbl)}</span>`;
+  html+=`<div style="display:flex;flex-wrap:wrap;margin-bottom:10px;">${chip('전체 '+all.length,'')}${EQUIP_CATS.filter(c=>cnt[c]).map(c=>chip((EQUIP_CAT_ICON[c]||'')+c.replace('구조장비','').replace('안전장비','안전')+' '+cnt[c],c)).join('')}</div>`;
+  // 오프라인 표시
+  if(window._equipOffline||!navigator.onLine){
+    html+=`<div style="display:flex;align-items:center;gap:7px;background:rgba(240,165,0,.09);border:1px solid rgba(240,165,0,.3);border-radius:9px;padding:8px 11px;margin-bottom:10px;"><span style="font-size:14px;">📴</span><span style="flex:1;font-size:11px;color:#f0c050;">오프라인 — 기기 저장본 표시(수정은 온라인에서)</span></div>`;
+  }
+  // 필터·검색
+  const q=_equipQ.toLowerCase();
+  let list=all.filter(it=>{
+    if(_equipCatF&&it.category!==_equipCatF)return false;
+    if(q){const s=((it.name||'')+' '+(it.mgmtNo||'')+' '+(it.maker||'')+' '+(it.photoNote||'')).toLowerCase();if(s.indexOf(q)<0)return false;}
+    return true;
+  });
+  // 정렬: 카테고리 순 → 관리번호
+  list.sort((a,b2)=>{const ci=EQUIP_CATS.indexOf(a.category)-EQUIP_CATS.indexOf(b2.category);if(ci!==0)return ci;return String(a.mgmtNo||'').localeCompare(String(b2.mgmtNo||''),'ko');});
+  const bad=all.filter(it=>_equipIsBad(it.curStatus)).length;
+  html+=`<div style="font-size:11px;color:#6b7684;margin-bottom:8px;">총 <b style="color:#c9dcec;">${list.length}</b>건${bad?` · <span style="color:#ff7a6e;font-weight:700;">점검·불용 ${bad}</span>`:''}</div>`;
+  if(!list.length){b.innerHTML=html+`<div style="text-align:center;color:#6b7684;font-size:12.5px;padding:24px 0;">검색·필터 결과가 없습니다.</div>`;return;}
+  html+=list.map(it=>{
+    const st=it.curStatus||'';const stc=_equipStatusColor(st);
+    const thumb=(it.photos&&it.photos.length)?`<img src="${it.photos[0]}" style="width:46px;height:46px;border-radius:8px;object-fit:cover;flex-shrink:0;">`:`<div style="width:46px;height:46px;border-radius:8px;flex-shrink:0;background:rgba(255,255,255,.06);display:flex;align-items:center;justify-content:center;font-size:20px;">${EQUIP_CAT_ICON[it.category]||'📦'}</div>`;
+    return `<div class="scard" onclick="openEquipDetail('${_esc(it.id)}')" style="display:flex;align-items:center;gap:10px;margin-bottom:7px;padding:9px 11px;cursor:pointer;">
+        ${thumb}
+        <div style="flex:1;min-width:0;">
+          <div style="display:flex;align-items:center;gap:6px;"><span style="font-size:13px;font-weight:800;color:#eef0f2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${_esc(it.name||'-')}</span>${st?`<span style="flex-shrink:0;font-size:9.5px;font-weight:800;color:${stc};background:${_equipIsBad(st)?'rgba(255,107,91,.14)':'rgba(255,255,255,.08)'};border-radius:6px;padding:1px 6px;">${_esc(st)}</span>`:''}</div>
+          <div style="font-size:10.5px;color:#8b95a1;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${_esc(it.mgmtNo||'')}${it.maker?' · '+_esc(it.maker):''}</div>
+          <div style="font-size:10px;color:#6b7684;margin-top:1px;">${EQUIP_CAT_ICON[it.category]||''} ${_esc(it.category||'')}${it.curQty?' · 수량 '+_esc(it.curQty):''}${(it.log&&it.log.length)?' · 이력 '+it.log.length:''}</div>
+        </div>
+        <span style="font-size:14px;color:rgba(255,255,255,.3);flex-shrink:0;">›</span>
+      </div>`;
+  }).join('');
+  b.innerHTML=html;
+}
+function _renderEquipStats(all){
+  const b=document.getElementById('equipInner');if(!b)return;
+  if(!all.length){b.innerHTML=`<div style="text-align:center;color:#6b7684;font-size:12.5px;padding:24px 0;">등록된 장비가 없습니다.</div>`;return;}
+  const cnt={};all.forEach(it=>{cnt[it.category]=(cnt[it.category]||0)+1;});
+  const bad=all.filter(it=>_equipIsBad(it.curStatus));
+  const maxc=Math.max.apply(null,EQUIP_CATS.map(c=>cnt[c]||0))||1;
+  // 취득금액 합계(숫자만)
+  let sum=0;all.forEach(it=>{const n=parseInt(String(it.price||'').replace(/[^\d]/g,''));if(!isNaN(n))sum+=n;});
+  const box=(v,l,c)=>`<div style="flex:1;background:#12151b;border:1px solid rgba(255,255,255,.08);border-radius:11px;padding:12px 8px;text-align:center;"><div style="font-size:21px;font-weight:800;color:${c||'#eef0f2'};">${v}</div><div style="font-size:10.5px;color:#8b95a1;margin-top:3px;">${l}</div></div>`;
+  let html=`<div style="display:flex;gap:8px;margin-bottom:12px;">${box(all.length,'총 장비','#7fd0ff')}${box(bad.length,'점검·불용',bad.length?'#ff7a6e':'#5fcf8f')}${box(EQUIP_CATS.filter(c=>cnt[c]).length,'분류')}</div>`;
+  if(sum>0)html+=`<div style="background:#12151b;border:1px solid rgba(255,255,255,.08);border-radius:11px;padding:11px 13px;margin-bottom:12px;font-size:12px;color:#c9dcec;">💰 취득금액 합계(기재분) <b style="color:#eef0f2;">${sum.toLocaleString()}원</b></div>`;
+  // 분류별 막대
+  html+=`<div style="font-size:12.5px;font-weight:800;color:#a5abb3;margin:4px 0 8px;">분류별 보유</div>`;
+  html+=EQUIP_CATS.filter(c=>cnt[c]).map(c=>{
+    const n=cnt[c]||0;const w=Math.round(n/maxc*100);
+    return `<div onclick="equipCatFilter('${c}');equipTab('list')" style="margin-bottom:7px;cursor:pointer;">
+      <div style="display:flex;justify-content:space-between;font-size:11.5px;margin-bottom:3px;"><span style="color:#c9dcec;">${EQUIP_CAT_ICON[c]||''} ${_esc(c)}</span><span style="color:#8b95a1;font-weight:700;">${n}</span></div>
+      <div style="height:8px;background:rgba(255,255,255,.06);border-radius:5px;overflow:hidden;"><div style="height:100%;width:${w}%;background:linear-gradient(90deg,#3a6ea5,#5fcf8f);border-radius:5px;"></div></div>
+    </div>`;
+  }).join('');
+  // 점검·불용 목록
+  if(bad.length){
+    html+=`<div style="font-size:12.5px;font-weight:800;color:#ff8a80;margin:16px 0 8px;">⚠️ 점검·불용·폐기 장비</div>`;
+    html+=bad.map(it=>`<div class="scard" onclick="openEquipDetail('${_esc(it.id)}')" style="display:flex;align-items:center;gap:8px;margin-bottom:6px;padding:8px 10px;cursor:pointer;"><span style="font-size:9.5px;font-weight:800;color:#ff7a6e;background:rgba(255,107,91,.14);border-radius:6px;padding:2px 6px;flex-shrink:0;">${_esc(it.curStatus)}</span><span style="flex:1;font-size:12px;color:#eef0f2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${_esc(it.name||'')} <span style="color:#8b95a1;font-size:10.5px;">${_esc(it.mgmtNo||'')}</span></span><span style="font-size:13px;color:rgba(255,255,255,.3);">›</span></div>`).join('');
+  }
+  html+=`<div style="font-size:9.5px;color:#565f6b;text-align:center;padding:14px 0 6px;">분류 막대를 눌러 해당 장비 목록으로 이동</div>`;
+  b.innerHTML=html;
+}
+
+// ── 상세(장비이력카드) ──
+function openEquipDetail(id){_equipSel=id;_equipView='detail';_equipRender();}
+function _equipDetailPhoto(i){const it=_equipById(_equipSel);if(it&&it.photos&&it.photos[i])_facPhotoView(it.photos[i]);}
+function _renderEquipDetail(){
+  const b=document.getElementById('equipBody');if(!b)return;
+  const it=_equipById(_equipSel);
+  if(!it){_equipView='list';return _renderEquipList();}
+  _equipSetTitle('🧰 장비이력카드');
+  const canM=_canEquipManage();
+  const st=it.curStatus||'';const stc=_equipStatusColor(st);
+  const row=(k,v)=>v?`<div style="display:flex;gap:8px;padding:3px 0;"><span style="width:66px;flex-shrink:0;font-size:11px;color:#5d86a3;font-weight:700;">${k}</span><span style="flex:1;min-width:0;font-size:12px;color:#c9dcec;line-height:1.5;word-break:break-all;">${v}</span></div>`:'';
+  // 사진 갤러리
+  const photos=it.photos||[];
+  const gal=photos.length?`<div style="display:flex;gap:7px;overflow-x:auto;padding-bottom:4px;margin-bottom:10px;">${photos.map((u,i)=>`<img src="${u}" onclick="_equipDetailPhoto(${i})" style="width:96px;height:96px;border-radius:10px;object-fit:cover;flex-shrink:0;cursor:pointer;border:1px solid rgba(255,255,255,.1);">`).join('')}</div>`
+    :`<div style="display:flex;align-items:center;justify-content:center;gap:8px;background:rgba(255,255,255,.04);border:1px dashed rgba(255,255,255,.15);border-radius:10px;padding:16px;margin-bottom:10px;color:#6b7684;font-size:11.5px;">${EQUIP_CAT_ICON[it.category]||'📦'} 등록된 사진 없음${canM?' — 아래 📷 버튼으로 추가':''}</div>`;
+  let html=`<button onclick="equipBack()" style="background:none;border:none;color:#3182f6;font-size:12.5px;font-weight:700;cursor:pointer;padding:0 0 10px;">◀ 목록</button>`;
+  html+=`<div style="display:flex;align-items:center;gap:9px;margin-bottom:12px;">
+      <div style="width:44px;height:44px;border-radius:11px;background:rgba(255,255,255,.08);display:flex;align-items:center;justify-content:center;font-size:23px;flex-shrink:0;">${EQUIP_CAT_ICON[it.category]||'📦'}</div>
+      <div style="flex:1;min-width:0;"><div style="font-size:16px;font-weight:800;color:#eef0f2;">${_esc(it.name||'-')}</div>
+      <div style="font-size:11px;color:#8b95a1;margin-top:2px;">${_esc(it.mgmtNo||'')} · ${_esc(it.category||'')}</div></div>
+      ${st?`<span style="flex-shrink:0;font-size:11px;font-weight:800;color:${stc};background:${_equipIsBad(st)?'rgba(255,107,91,.14)':'rgba(94,207,143,.12)'};border-radius:8px;padding:4px 9px;">${_esc(st)}</span>`:''}
+    </div>`;
+  html+=gal;
+  html+=`<div class="scard" style="padding:11px 13px;margin-bottom:12px;">
+      ${row('제작사(모델)',_esc(it.maker||''))}
+      ${row('제조일자',_esc(it.madeAt||''))}
+      ${row('취득일자',_esc(it.gotAt||''))}
+      ${row('취득금액',_esc(it.price||''))}
+      ${row('주요부대품',_esc(it.parts||''))}
+      ${row('사진·수량',_esc(it.photoNote||''))}
+      ${row('현재수량',_esc(it.curQty||''))}
+    </div>`;
+  // 관리일지 (수정내역)
+  html+=`<div style="display:flex;align-items:center;justify-content:space-between;margin:4px 0 8px;"><span style="font-size:13px;font-weight:800;color:#a5abb3;">📒 관리일지 (수정내역)</span>${canM?`<button onclick="openEquipLogForm()" style="background:rgba(94,207,143,.14);color:#5fcf8f;border:1px solid rgba(94,207,143,.35);border-radius:8px;padding:5px 10px;font-size:11px;font-weight:800;cursor:pointer;">➕ 추가</button>`:''}</div>`;
+  const logs=it.log||[];
+  if(!logs.length){html+=`<div style="text-align:center;color:#6b7684;font-size:11.5px;padding:14px 0;">기록된 관리일지가 없습니다.</div>`;}
+  else{
+    html+=`<div style="border:1px solid rgba(255,255,255,.1);border-radius:10px;overflow:hidden;margin-bottom:12px;">
+      <div style="display:flex;background:rgba(255,255,255,.05);font-size:9.5px;font-weight:800;color:#8b95a1;padding:6px 8px;">
+        <span style="flex:0 0 74px;">년.월.일</span><span style="flex:0 0 42px;text-align:center;">수량</span><span style="flex:1;">이동사유/상태</span><span style="flex:0 0 54px;text-align:right;">인수·확인</span>${canM?'<span style="flex:0 0 18px;"></span>':''}
+      </div>`;
+    html+=logs.map((l,i)=>{
+      const bcol=_equipIsBad(l.status)||_equipIsBad(l.reason);
+      return `<div style="display:flex;align-items:center;font-size:10.5px;color:#c9dcec;padding:7px 8px;border-top:1px solid rgba(255,255,255,.06);">
+        <span style="flex:0 0 74px;color:#aab4c0;">${_esc(l.date||'-')}</span>
+        <span style="flex:0 0 42px;text-align:center;">${_esc(l.qty||'-')}</span>
+        <span style="flex:1;min-width:0;line-height:1.4;">${l.reason&&l.reason!=='-'?`<span style="color:#9bb8cc;">${_esc(l.reason)}</span> `:''}${l.status?`<span style="color:${bcol?'#ff8a80':'#8fd6a8'};font-weight:700;">${_esc(l.status)}</span>`:''}${l.note?`<br><span style="color:#8b95a1;font-size:9.5px;">${_esc(l.note)}</span>`:''}</span>
+        <span style="flex:0 0 54px;text-align:right;color:#8b95a1;font-size:9.5px;line-height:1.3;">${_esc(l.receiver||'')}${l.confirmer?'<br>('+_esc(l.confirmer)+')':''}</span>
+        ${canM?`<span onclick="equipLogDel(${i})" style="flex:0 0 18px;text-align:center;color:rgba(255,120,110,.6);cursor:pointer;font-size:14px;">×</span>`:''}
+      </div>`;
+    }).join('');
+    html+=`</div>`;
+  }
+  html+=`<div style="font-size:9.5px;color:#6b7684;text-align:center;margin-bottom:12px;">${it.updatedBy?'최근 수정: '+_esc(it.updatedBy):''}${it.updatedAt?' · '+_equipTimeStr(it.updatedAt):''}</div>`;
+  // 액션
+  if(canM){
+    html+=`<div style="display:flex;gap:7px;margin-bottom:8px;">
+        <button onclick="openEquipForm('${_esc(it.id)}')" style="flex:1;background:rgba(49,130,246,.14);color:#7fb0f0;border:1px solid rgba(49,130,246,.35);border-radius:9px;padding:11px;font-size:12.5px;font-weight:800;cursor:pointer;">✏️ 정보 수정</button>
+        <label style="flex:1;background:rgba(94,207,143,.12);color:#5fcf8f;border:1px solid rgba(94,207,143,.35);border-radius:9px;padding:11px;font-size:12.5px;font-weight:800;cursor:pointer;text-align:center;">📷 사진 추가<input type="file" accept="image/*" multiple onchange="equipDetailAddPhoto(this)" style="display:none;"></label>
+      </div>
+      <button onclick="equipDelete('${_esc(it.id)}')" style="width:100%;background:rgba(255,80,60,.08);color:#ff8a80;border:1px solid rgba(255,80,60,.28);border-radius:9px;padding:10px;font-size:12px;font-weight:700;cursor:pointer;">🗑️ 장비 삭제</button>`;
+  }
+  b.innerHTML=html;
+}
+function _equipTimeStr(at){if(!at)return '';const d=new Date(at);const p=n=>String(n).padStart(2,'0');return d.getFullYear()+'.'+p(d.getMonth()+1)+'.'+p(d.getDate())+' '+p(d.getHours())+':'+p(d.getMinutes());}
+// 상세에서 사진 즉시 추가(압축→문서에 저장)
+async function equipDetailAddPhoto(inp){
+  if(!inp.files||!inp.files.length)return;
+  if(!_canEquipManage()){toast('⚠️ 권한 없음');return;}
+  const it=_equipById(_equipSel);if(!it){inp.value='';return;}
+  const files=Array.from(inp.files);inp.value='';
+  if(typeof _busy==='function')_busy('📷 사진 처리 중…');
+  const add=[];
+  for(const f of files){try{const u=await _compressToDataUrl(f,900,260000);if(u)add.push(u);}catch(e){}}
+  it.photos=(it.photos||[]).concat(add);
+  try{await _equipPut(it);if(typeof _busyDone==='function')_busyDone();toast('✅ 사진 '+add.length+'장 추가');_renderEquipDetail();}
+  catch(e){if(typeof _busyDone==='function')_busyDone();it.photos=(it.photos||[]).slice(0,(it.photos||[]).length-add.length);toast('⚠️ '+((e&&e.message)||e),4000);_renderEquipDetail();}
+}
+async function equipLogDel(i){
+  const it=_equipById(_equipSel);if(!it||!it.log||!it.log[i])return;
+  if(!_canEquipManage()){toast('⚠️ 권한 없음');return;}
+  const l=it.log[i];
+  if(!confirm('관리일지 항목을 삭제할까요?\n'+(l.date||'')+' '+(l.status||'')))return;
+  const prevLog=it.log,prevSt=it.curStatus,prevQty=it.curQty; // 저장 실패 시 캐시 되돌리기용(오프라인 등)
+  it.log=it.log.slice(0,i).concat(it.log.slice(i+1));
+  const last=_equipLastLog(it);it.curStatus=last?last.status:'';it.curQty=last?last.qty:'';
+  try{if(typeof _busy==='function')_busy('저장 중…');await _equipPut(it);if(typeof _busyDone==='function')_busyDone();toast('삭제됨');_renderEquipDetail();}
+  catch(e){it.log=prevLog;it.curStatus=prevSt;it.curQty=prevQty;if(typeof _busyDone==='function')_busyDone();toast('⚠️ '+((e&&e.message)||e),4000);_renderEquipDetail();}
+}
+async function equipDelete(id){
+  if(!_canEquipManage()){toast('⚠️ 권한 없음');return;}
+  const it=_equipById(id);if(!it)return;
+  if(!confirm('🗑️ ['+(it.name||it.mgmtNo||'장비')+'] 을(를) 삭제할까요?\n관리일지·사진도 함께 삭제됩니다. (되돌릴 수 없음)'))return;
+  try{if(typeof _busy==='function')_busy('삭제 중…');await _equipRemove(id);if(typeof _busyDone==='function')_busyDone();toast('🗑️ 삭제되었습니다');_equipView='list';_equipSel=null;_equipRender();}
+  catch(e){if(typeof _busyDone==='function')_busyDone();toast('⚠️ 삭제 실패: '+((e&&e.message)||e),4000);}
+}
+
+// ── 장비 추가/정보 수정 폼 ──
+function openEquipForm(id){
+  if(!_canEquipManage()){toast('⚠️ 특수산악구조대·관리자만 가능');return;}
+  _equipSel=id||null;_equipView='form';
+  const ex=id?_equipById(id):null;
+  _equipFormPhotos=ex&&ex.photos?ex.photos.slice():[];
+  _equipRender();
+}
+function _equipFieldRow(label,inner){return `<div style="margin-bottom:10px;"><label style="display:block;font-size:11px;font-weight:700;color:#8b95a1;margin-bottom:4px;">${label}</label>${inner}</div>`;}
+function _renderEquipForm(){
+  const b=document.getElementById('equipBody');if(!b)return;
+  const ex=_equipSel?_equipById(_equipSel):null;
+  _equipSetTitle(ex?'✏️ 장비 수정':'➕ 장비 추가');
+  const inp=(id,v,ph)=>`<input id="${id}" value="${_esc(v||'')}" placeholder="${ph||''}" style="width:100%;background:#131316;color:#eef0f2;border:1px solid rgba(255,255,255,.2);border-radius:8px;padding:9px 10px;font-size:12.5px;">`;
+  const catSel=`<select id="ef_cat" style="width:100%;background:#131316;color:#eef0f2;border:1px solid rgba(255,255,255,.2);border-radius:8px;padding:9px 10px;font-size:12.5px;">${EQUIP_CATS.map(c=>`<option ${ex&&ex.category===c?'selected':''}>${c}</option>`).join('')}</select>`;
+  const statSel=(id,cur)=>`<select id="${id}" style="width:100%;background:#131316;color:#eef0f2;border:1px solid rgba(255,255,255,.2);border-radius:8px;padding:9px 10px;font-size:12.5px;">${EQUIP_STATUS.map(s=>`<option ${cur===s?'selected':''}>${s}</option>`).join('')}</select>`;
+  let html=`<button onclick="equipBack()" style="background:none;border:none;color:#3182f6;font-size:12.5px;font-weight:700;cursor:pointer;padding:0 0 12px;">◀ 취소</button>`;
+  html+=_equipFieldRow('분류',catSel);
+  html+=_equipFieldRow('장비명 <span style="color:#ff7a6e;">*</span>',inp('ef_name',ex&&ex.name,'예: 구조용들것'));
+  html+=_equipFieldRow('관리번호',inp('ef_mgmt',ex&&ex.mgmtNo,'예: 들것-001'));
+  html+=_equipFieldRow('제작사(모델명)',inp('ef_maker',ex&&ex.maker,'예: 페츨 I’D S'));
+  html+=`<div style="display:flex;gap:8px;">${`<div style="flex:1;">`+_equipFieldRow('제조일자',inp('ef_made',ex&&ex.madeAt,'예: 2023'))+`</div>`}${`<div style="flex:1;">`+_equipFieldRow('취득일자',inp('ef_got',ex&&ex.gotAt,'예: 2024. 1.'))+`</div>`}</div>`;
+  html+=`<div style="display:flex;gap:8px;">${`<div style="flex:1;">`+_equipFieldRow('취득금액',inp('ef_price',ex&&ex.price,'예: 78,200'))+`</div>`}${`<div style="flex:1;">`+_equipFieldRow('주요부대품',inp('ef_parts',ex&&ex.parts,'예: 자일주머니 4개'))+`</div>`}</div>`;
+  html+=_equipFieldRow('사진·수량 설명',inp('ef_pnote',ex&&ex.photoNote,'예: 페츨 I’D S 6개'));
+  // 사진
+  html+=`<div style="margin-bottom:12px;"><label style="display:block;font-size:11px;font-weight:700;color:#8b95a1;margin-bottom:6px;">사진</label><div id="equipFormPhotos" style="display:flex;gap:7px;flex-wrap:wrap;"></div></div>`;
+  // 신규만: 최초 관리일지
+  if(!ex){
+    html+=`<div style="border-top:1px solid rgba(255,255,255,.1);margin:6px 0 12px;padding-top:12px;">
+      <div style="font-size:12.5px;font-weight:800;color:#a5abb3;margin-bottom:10px;">📒 최초 관리일지</div>`;
+    html+=`<div style="display:flex;gap:8px;">${`<div style="flex:1;">`+_equipFieldRow('년.월.일',`<input id="ef_ldate" type="date" value="${_equipTodayY()}" style="width:100%;background:#131316;color:#eef0f2;border:1px solid rgba(255,255,255,.2);border-radius:8px;padding:8px 9px;font-size:12px;">`)+`</div>`}${`<div style="flex:0 0 90px;">`+_equipFieldRow('수량',inp('ef_lqty','',''))+`</div>`}</div>`;
+    html+=`<div style="display:flex;gap:8px;">${`<div style="flex:1;">`+_equipFieldRow('이동사유',inp('ef_lreason','','예: 신규 구매'))+`</div>`}${`<div style="flex:1;">`+_equipFieldRow('상태',statSel('ef_lstatus','양호'))+`</div>`}</div>`;
+    html+=`<div style="display:flex;gap:8px;">${`<div style="flex:1;">`+_equipFieldRow('인수자',inp('ef_lrecv',(DB.g('currentUser')||{}).name||'',''))+`</div>`}${`<div style="flex:1;">`+_equipFieldRow('확인자',inp('ef_lconf','손경완',''))+`</div>`}</div>`;
+    html+=_equipFieldRow('비고',inp('ef_lnote','',''));
+    html+=`</div>`;
+  }
+  html+=`<button onclick="submitEquipForm()" style="width:100%;background:linear-gradient(145deg,#1f8f52,#157a44);color:#fff;border:none;border-radius:11px;padding:13px;font-size:14px;font-weight:800;cursor:pointer;margin:4px 0 20px;">💾 ${ex?'수정 저장':'장비 등록'}</button>`;
+  b.innerHTML=html;
+  _equipRenderFormPhotos();
+}
+function _equipTodayY(){try{return _ymd(new Date());}catch(e){const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}}
+function _equipViewFormPhoto(i){if(_equipFormPhotos[i])_facPhotoView(_equipFormPhotos[i]);}
+function _equipRenderFormPhotos(){
+  const el=document.getElementById('equipFormPhotos');if(!el)return;
+  el.innerHTML=_equipFormPhotos.map((u,i)=>`<div style="position:relative;width:74px;height:74px;flex-shrink:0;">
+      <img src="${u}" onclick="_equipViewFormPhoto(${i})" style="width:74px;height:74px;border-radius:9px;object-fit:cover;cursor:pointer;border:1px solid rgba(255,255,255,.12);">
+      <button onclick="equipFormPhotoDel(${i})" style="position:absolute;top:-6px;right:-6px;width:20px;height:20px;border-radius:50%;background:#e2483a;color:#fff;border:2px solid #0f0f11;font-size:12px;line-height:1;cursor:pointer;">×</button>
+    </div>`).join('')+`<label style="width:74px;height:74px;flex-shrink:0;border:1px dashed rgba(255,255,255,.25);border-radius:9px;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#8b95a1;font-size:11px;cursor:pointer;"><span style="font-size:20px;">＋</span>사진<input type="file" accept="image/*" multiple onchange="equipFormPhoto(this)" style="display:none;"></label>`;
+}
+async function equipFormPhoto(inp){
+  if(!inp.files||!inp.files.length)return;
+  const files=Array.from(inp.files);inp.value='';
+  if(typeof _busy==='function')_busy('📷 사진 처리 중…');
+  for(const f of files){try{const u=await _compressToDataUrl(f,900,260000);if(u)_equipFormPhotos.push(u);}catch(e){}}
+  if(typeof _busyDone==='function')_busyDone();
+  _equipRenderFormPhotos();
+}
+function equipFormPhotoDel(i){_equipFormPhotos.splice(i,1);_equipRenderFormPhotos();}
+async function submitEquipForm(){
+  if(!_canEquipManage()){toast('⚠️ 권한 없음');return;}
+  const g=id=>{const e=document.getElementById(id);return e?String(e.value||'').trim():'';};
+  const name=g('ef_name');if(!name){toast('⚠️ 장비명을 입력하세요');return;}
+  const ex=_equipSel?_equipById(_equipSel):null;
+  const item=ex?Object.assign({},ex):{id:'eq_'+Date.now().toString(36)+Math.random().toString(36).slice(2,5),createdAt:Date.now(),by:(DB.g('currentUser')||{}).name||getAuthor(),log:[]};
+  item.category=g('ef_cat')||'기타구조장비';
+  item.name=name;item.mgmtNo=g('ef_mgmt');item.maker=g('ef_maker');
+  item.madeAt=g('ef_made');item.gotAt=g('ef_got');item.price=g('ef_price');
+  item.parts=g('ef_parts');item.photoNote=g('ef_pnote');
+  item.photos=_equipFormPhotos.slice();
+  if(!ex){
+    item.log=[];
+    const ld=g('ef_ldate').replace(/-/g,'.'),lq=g('ef_lqty'),lr=g('ef_lreason'),ls=g('ef_lstatus')||'양호',lrc=g('ef_lrecv'),lcf=g('ef_lconf'),lnt=g('ef_lnote');
+    if(ld||lq||lrc||lnt||lr||(ls&&ls!=='양호'))item.log.push({date:ld,qty:lq,reason:lr,status:ls,receiver:lrc,confirmer:lcf,note:lnt});
+  }
+  const last=_equipLastLog(item);
+  item.curStatus=last?last.status:(item.curStatus||'양호');
+  item.curQty=last?last.qty:(item.curQty||'');
+  try{
+    if(typeof _busy==='function')_busy('💾 저장 중…');
+    await _equipPut(item);
+    if(typeof _busyDone==='function')_busyDone();
+    toast(ex?'✅ 수정되었습니다':'✅ 장비가 등록되었습니다');
+    _equipSel=item.id;_equipView='detail';_equipRender();
+    try{renderHomeActive();}catch(e){}
+  }catch(e){if(typeof _busyDone==='function')_busyDone();toast('⚠️ 저장 실패: '+((e&&e.message)||e),4500);}
+}
+
+// ── 관리일지 추가 폼 ──
+function openEquipLogForm(){
+  if(!_canEquipManage()){toast('⚠️ 권한 없음');return;}
+  if(!_equipById(_equipSel)){toast('⚠️ 장비를 먼저 선택하세요');return;}
+  _equipView='log';_equipRender();
+}
+function _renderEquipLogForm(){
+  const b=document.getElementById('equipBody');if(!b)return;
+  const it=_equipById(_equipSel);if(!it){_equipView='list';return _renderEquipList();}
+  _equipSetTitle('📒 관리일지 추가');
+  const inp=(id,v,ph)=>`<input id="${id}" value="${_esc(v||'')}" placeholder="${ph||''}" style="width:100%;background:#131316;color:#eef0f2;border:1px solid rgba(255,255,255,.2);border-radius:8px;padding:9px 10px;font-size:12.5px;">`;
+  const last=_equipLastLog(it);
+  let html=`<button onclick="equipBack()" style="background:none;border:none;color:#3182f6;font-size:12.5px;font-weight:700;cursor:pointer;padding:0 0 12px;">◀ 취소</button>`;
+  html+=`<div style="font-size:13px;font-weight:800;color:#eef0f2;margin-bottom:2px;">${_esc(it.name||'')}</div><div style="font-size:11px;color:#8b95a1;margin-bottom:14px;">${_esc(it.mgmtNo||'')} · 현재 수량 ${_esc(it.curQty||'-')} · ${_esc(it.curStatus||'-')}</div>`;
+  html+=`<div style="display:flex;gap:8px;">${`<div style="flex:1;">`+_equipFieldRow('년.월.일',`<input id="el_date" type="date" value="${_equipTodayY()}" style="width:100%;background:#131316;color:#eef0f2;border:1px solid rgba(255,255,255,.2);border-radius:8px;padding:8px 9px;font-size:12px;">`)+`</div>`}${`<div style="flex:0 0 90px;">`+_equipFieldRow('수량',inp('el_qty',last?last.qty:'',''))+`</div>`}</div>`;
+  html+=_equipFieldRow('이동사유',inp('el_reason','','예: 개인지급 / 폐기 / 본소장비이동'));
+  // 현재 상태를 기본 선택 — 손대지 않으면 유지(수량·확인자처럼 이월). 미선택 시 첫 항목 '양호'로 잘못 초기화되던 문제 방지.
+  const curSt=(last&&last.status)||it.curStatus||'양호';
+  const statOpts=(EQUIP_STATUS.indexOf(curSt)>=0?EQUIP_STATUS:[curSt].concat(EQUIP_STATUS));
+  html+=_equipFieldRow('상태',`<select id="el_status" style="width:100%;background:#131316;color:#eef0f2;border:1px solid rgba(255,255,255,.2);border-radius:8px;padding:9px 10px;font-size:12.5px;">${statOpts.map(s=>`<option ${curSt===s?'selected':''}>${_esc(s)}</option>`).join('')}</select>`);
+  html+=`<div style="display:flex;gap:8px;">${`<div style="flex:1;">`+_equipFieldRow('인수자',inp('el_recv',(DB.g('currentUser')||{}).name||'',''))+`</div>`}${`<div style="flex:1;">`+_equipFieldRow('확인자',inp('el_conf',(last&&last.confirmer)||'손경완',''))+`</div>`}</div>`;
+  html+=_equipFieldRow('비고',inp('el_note','',''));
+  html+=`<button onclick="submitEquipLog()" style="width:100%;background:linear-gradient(145deg,#1f8f52,#157a44);color:#fff;border:none;border-radius:11px;padding:13px;font-size:14px;font-weight:800;cursor:pointer;margin:6px 0 20px;">➕ 관리일지 추가</button>`;
+  b.innerHTML=html;
+}
+async function submitEquipLog(){
+  if(!_canEquipManage()){toast('⚠️ 권한 없음');return;}
+  const it=_equipById(_equipSel);if(!it)return;
+  const g=id=>{const e=document.getElementById(id);return e?String(e.value||'').trim():'';};
+  const row={date:g('el_date').replace(/-/g,'.'),qty:g('el_qty'),reason:g('el_reason'),status:g('el_status')||'양호',receiver:g('el_recv'),confirmer:g('el_conf'),note:g('el_note')};
+  if(!row.date&&!row.qty&&!row.note){toast('⚠️ 내용을 입력하세요');return;}
+  const prevLog=it.log,prevSt=it.curStatus,prevQty=it.curQty; // 저장 실패 시 캐시 되돌리기용(오프라인 등)
+  it.log=(it.log||[]).concat([row]);
+  it.curStatus=row.status||it.curStatus;it.curQty=row.qty||it.curQty;
+  try{
+    if(typeof _busy==='function')_busy('💾 저장 중…');
+    await _equipPut(it);
+    if(typeof _busyDone==='function')_busyDone();
+    toast('✅ 관리일지가 추가되었습니다');
+    _equipView='detail';_equipRender();
+    try{renderHomeActive();}catch(e){}
+  }catch(e){it.log=prevLog;it.curStatus=prevSt;it.curQty=prevQty;if(typeof _busyDone==='function')_busyDone();toast('⚠️ 저장 실패: '+((e&&e.message)||e),4500);}
+}
+// 홈 메뉴 '구조대 장비 관리' 버튼 노출 제어 — 특수산악구조대·관리자만 (renderHomeActive에서 호출)
+function _updateEquipMenu(){const el=document.getElementById('mbEquip');if(!el)return;el.style.display=_canEquipView()?'':'none';}
 
 // 직원 정렬: 직위 → 과순서 → 이름순
 const RANKS=['소장','과장','분소장','대장','팀장','계장','주임'];
@@ -4064,6 +4502,12 @@ window.onload=function(){
     // 암벽 이용관리 패널(전체화면) → 뒤로가기로 닫기 (다른 홈 메뉴처럼 동작)
     var cPanel=document.getElementById('climbPanel');
     if(cPanel){cPanel.remove();history.pushState({view:'home'},'','');return;}
+    // 구조대 장비 관리 패널 → 하위뷰(상세·폼)면 목록으로, 목록이면 패널 닫기
+    var eqPanel=document.getElementById('equipPanel');
+    if(eqPanel){
+      if(typeof _equipView!=='undefined'&&_equipView&&_equipView!=='list'){_equipView='list';_equipSel=null;try{_equipRender();}catch(e){}history.pushState({view:'home'},'','');return;}
+      eqPanel.remove();history.pushState({view:'home'},'','');return;
+    }
     // 사진 전체보기 닫기
     var lb=document.getElementById('photoLightbox');
     if(lb&&lb.style.display==='flex'){lb.style.display='none';history.pushState({view:'home'},'','');return;}

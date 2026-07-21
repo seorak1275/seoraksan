@@ -301,6 +301,8 @@ try{history.replaceState({view:'home'},'','');history.pushState({view:'home'},''
     <button id="mbAlert" data-home-key="alert" class="mbtn mb-alert ext-hide" onclick="openApp('alert')"><div class="mbtn-ico">🌀</div><div><div class="mbtn-title">특보운영</div><div class="mbtn-desc" id="hdA">기상특보 비상근무</div></div></button>
     <button id="mbStats" data-home-key="stats" class="mbtn mb-purple ext-hide" onclick="openApp('stats')"><div class="mbtn-ico">📊</div><div><div class="mbtn-title">전체 통계</div><div class="mbtn-desc">현황 분석</div></div></button>
     <button id="mbClimb" data-home-key="climb" class="mbtn mb-climb ext-hide" style="grid-column:1/-1;flex-direction:row;align-items:center;gap:11px;min-height:60px;" onclick="openClimb()"><div class="mbtn-ico" style="margin-bottom:0;">🧗</div><div style="flex:1;"><div class="mbtn-title">암벽 이용관리 <span id="climbMenuBadge" style="display:none;font-size:9px;font-weight:800;color:#241a0e;background:#f0c050;border-radius:7px;padding:1px 7px;margin-left:4px;vertical-align:middle;">업로드 필요</span></div><div class="mbtn-desc">당일 명단(지구·코스별) · 통계 · 특보취소</div></div><span style="font-size:16px;color:rgba(255,255,255,.4);">›</span></button>
+    <!-- 구조대 장비 관리: 특수산악구조대·관리자에게만 노출(_updateEquipMenu가 display 제어). 기본 숨김. -->
+    <button id="mbEquip" class="mbtn mb-equip ext-hide" style="display:none;grid-column:1/-1;flex-direction:row;align-items:center;gap:11px;min-height:60px;" onclick="openEquip()"><div class="mbtn-ico" style="margin-bottom:0;">🧰</div><div style="flex:1;"><div class="mbtn-title">구조대 장비 관리</div><div class="mbtn-desc">장비이력카드 · 관리일지(수정내역) · 사진 (특수산악구조대)</div></div><span style="font-size:16px;color:rgba(255,255,255,.4);">›</span></button>
   </div>
 
   <!-- 하단 2칸 소형 메뉴 -->
