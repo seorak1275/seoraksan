@@ -1,1 +1,1 @@
-{"version":"2026.07.21.325","url":"https://seorak1275.github.io/seoraksan/bundle.zip","notes":"구역 검사 도구(관리자) — 내 편집이 새로 만든 '구역 간 겹침'과 '공원 경계 이탈'만 델타 비교로 감지, 원본 겹쳐보기(전/후), 문제 하이라이트·탭 이동"}
+{"version":"2026.07.21.326","url":"https://seorak1275.github.io/seoraksan/bundle.zip","notes":"손드래그 위치조정 편집기 삭제, 🛠 구역관리 패널 추가(KML/GeoJSON 내보내기·원본 되돌리기·검사) — 정밀 편집은 Google Earth/QGIS 외부 편집 방식으로 전환"}

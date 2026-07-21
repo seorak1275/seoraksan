@@ -166,7 +166,6 @@ function _facOverlapGroup(id){
 // 핀 탭 진입점 — 겹친 핀이면: 축소 상태면 먼저 확대해 분리 시도, 최대확대·초근접(25m내)이면 목록 시트. 단독은 바로 상세.
 // (구조지도 _reclusterRescue와 동일 정책 — 확대로 풀리는 겹침은 굳이 목록 안 띄움)
 function _facPinTap(id){
-  if(_zoneEditN)return; // 📐 구역 위치 조정 중 — 시설 핀 탭 무시(상세시트·클러스터 확대가 조정 흐름을 끊지 않게)
   var grp=[];try{grp=_facOverlapGroup(id);}catch(e){grp=[];}
   if(grp.length>=2){
     var curLv=9;try{curLv=mapI.getLevel();}catch(e){}
@@ -349,10 +348,9 @@ function _useZoneUnsel(){
 }
 // 구역·용도 오버레이 화면요소 정리 — 화면 전환·홈 이동 시 범례·카드가 남지 않도록
 function _zoneOverlayCleanup(){
-  try{_zoneEditAbort();}catch(e){} // 편집 패널·드래그 캡처가 화면 전환 후 남지 않도록
   try{_zoneAuditClose();}catch(e){} // 검사 하이라이트·유령·패널도 함께 정리
   const _ab=document.getElementById('zoneAuditBtn');if(_ab)_ab.style.display='none';
-  ['useZoneLegend','useZoneLegendB','useZoneCard','zoneInfoCard','zoneFacOv','zoneEditPanel','zoneAuditPanel'].forEach(id=>{const e=document.getElementById(id);if(e)e.remove();});
+  ['useZoneLegend','useZoneLegendB','useZoneCard','zoneInfoCard','zoneFacOv','zoneAuditPanel','zoneAdminPanel'].forEach(id=>{const e=document.getElementById(id);if(e)e.remove();});
 }
 // ── 🗺 순찰 구역 오버레이(폴리곤) — 직무현황 PDF의 구역을 벡터화·좌표 변환한 49개 면 ──
 // park-zones.json v2: zones[{n,color,rings}] + labels[{n,lat,lng}] + info{n:{r,m}} — 공원경계 정합(오차 ~30m)
@@ -375,7 +373,6 @@ function _toggleZones(){
     .catch(()=>toast('⚠️ 구역 데이터를 불러오지 못했습니다'));
 }
 function _zoneClear(){
-  try{_zoneEditAbort();}catch(e){} // 위치 조정 중이면 편집 상태부터 해제(지도 드래그 복원 등)
   try{_zoneAuditClose();}catch(e){} // 검사 하이라이트·유령·패널 정리
   if(_zoneLayer)_zoneLayer.forEach(o=>{try{o.setMap(null);}catch(e){}});
   _zoneLayer=null;_zonePolys=null;_zoneSel=null;
@@ -446,7 +443,6 @@ function _zoneDraw(){
 }
 // 구역 선택 — 해당 면을 노랗게 깜빡이며 강조하고 정보 카드 표시
 function _zoneSelect(n){
-  if(_zoneEditN){toast('📐 위치 조정 중 — 저장 또는 취소 후 다른 구역을 선택하세요');return;}
   if(_zoneSel&&_zonePolys&&_zonePolys[_zoneSel]){_zoneSelBlinkStop();_zonePolys[_zoneSel].forEach(_zoneStyleReset);}
   _zoneSel=n;
   if(_zonePolys&&_zonePolys[n])_zoneSelBlinkStart(n);
@@ -507,7 +503,6 @@ function _zoneInfo(n){
       <span style="flex:1;font-size:12.5px;font-weight:800;color:${_mine?'#7dffb0':'#a7e3c4'};">${inf&&inf.m?_esc(inf.m):'미지정'}</span></div>
     ${_onBoard?'':`<div style="display:flex;gap:6px;margin-top:8px;">
       <button onclick="_zoneShowFacs('${_escq(n)}')" style="padding:7px 11px;border-radius:8px;border:1px solid rgba(255,215,106,.45);background:rgba(255,215,106,.1);color:#ffd76a;font-size:11px;font-weight:700;cursor:pointer;">🏗 이 구역 시설물 보기</button>
-      ${(typeof isAdminUser==='function'&&isAdminUser())?`<button onclick="_zoneEditStart('${_escq(n)}')" style="padding:7px 11px;border-radius:8px;border:1px solid rgba(49,130,246,.45);background:rgba(49,130,246,.1);color:#7db4ff;font-size:11px;font-weight:700;cursor:pointer;">📐 위치 조정</button>`:''}
     </div>`}`;
   if(_onBoard)c.style.zIndex='99600'; // 상황판(전체화면) 위로
   document.body.appendChild(c);
@@ -686,9 +681,8 @@ function _zoneBlinkStop(){
   if(_zoneFacBlink)_zoneFacBlink.forEach(b=>{try{(b.ov||b).setMap(null);}catch(e){}});
   _zoneFacBlink=null;
 }
-// ── 📐 구역 위치 조정(관리자 전용) — 경계 모양은 그대로 두고 구역 전체를 이동해 오차 보정 ──
-// 보정값은 공유DB(zoneEdits: {구역n:{dlat,dlng}})에 저장 → 재배포 없이 전 직원 지도·상황판·구역판정에 반영
-let _zoneEditN=null,_zoneEditCur=null,_zoneEditStep=5,_zeMode='part',_zeRadius=150,_zeGrab=null,_zeCircle=null;
+// ── 담당구역 보정 데이터 적용(읽기 전용) — 저장된 zoneEdits를 그리기·판정·내보내기에 반영 ──
+// 손드래그 편집기는 제거됨. 정밀 편집=KML 내보내기→GIS. 되돌리기·내보내기는 🛠 구역관리 패널.
 const _ZE_MLAT=111000,_ZE_MLNG=87520; // 설악산 위도(38.17°) 기준 위·경도 1도당 미터
 // 보정 데이터: zoneEdits[n]={dlat,dlng,verts:{"링번호,점번호":[Δlat,Δlng]}} — dlat/dlng=전체 이동, verts=부분 수정(움직인 꼭짓점만)
 function _zoneOff(n){const e=DB.g('zoneEdits')||{};const o=e&&e[n];if(!o)return null;
@@ -699,241 +693,87 @@ function _zeRingPath(ring,ri,adj){
   return ring.map((p,vi)=>{const vd=vs&&vs[ri+','+vi];
     return new kakao.maps.LatLng(p[0]+dla+(vd?vd[0]:0),p[1]+dln+(vd?vd[1]:0));});
 }
-function _zoneEditStart(n){
-  if(!(typeof isAdminUser==='function'&&isAdminUser())){try{_showAdminDenied();}catch(e){}return;}
-  if(_zoneEditN)return;
-  if(!_zonePolys||!_zonePolys[n]||!_zonePolys[n].length){toast('구역 표시를 켠 상태에서만 조정할 수 있습니다');return;}
-  _zoneSelBlinkStop();
-  const off=_zoneOff(n)||{};
-  _zoneEditN=n;_zeMode='part';_zeGrab=null;
-  _zoneEditCur={dlat:off.dlat||0,dlng:off.dlng||0,verts:Object.assign({},off.verts||{})};
-  // 깜빡임 대신 정적 강조 — 조정 중 위치를 또렷하게
-  _zonePolys[n].forEach(pg=>{try{pg.setOptions({strokeColor:'#7db4ff',strokeWeight:3.5,strokeOpacity:1,fillColor:pg._zc,fillOpacity:.4,zIndex:5});}catch(e){}});
-  const c=document.getElementById('zoneInfoCard');if(c)c.remove();
-  const fo=document.getElementById('zoneFacOv');if(fo)fo.remove();_zoneBlinkStop();
-  try{mapI.setDraggable(false);}catch(e){}
-  _zeBindDrag();_zePanel();
-  toast('🖐 경계선을 잡고 끌면 파란 원 안만 따라 움직입니다 · 전체 이동은 패널에서 전환',3800);
-}
-// 지도 픽셀 이동 → 좌표 이동으로 환산해 구역을 끌기 (지도 자체는 잠금)
-function _zeBindDrag(){
-  const host=document.getElementById('mapInspect');if(!host)return;
-  let last=null;
-  const p2c=(x,y)=>{try{const r=host.getBoundingClientRect();
-    return mapI.getProjection().coordsFromContainerPoint(new kakao.maps.Point(x-r.left,y-r.top));}catch(e){return null;}};
-  // 화면 픽셀 → 미터 환산(잡기 판정 반경을 줌 배율에 맞춤)과 두 점 사이 미터 거리
-  const mPerPx=()=>{try{const pr=mapI.getProjection();
-    const a=pr.coordsFromContainerPoint(new kakao.maps.Point(0,0)),b=pr.coordsFromContainerPoint(new kakao.maps.Point(100,0));
-    return Math.abs((b.getLng()-a.getLng())*_ZE_MLNG)/100;}catch(e){return 5;}};
-  const distM=(la1,ln1,la2,ln2)=>{const dy=(la1-la2)*_ZE_MLAT,dx=(ln1-ln2)*_ZE_MLNG;return Math.sqrt(dx*dx+dy*dy);};
-  const dn=(x,y)=>{
-    const ll=p2c(x,y);if(!ll)return;last=ll;
-    if(_zeMode!=='part')return;
-    // 🖐 부분 수정: 터치 지점에서 가장 가까운 경계 꼭짓점을 잡는다(화면 약 35px 이내, 없으면 무시)
-    _zeGrab=null;
-    const th=Math.max(20,mPerPx()*35),cur=_zoneEditCur;let best=null;
-    ((_zonePolys&&_zonePolys[_zoneEditN])||[]).forEach(pg=>{
-      if(!pg._ring)return;
-      pg._ring.forEach((p,vi)=>{
-        const vd=cur.verts[pg._ri+','+vi];
-        const la=p[0]+cur.dlat+(vd?vd[0]:0),ln=p[1]+cur.dlng+(vd?vd[1]:0);
-        const d=distM(ll.getLat(),ll.getLng(),la,ln);
-        if(d<th&&(!best||d<best.d))best={pg,vi,d,la,ln};
-      });
-    });
-    if(!best)return;
-    // 잡은 점 기준, 같은 링에서 영향 반경 내 꼭짓점 가중치(코사인 감쇠 — 잡은 점 1, 반경 끝 0)를 미리 계산
-    const R=_zeRadius,w={},base={};
-    best.pg._ring.forEach((p,vi)=>{
-      const vd=cur.verts[best.pg._ri+','+vi];
-      const la=p[0]+cur.dlat+(vd?vd[0]:0),ln=p[1]+cur.dlng+(vd?vd[1]:0);
-      const d=distM(best.la,best.ln,la,ln);
-      if(d<R){w[vi]=.5+.5*Math.cos(Math.PI*d/R);base[vi]=vd?[vd[0],vd[1]]:[0,0];}
-    });
-    _zeGrab={pg:best.pg,ri:best.pg._ri,w,base,startLa:ll.getLat(),startLn:ll.getLng()};
-    // 영향 반경 표시(파란 원) — 어디까지 따라 움직이는지 한눈에
-    try{_zeCircleHide();_zeCircle=new kakao.maps.Circle({center:new kakao.maps.LatLng(best.la,best.ln),radius:R,
-      strokeWeight:1.5,strokeColor:'#7db4ff',strokeOpacity:.9,fillColor:'#7db4ff',fillOpacity:.1,zIndex:4});
-      _zeCircle.setMap(mapI);}catch(e){}
-  };
-  const mv=(x,y)=>{
-    if(!last||!_zoneEditN)return;
-    const cur=p2c(x,y);if(!cur)return;
-    if(_zeMode==='part'){
-      const g=_zeGrab;if(!g)return;
-      // 잡기 시작점 대비 총 이동량 × 감쇠 가중치 → 꼭짓점별 보정 갱신(누적 오차 없음)
-      const tLa=cur.getLat()-g.startLa,tLn=cur.getLng()-g.startLn,vs=_zoneEditCur.verts;
-      Object.keys(g.w).forEach(vi=>{vs[g.ri+','+vi]=[g.base[vi][0]+tLa*g.w[vi],g.base[vi][1]+tLn*g.w[vi]];});
-      try{g.pg.setPath(_zeRingPath(g.pg._ring,g.ri,_zoneEditCur));}catch(e){}
-      const m=document.getElementById('zeMeters');if(m)m.textContent=_zeMetersStr();
-    }else{
-      _zoneEditCur.dlat+=cur.getLat()-last.getLat();
-      _zoneEditCur.dlng+=cur.getLng()-last.getLng();
-      last=cur;_zoneEditApply();
-    }
-  };
-  const up=()=>{last=null;if(_zeGrab){_zeGrab=null;_zePruneVerts();_zeCircleHide();}};
-  const H={host};
-  H.ts=e=>{if(e.touches.length!==1){last=null;return;}dn(e.touches[0].clientX,e.touches[0].clientY);};
-  H.tm=e=>{if(e.touches.length!==1)return;mv(e.touches[0].clientX,e.touches[0].clientY);e.preventDefault();};
-  H.te=up;H.tc=up;
-  H.md=e=>{dn(e.clientX,e.clientY);e.preventDefault();};
-  // buttons 가드: 손을 뗀 뒤 오는 mousemove(터치 호환 이벤트·창 밖 릴리스)가 stale last로 구역을 점프시키는 것 방지
-  H.mm=e=>{if(!e.buttons){last=null;return;}if(last)mv(e.clientX,e.clientY);};
-  H.mu=up;
-  host.addEventListener('touchstart',H.ts,{passive:true});
-  host.addEventListener('touchmove',H.tm,{passive:false});
-  // touchend/cancel은 document '캡처' 단계 — 시설 핀 등 하위 요소가 stopPropagation해도 드래그 기준점이 반드시 해제되게
-  document.addEventListener('touchend',H.te,true);
-  document.addEventListener('touchcancel',H.tc,true);
-  host.addEventListener('mousedown',H.md,true);
-  document.addEventListener('mousemove',H.mm);
-  document.addEventListener('mouseup',H.mu);
-  window._zeH=H;
-}
-function _zeUnbindDrag(){
-  const H=window._zeH;if(!H)return;window._zeH=null;
-  try{
-    H.host.removeEventListener('touchstart',H.ts);H.host.removeEventListener('touchmove',H.tm);
-    document.removeEventListener('touchend',H.te,true);document.removeEventListener('touchcancel',H.tc,true);
-    H.host.removeEventListener('mousedown',H.md,true);
-    document.removeEventListener('mousemove',H.mm);document.removeEventListener('mouseup',H.mu);
-  }catch(e){}
-}
-function _zeCircleHide(){try{if(_zeCircle)_zeCircle.setMap(null);}catch(e){}_zeCircle=null;}
-function _zePruneVerts(){ // 사실상 0인 꼭짓점 보정 정리 — 저장 용량·불필요 항목 방지
-  const vs=_zoneEditCur&&_zoneEditCur.verts;if(!vs)return;
-  Object.keys(vs).forEach(k=>{const v=vs[k];
-    if(Math.abs(v[0]*_ZE_MLAT)<0.3&&Math.abs(v[1]*_ZE_MLNG)<0.3)delete vs[k];});
-}
-// 현재 보정값을 선택 구역 폴리곤·라벨에 즉시 반영
-function _zoneEditApply(){
-  const n=_zoneEditN;if(!n)return;
-  const d=_zoneEditCur;
-  ((_zonePolys&&_zonePolys[n])||[]).forEach(pg=>{
-    if(!pg._ring)return;
-    try{pg.setPath(_zeRingPath(pg._ring,pg._ri,d));}catch(e){}
-  });
-  (_zoneLayer||[]).forEach(o=>{
-    if(o._lbN!==n&&String(o._lbN)!==String(n))return;
-    try{o.setPosition(new kakao.maps.LatLng(o._lbLat+d.dlat,o._lbLng+d.dlng));}catch(e){}
-  });
-  const m=document.getElementById('zeMeters');if(m)m.textContent=_zeMetersStr();
-}
-function _zeMetersStr(){
-  const d=_zoneEditCur||{dlat:0,dlng:0};
-  const ew=d.dlng*_ZE_MLNG,ns=d.dlat*_ZE_MLAT;
-  const f=(v,pos,neg)=>Math.abs(v)<.5?'0m':((v>0?pos:neg)+Math.abs(v).toFixed(0)+'m');
-  const nv=d.verts?Object.keys(d.verts).length:0;
-  return '↔ '+f(ew,'동 ','서 ')+' · ↕ '+f(ns,'북 ','남 ')+(nv?' · ✏️'+nv+'점':'');
-}
-function _zoneEditNudge(dxM,dyM){ // 미터 단위 미세 이동 (dx=동+, dy=북+)
-  if(!_zoneEditN)return;
-  _zoneEditCur.dlng+=dxM/_ZE_MLNG;
-  _zoneEditCur.dlat+=dyM/_ZE_MLAT;
-  _zoneEditApply();
-}
-function _zoneEditReset(){ // 보정 전부 제거(전체 이동+부분 수정) 미리보기 — 저장을 눌러야 확정
-  if(!_zoneEditN)return;
-  _zoneEditCur={dlat:0,dlng:0,verts:{}};_zeGrab=null;_zeCircleHide();_zoneEditApply();
-  toast('원본 경계로 되돌렸습니다 — 저장을 눌러야 확정됩니다');
-}
-function _zeSetMode(m){_zeMode=m;_zeGrab=null;_zeCircleHide();_zePanel();}
-function _zeSetRadius(r){
-  _zeRadius=r;
-  document.querySelectorAll('#zoneEditPanel .zeRad').forEach(b=>{
-    const on=+b.dataset.r===r;
-    b.style.background=on?'rgba(49,130,246,.85)':'rgba(255,255,255,.08)';
-    b.style.color=on?'#fff':'#a5abb3';
-  });
-}
-function _zeSetStep(s){
-  _zoneEditStep=s;
-  document.querySelectorAll('#zoneEditPanel .zeStep').forEach(b=>{
-    const on=+b.dataset.s===s;
-    b.style.background=on?'rgba(49,130,246,.85)':'rgba(255,255,255,.08)';
-    b.style.color=on?'#fff':'#a5abb3';
-  });
-}
-function _zePanel(){
-  let p=document.getElementById('zoneEditPanel');if(p)p.remove();
-  p=document.createElement('div');p.id='zoneEditPanel';
-  p.style.cssText='position:fixed;left:50%;transform:translateX(-50%);bottom:calc(74px + env(safe-area-inset-bottom));z-index:9500;width:calc(100% - 24px);max-width:440px;box-sizing:border-box;background:#16161a;border:1px solid rgba(49,130,246,.5);border-radius:13px;padding:11px 13px;box-shadow:0 6px 20px rgba(0,0,0,.6);';
-  const chip=on=>`background:${on?'rgba(49,130,246,.85)':'rgba(255,255,255,.08)'};color:${on?'#fff':'#a5abb3'};`;
-  const st=s=>`<button class="zeStep" data-s="${s}" onclick="_zeSetStep(${s})" style="flex:1;padding:6px 0;border-radius:7px;border:1px solid rgba(255,255,255,.2);${chip(s===_zoneEditStep)}font-size:11px;font-weight:800;cursor:pointer;">${s}m</button>`;
-  const rd=r=>`<button class="zeRad" data-r="${r}" onclick="_zeSetRadius(${r})" style="flex:1;padding:6px 0;border-radius:7px;border:1px solid rgba(255,255,255,.2);${chip(r===_zeRadius)}font-size:11px;font-weight:800;cursor:pointer;">${r}m</button>`;
-  const ar=(t,dx,dy)=>`<button onclick="_zoneEditNudge(${dx}*_zoneEditStep,${dy}*_zoneEditStep)" style="width:38px;height:34px;border-radius:8px;border:1px solid rgba(255,255,255,.25);background:rgba(255,255,255,.08);color:#e8ecf1;font-size:14px;cursor:pointer;">${t}</button>`;
-  const part=_zeMode==='part';
-  p.innerHTML=`
-    <div style="display:flex;align-items:center;gap:8px;">
-      <span style="font-size:13px;font-weight:800;color:#7db4ff;">📐 ${_esc(_zoneEditN)}구역 경계 조정</span>
-      <span id="zeMeters" style="flex:1;text-align:right;font-size:11px;color:#9aa4b0;font-weight:700;">${_zeMetersStr()}</span></div>
-    <div style="display:flex;gap:5px;margin-top:8px;">
-      <button onclick="_zeSetMode('part')" style="flex:1;padding:7px 0;border-radius:8px;border:1px solid rgba(255,255,255,.2);${chip(part)}font-size:11.5px;font-weight:800;cursor:pointer;">🖐 부분 수정</button>
-      <button onclick="_zeSetMode('whole')" style="flex:1;padding:7px 0;border-radius:8px;border:1px solid rgba(255,255,255,.2);${chip(!part)}font-size:11.5px;font-weight:800;cursor:pointer;">↔ 전체 이동</button>
-    </div>
-    ${part?`
-    <div style="font-size:10px;color:#6b7684;margin-top:7px;line-height:1.5;">경계선을 잡고 끌면 <b style="color:#9fc3e8;">파란 원 안</b>의 경계만 부드럽게 따라 움직입니다</div>
-    <div style="display:flex;align-items:center;gap:7px;margin-top:8px;">
-      <span style="font-size:10.5px;color:#8b95a1;font-weight:700;flex-shrink:0;">영향 범위</span>
-      <div style="flex:1;display:flex;gap:5px;">${rd(50)}${rd(150)}${rd(400)}</div>
-    </div>`:`
-    <div style="font-size:10px;color:#6b7684;margin-top:7px;line-height:1.5;">지도를 한 손가락으로 끌면 구역이 통째로 움직입니다 · 화살표=미세 이동</div>
-    <div style="display:flex;align-items:center;gap:12px;margin-top:8px;">
-      <div style="display:grid;grid-template-columns:38px 38px 38px;gap:4px;justify-items:center;flex-shrink:0;">
-        <span></span>${ar('▲',0,1)}<span></span>
-        ${ar('◀',-1,0)}${ar('▼',0,-1)}${ar('▶',1,0)}
-      </div>
-      <div style="flex:1;display:flex;flex-direction:column;gap:6px;min-width:0;justify-content:center;">
-        <div style="display:flex;gap:5px;">${st(1)}${st(5)}${st(20)}</div>
-      </div>
-    </div>`}
-    <div style="display:flex;gap:6px;margin-top:10px;">
-      <button onclick="_zoneEditReset()" style="flex:1;padding:10px 0;border-radius:9px;border:1px solid rgba(255,160,80,.4);background:rgba(255,160,80,.08);color:#f0b070;font-size:11px;font-weight:700;cursor:pointer;">↺ 원본</button>
-      <button onclick="_zoneEditEnd(true)" style="flex:1.6;padding:10px 0;border-radius:9px;border:none;background:#1e7a4e;color:#fff;font-size:12px;font-weight:800;cursor:pointer;">💾 저장 — 전 직원 반영</button>
-      <button onclick="_zoneEditEnd(false)" style="flex:1;padding:10px 0;border-radius:9px;border:1px solid rgba(255,255,255,.25);background:rgba(255,255,255,.07);color:#d5d8dc;font-size:12px;font-weight:700;cursor:pointer;">✕ 취소</button>
-    </div>`;
-  document.body.appendChild(p);
-}
-function _zoneEditEnd(save){
-  const n=_zoneEditN;if(!n)return;
-  if(save){
-    _zePruneVerts();
-    const e=Object.assign({},DB.g('zoneEdits')||{});
-    const d=_zoneEditCur;
-    const vs={};Object.keys(d.verts||{}).forEach(k=>{vs[k]=[+d.verts[k][0].toFixed(6),+d.verts[k][1].toFixed(6)];});
-    const noOff=Math.abs(d.dlat*_ZE_MLAT)<0.3&&Math.abs(d.dlng*_ZE_MLNG)<0.3;
-    if(noOff&&!Object.keys(vs).length)delete e[n]; // 전체 이동·부분 수정 모두 없음 = 보정 삭제
-    else{const o={dlat:noOff?0:+d.dlat.toFixed(6),dlng:noOff?0:+d.dlng.toFixed(6)};if(Object.keys(vs).length)o.verts=vs;e[n]=o;}
-    // Firestore 단일문서 1MB 한계 보호 — 초과 시 저장 중단(편집 세션 유지, 원본/일부 되돌린 뒤 재시도 가능)
-    if(JSON.stringify(e).length>900000){toast('⚠️ 보정 데이터가 너무 큽니다 — ↺ 원본으로 일부 구역 보정을 줄인 뒤 다시 저장하세요',4500);return;}
-    DB.s('zoneEdits',e);
-    toast('💾 '+n+'구역 경계 저장 — 모든 직원 지도에 반영됩니다');
-  }
-  _zoneEditAbort(); // 저장·취소 공통 — abort가 저장된 보정 기준으로 좌표까지 복원
-  try{_zoneSelect(n);}catch(e){} // 조정 종료 후 다시 선택 상태(깜빡임+카드)로
-}
-function _zoneEditAbort(){ // 편집 상태 해제 — 저장/취소·화면 전환·레이어 끔 공통
-  if(!_zoneEditN)return;
-  const n=_zoneEditN;
-  // 미저장 드래그 → 저장된 보정(없으면 원본) 기준으로 폴리곤·라벨 복원 — 탭 이동으로 중단돼도 화면·판정 일치
-  try{const off=_zoneOff(n)||{};_zoneEditCur={dlat:off.dlat||0,dlng:off.dlng||0,verts:Object.assign({},off.verts||{})};_zoneEditApply();}catch(e){}
-  _zoneEditN=null;_zoneEditCur=null;_zeGrab=null;_zeCircleHide();
-  _zeUnbindDrag();
-  const p=document.getElementById('zoneEditPanel');if(p)p.remove();
-  try{mapI.setDraggable(true);}catch(e){}
-  try{((_zonePolys&&_zonePolys[n])||[]).forEach(_zoneStyleReset);}catch(e){}
-}
 // zoneEdits 원격 수신 → 켜져 있는 구역 레이어를 제자리 갱신 (app.core.js 문서 리스너가 호출)
 // _zoneDraw() 재호출 대신 setPath/setPosition만 쓰는 이유: 재센터·토스트 부작용 없이 선택·깜빡임 상태 유지
 function _zoneRemoteRefresh(){
-  if(_zoneEditN)return; // 이 기기에서 조정 중이면 보류 — 저장/취소 시 자체 반영
   const shift=o=>{try{ // 점검지도·상황판 공통: 원본 좌표+보정(전체 이동+부분 수정)으로 제자리 이동(재그리기 부작용 없음)
     if(o._ring){o.setPath(_zeRingPath(o._ring,o._ri,_zoneOff(o._zn)));}
     else if(o._lbN!=null){const off=_zoneOff(o._lbN)||{};o.setPosition(new kakao.maps.LatLng(o._lbLat+(off.dlat||0),o._lbLng+(off.dlng||0)));}
   }catch(e){}};
   (_zoneLayer||[]).forEach(shift);
   (_zoneLayerB||[]).forEach(shift);
+}
+// ── 🛠 담당구역 관리(관리자) — KML/GeoJSON 내보내기 · 원본 되돌리기 · 검사 진입 ──
+function _zaDownload(text,fname,mime){
+  try{const blob=new Blob([text],{type:(mime||'text/plain')+';charset=utf-8'});
+    const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=fname;
+    document.body.appendChild(a);a.click();
+    setTimeout(()=>{try{URL.revokeObjectURL(a.href);}catch(e){}a.remove();},2000);
+  }catch(e){toast('⚠️ 내보내기 실패: '+((e&&e.message)||e));}
+}
+// 저장된 보정을 반영한 각 구역의 현재 경계 링들(숫자 [lat,lng]) — 링 번호 규칙은 _zoneDraw와 동일
+function _zoneCurrentRings(z){const out=[];let ri=-1;(z.rings||[]).forEach(ring=>{ri++;if(ring.length<3)return;out.push(_zaAdjRing(z.n,ring,ri));});return out;}
+function _zoneExportKml(){
+  if(!_zoneData){toast('구역 데이터를 불러오는 중입니다');return;}
+  const info=_zoneData.info||{};
+  const X=s=>String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  let pm='';
+  (_zoneData.zones||[]).forEach(z=>{
+    const rings=_zoneCurrentRings(z);if(!rings.length)return;const inf=info[z.n]||{};
+    const polys=rings.map(r=>{const pts=r.slice();const a=pts[0],b=pts[pts.length-1];if(a[0]!==b[0]||a[1]!==b[1])pts.push(a);
+      const coords=pts.map(p=>p[1].toFixed(7)+','+p[0].toFixed(7)+',0').join(' '); // KML=경도,위도,고도 순
+      return '<Polygon><tessellate>1</tessellate><outerBoundaryIs><LinearRing><coordinates>'+coords+'</coordinates></LinearRing></outerBoundaryIs></Polygon>';}).join('');
+    pm+='<Placemark><name>'+X(z.n)+'구역</name><description>'+X('담당: '+(inf.m||'미지정')+' / 범위: '+(inf.r||''))+'</description><styleUrl>#zs</styleUrl>'
+      +(rings.length>1?('<MultiGeometry>'+polys+'</MultiGeometry>'):polys)+'</Placemark>\n';
+  });
+  const kml='<?xml version="1.0" encoding="UTF-8"?>\n<kml xmlns="http://www.opengis.net/kml/2.2"><Document><name>설악산 순찰 담당구역</name>'
+    +'<Style id="zs"><LineStyle><color>ff3ba9ff</color><width>2</width></LineStyle><PolyStyle><color>3300a5ff</color></PolyStyle></Style>\n'+pm+'</Document></kml>';
+  _zaDownload(kml,'설악산_담당구역_'+today()+'.kml','application/vnd.google-earth.kml+xml');
+  toast('📤 KML 저장 — Google Earth Pro·QGIS에서 열어 편집하세요',4000);
+}
+function _zoneExportGeojson(){
+  if(!_zoneData){toast('구역 데이터를 불러오는 중입니다');return;}
+  const info=_zoneData.info||{};const feats=[];
+  (_zoneData.zones||[]).forEach(z=>{
+    const rings=_zoneCurrentRings(z);if(!rings.length)return;const inf=info[z.n]||{};
+    const polys=rings.map(r=>{const c=r.map(p=>[+p[1].toFixed(7),+p[0].toFixed(7)]);const a=c[0],b=c[c.length-1];if(a[0]!==b[0]||a[1]!==b[1])c.push(a);return [c];}); // GeoJSON=경도,위도
+    feats.push({type:'Feature',properties:{zone:z.n,manager:inf.m||'',range:inf.r||''},
+      geometry:polys.length>1?{type:'MultiPolygon',coordinates:polys}:{type:'Polygon',coordinates:polys[0]}});
+  });
+  _zaDownload(JSON.stringify({type:'FeatureCollection',features:feats}),'설악산_담당구역_'+today()+'.geojson','application/geo+json');
+  toast('📄 GeoJSON 저장 완료');
+}
+function _zoneRevertConfirm(){
+  const e=DB.g('zoneEdits')||{};const n=Object.keys(e).length;
+  if(!n){toast('되돌릴 편집이 없습니다 — 이미 원본 상태입니다');return;}
+  if(!confirm('⚠️ 저장된 구역 위치 편집 '+n+'개를 모두 삭제하고 원본 경계로 되돌립니다.\n모든 직원 지도·상황판에 반영되며 되돌릴 수 없습니다.\n\n계속할까요?'))return;
+  try{DB.d('zoneEdits');}catch(e2){}       // 공유DB 문서 삭제 = 전부 원본
+  try{DB.s('zoneEdits',{});}catch(e2){}     // 병합 기준도 비워 다른 기기 동기화 확실히
+  try{_zoneRemoteRefresh();}catch(e2){}     // 이 기기 즉시 원본 표시
+  toast('↩ 원본 경계로 되돌렸습니다 — 전 직원 지도에 반영');
+  const p=document.getElementById('zoneAdminPanel');if(p)p.remove();
+}
+function _zoneAdminPanel(){
+  if(!(typeof isAdminUser==='function'&&isAdminUser())){try{_showAdminDenied();}catch(e){}return;}
+  if(!_zoneData){toast('구역 표시를 먼저 켜 주세요');return;}
+  let p=document.getElementById('zoneAdminPanel');if(p)p.remove();
+  const e=DB.g('zoneEdits')||{};const nEdit=Object.keys(e).length;
+  p=document.createElement('div');p.id='zoneAdminPanel';p._baseTf='translateX(-50%)';
+  p.style.cssText='position:fixed;left:50%;transform:translateX(-50%);bottom:calc(74px + env(safe-area-inset-bottom));z-index:9500;width:calc(100% - 24px);max-width:460px;box-sizing:border-box;background:#16161a;border:1px solid rgba(255,255,255,.18);border-radius:13px;box-shadow:0 6px 20px rgba(0,0,0,.6);';
+  const btn=(cb,bg,bd,cl,t,sub)=>`<button onclick="${cb}" style="width:100%;text-align:left;padding:11px 12px;border-radius:9px;border:1px solid ${bd};background:${bg};color:${cl};font-size:12.5px;font-weight:700;cursor:pointer;margin-top:7px;line-height:1.4;">${t}${sub?`<br><span style="font-weight:500;font-size:10.5px;color:#8b9099;">${sub}</span>`:''}</button>`;
+  p.innerHTML=`
+    <div class="sheetGrab" style="padding:7px 0 2px;cursor:grab;touch-action:none;"><div class="dbhandle"></div></div>
+    <div style="padding:2px 14px 12px;">
+      <div style="display:flex;align-items:center;gap:8px;"><span style="font-size:13px;font-weight:800;color:#e8ecf1;">🛠 담당구역 관리</span>
+        <span style="font-size:10.5px;color:#8b9099;">저장된 편집 ${nEdit}개 구역</span></div>
+      ${btn('_zoneExportKml()','rgba(49,130,246,.12)','rgba(49,130,246,.4)','#7db4ff','📤 KML로 내보내기','Google Earth Pro·QGIS에서 정밀 편집')}
+      ${btn('_zoneExportGeojson()','rgba(255,255,255,.06)','rgba(255,255,255,.18)','#cdd4dc','📄 GeoJSON으로 내보내기','QGIS 권장')}
+      ${btn('_zoneAudit()','rgba(255,255,255,.06)','rgba(255,255,255,.18)','#cdd4dc','🔍 겹침·경계 검사','')}
+      ${btn('_zoneRevertConfirm()','rgba(255,160,80,.1)','rgba(255,160,80,.4)','#f0b070','↩ 전버전(원본)으로 되돌리기',nEdit?(nEdit+'개 편집 전부 삭제'):'현재 편집 없음')}
+      <div style="font-size:10px;color:#5d6570;padding:10px 2px 0;line-height:1.65;">정밀 편집은 <b>KML을 받아 Google Earth Pro나 QGIS</b>에서 꼭짓점을 다듬는 방식을 권장합니다. 편집한 파일을 다시 앱에 반영하는 <b>불러오기</b>는 다음 단계로 준비 중입니다.</div>
+    </div>`;
+  document.body.appendChild(p);
+  try{_bindDragClose(p,()=>{const q=document.getElementById('zoneAdminPanel');if(q)q.remove();});}catch(e){}
 }
 // ── 🔍 구역 검사(관리자) — 편집한 경계의 겹침·공원경계 이탈·변경량을 '실제 저장 데이터'로 점검·시각화 ──
 // (편집 데이터 zoneEdits는 공유DB에만 있어 서버 밖에선 못 봄 → 앱 안에서 라이브로 검사)
@@ -948,6 +788,7 @@ function _zaBoxHit(A,B){return !(A[1]<B[0]||B[1]<A[0]||A[3]<B[2]||B[3]<A[2]);}
 function _zaAdjRing(n,ring,ri){const adj=_zoneOff(n)||{};const dla=adj.dlat||0,dln=adj.dlng||0,vs=adj.verts||null;return ring.map((p,vi)=>{const vd=vs&&vs[ri+','+vi];return [p[0]+dla+(vd?vd[0]:0),p[1]+dln+(vd?vd[1]:0)];});}
 function _zoneAudit(){
   if(!(typeof isAdminUser==='function'&&isAdminUser())){try{_showAdminDenied();}catch(e){}return;}
+  const _ap=document.getElementById('zoneAdminPanel');if(_ap)_ap.remove(); // 관리 패널에서 진입 시 겹치지 않게
   if(!_zoneData){toast('구역 데이터를 불러오는 중입니다');return;}
   if(!_parkBoundary){toast('공원 경계 불러오는 중...');fetch('./park-boundary.json').then(r=>r.json()).then(d=>{_parkBoundary=d;_zoneAudit();}).catch(()=>toast('⚠️ 공원 경계를 불러오지 못했습니다'));return;}
   toast('🔍 구역 검사 중...',1500);
@@ -1037,7 +878,7 @@ function _zoneAuditPanel(R){
       ${sec('⚠️ 편집으로 새로 겹치게 된 구역',ovH)}
       ${sec('🚧 편집으로 공원 경계를 벗어난 구역',outH)}
       ${sec('✏️ 변경한 구역 (전/후 비교는 👻 버튼)',edH)}
-      <div style="font-size:10px;color:#5d6570;padding:9px 4px 0;line-height:1.6;">원래 데이터의 어긋남은 빼고 <b>내 편집이 새로 만든 문제만</b> 표시합니다. 빨강=경계 밖·주황=겹침·회색 점선=원본 위치. 항목 탭=이동 · 고칠 땐 구역 탭→📐.</div>
+      <div style="font-size:10px;color:#5d6570;padding:9px 4px 0;line-height:1.6;">원래 데이터의 어긋남은 빼고 <b>내 편집이 새로 만든 문제만</b> 표시합니다. 빨강=경계 밖·주황=겹침·회색 점선=원본 위치. 항목 탭=이동 · 고칠 땐 🛠 구역관리 → KML 내보내기.</div>
     </div>`;
   document.body.appendChild(p);
   try{_bindDragClose(p,_zoneAuditClose);}catch(e){}
@@ -1963,7 +1804,6 @@ function viewOnMap(lat,lng,rid){
 }
 function openApp(mode){
   try{_applyAppLock();}catch(e){} // 진입 시 잠금 재평가(관리자 로그인·승인 직후 즉시 해제)
-  try{_zoneEditAbort();}catch(e){} // 알림 링크 등으로 화면 전환 시 위치조정 패널·드래그 잠금 잔류 방지(비편집 시 no-op)
   // 지도 생성은 부팅 시 지연됨 → 지도 탭 진입 시 아직 없으면 지금 생성(initMaps는 중복 생성 방지 가드 있음)
   if((mode==='rescue'||mode==='inspect')&&window._KR){try{if(typeof mapI==='undefined'||!mapI||!mapR)initMaps();}catch(e){}}
   if(isExternal()&&['inspect','stats','admin','settings','alert'].includes(mode)){toast('⚠️ 외부기관 계정은 해당 메뉴에 접근할 수 없습니다');return;}
