@@ -1559,6 +1559,7 @@ async function _climbSave(recs){
   dates.forEach(d=>cur.add(d));
   DB.s('climbDates',Array.from(cur).sort());
   _climbSyncAgg(_climbBuildAgg(recs)); // 날짜별 인원 집계 갱신(업로드분만 병합)
+  try{_logAccess&&_logAccess('암벽 이용자 명단',dates.join(',')+' ('+recs.length+'명)','입력');}catch(e){}
   return dates;
 }
 // 업로드 이상치 점검 — 나이 80세↑·고등학생 미만(≤13)·등반경력 60년↑·경력이 나이보다 많음 등
@@ -3865,7 +3866,7 @@ function sosToRescue(id){
 // 앱 자체 업데이트 (OTA · Capgo 자체호스팅) — APK 전용. 웹/PWA는 서비스워커가 자동 갱신.
 // 번들(www)의 새 버전을 ota.json으로 알리면, 설치된 앱이 받아서 그 자리에서 교체(재빌드 불필요).
 // ══════════════════════════════════════════
-const OTA_VER='2026.07.20.323';                         // ← 현재 번들 버전 (릴리스마다 올림 · build-ota.sh가 ota.json에 반영)
+const OTA_VER='2026.07.21.324';                         // ← 현재 번들 버전 (릴리스마다 올림 · build-ota.sh가 ota.json에 반영)
 const OTA_MANIFEST='https://seorak1275.github.io/seoraksan/ota.json';
 // 업데이트 확인 폴백 소스 — 일부 기관망·통신사에서 github.io가 막혀 '확인 실패(네트워크)'가 나는 경우 대비.
 // 순서대로 시도: ① GitHub Pages(원본·즉시 반영) ② jsDelivr CDN(공개저장소 미러·거의 모든 망 통과)

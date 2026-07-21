@@ -3879,9 +3879,12 @@ function _loadAccessLog(){
       const t=r.at?new Date(r.at).toLocaleString('ko-KR',{month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'}):'';
       const who=(r.by||'미상')+(r.dept?'·'+r.dept:'');
       const plat=r.plat==='APP'?'📱':'🌐';
+      const act=r.act||'열람';
+      const actCol=act==='삭제'?'#e0857a':(act==='수정'?'#f0b95f':(act==='입력'?'#8bd4a0':'#7f93a8'));
+      const ip=r.ip?' · '+_esc(r.ip):'';
       return '<div style="font-size:10.5px;padding:4px 0;border-bottom:1px solid rgba(255,255,255,.04);">'
-        +'<span style="color:#a5abb3;font-weight:700;">'+_esc(who)+'</span> <span style="color:#6b7684;">'+plat+' '+t+'</span><br>'
-        +'<span style="color:#7fb0e0;">'+_esc(r.what||'')+'</span>'+(r.detail?' <span style="color:#8b95a1;">· '+_esc(r.detail)+'</span>':'')+'</div>';
+        +'<span style="color:#a5abb3;font-weight:700;">'+_esc(who)+'</span> <span style="color:#6b7684;">'+plat+' '+t+ip+'</span><br>'
+        +'<span style="color:#7fb0e0;">'+_esc(r.what||'')+'</span> <span style="color:'+actCol+';font-weight:700;">['+_esc(act)+']</span>'+(r.detail?' <span style="color:#8b95a1;">· '+_esc(r.detail)+'</span>':'')+'</div>';
     }).join('');
   }).catch(function(){if(el)el.innerHTML='<div style="font-size:11px;color:#e05050;">조회 실패</div>';});
 }
@@ -4075,6 +4078,7 @@ function removeStaff(kakaoId){
   const ll=(DB.g('loginLog')||[]).find(e=>String(e.kakaoId)===kakaoId);
   const nm=(pu&&(pu.realName||pu.name))||(ll&&ll.name)||'이 사용자';
   if(!confirm(nm+'을(를) 탈퇴 처리하시겠습니까?\n· 즉시 로그아웃되고 멤버에서 빠집니다\n· 작성한 데이터는 유지됩니다\n· 다시 로그인하면 신규 승인 대기로 재신청할 수 있습니다(영구 차단 아님)'))return;
+  try{_logAccess&&_logAccess('직원 개인정보',nm+' 탈퇴 처리','삭제');}catch(e){}
   // 탈퇴 대상에게 OS 푸시 통보 — 앱이 꺼져 있어도 수신(안드로이드 APK). 데이터 변경 전에 토큰 조회.
   try{if(typeof _sendFcmPushToKakao==='function')_sendFcmPushToKakao(kakaoId,'설악산 현장관리','⚠️ 관리자에 의해 탈퇴 처리되었습니다.');}catch(e){}
   const del=DB.g('deletedKakaoIds')||[];if(!del.includes(kakaoId)){del.push(kakaoId);DB.s('deletedKakaoIds',del);}

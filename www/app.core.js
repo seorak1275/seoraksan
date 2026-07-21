@@ -39,22 +39,32 @@ function _uploadErr(msg){
     }).catch(function(){});
   }catch(e){}
 }
-// ── 개인정보 접근 감사 로그 — 누가·언제·무엇(개인정보)을 열람했는지 errLogs와 동일 방식(이벤트당 1문서)으로 기록.
-//    개인정보보호법 접근기록 보관용. 폭주 방지: 같은 (열람자+대상+상세)은 5분당 1건만 기록. 관리자 시스템 화면에서 조회.
-var _accSeen={};
-function _logAccess(what,detail){
+// ── 개인정보 접근 감사 로그 — 누가·언제·무엇을·어떤 행위(열람/수정/삭제/입력)로 접근했는지 기록(이벤트당 1문서).
+//    개인정보보호법·공단 개인정보 침해대응 절차서: 접속기록에 접속ID·접속지 IP·접속일시·수행업무 포함, 6개월 이상 보관.
+//    ※ IP는 클라이언트가 직접 못 얻으므로 외부 조회(best-effort). 서버측 정식 IP기록은 인프라 이전(공공전용 클라우드) 시 완성.
+var _accSeen={},_accIP=null;
+function _fetchAccessIP(){
+  if(_accIP!==null)return; _accIP=''; // 세션당 1회만 시도(중복 요청 방지)
+  try{fetch('https://api.ipify.org?format=json',{cache:'no-store'}).then(function(r){return r.json();}).then(function(j){if(j&&j.ip)_accIP=String(j.ip).slice(0,45);}).catch(function(){});}catch(e){}
+}
+function _logAccess(what,detail,act){
   try{
     var db=(typeof _fdb!=='undefined'&&_fdb)?_fdb:null;if(!db)return;
+    _fetchAccessIP();
     var u={};try{u=DB.g('currentUser')||{};}catch(e){}
-    var nowMs=Date.now();
-    var key=String(u.kakaoId||'')+'|'+what+'|'+(detail||'');
-    if(_accSeen[key]&&nowMs-_accSeen[key]<5*60000)return; // 5분 내 동일 열람 중복 제거
-    _accSeen[key]=nowMs;
+    var nowMs=Date.now(); var a=act||'열람';
+    var key=String(u.kakaoId||'')+'|'+what+'|'+(detail||'')+'|'+a;
+    if(a==='열람'){ // 열람만 5분 중복 제거 — 수정·삭제·입력 등 변경행위는 항상 기록(감사 무결성)
+      if(_accSeen[key]&&nowMs-_accSeen[key]<5*60000)return;
+      _accSeen[key]=nowMs;
+    }
     db.collection('accessLog').add({
       what:String(what||'').slice(0,60),
       detail:String(detail||'').slice(0,120),
+      act:a,
       by:(u.realName||u.name||''),dept:(u.dept||''),
       kakaoId:String(u.kakaoId||''),
+      ip:_accIP||'',
       dev:(typeof _MY_DEVICE_ID!=='undefined'?_MY_DEVICE_ID:''),
       plat:(typeof _isNativeApp==='function'&&_isNativeApp())?'APP':'WEB',
       at:nowMs
