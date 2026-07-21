@@ -542,8 +542,10 @@ function _fnDisp(f){ // 화면 표시용
   if(_fnIsSign(f)){var c=_fnCode(f);return{main:'다목적위치표지판 '+(c||String(f.name||'').trim()),sub:_facZoneLbl?(_facZoneLbl(f)||''):''};}
   return{main:String(f.name||f.type||'시설').trim(),sub:(String(f.type||'').split(' ').slice(1).join(' ')||f.type||'')};
 }
+var _FN_DIGIT={'0':'공','1':'일','2':'이','3':'삼','4':'사','5':'오','6':'육','7':'칠','8':'팔','9':'구'};
+function _fnCodeSpeak(code){return String(code||'').split('').map(function(ch){return ch==='-'?'다시':(_FN_DIGIT[ch]||ch);}).join('');} // 03-05 → 공삼다시공오
 function _fnSay(f){ // 음성용 라벨(짧게)
-  if(_fnIsSign(f)){var c=_fnCode(f);return '표지판 '+(c?c.split('-').map(function(s){return String(+s);}).join('에 ')+'번':'');}
+  if(_fnIsSign(f)){var c=_fnCode(f);return '표지판 '+(c?_fnCodeSpeak(c):'');}
   return (String(f.type||'시설').split(/[ /]/)[0]);
 }
 function _fnDistTxt(d){return d>=1000?(d/1000).toFixed(1)+'킬로미터':(Math.round(d/10)*10)+'미터';}
