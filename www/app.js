@@ -2585,7 +2585,7 @@ function _renderEquipChips(){
 // 같은 제품(품명·규격·상태·담당·지역·위치 동일)을 한 줄로 묶고 수량 표시 → 128개도 한 줄. 탭하면 개별 펼침.
 let _eqExpanded={};
 function equipToggleGroup(k){_eqExpanded[k]=!_eqExpanded[k];_renderEquipResults();}
-function _eqGroupKey(it){return [it.name||'',it.cat2||'',it.maker||'',it.cond||'',it.person||'',it.region||'',it.loc||''].join('§');}
+function _eqGroupKey(it){return [it.name||'',it.cat2||'',it.maker||'',it.person||'',it.region||'',it.loc||''].join('§');} // 상태는 묶음 안에서 요약(품명·담당·위치 같으면 한 줄)
 function _renderEquipResults(){
   const el=document.getElementById('equipResults');if(!el)return;
   const list=_eqSortedFiltered();
@@ -2601,22 +2601,30 @@ function _renderEquipResults(){
   const CAP=180;const shown=groups.slice(0,CAP);
   h+=shown.map(g=>{
     const it=g.rep,n=g.items.length;
-    const cc=EQ_COND_COL[it.cond]||'#8b95a1';const cl=EQ_COND_LBL[it.cond]||it.cond||'';
     const exp=n>1&&_eqExpanded[g.key];
+    const badN=g.items.filter(x=>_eqCondBad(x.cond)).length;
+    const conds={};g.items.forEach(x=>{conds[x.cond||'']=(conds[x.cond||'']||0)+1;});
+    const uniform=Object.keys(conds).length===1?Object.keys(conds)[0]:'';
+    // 상태 배지: 단일이면 그 상태, 섞였으면 점검대상 수 강조
+    let condBadge='';
+    if(n===1){const cl=EQ_COND_LBL[it.cond]||it.cond||'';if(cl)condBadge=`<span style="flex-shrink:0;font-size:9px;font-weight:800;color:${EQ_COND_COL[it.cond]||'#8b95a1'};background:${_eqCondBad(it.cond)?'rgba(255,107,91,.14)':'rgba(255,255,255,.07)'};border-radius:5px;padding:1px 5px;">${_esc(it.cond)}·${_esc(cl)}</span>`;}
+    else if(badN>0)condBadge=`<span style="flex-shrink:0;font-size:9px;font-weight:800;color:#ff8a80;background:rgba(255,107,91,.16);border-radius:5px;padding:1px 6px;">⚠️ ${badN} 점검</span>`;
+    else if(uniform==='A')condBadge=`<span style="flex-shrink:0;font-size:9px;font-weight:800;color:#5fcf8f;background:rgba(94,207,143,.12);border-radius:5px;padding:1px 6px;">양호</span>`;
     const thumb=(it.photos&&it.photos.length)?`<img src="${it.photos[0]}" style="width:42px;height:42px;border-radius:8px;object-fit:cover;flex-shrink:0;">`:`<div style="width:42px;height:42px;border-radius:8px;flex-shrink:0;background:rgba(255,255,255,.06);display:flex;align-items:center;justify-content:center;font-size:18px;">${EQ_CAT1_ICON[it.cat1]||'📦'}</div>`;
     const click=n>1?`equipToggleGroup('${_escq(g.key)}')`:`openEquipDetail('${_escq(it.id)}')`;
     const meta2=n>1?_esc(it.cat2||it.cat1||''):`${_esc(it.mgmtNo||'')}${it.serial?' · '+_esc(it.serial):''}`;
     let card=`<div class="scard" onclick="${click}" style="display:flex;align-items:center;gap:9px;margin-bottom:${exp?'2px':'6px'};padding:8px 10px;cursor:pointer;">
       ${thumb}
       <div style="flex:1;min-width:0;">
-        <div style="display:flex;align-items:center;gap:6px;"><span style="font-size:12.5px;font-weight:800;color:#eef0f2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${_esc(it.name||'-')}</span>${n>1?`<span style="flex-shrink:0;font-size:10px;font-weight:800;color:#7fd0ff;background:rgba(127,208,255,.14);border-radius:5px;padding:1px 6px;">×${n}</span>`:''}${cl?`<span style="flex-shrink:0;font-size:9px;font-weight:800;color:${cc};background:${_eqCondBad(it.cond)?'rgba(255,107,91,.14)':'rgba(255,255,255,.07)'};border-radius:5px;padding:1px 5px;">${_esc(it.cond)}·${_esc(cl)}</span>`:''}</div>
+        <div style="display:flex;align-items:center;gap:6px;"><span style="font-size:12.5px;font-weight:800;color:#eef0f2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${_esc(it.name||'-')}</span>${n>1?`<span style="flex-shrink:0;font-size:11px;font-weight:900;color:#7fd0ff;background:rgba(127,208,255,.16);border-radius:5px;padding:1px 7px;">${n}개</span>`:''}${condBadge}</div>
         <div style="font-size:10px;color:#8b95a1;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${meta2}${it.maker?' · '+_esc(it.maker):''}</div>
         <div style="font-size:9.5px;color:#6b7684;margin-top:1px;">${it.person?'👤'+_esc(it.person):''}${it.region?' · '+_esc(EQ_REGION_SHORT[it.region]||it.region):''}${it.loc?' · 📍'+_esc(it.loc):''}</div>
       </div>
-      <span style="font-size:13px;color:rgba(255,255,255,.3);flex-shrink:0;">${n>1?(exp?'▾':'▸'):'›'}</span>
+      <span style="font-size:12px;color:rgba(255,255,255,.35);flex-shrink:0;">${n>1?(exp?'▾닫기':'▸개별'):'›'}</span>
     </div>`;
     if(exp){
-      card+=`<div style="margin:0 0 7px 14px;padding-left:8px;border-left:2px solid rgba(255,255,255,.1);">`+g.items.map(x=>`<div onclick="openEquipDetail('${_escq(x.id)}')" style="display:flex;align-items:center;gap:8px;padding:6px 9px;margin-bottom:3px;border-radius:7px;background:#141619;cursor:pointer;"><span style="flex:1;min-width:0;font-size:11px;color:#c9dcec;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${_esc(x.mgmtNo||x.id)}${x.serial?' · '+_esc(x.serial):''}</span><span style="font-size:11px;color:rgba(255,255,255,.3);">›</span></div>`).join('')+`</div>`;
+      const mem=g.items.slice().sort((a,b)=>String(a.mgmtNo||'').localeCompare(String(b.mgmtNo||''),'ko',{numeric:true}));
+      card+=`<div style="display:flex;flex-wrap:wrap;gap:5px;margin:2px 2px 9px 10px;">`+mem.map((x,i)=>{const bad=_eqCondBad(x.cond);return `<span onclick="openEquipDetail('${_escq(x.id)}')" style="cursor:pointer;font-size:10.5px;background:${bad?'rgba(255,107,91,.14)':'#141619'};border:1px solid ${bad?'rgba(255,107,91,.45)':'rgba(255,255,255,.12)'};border-radius:7px;padding:4px 8px;color:${bad?'#ff9a90':'#c9dcec'};white-space:nowrap;">${_esc(x.mgmtNo||('#'+(i+1)))}${bad?' · '+_esc(x.cond):''}</span>`;}).join('')+`</div>`;
     }
     return card;
   }).join('');
@@ -4683,7 +4691,7 @@ function sosToRescue(id){
 // 앱 자체 업데이트 (OTA · Capgo 자체호스팅) — APK 전용. 웹/PWA는 서비스워커가 자동 갱신.
 // 번들(www)의 새 버전을 ota.json으로 알리면, 설치된 앱이 받아서 그 자리에서 교체(재빌드 불필요).
 // ══════════════════════════════════════════
-const OTA_VER='2026.07.21.332';                         // ← 현재 번들 버전 (릴리스마다 올림 · build-ota.sh가 ota.json에 반영)
+const OTA_VER='2026.07.21.333';                         // ← 현재 번들 버전 (릴리스마다 올림 · build-ota.sh가 ota.json에 반영)
 const OTA_MANIFEST='https://seorak1275.github.io/seoraksan/ota.json';
 // 업데이트 확인 폴백 소스 — 일부 기관망·통신사에서 github.io가 막혀 '확인 실패(네트워크)'가 나는 경우 대비.
 // 순서대로 시도: ① GitHub Pages(원본·즉시 반영) ② jsDelivr CDN(공개저장소 미러·거의 모든 망 통과)
