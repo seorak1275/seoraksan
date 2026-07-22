@@ -1293,6 +1293,7 @@ function renderHomeActive(){
   const badFac=(DB.g('facilities')||[]).filter(f=>f.status==='bad');
   const total=og.length+haz.length+badFac.length;
   try{_updateClimbMenu();}catch(e){}
+  try{_updateEquipMenu();}catch(e){}
   if(!total){
     // 첫 동기화 전(콜드 부팅)엔 '없음'으로 단정하지 않고 스켈레톤 자리표시 — 데이터 도착 시 자동 교체
     if(!window._dbFirstReady){
@@ -2371,6 +2372,914 @@ function openFullTimeline(){
   renderPhaseBar((r.reports||[]).length,(r.reports||[]).length+1);
   renderTimeline(r,'brief');
 }
+
+
+// ══════════════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════════════
+// 🧰 구조대 장비 관리 (특수산악구조대 전용) — 개별 장비대장(외설악 장비관리표 기반)
+//  · 데이터는 하나(개별 장비), 화면은 3관점: 📋 개별목록 / 📦 종류별수량 / 🧑 인원별. 수량은 실시간 집계.
+//  · 관리번호=레이저마킹 고정(불변). 담당(사람)만 재배정(퇴사·인원변경). 전체 점검(실사) 체크리스트 제공.
+//  · 필드: 관리번호·대분류▸중분류·품명·제조사·타입·등급·상태(A/B/C)·인증·EN·MBS·WLL·생산연도·일련번호·지역·담당·비고
+//  · 사진은 압축 데이터URL로 문서에 직접 저장. 저장: Firestore 'equipInv'(건별)+오프라인 캐시. 열람·관리=특구대·관리자.
+// ══════════════════════════════════════════════════════════════
+const EQ_CAT1=['메탈','섬유','기타'];
+const EQ_CAT1_ICON={'메탈':'⛓️','섬유':'🧵','기타':'📦'};
+const EQ_COND_LBL={'A':'양호','B':'주의','C':'교체'};
+const EQ_COND_COL={'A':'#5fcf8f','B':'#f0a44a','C':'#ff6b5b'};
+const EQ_REGIONS=['특수산악구조대','안전관리반','방재창고','대피소'];
+const EQ_REGION_SHORT={'특수산악구조대':'특구대','안전관리반':'안전반','방재창고':'방재창고','대피소':'대피소'};
+const EQ_UNASSIGNED='__none__';
+function _eqCondBad(c){return c==='B'||c==='C';}
+function EQ_BAD_WORD(s){s=String(s||'');return ['불용','폐기','불량','사용불가','손상','교체'].some(k=>s.indexOf(k)>=0);}
+
+function _canEquipView(){try{if(typeof isExternal==='function'&&isExternal())return false;var u=DB.g('currentUser')||{};if(u.dept==='특수산악구조대')return true;if(typeof _isMasterAdmin==='function'&&_isMasterAdmin())return true;if(typeof _isDeveloper==='function'&&_isDeveloper(u.kakaoId))return true;}catch(e){}return false;}
+function _canEquipManage(){return _canEquipView();}
+
+// ── 데이터 계층 ──
+let _eqData=null;
+async function _equipLoadAll(force){
+  if(_eqData&&!force)return _eqData;
+  if(typeof _fdb==='undefined'||!_fdb){window._eqOffline=true;return (_eqData=_equipReadOffline());}
+  try{
+    const snap=await _fdb.collection('equipInv').get();
+    const all=[];snap.forEach(d=>{const v=d.data()||{};v.id=v.id||d.id;if(String(v.name||'').trim()||String(v.mgmtNo||'').trim())all.push(v);}); // 빈 문서(과거 시드 잔재) 숨김
+    _eqData=all;_equipWriteOffline(all);window._eqOffline=false;return all;
+  }catch(e){
+    const off=_equipReadOffline();
+    if(off.length){_eqData=off;window._eqOffline=true;return off;}
+    throw e;
+  }
+}
+function _equipWriteOffline(all){
+  try{localStorage.setItem('_equipInvOffline',JSON.stringify({at:Date.now(),recs:all||[]}));return;}catch(e){}
+  try{const lite=(all||[]).map(x=>{const c=Object.assign({},x);if(c.photos&&c.photos.length)c.photos=[];return c;});localStorage.setItem('_equipInvOffline',JSON.stringify({at:Date.now(),recs:lite,noPhotos:true}));}catch(e2){}
+}
+function _equipReadOffline(){try{const v=JSON.parse(localStorage.getItem('_equipInvOffline')||'null');return (v&&Array.isArray(v.recs))?v.recs:[];}catch(e){return [];}}
+function _equipById(id){return (_eqData||[]).find(x=>String(x.id)===String(id))||null;}
+function _equipLastLog(it){const l=it&&it.log;return (l&&l.length)?l[l.length-1]:null;}
+async function _equipPut(item){
+  if(typeof _fdb==='undefined'||!_fdb)throw new Error('DB 미연결 — 온라인에서 저장하세요');
+  const now=Date.now(),by=(DB.g('currentUser')||{}).name||getAuthor();
+  const toSave=Object.assign({},item,{updatedAt:now,updatedBy:by}); // 실패 시 공유객체 오염 방지 — 성공 후에만 반영
+  const size=(JSON.stringify(toSave)||'').length;
+  if(size>980000)throw new Error('용량 초과('+Math.round(size/1024)+'KB) — 사진 수를 줄여주세요');
+  await _fdb.collection('equipInv').doc(String(item.id)).set(toSave);
+  item.updatedAt=now;item.updatedBy=by; // 저장 성공 후에만 갱신
+  if(!_eqData)_eqData=[];
+  const i=_eqData.findIndex(x=>String(x.id)===String(item.id));
+  if(i>=0)_eqData[i]=item;else _eqData.push(item);
+  _equipWriteOffline(_eqData);
+  return item;
+}
+async function _equipRemove(id){
+  if(typeof _fdb==='undefined'||!_fdb)throw new Error('DB 미연결 — 온라인에서 삭제하세요');
+  await _fdb.collection('equipInv').doc(String(id)).delete();
+  _eqData=(_eqData||[]).filter(x=>String(x.id)!==String(id));
+  _equipWriteOffline(_eqData);
+}
+async function equipSeedImport(){
+  if(!_canEquipManage()){toast('⚠️ 특수산악구조대·관리자만 가능');return;}
+  if(!confirm('📥 외설악 장비관리표(개별 장비)를 불러올까요?\n\n· 관리번호·제원·상태·담당까지 포함\n· 사진은 매칭되는 품목에 자동 첨부\n· 이미 등록된 장비는 건너뜁니다(중복 없음)'))return;
+  if(typeof _busy==='function')_busy('📥 기초자료 불러오는 중…');
+  try{
+    const invR=await fetch('./equip-seed.json',{cache:'no-store'});
+    if(!invR.ok)throw new Error('기초자료 파일을 찾을 수 없습니다');
+    const inv=await invR.json();
+    let photoMap={};try{const pr=await fetch('./equip-seed-photos.json',{cache:'no-store'});if(pr.ok)photoMap=await pr.json();}catch(e){}
+    await _equipLoadAll(true);
+    const have=new Set((_eqData||[]).map(x=>String(x.id)));
+    const by=(DB.g('currentUser')||{}).name||getAuthor();
+    let n=0,batch=_fdb.batch(),ops=0;
+    for(const s of inv){
+      if(have.has(String(s.id)))continue;
+      if(!String(s.name||'').trim()&&!String(s.mgmtNo||'').trim())continue; // 빈 행 방어
+      const item=Object.assign({},s,{photos:(photoMap[s.name]||[]).slice(0,1),log:[],createdAt:Date.now(),by,seed:true});
+      batch.set(_fdb.collection('equipInv').doc(String(s.id)),item);
+      ops++;n++;
+      if(ops>=400){await batch.commit();batch=_fdb.batch();ops=0;if(typeof _busy==='function')_busy('📥 저장 '+n+'건…');}
+    }
+    if(ops>0)await batch.commit();
+    if(typeof _busyDone==='function')_busyDone();
+    toast('✅ '+n+'건 불러왔습니다',4500);
+    _eqData=null;await _equipLoadAll(true);_eqView='list';_equipRender();
+    try{renderHomeActive();}catch(e){}
+  }catch(e){if(typeof _busyDone==='function')_busyDone();toast('⚠️ 불러오기 실패: '+((e&&e.message)||e),4500);}
+}
+
+// ── 화면 ──
+let _eqView='list',_eqSel=null,_eqTab='list',_eqFormPhotos=[],_eqNavIds=[],_eqProdKey=null,_eqNavKeys=[],_eqUnitNav=[],_eqPrefill=null;
+let _eqF={q:'',cat1:'',cat2:'',cond:'',region:'',person:'',maker:'',loc:''};
+function openEquip(){
+  if(!_canEquipView()){toast('⚠️ 특수산악구조대 전용입니다');return;}
+  let ov=document.getElementById('equipPanel');if(ov)ov.remove();
+  ov=document.createElement('div');ov.id='equipPanel';
+  ov.style.cssText='position:absolute;inset:0;z-index:9600;background:#0f0f11;display:flex;flex-direction:column;';
+  ov.innerHTML=`<div style="display:flex;align-items:center;gap:8px;padding:calc(6px + env(safe-area-inset-top)) 10px 8px;border-bottom:1px solid rgba(255,255,255,.15);flex-shrink:0;">
+      <button class="back-btn" onclick="equipBack()">← 뒤로</button>
+      <span id="equipTitle" style="font-size:16px;font-weight:800;color:#eef0f2;">🧰 구조대 장비 관리</span>
+    </div>
+    <div id="equipBody" style="flex:1;overflow-y:auto;padding:12px;"><div style="text-align:center;color:#6b7684;font-size:13px;padding:40px 0;">불러오는 중…</div></div>`;
+  (document.getElementById('app')||document.body).appendChild(ov);
+  _eqView='list';_eqSel=null;_eqTab='list';
+  _equipLoadAll().then(()=>{_equipRender();}).catch(e=>{
+    const b=document.getElementById('equipBody');if(b)b.innerHTML='<div style="text-align:center;color:#ff8a73;padding:40px 0;">불러오기 실패 — 온라인 상태를 확인하세요<br><button onclick="openEquip()" style="margin-top:12px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);color:#ccc;border-radius:8px;padding:8px 16px;cursor:pointer;">다시 시도</button></div>';
+  });
+}
+function equipBack(){
+  if(_eqView==='audit'){return equipAuditExit();}
+  if(_eqView==='form'||_eqView==='log'){if(_eqSel&&_equipById(_eqSel)){_eqView='unit';return _equipRender();}_eqView='list';_eqSel=null;return _equipRender();}
+  if(_eqView==='unit'){_eqView='detail';return _equipRender();}       // 개별 → 제품
+  if(_eqView==='detail'){_eqView='list';_eqSel=null;return _equipRender();} // 제품 → 목록
+  if(_eqView!=='list'){_eqView='list';_eqSel=null;_equipRender();return;}
+  history.back();
+}
+function _equipSetTitle(t){const el=document.getElementById('equipTitle');if(el)el.textContent=t;}
+function _equipRender(){
+  const b=document.getElementById('equipBody');if(!b)return;b.scrollTop=0;
+  if(_eqView==='audit')return _renderEquipAudit();
+  if(_eqView==='detail')return _renderEquipDetail();
+  if(_eqView==='unit')return _renderEquipUnit();
+  if(_eqView==='form')return _renderEquipForm();
+  if(_eqView==='log')return _renderEquipLogForm();
+  return _renderEquipTabs();
+}
+function equipTab(t){_eqTab=t;_eqView='list';_equipRender();}
+function _renderEquipTabs(){
+  const b=document.getElementById('equipBody');if(!b)return;
+  _equipSetTitle('🧰 구조대 장비 관리');
+  const all=_eqData||[];
+  const tb=(lbl,t)=>`<button onclick="equipTab('${t}')" style="flex:1;padding:9px 2px;border:none;border-radius:8px;font-size:11.5px;font-weight:800;cursor:pointer;background:${_eqTab===t?'rgba(255,255,255,.18)':'transparent'};color:${_eqTab===t?'#a5abb3':'#6a8296'};">${lbl}</button>`;
+  let html=`<div style="display:flex;gap:3px;background:#131316;border:1px solid rgba(255,255,255,.15);border-radius:10px;padding:3px;margin-bottom:11px;">${tb('📋 개별','list')}${tb('📦 수량','qty')}${tb('🧑 인원','person')}${tb('🗺️ 위치','zone')}</div>`;
+  if(!all.length){
+    b.innerHTML=html+`<div style="text-align:center;color:#8b95a1;font-size:13px;padding:34px 14px;line-height:1.7;">아직 등록된 장비가 없습니다.
+      ${_canEquipManage()?`<div style="margin-top:16px;"><button onclick="equipSeedImport()" style="background:rgba(94,207,143,.16);color:#5fcf8f;border:1px solid rgba(94,207,143,.4);border-radius:11px;padding:13px 18px;font-size:13.5px;font-weight:800;cursor:pointer;">📥 외설악 장비관리표 불러오기</button>
+      <div style="font-size:11px;color:#6b7684;margin-top:8px;">개별 장비를 등록합니다 · 매칭 품목은 사진 자동 첨부</div></div>`:'<div style="font-size:11.5px;color:#6b7684;margin-top:8px;">등록 권한이 있는 대원이 자료를 불러오면 표시됩니다.</div>'}
+    </div>`;
+    return;
+  }
+  html+=`<div id="equipInner"></div>`;
+  b.innerHTML=html;
+  if(_eqTab==='qty')return _renderEquipQty(all);
+  if(_eqTab==='zone')return _renderEquipZones(all);
+  if(_eqTab==='person')return _renderEquipPerson(all);
+  return _renderEquipList(all);
+}
+
+// ── 필터 ──
+function _eqFilter(all){
+  const q=(_eqF.q||'').trim().toLowerCase();
+  return all.filter(it=>{
+    if(_eqF.cat1&&it.cat1!==_eqF.cat1)return false;
+    if(_eqF.cat2&&it.cat2!==_eqF.cat2)return false;
+    if(_eqF.cond){if(_eqF.cond==='BC'){if(!_eqCondBad(it.cond))return false;}else if(it.cond!==_eqF.cond)return false;}
+    if(_eqF.region&&it.region!==_eqF.region)return false;
+    if(_eqF.person){if(_eqF.person===EQ_UNASSIGNED){if(it.person)return false;}else if(it.person!==_eqF.person)return false;}
+    if(_eqF.maker&&it.maker!==_eqF.maker)return false;
+    if(_eqF.loc){if(String(it.loc||'').trim()!==_eqF.loc)return false;}
+    if(q){const s=((it.name||'')+' '+(it.mgmtNo||'')+' '+(it.maker||'')+' '+(it.serial||'')+' '+(it.cat2||'')+' '+(it.person||'')).toLowerCase();if(s.indexOf(q)<0)return false;}
+    return true;
+  });
+}
+function _eqSortedFiltered(){
+  const list=_eqFilter(_eqData||[]);
+  list.sort((a,b)=>{const c1=EQ_CAT1.indexOf(a.cat1)-EQ_CAT1.indexOf(b.cat1);if(c1)return c1;const c2=String(a.cat2||'').localeCompare(String(b.cat2||''),'ko');if(c2)return c2;return String(a.mgmtNo||'').localeCompare(String(b.mgmtNo||''),'ko',{numeric:true});});
+  return list;
+}
+function _eqActiveCount(){let n=0;['cat1','cat2','cond','region','person','maker','loc'].forEach(k=>{if(_eqF[k])n++;});if((_eqF.q||'').trim())n++;return n;}
+// 검색: 검색 input은 재렌더 대상 밖(#equipInner의 고정 input)이라 파괴 안 됨 → 결과만 갱신(포커스 유지)
+function equipSearch(v){_eqF.q=v||'';_renderEquipResults();}
+function equipSetF(k,v){_eqF[k]=(_eqF[k]===v)?'':v;if(k==='cat1')_eqF.cat2='';_renderEquipChips();_renderEquipResults();}
+function equipSelF(k,v){_eqF[k]=v||'';_renderEquipChips();_renderEquipResults();}
+function equipResetF(){_eqF={q:'',cat1:'',cat2:'',cond:'',region:'',person:'',maker:'',loc:''};const si=document.getElementById('eqSearchInput');if(si)si.value='';_renderEquipChips();_renderEquipResults();}
+function equipGotoList(f){_eqF={q:'',cat1:'',cat2:'',cond:'',region:'',person:'',maker:'',loc:''};if(f)Object.assign(_eqF,f);_eqTab='list';_eqView='list';_equipRender();}
+
+// ── 📋 개별 목록: 툴바+검색(고정) + 칩(#equipChips) + 결과(#equipResults) ──
+function _renderEquipList(all){
+  const inner=document.getElementById('equipInner');if(!inner)return;
+  let h=`<div style="display:flex;gap:6px;margin-bottom:9px;">
+    <button onclick="equipAuditStart()" style="flex:1;background:rgba(94,207,143,.12);color:#7fe0a8;border:1px solid rgba(94,207,143,.3);border-radius:9px;padding:9px;font-size:12px;font-weight:800;cursor:pointer;">✅ 전체 점검(실사)</button>
+    <button onclick="equipExportMenu()" style="flex:1;background:rgba(49,130,246,.12);color:#8bb4f0;border:1px solid rgba(49,130,246,.3);border-radius:9px;padding:9px;font-size:12px;font-weight:800;cursor:pointer;">📥 내보내기</button>
+  </div>`;
+  h+=`<input id="eqSearchInput" value="${_esc(_eqF.q)}" oninput="equipSearch(this.value)" placeholder="🔍 품명·관리번호·제조사·일련번호·담당" style="width:100%;background:#131316;color:#d5d8dc;border:1px solid rgba(255,255,255,.2);border-radius:9px;padding:9px 11px;font-size:12.5px;margin-bottom:8px;">`;
+  h+=`<div id="equipChips"></div><div id="equipResults"></div>`;
+  inner.innerHTML=h;
+  _renderEquipChips();_renderEquipResults();
+}
+function _renderEquipChips(){
+  const el=document.getElementById('equipChips');if(!el)return;
+  const all=_eqData||[];
+  const chip=(lbl,k,v,col)=>`<span onclick="equipSetF('${_escq(k)}','${_escq(v)}')" style="display:inline-block;padding:5px 11px;margin:0 4px 5px 0;border-radius:14px;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap;border:1px solid ${_eqF[k]===v?(col||'#a5abb3'):'rgba(255,255,255,.2)'};background:${_eqF[k]===v?(col?col+'22':'rgba(255,255,255,.18)'):'#131316'};color:${_eqF[k]===v?(col||'#aed8ee'):'#949aa2'};">${_esc(lbl)}</span>`;
+  const cnt1={};all.forEach(it=>{cnt1[it.cat1]=(cnt1[it.cat1]||0)+1;});
+  let h=`<div style="display:flex;flex-wrap:wrap;">`+chip('전체 '+all.length,'cat1','')+EQ_CAT1.filter(c=>cnt1[c]).map(c=>chip((EQ_CAT1_ICON[c]||'')+c+' '+cnt1[c],'cat1',c)).join('')+`</div>`;
+  if(_eqF.cat1){
+    const c2={};all.filter(it=>it.cat1===_eqF.cat1).forEach(it=>{if(it.cat2)c2[it.cat2]=(c2[it.cat2]||0)+1;});
+    const keys=Object.keys(c2).sort((a,b)=>c2[b]-c2[a]);
+    if(keys.length>1)h+=`<div style="display:flex;flex-wrap:wrap;margin-top:2px;">`+chip('중분류 전체','cat2','')+keys.map(c=>chip(c+' '+c2[c],'cat2',c)).join('')+`</div>`;
+  }
+  const bc=all.filter(it=>_eqCondBad(it.cond)).length;
+  h+=`<div style="display:flex;flex-wrap:wrap;margin-top:2px;">`+chip('상태 전체','cond','')+chip('A 양호','cond','A','#5fcf8f')+chip('주의·교체 '+bc,'cond','BC','#ff7a6e')+`</div>`;
+  const persons=Array.from(new Set(all.map(it=>it.person).filter(Boolean))).sort((a,b)=>a.localeCompare(b,'ko'));
+  const makers=Array.from(new Set(all.map(it=>it.maker).filter(Boolean))).sort((a,b)=>a.localeCompare(b,'ko'));
+  const regions=EQ_REGIONS.filter(r=>all.some(it=>it.region===r));
+  const sel=(k,label,opts)=>`<select onchange="equipSelF('${k}',this.value)" style="flex:1;min-width:0;background:${_eqF[k]?'rgba(94,207,143,.12)':'#131316'};color:${_eqF[k]?'#8fe0b0':'#9aa4ad'};border:1px solid rgba(255,255,255,.2);border-radius:8px;padding:7px 6px;font-size:11px;"><option value="">${label}</option>${opts.map(o=>`<option value="${_esc(o)}" ${_eqF[k]===o?'selected':''}>${_esc(o)}</option>`).join('')}</select>`;
+  h+=`<div style="display:flex;gap:5px;margin-top:2px;">${sel('region','전지역',regions)}${sel('person','담당전체',persons)}${sel('maker','제조사',makers)}</div>`;
+  if(_eqF.loc)h+=`<div style="margin-top:6px;"><span onclick="equipSelF(\'loc\',\'\')" style="display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:700;cursor:pointer;background:rgba(240,184,64,.14);border:1px solid rgba(240,184,64,.4);color:#f0b840;border-radius:14px;padding:4px 11px;">📍 위치 ${_esc(_eqF.loc)} ✕</span></div>`;
+  el.innerHTML=h;
+}
+// 같은 제품(품명·규격·상태·담당·지역·위치 동일)을 한 줄로 묶고 수량 표시 → 128개도 한 줄. 탭하면 개별 펼침.
+let _eqExpanded={};
+function equipToggleGroup(k){_eqExpanded[k]=!_eqExpanded[k];_renderEquipResults();}
+function _eqGroupKey(it){return [it.name||'',it.cat2||'',it.maker||''].join('§');} // 같은 제품(품명·종류·제조사)이면 한 줄 — 보유자는 펼침 안에서 소제목으로 구분
+// 보유자(누가 가지고 있나): 개인이면 이름, 아니면 보관장소
+function _eqHolder(it){
+  const p=(it.person||'').trim();
+  if(p&&p!=='공용'&&p!=='창고')return{k:'p§'+p,label:p,icon:'👤',person:true};
+  const rg=it.region||'';
+  if(rg==='방재창고')return{k:'s§방재',label:'방재창고(본소)',icon:'🏢',person:false};
+  if(rg==='안전관리반')return{k:'s§안전',label:'안전관리반',icon:'🏛️',person:false};
+  if(rg==='대피소')return{k:'s§대피',label:'대피소',icon:'⛺',person:false};
+  return{k:'s§특구',label:'특구대 장비창고',icon:'📦',person:false};
+}
+function _renderEquipResults(){
+  const el=document.getElementById('equipResults');if(!el)return;
+  const list=_eqSortedFiltered();
+  const act=_eqActiveCount();
+  const canM=_canEquipManage();
+  let h=`<div style="display:flex;align-items:center;justify-content:space-between;margin:9px 0 8px;font-size:11px;color:#8b95a1;"><span>결과 <b style="color:#c9dcec;">${list.length}</b>건${canM?` · <span onclick="openEquipForm()" style="color:#5fcf8f;font-weight:700;cursor:pointer;">＋추가</span>${(typeof equipLocAssignStart==='function'&&list.length)?` · <span onclick="equipLocAssignStart()" style="color:#f0b840;font-weight:700;cursor:pointer;">📍위치지정</span>`:''}`:''}</span>${act?`<span onclick="equipResetF()" style="color:#7fb0f0;cursor:pointer;">✕ 초기화(${act})</span>`:''}</div>`;
+  if(window._eqOffline||!navigator.onLine)h=`<div style="display:flex;align-items:center;gap:7px;background:rgba(240,165,0,.09);border:1px solid rgba(240,165,0,.3);border-radius:9px;padding:7px 10px;margin:8px 0;"><span>📴</span><span style="font-size:11px;color:#f0c050;">오프라인 — 기기 저장본(수정은 온라인)</span></div>`+h;
+  if(!list.length){el.innerHTML=h+`<div style="text-align:center;color:#6b7684;font-size:12.5px;padding:22px 0;">해당 장비가 없습니다.</div>`;return;}
+  // 묶기
+  const groups=[],gm={};
+  list.forEach(it=>{const k=_eqGroupKey(it);let g=gm[k];if(!g){g=gm[k]={key:k,rep:it,items:[]};groups.push(g);}g.items.push(it);});
+  h+=`<div style="font-size:10px;color:#6b7684;margin-bottom:6px;">${groups.length}종 · ${list.length}점${groups.length<list.length?' (같은 제품 묶음 — 탭하면 개별)':''}</div>`;
+  const CAP=180;const shown=groups.slice(0,CAP);
+  h+=shown.map(g=>{
+    const it=g.rep,n=g.items.length;
+    const exp=n>1&&_eqExpanded[g.key];
+    const badN=g.items.filter(x=>_eqCondBad(x.cond)).length;
+    const conds={};g.items.forEach(x=>{conds[x.cond||'']=(conds[x.cond||'']||0)+1;});
+    const uniform=Object.keys(conds).length===1?Object.keys(conds)[0]:'';
+    // 상태 배지: 단일이면 그 상태, 섞였으면 점검대상 수 강조
+    let condBadge='';
+    if(n===1){const cl=EQ_COND_LBL[it.cond]||it.cond||'';if(cl)condBadge=`<span style="flex-shrink:0;font-size:9px;font-weight:800;color:${EQ_COND_COL[it.cond]||'#8b95a1'};background:${_eqCondBad(it.cond)?'rgba(255,107,91,.14)':'rgba(255,255,255,.07)'};border-radius:5px;padding:1px 5px;">${_esc(it.cond)}·${_esc(cl)}</span>`;}
+    else if(badN>0)condBadge=`<span style="flex-shrink:0;font-size:9px;font-weight:800;color:#ff8a80;background:rgba(255,107,91,.16);border-radius:5px;padding:1px 6px;">⚠️ ${badN} 점검</span>`;
+    else if(uniform==='A')condBadge=`<span style="flex-shrink:0;font-size:9px;font-weight:800;color:#5fcf8f;background:rgba(94,207,143,.12);border-radius:5px;padding:1px 6px;">양호</span>`;
+    const thumb=(it.photos&&it.photos.length)?`<img src="${it.photos[0]}" style="width:42px;height:42px;border-radius:8px;object-fit:cover;flex-shrink:0;">`:`<div style="width:42px;height:42px;border-radius:8px;flex-shrink:0;background:rgba(255,255,255,.06);display:flex;align-items:center;justify-content:center;font-size:18px;">${EQ_CAT1_ICON[it.cat1]||'📦'}</div>`;
+    const meta2=n>1?_esc(it.cat2||it.cat1||''):`${_esc(it.mgmtNo||'')}${it.serial?' · '+_esc(it.serial):''}`;
+    // 어느 행이든 탭 → 제품 페이지(실사사진·공통제원·보유명단)
+    return `<div class="scard" onclick="openEquipDetail('${_escq(it.id)}')" style="display:flex;align-items:center;gap:9px;margin-bottom:6px;padding:8px 10px;cursor:pointer;">
+      ${thumb}
+      <div style="flex:1;min-width:0;">
+        <div style="display:flex;align-items:center;gap:6px;"><span style="font-size:12.5px;font-weight:800;color:#eef0f2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${_esc(it.name||'-')}</span>${n>1?`<span style="flex-shrink:0;font-size:11px;font-weight:900;color:#7fd0ff;background:rgba(127,208,255,.16);border-radius:5px;padding:1px 7px;">${n}점</span>`:''}${condBadge}</div>
+        <div style="font-size:10px;color:#8b95a1;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${meta2}${it.maker?' · '+_esc(it.maker):''}</div>
+        <div style="font-size:9.5px;color:#6b7684;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${n>1?(()=>{const hc={};g.items.forEach(x=>{const hd=_eqHolder(x);hc[hd.label]=(hc[hd.label]||0)+1;});const ks=Object.keys(hc);return ks.slice(0,4).map(k=>_esc(k)+' '+hc[k]).join(' · ')+(ks.length>4?' …':'');})():`${it.person?'👤'+_esc(it.person):''}${it.region?' · '+_esc(EQ_REGION_SHORT[it.region]||it.region):''}${it.loc?' · 📍'+_esc(it.loc):''}`}</div>
+      </div>
+      <span style="font-size:12px;color:rgba(255,255,255,.35);flex-shrink:0;">›</span>
+    </div>`;
+  }).join('');
+  if(groups.length>CAP)h+=`<div style="text-align:center;color:#8b95a1;font-size:11px;padding:8px 0 4px;">상위 ${CAP}묶음 표시 · ${groups.length-CAP}묶음 더 — 검색·필터로 좁혀보세요</div>`;
+  el.innerHTML=h;
+}
+
+// ── 📦 종류별 수량 ──
+function _renderEquipQty(all){
+  const inner=document.getElementById('equipInner');if(!inner)return;
+  const bc=all.filter(it=>_eqCondBad(it.cond));
+  const box=(v,l,c)=>`<div style="flex:1;background:#12151b;border:1px solid rgba(255,255,255,.08);border-radius:11px;padding:11px 6px;text-align:center;"><div style="font-size:20px;font-weight:800;color:${c||'#eef0f2'};">${v}</div><div style="font-size:10px;color:#8b95a1;margin-top:3px;">${l}</div></div>`;
+  let h=`<div style="display:flex;gap:7px;margin-bottom:12px;">${box(all.length,'총 장비','#7fd0ff')}${box(bc.length,'점검·교체',bc.length?'#ff7a6e':'#5fcf8f')}${box(new Set(all.map(it=>it.name).filter(Boolean)).size,'품목수')}</div>`;
+  const reg={};all.forEach(it=>{reg[it.region||'-']=(reg[it.region||'-']||0)+1;});
+  h+=`<div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:12px;">`+EQ_REGIONS.filter(r=>reg[r]).map(r=>`<span onclick="equipGotoList({region:'${_escq(r)}'})" style="cursor:pointer;font-size:11px;background:#12151b;border:1px solid rgba(255,255,255,.1);border-radius:9px;padding:5px 10px;color:#c9dcec;">${_esc(EQ_REGION_SHORT[r]||r)} <b>${reg[r]}</b></span>`).join('')+`</div>`;
+  if(bc.length)h+=`<div onclick="equipGotoList({cond:'BC'})" style="cursor:pointer;background:rgba(255,107,91,.1);border:1px solid rgba(255,107,91,.3);border-radius:10px;padding:9px 12px;margin-bottom:12px;font-size:12px;color:#ff9a90;font-weight:700;">⚠️ 점검·교체 대상 ${bc.length}건 보기 ›</div>`;
+  const cat1s=EQ_CAT1.filter(c=>all.some(it=>it.cat1===c));
+  cat1s.forEach(c1=>{
+    const items1=all.filter(it=>it.cat1===c1);
+    const c2map={};items1.forEach(it=>{(c2map[it.cat2||'-']=c2map[it.cat2||'-']||[]).push(it);});
+    h+=`<div style="font-size:13px;font-weight:800;color:#a5abb3;margin:14px 0 8px;">${EQ_CAT1_ICON[c1]||''} ${_esc(c1)} <span style="font-size:11px;color:#6b7684;font-weight:600;">${items1.length}</span></div>`;
+    Object.keys(c2map).sort((a,b)=>c2map[b].length-c2map[a].length).forEach(c2=>{
+      const arr=c2map[c2];
+      const names={};arr.forEach(it=>{(names[it.name||'-']=names[it.name||'-']||[]).push(it);});
+      h+=`<div style="margin-bottom:8px;"><div onclick="equipGotoList({cat1:'${_escq(c1)}',cat2:'${_escq(c2)}'})" style="cursor:pointer;display:flex;align-items:center;gap:6px;margin-bottom:5px;"><span style="font-size:12px;font-weight:800;color:#cdd6df;">${_esc(c2)}</span><span style="font-size:10px;color:#6b7684;">${arr.length}개 · ${Object.keys(names).length}품목</span><span style="flex:1;height:1px;background:rgba(255,255,255,.08);"></span><span style="font-size:11px;color:#7fb0f0;">›</span></div>`;
+      Object.keys(names).sort((a,b)=>names[b].length-names[a].length).forEach(nm=>{
+        const g=names[nm];const bcn=g.filter(x=>_eqCondBad(x.cond)).length;
+        const loc={};g.forEach(x=>{const key=x.person==='공용'||x.person==='창고'?x.person:(EQ_REGION_SHORT[x.region]||x.region||'-');loc[key]=(loc[key]||0)+1;});
+        const locStr=Object.keys(loc).map(k=>`${_esc(k)} ${loc[k]}`).join(' · ');
+        h+=`<div class="scard" onclick="equipGotoList({q:'${_escq(nm)}'})" style="display:flex;align-items:center;gap:8px;margin-bottom:4px;padding:7px 10px;cursor:pointer;">
+          <span style="flex:1;min-width:0;"><span style="font-size:12px;font-weight:700;color:#eef0f2;">${_esc(nm)}</span>${bcn?` <span style="font-size:9px;color:#ff7a6e;font-weight:800;">⚠️${bcn}</span>`:''}<div style="font-size:9.5px;color:#8b95a1;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${locStr}</div></span>
+          <span style="flex-shrink:0;font-size:14px;font-weight:800;color:#7fd0ff;">${g.length}</span>
+        </div>`;
+      });
+    });
+  });
+  h+=`<div style="font-size:9.5px;color:#565f6b;text-align:center;padding:12px 0 6px;">품목을 눌러 해당 개별 장비로 이동</div>`;
+  inner.innerHTML=h;
+}
+
+// ── 🧑 인원별 (재배정 포함) ──
+function _renderEquipPerson(all){
+  const inner=document.getElementById('equipInner');if(!inner)return;
+  const byp={};all.forEach(it=>{const k=it.person||'(미지정)';(byp[k]=byp[k]||[]).push(it);});
+  const order=(p)=>p==='공용'?0:p==='창고'?1:p==='(미지정)'?9:5;
+  const keys=Object.keys(byp).sort((a,b)=>{const o=order(a)-order(b);if(o)return o;return a.localeCompare(b,'ko');});
+  const canM=_canEquipManage();
+  let h=`<div style="font-size:11px;color:#8b95a1;margin-bottom:10px;">담당별 보유 — 이름을 누르면 그 사람 장비만 봅니다${canM?' · 🔄 재배정(퇴사·인원변경)':''}</div>`;
+  keys.forEach(p=>{
+    const g=byp[p];const bcn=g.filter(x=>_eqCondBad(x.cond)).length;
+    const isPerson=p!=='공용'&&p!=='창고'&&p!=='(미지정)';
+    const gotoArg=p==='(미지정)'?EQ_UNASSIGNED:p;
+    const c2={};g.forEach(x=>{c2[x.cat2||'-']=(c2[x.cat2||'-']||0)+1;});
+    const c2str=Object.keys(c2).sort((a,b)=>c2[b]-c2[a]).slice(0,5).map(k=>`${_esc(k)} ${c2[k]}`).join(' · ');
+    h+=`<div class="scard" style="margin-bottom:6px;padding:10px 12px;">
+      <div style="display:flex;align-items:center;gap:7px;">
+        <span onclick="equipGotoList({person:'${_escq(gotoArg)}'})" style="flex:1;display:flex;align-items:center;gap:7px;cursor:pointer;min-width:0;">
+          <span style="font-size:15px;">${p==='공용'?'🤝':p==='창고'?'🏬':isPerson?'👤':'❓'}</span>
+          <span style="flex:1;font-size:13px;font-weight:800;color:#eef0f2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${_esc(p)}</span>
+        </span>
+        ${bcn?`<span style="font-size:9.5px;color:#ff7a6e;font-weight:800;background:rgba(255,107,91,.12);border-radius:5px;padding:1px 6px;">점검 ${bcn}</span>`:''}
+        <span style="font-size:15px;font-weight:800;color:#7fd0ff;">${g.length}</span>
+        ${(canM&&isPerson)?`<button onclick="event.stopPropagation();equipReassignStart('${_escq(p)}')" style="flex-shrink:0;background:rgba(240,165,0,.12);color:#f0b840;border:1px solid rgba(240,165,0,.3);border-radius:7px;padding:4px 8px;font-size:10.5px;font-weight:800;cursor:pointer;">🔄</button>`:''}
+      </div>
+      <div onclick="equipGotoList({person:'${_escq(gotoArg)}'})" style="font-size:9.5px;color:#8b95a1;margin-top:4px;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${c2str}</div>
+    </div>`;
+  });
+  inner.innerHTML=h;
+}
+
+// ── 상세 (이전/다음 이동 포함) ──
+// 제품(품명·종류·제조사) 단위 = 여러 개별의 묶음. 상세=제품, 그 아래 개별로 이동.
+function _eqProductUnits(key){return (_eqData||[]).filter(x=>_eqGroupKey(x)===key).sort((a,b)=>String(a.mgmtNo||'').localeCompare(String(b.mgmtNo||''),'ko',{numeric:true}));}
+// 상세(제품) 열기 — 어느 개별을 눌러도 그 제품 페이지로
+function openEquipDetail(id){const it=_equipById(id);if(!it)return;_eqSel=id;_eqProdKey=_eqGroupKey(it);const seen={};_eqNavKeys=[];_eqSortedFiltered().forEach(x=>{const k=_eqGroupKey(x);if(!seen[k]){seen[k]=1;_eqNavKeys.push(k);}});_eqView='detail';_equipRender();}
+function equipProdNav(dir){if(!_eqNavKeys.length)return;let i=_eqNavKeys.indexOf(_eqProdKey);if(i<0)i=0;else i+=dir;if(i<0||i>=_eqNavKeys.length)return;_eqProdKey=_eqNavKeys[i];const u=_eqProductUnits(_eqProdKey);if(u[0])_eqSel=u[0].id;_renderEquipDetail();}
+// 개별 열기 — 제품 명단에서 한 개 골라 편집(정보·상태·일지·사진)
+function openEquipUnit(id){const it=_equipById(id);if(!it)return;_eqSel=id;_eqProdKey=_eqGroupKey(it);_eqUnitNav=_eqProductUnits(_eqProdKey).map(x=>String(x.id));_eqView='unit';_equipRender();}
+function equipUnitNav(dir){if(!_eqUnitNav.length)return;let i=_eqUnitNav.indexOf(String(_eqSel));if(i<0)i=0;else i+=dir;if(i<0||i>=_eqUnitNav.length)return;_eqSel=_eqUnitNav[i];_renderEquipUnit();}
+// 이 제품에 개별 추가 — 공통정보(품명·종류·제조사·제원) 미리 채움, 관리번호·일련번호는 새로
+function equipAddUnitToProduct(){
+  if(!_canEquipManage()){toast('⚠️ 권한 없음');return;}
+  const u=_eqProductUnits(_eqProdKey);const r=u[0];if(!r)return openEquipForm();
+  _eqPrefill={name:r.name,cat1:r.cat1,cat2:r.cat2,maker:r.maker,type:r.type,grade:r.grade,cert:r.cert,en:r.en,mbs:r.mbs,wll:r.wll,
+    region:r.region,person:r.person,cond:'A',mgmtNo:'',serial:'',year:'',loc:''};
+  _eqSel=null;_eqFormPhotos=[];_eqView='form';_equipRender();
+}
+function _equipDetailPhoto(i){const it=_equipById(_eqSel);if(it&&it.photos&&it.photos[i])_facPhotoView(it.photos[i]);}
+function _eqGalleryOpen(i){const p=window._eqGalleryPhotos;if(p&&p[i])_facPhotoView(p[i]);}
+// ── 상세 = 제품 페이지 (실사사진 + 공통제원 + 보유자별 명단) ──
+function _renderEquipDetail(){
+  const b=document.getElementById('equipBody');if(!b)return;
+  let units=_eqProdKey?_eqProductUnits(_eqProdKey):[];
+  if(!units.length){const s=_equipById(_eqSel);if(s){_eqProdKey=_eqGroupKey(s);units=_eqProductUnits(_eqProdKey);}}
+  if(!units.length){_eqView='list';return _renderEquipTabs();}
+  const rep=units.find(x=>String(x.id)===String(_eqSel))||units[0];
+  _equipSetTitle('🧰 장비 상세');
+  const canM=_canEquipManage();
+  const row=(k,v)=>v?`<div style="display:flex;gap:8px;padding:3px 0;"><span style="width:64px;flex-shrink:0;font-size:11px;color:#5d86a3;font-weight:700;">${k}</span><span style="flex:1;min-width:0;font-size:12px;color:#c9dcec;line-height:1.5;word-break:break-all;">${v}</span></div>`:'';
+  const n=units.length;const badN=units.filter(x=>_eqCondBad(x.cond)).length;
+  const conds={};units.forEach(x=>{conds[x.cond||'']=(conds[x.cond||'']||0)+1;});
+  const uniform=Object.keys(conds).length===1?Object.keys(conds)[0]:'';
+  // 대표 실사사진(사진 있는 첫 개별)
+  const photoUnit=units.find(x=>x.photos&&x.photos.length)||rep;const photos=photoUnit.photos||[];window._eqGalleryPhotos=photos;
+  const gal=photos.length?`<div style="display:flex;gap:7px;overflow-x:auto;padding-bottom:4px;margin-bottom:10px;">${photos.map((u,i)=>`<img src="${u}" onclick="_eqGalleryOpen(${i})" style="width:96px;height:96px;border-radius:10px;object-fit:cover;flex-shrink:0;cursor:pointer;border:1px solid rgba(255,255,255,.1);">`).join('')}</div>`
+    :`<div style="display:flex;align-items:center;justify-content:center;gap:8px;background:rgba(255,255,255,.04);border:1px dashed rgba(255,255,255,.15);border-radius:10px;padding:15px;margin-bottom:10px;color:#6b7684;font-size:11.5px;">${EQ_CAT1_ICON[rep.cat1]||'📦'} 실사 사진 없음${canM?' — 개별을 눌러 📷 추가':''}</div>`;
+  // 이전/다음(제품 단위)
+  const idx=_eqNavKeys.indexOf(_eqProdKey);const hasP=idx>0,hasN=idx>=0&&idx<_eqNavKeys.length-1;
+  let h=`<div style="display:flex;align-items:center;gap:6px;margin-bottom:10px;">
+    <button onclick="equipBack()" style="background:none;border:none;color:#3182f6;font-size:12.5px;font-weight:700;cursor:pointer;padding:4px 2px;">◀ 목록</button>
+    <span style="flex:1;"></span>
+    ${idx>=0?`<span style="font-size:10.5px;color:#6b7684;">제품 ${idx+1} / ${_eqNavKeys.length}</span>`:''}
+    <button onclick="equipProdNav(-1)" ${hasP?'':'disabled'} style="background:#0e2436;border:1px solid rgba(255,255,255,.25);color:#a5abb3;border-radius:8px;padding:6px 11px;font-size:13px;font-weight:800;cursor:pointer;${hasP?'':'opacity:.35;'}">◀</button>
+    <button onclick="equipProdNav(1)" ${hasN?'':'disabled'} style="background:#0e2436;border:1px solid rgba(255,255,255,.25);color:#a5abb3;border-radius:8px;padding:6px 11px;font-size:13px;font-weight:800;cursor:pointer;${hasN?'':'opacity:.35;'}">▶</button>
+  </div>`;
+  // 제품 헤더
+  h+=`<div style="display:flex;align-items:center;gap:9px;margin-bottom:12px;">
+    <div style="width:44px;height:44px;border-radius:11px;background:rgba(255,255,255,.08);display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0;">${EQ_CAT1_ICON[rep.cat1]||'📦'}</div>
+    <div style="flex:1;min-width:0;"><div style="font-size:16px;font-weight:800;color:#eef0f2;">${_esc(rep.name||'-')}</div>
+    <div style="font-size:11px;color:#8b95a1;margin-top:2px;">${_esc(rep.cat1||'')}${rep.cat2?' ▸ '+_esc(rep.cat2):''}${rep.maker?' · '+_esc(rep.maker):''}</div></div>
+    <span style="flex-shrink:0;font-size:12px;font-weight:900;color:#7fd0ff;background:rgba(127,208,255,.16);border-radius:8px;padding:4px 10px;">${n}점</span>
+    ${badN?`<span style="flex-shrink:0;font-size:10px;font-weight:800;color:#ff8a80;background:rgba(255,107,91,.14);border-radius:7px;padding:4px 8px;">점검 ${badN}</span>`:uniform==='A'?`<span style="flex-shrink:0;font-size:10px;font-weight:800;color:#5fcf8f;background:rgba(94,207,143,.12);border-radius:7px;padding:4px 8px;">양호</span>`:''}
+  </div>`;
+  h+=gal;
+  // 공통 제원(제조사~인증)
+  h+=`<div style="font-size:11.5px;font-weight:800;color:#a5abb3;margin:2px 0 6px;">📋 공통 제원</div>
+  <div class="scard" style="padding:11px 13px;margin-bottom:12px;">
+    ${row('제조사',_esc(rep.maker||''))}${row('타입',_esc(rep.type||''))}${row('등급',_esc(rep.grade||''))}
+    ${row('인증',_esc(rep.cert||''))}${row('EN',_esc(rep.en||''))}${row('MBS',_esc(rep.mbs||''))}${row('WLL',_esc(rep.wll||''))}
+    ${row('지역',_esc(rep.region||''))}${(rep.note)?row('비고',_esc(rep.note)):''}
+    ${(!rep.maker&&!rep.cert&&!rep.en)?`<div style="font-size:10.5px;color:#6b7684;padding:2px 0;">공통 제원 미입력 — 개별에서 '정보 수정'</div>`:''}
+  </div>`;
+  // 보유자별 명단(누가 가지고 있나 → 관리번호·일련번호·상태)
+  h+=`<div style="display:flex;align-items:center;justify-content:space-between;margin:2px 0 7px;"><span style="font-size:13px;font-weight:800;color:#a5abb3;">📇 보유 명단 <span style="color:#7fd0ff;">${n}점</span></span>${canM?`<button onclick="equipAddUnitToProduct()" style="background:rgba(94,207,143,.14);color:#5fcf8f;border:1px solid rgba(94,207,143,.35);border-radius:8px;padding:5px 10px;font-size:11px;font-weight:800;cursor:pointer;">➕ 개별 추가</button>`:''}</div>`;
+  const hgm={};units.forEach(x=>{const hd=_eqHolder(x);(hgm[hd.k]=hgm[hd.k]||{hd,arr:[]}).arr.push(x);});
+  const hks=Object.keys(hgm).sort((a,b)=>{const A=hgm[a].hd,B=hgm[b].hd;if(A.person!==B.person)return A.person?1:-1;return A.label.localeCompare(B.label,'ko');});
+  hks.forEach(hk=>{
+    const hd=hgm[hk].hd,arr=hgm[hk].arr;const hbad=arr.filter(x=>_eqCondBad(x.cond)).length;
+    h+=`<div style="display:flex;align-items:center;gap:6px;margin:10px 0 4px;"><span style="font-size:12px;">${hd.icon}</span><span style="font-size:11.5px;font-weight:800;color:#d7c48a;">${_esc(hd.label)}</span><span style="font-size:10px;color:#6b7684;">${arr.length}점${hbad?` · <span style="color:#ff8a80;">점검 ${hbad}</span>`:''}</span><span style="flex:1;height:1px;background:rgba(255,255,255,.06);"></span></div>`;
+    h+=arr.map(x=>{const bad=_eqCondBad(x.cond);const cl=EQ_COND_LBL[x.cond]||x.cond||'';const th=(x.photos&&x.photos.length)?`<img src="${x.photos[0]}" style="width:34px;height:34px;border-radius:7px;object-fit:cover;flex-shrink:0;">`:`<div style="width:34px;height:34px;border-radius:7px;flex-shrink:0;background:rgba(255,255,255,.06);display:flex;align-items:center;justify-content:center;font-size:15px;">${EQ_CAT1_ICON[x.cat1]||'📦'}</div>`;return `<div onclick="openEquipUnit('${_escq(x.id)}')" class="scard" style="display:flex;align-items:center;gap:8px;margin-bottom:3px;padding:7px 9px;cursor:pointer;">
+      ${th}
+      <div style="flex:1;min-width:0;"><div style="font-size:12px;font-weight:800;color:#eef0f2;">${_esc(x.mgmtNo||'-')}</div><div style="font-family:ui-monospace,'DejaVu Sans Mono',monospace;font-size:10px;color:#9bb8cc;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${_esc(x.serial||'—')}</div></div>
+      <span style="flex-shrink:0;font-size:9.5px;font-weight:800;color:${EQ_COND_COL[x.cond]||'#8b95a1'};background:${bad?'rgba(255,107,91,.14)':'rgba(94,207,143,.1)'};border-radius:5px;padding:2px 7px;">${_esc(x.cond||'?')}${cl?' '+_esc(cl):''}</span>
+      <span style="flex-shrink:0;font-size:11px;color:rgba(255,255,255,.3);">›</span>
+    </div>`;}).join('');
+  });
+  h+=`<div style="font-size:9.5px;color:#565f6b;text-align:center;margin:10px 0 16px;">개별을 눌러 상태·일련번호·관리일지·사진을 관리</div>`;
+  b.innerHTML=h;
+}
+// ── 개별 = 한 개 편집 페이지 ──
+function _renderEquipUnit(){
+  const b=document.getElementById('equipBody');if(!b)return;
+  const it=_equipById(_eqSel);if(!it){_eqView='list';return _renderEquipTabs();}
+  if(!_eqUnitNav.length){_eqProdKey=_eqGroupKey(it);_eqUnitNav=_eqProductUnits(_eqProdKey).map(x=>String(x.id));}
+  _equipSetTitle('🧰 개별 장비');
+  const canM=_canEquipManage();
+  const cc=EQ_COND_COL[it.cond]||'#8b95a1';const cl=EQ_COND_LBL[it.cond]||'';
+  const row=(k,v)=>v?`<div style="display:flex;gap:8px;padding:3px 0;"><span style="width:64px;flex-shrink:0;font-size:11px;color:#5d86a3;font-weight:700;">${k}</span><span style="flex:1;min-width:0;font-size:12px;color:#c9dcec;line-height:1.5;word-break:break-all;">${v}</span></div>`:'';
+  const photos=it.photos||[];
+  const gal=photos.length?`<div style="display:flex;gap:7px;overflow-x:auto;padding-bottom:4px;margin-bottom:10px;">${photos.map((u,i)=>`<img src="${u}" onclick="_equipDetailPhoto(${i})" style="width:96px;height:96px;border-radius:10px;object-fit:cover;flex-shrink:0;cursor:pointer;border:1px solid rgba(255,255,255,.1);">`).join('')}</div>`
+    :`<div style="display:flex;align-items:center;justify-content:center;gap:8px;background:rgba(255,255,255,.04);border:1px dashed rgba(255,255,255,.15);border-radius:10px;padding:15px;margin-bottom:10px;color:#6b7684;font-size:11.5px;">${EQ_CAT1_ICON[it.cat1]||'📦'} 실사 사진 없음${canM?' — 아래 📷 로 추가':''}</div>`;
+  // 이전/다음 내비(같은 제품 안의 개별)
+  const idx=_eqUnitNav.indexOf(String(_eqSel));const hasP=idx>0,hasN=idx>=0&&idx<_eqUnitNav.length-1;
+  let h=`<div style="display:flex;align-items:center;gap:6px;margin-bottom:10px;">
+    <button onclick="equipBack()" style="background:none;border:none;color:#3182f6;font-size:12.5px;font-weight:700;cursor:pointer;padding:4px 2px;">◀ 제품</button>
+    <span style="flex:1;"></span>
+    ${idx>=0?`<span style="font-size:10.5px;color:#6b7684;">${idx+1} / ${_eqUnitNav.length}</span>`:''}
+    <button onclick="equipUnitNav(-1)" ${hasP?'':'disabled'} style="background:#0e2436;border:1px solid rgba(255,255,255,.25);color:#a5abb3;border-radius:8px;padding:6px 11px;font-size:13px;font-weight:800;cursor:pointer;${hasP?'':'opacity:.35;'}">◀</button>
+    <button onclick="equipUnitNav(1)" ${hasN?'':'disabled'} style="background:#0e2436;border:1px solid rgba(255,255,255,.25);color:#a5abb3;border-radius:8px;padding:6px 11px;font-size:13px;font-weight:800;cursor:pointer;${hasN?'':'opacity:.35;'}">▶</button>
+  </div>`;
+  h+=`<div style="display:flex;align-items:center;gap:9px;margin-bottom:12px;">
+    <div style="width:44px;height:44px;border-radius:11px;background:rgba(255,255,255,.08);display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0;">${EQ_CAT1_ICON[it.cat1]||'📦'}</div>
+    <div style="flex:1;min-width:0;"><div style="font-size:16px;font-weight:800;color:#eef0f2;">${_esc(it.name||'-')}</div>
+    <div style="font-size:11px;color:#8b95a1;margin-top:2px;">${_esc(it.mgmtNo||'')} · ${_esc(it.cat1||'')}${it.cat2?' ▸ '+_esc(it.cat2):''}</div></div>
+    ${cl?`<span style="flex-shrink:0;font-size:11px;font-weight:800;color:${cc};background:${_eqCondBad(it.cond)?'rgba(255,107,91,.14)':'rgba(94,207,143,.12)'};border-radius:8px;padding:4px 9px;">${_esc(it.cond)} ${_esc(cl)}</span>`:''}
+  </div>`;
+  h+=gal;
+  h+=`<div class="scard" style="padding:11px 13px;margin-bottom:11px;">
+    ${row('제조사',_esc(it.maker||''))}${row('타입',_esc(it.type||''))}${row('등급',_esc(it.grade||''))}
+    ${row('생산연도',_esc(it.year||''))}${row('일련번호',_esc(it.serial||''))}
+    ${row('담당',it.person?'👤 '+_esc(it.person):'')}${row('지역',_esc(it.region||''))}${row('보관위치',it.loc?'📍 '+_esc(it.loc):'')}${row('비고',_esc(it.note||''))}
+  </div>`;
+  if(it.cert||it.en||it.mbs||it.wll){
+    h+=`<div style="font-size:11.5px;font-weight:800;color:#a5abb3;margin:2px 0 6px;">🛡️ 안전 제원</div>
+    <div class="scard" style="padding:10px 13px;margin-bottom:12px;">${row('인증',_esc(it.cert||''))}${row('EN',_esc(it.en||''))}${row('MBS',_esc(it.mbs||''))}${row('WLL',_esc(it.wll||''))}</div>`;
+  }
+  h+=`<div style="display:flex;align-items:center;justify-content:space-between;margin:2px 0 8px;"><span style="font-size:13px;font-weight:800;color:#a5abb3;">📒 관리일지 (수정내역)</span>${canM?`<button onclick="openEquipLogForm()" style="background:rgba(94,207,143,.14);color:#5fcf8f;border:1px solid rgba(94,207,143,.35);border-radius:8px;padding:5px 10px;font-size:11px;font-weight:800;cursor:pointer;">➕ 추가</button>`:''}</div>`;
+  const logs=it.log||[];
+  if(!logs.length){h+=`<div style="text-align:center;color:#6b7684;font-size:11.5px;padding:12px 0;">기록된 관리일지가 없습니다.</div>`;}
+  else{
+    h+=logs.map((l,i)=>`<div class="scard" style="padding:8px 10px;margin-bottom:5px;">
+      <div style="display:flex;align-items:center;gap:6px;font-size:10.5px;"><span style="color:#aab4c0;font-weight:700;">${_esc(l.date||'-')}</span>${l.status?`<span style="color:${EQ_BAD_WORD(l.status)?'#ff8a80':'#8fd6a8'};font-weight:700;">${_esc(l.status)}</span>`:''}${l.qty?`<span style="color:#9bb8cc;">수량 ${_esc(l.qty)}</span>`:''}<span style="flex:1;"></span>${canM?`<span onclick="equipLogDel(${i})" style="color:rgba(255,120,110,.6);cursor:pointer;font-size:14px;">×</span>`:''}</div>
+      ${l.reason&&l.reason!=='-'?`<div style="font-size:10.5px;color:#9bb8cc;margin-top:2px;">${_esc(l.reason)}</div>`:''}
+      ${l.note?`<div style="font-size:10px;color:#8b95a1;margin-top:1px;">${_esc(l.note)}</div>`:''}
+      ${(l.receiver||l.confirmer)?`<div style="font-size:9.5px;color:#6b7684;margin-top:2px;">${l.receiver?'인수 '+_esc(l.receiver):''}${l.confirmer?' · 확인 '+_esc(l.confirmer):''}</div>`:''}
+    </div>`).join('');
+  }
+  h+=`<div style="font-size:9.5px;color:#6b7684;text-align:center;margin:8px 0 12px;">${it.updatedBy?'최근 수정: '+_esc(it.updatedBy):''}${it.updatedAt?' · '+_equipTimeStr(it.updatedAt):''}</div>`;
+  if(canM){
+    h+=`<div style="display:flex;gap:7px;margin-bottom:8px;">
+      <button onclick="openEquipForm('${_escq(it.id)}')" style="flex:1;background:rgba(49,130,246,.14);color:#7fb0f0;border:1px solid rgba(49,130,246,.35);border-radius:9px;padding:11px;font-size:12.5px;font-weight:800;cursor:pointer;">✏️ 정보 수정</button>
+      <label style="flex:1;background:rgba(94,207,143,.12);color:#5fcf8f;border:1px solid rgba(94,207,143,.35);border-radius:9px;padding:11px;font-size:12.5px;font-weight:800;cursor:pointer;text-align:center;">📷 사진 추가<input type="file" accept="image/*" multiple onchange="equipDetailAddPhoto(this)" style="display:none;"></label>
+    </div>
+    <button onclick="equipDelete('${_escq(it.id)}')" style="width:100%;background:rgba(255,80,60,.08);color:#ff8a80;border:1px solid rgba(255,80,60,.28);border-radius:9px;padding:10px;font-size:12px;font-weight:700;cursor:pointer;">🗑️ 장비 삭제</button>`;
+  }
+  b.innerHTML=h;
+}
+function _equipTimeStr(at){if(!at)return '';const d=new Date(at);const p=n=>String(n).padStart(2,'0');return d.getFullYear()+'.'+p(d.getMonth()+1)+'.'+p(d.getDate())+' '+p(d.getHours())+':'+p(d.getMinutes());}
+async function equipDetailAddPhoto(inp){
+  if(!inp.files||!inp.files.length)return;
+  if(!_canEquipManage()){toast('⚠️ 권한 없음');return;}
+  const it=_equipById(_eqSel);if(!it){inp.value='';return;}
+  const files=Array.from(inp.files);inp.value='';
+  if(typeof _busy==='function')_busy('📷 사진 처리 중…');
+  const add=[];
+  for(const f of files){try{const u=await _compressToDataUrl(f,900,240000);if(u)add.push(u);}catch(e){}}
+  const prev=it.photos||[];it.photos=prev.concat(add);
+  try{await _equipPut(it);if(typeof _busyDone==='function')_busyDone();toast('✅ 사진 '+add.length+'장 추가');_renderEquipUnit();}
+  catch(e){it.photos=prev;if(typeof _busyDone==='function')_busyDone();toast('⚠️ '+((e&&e.message)||e),4000);_renderEquipUnit();}
+}
+async function equipLogDel(i){
+  const it=_equipById(_eqSel);if(!it||!it.log||!it.log[i])return;
+  if(!_canEquipManage()){toast('⚠️ 권한 없음');return;}
+  const l=it.log[i];if(!confirm('관리일지 항목을 삭제할까요?\n'+(l.date||'')+' '+(l.status||'')))return;
+  const prev=it.log;it.log=it.log.slice(0,i).concat(it.log.slice(i+1));
+  try{if(typeof _busy==='function')_busy('저장 중…');await _equipPut(it);if(typeof _busyDone==='function')_busyDone();toast('삭제됨');_renderEquipUnit();}
+  catch(e){it.log=prev;if(typeof _busyDone==='function')_busyDone();toast('⚠️ '+((e&&e.message)||e),4000);_renderEquipUnit();}
+}
+async function equipDelete(id){
+  if(!_canEquipManage()){toast('⚠️ 권한 없음');return;}
+  const it=_equipById(id);if(!it)return;
+  if(!confirm('🗑️ ['+(it.name||it.mgmtNo||'장비')+'] 을(를) 삭제할까요?\n관리일지·사진도 함께 삭제됩니다.'))return;
+  try{if(typeof _busy==='function')_busy('삭제 중…');await _equipRemove(id);if(typeof _busyDone==='function')_busyDone();toast('🗑️ 삭제되었습니다');
+    const rest=_eqProdKey?_eqProductUnits(_eqProdKey):[];
+    if(rest.length){_eqSel=rest[0].id;_eqView='detail';_equipRender();}else{_eqView='list';_eqSel=null;_equipRender();}}
+  catch(e){if(typeof _busyDone==='function')_busyDone();toast('⚠️ 삭제 실패: '+((e&&e.message)||e),4000);}
+}
+
+// ── 추가/수정 폼 ──
+function openEquipForm(id){
+  if(!_canEquipManage()){toast('⚠️ 특수산악구조대·관리자만 가능');return;}
+  _eqSel=id||null;_eqView='form';_eqPrefill=null;
+  const ex=id?_equipById(id):null;
+  _eqFormPhotos=ex&&ex.photos?ex.photos.slice():[];
+  _equipRender();
+}
+function _eqRow(label,inner){return `<div style="margin-bottom:9px;"><label style="display:block;font-size:11px;font-weight:700;color:#8b95a1;margin-bottom:4px;">${label}</label>${inner}</div>`;}
+function _renderEquipForm(){
+  const b=document.getElementById('equipBody');if(!b)return;
+  const editing=!!(_eqSel&&_equipById(_eqSel));
+  const ex=editing?_equipById(_eqSel):(_eqPrefill||null); // 편집=기존값, 추가=제품 공통값 미리채움
+  _equipSetTitle(editing?'✏️ 장비 수정':'➕ 장비 추가');
+  const inS='width:100%;background:#131316;color:#eef0f2;border:1px solid rgba(255,255,255,.2);border-radius:8px;padding:9px 10px;font-size:12.5px;';
+  const inp=(id,v,ph)=>`<input id="${id}" value="${_esc(v||'')}" placeholder="${ph||''}" style="${inS}">`;
+  const half=(a,c)=>`<div style="display:flex;gap:8px;"><div style="flex:1;">${a}</div><div style="flex:1;">${c}</div></div>`;
+  const cat1Sel=`<select id="ef_cat1" style="${inS}">${EQ_CAT1.map(c=>`<option ${ex&&ex.cat1===c?'selected':''}>${c}</option>`).join('')}</select>`;
+  const condSel=`<select id="ef_cond" style="${inS}">${['A','B','C'].map(c=>`<option value="${c}" ${((ex&&ex.cond)||'A')===c?'selected':''}>${c} ${EQ_COND_LBL[c]}</option>`).join('')}</select>`;
+  const regSel=`<select id="ef_region" style="${inS}"><option value="">지역 선택</option>${EQ_REGIONS.map(r=>`<option ${ex&&ex.region===r?'selected':''}>${r}</option>`).join('')}</select>`;
+  let h=`<button onclick="equipBack()" style="background:none;border:none;color:#3182f6;font-size:12.5px;font-weight:700;cursor:pointer;padding:0 0 12px;">◀ 취소</button>`;
+  h+=_eqRow('품명 <span style="color:#ff7a6e;">*</span>',inp('ef_name',ex&&ex.name,'예: 오케이스크류락'));
+  h+=half(_eqRow('대분류',cat1Sel),_eqRow('중분류',inp('ef_cat2',ex&&ex.cat2,'예: 카라비너')));
+  h+=half(_eqRow('관리번호',inp('ef_mgmt',ex&&ex.mgmtNo,'예: 오케이스크류락-01')),_eqRow('상태',condSel));
+  h+=half(_eqRow('제조사',inp('ef_maker',ex&&ex.maker,'예: PETZL')),_eqRow('타입',inp('ef_type',ex&&ex.type,'')));
+  h+=half(_eqRow('생산연도',inp('ef_year',ex&&ex.year,'')),_eqRow('일련번호',inp('ef_serial',ex&&ex.serial,'')));
+  h+=half(_eqRow('지역',regSel),_eqRow('담당',inp('ef_person',ex&&ex.person,'공용/창고/이름')));
+  h+=_eqRow('보관위치 (건물 안 코드, 예: A3·C1)',inp('ef_loc',ex&&ex.loc,'예: A3 (하드웨어벽 3번)'));
+  h+=_eqRow('등급',inp('ef_grade',ex&&ex.grade,''));
+  h+=`<div style="font-size:11px;font-weight:800;color:#8b95a1;margin:6px 0 6px;">🛡️ 안전 제원(선택)</div>`;
+  h+=half(_eqRow('인증',inp('ef_cert',ex&&ex.cert,'예: CE0082')),_eqRow('EN',inp('ef_en',ex&&ex.en,'예: EN362')));
+  h+=half(_eqRow('MBS',inp('ef_mbs',ex&&ex.mbs,'')),_eqRow('WLL',inp('ef_wll',ex&&ex.wll,'')));
+  h+=_eqRow('비고',inp('ef_note',ex&&ex.note,''));
+  h+=`<div style="margin-bottom:12px;"><label style="display:block;font-size:11px;font-weight:700;color:#8b95a1;margin-bottom:6px;">사진</label><div id="equipFormPhotos" style="display:flex;gap:7px;flex-wrap:wrap;"></div></div>`;
+  h+=`<button onclick="submitEquipForm()" style="width:100%;background:linear-gradient(145deg,#1f8f52,#157a44);color:#fff;border:none;border-radius:11px;padding:13px;font-size:14px;font-weight:800;cursor:pointer;margin:2px 0 22px;">💾 ${editing?'수정 저장':'장비 등록'}</button>`;
+  b.innerHTML=h;
+  _equipRenderFormPhotos();
+}
+function _equipViewFormPhoto(i){if(_eqFormPhotos[i])_facPhotoView(_eqFormPhotos[i]);}
+function _equipRenderFormPhotos(){
+  const el=document.getElementById('equipFormPhotos');if(!el)return;
+  el.innerHTML=_eqFormPhotos.map((u,i)=>`<div style="position:relative;width:74px;height:74px;flex-shrink:0;">
+    <img src="${u}" onclick="_equipViewFormPhoto(${i})" style="width:74px;height:74px;border-radius:9px;object-fit:cover;cursor:pointer;border:1px solid rgba(255,255,255,.12);">
+    <button onclick="equipFormPhotoDel(${i})" style="position:absolute;top:-6px;right:-6px;width:20px;height:20px;border-radius:50%;background:#e2483a;color:#fff;border:2px solid #0f0f11;font-size:12px;line-height:1;cursor:pointer;">×</button>
+  </div>`).join('')+`<label style="width:74px;height:74px;flex-shrink:0;border:1px dashed rgba(255,255,255,.25);border-radius:9px;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#8b95a1;font-size:11px;cursor:pointer;"><span style="font-size:20px;">＋</span>사진<input type="file" accept="image/*" multiple onchange="equipFormPhoto(this)" style="display:none;"></label>`;
+}
+async function equipFormPhoto(inp){
+  if(!inp.files||!inp.files.length)return;
+  const files=Array.from(inp.files);inp.value='';
+  if(typeof _busy==='function')_busy('📷 사진 처리 중…');
+  for(const f of files){try{const u=await _compressToDataUrl(f,900,240000);if(u)_eqFormPhotos.push(u);}catch(e){}}
+  if(typeof _busyDone==='function')_busyDone();
+  _equipRenderFormPhotos();
+}
+function equipFormPhotoDel(i){_eqFormPhotos.splice(i,1);_equipRenderFormPhotos();}
+async function submitEquipForm(){
+  if(!_canEquipManage()){toast('⚠️ 권한 없음');return;}
+  const g=id=>{const e=document.getElementById(id);return e?String(e.value||'').trim():'';};
+  const name=g('ef_name');if(!name){toast('⚠️ 품명을 입력하세요');return;}
+  const ex=_eqSel?_equipById(_eqSel):null;
+  const item=ex?Object.assign({},ex):{id:'x_new_'+Date.now().toString(36)+Math.random().toString(36).slice(2,5),createdAt:Date.now(),by:(DB.g('currentUser')||{}).name||getAuthor(),log:[]};
+  item.name=name;item.cat1=g('ef_cat1')||'기타';item.cat2=g('ef_cat2');
+  item.mgmtNo=g('ef_mgmt');item.cond=g('ef_cond')||'A';
+  item.maker=g('ef_maker');item.type=g('ef_type');item.year=g('ef_year');item.serial=g('ef_serial');
+  item.region=g('ef_region');item.person=g('ef_person');item.grade=g('ef_grade');item.loc=String(g('ef_loc')||'').trim().toUpperCase();
+  item.cert=g('ef_cert');item.en=g('ef_en');item.mbs=g('ef_mbs');item.wll=g('ef_wll');item.note=g('ef_note');
+  item.photos=_eqFormPhotos.slice();
+  try{
+    if(typeof _busy==='function')_busy('💾 저장 중…');
+    await _equipPut(item);
+    if(typeof _busyDone==='function')_busyDone();
+    toast(ex?'✅ 수정되었습니다':'✅ 장비가 등록되었습니다');
+    _eqPrefill=null;openEquipUnit(item.id);
+    try{renderHomeActive();}catch(e){}
+  }catch(e){if(typeof _busyDone==='function')_busyDone();toast('⚠️ 저장 실패: '+((e&&e.message)||e),4500);}
+}
+
+// ── 관리일지 추가 ──
+function openEquipLogForm(){
+  if(!_canEquipManage()){toast('⚠️ 권한 없음');return;}
+  if(!_equipById(_eqSel)){toast('⚠️ 장비를 먼저 선택하세요');return;}
+  _eqView='log';_equipRender();
+}
+function _equipTodayY(){try{return _ymd(new Date());}catch(e){const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}}
+function _renderEquipLogForm(){
+  const b=document.getElementById('equipBody');if(!b)return;
+  const it=_equipById(_eqSel);if(!it){_eqView='list';return _renderEquipTabs();}
+  _equipSetTitle('📒 관리일지 추가');
+  const inS='width:100%;background:#131316;color:#eef0f2;border:1px solid rgba(255,255,255,.2);border-radius:8px;padding:9px 10px;font-size:12.5px;';
+  const inp=(id,v,ph)=>`<input id="${id}" value="${_esc(v||'')}" placeholder="${ph||''}" style="${inS}">`;
+  const last=_equipLastLog(it);
+  let h=`<button onclick="equipBack()" style="background:none;border:none;color:#3182f6;font-size:12.5px;font-weight:700;cursor:pointer;padding:0 0 12px;">◀ 취소</button>`;
+  h+=`<div style="font-size:13px;font-weight:800;color:#eef0f2;margin-bottom:2px;">${_esc(it.name||'')}</div><div style="font-size:11px;color:#8b95a1;margin-bottom:14px;">${_esc(it.mgmtNo||'')} · 현재 상태 ${_esc(it.cond||'-')} ${_esc(EQ_COND_LBL[it.cond]||'')}</div>`;
+  h+=`<div style="display:flex;gap:8px;"><div style="flex:1;">${_eqRow('년.월.일',`<input id="el_date" type="date" value="${_equipTodayY()}" style="${inS}">`)}</div><div style="flex:0 0 96px;">${_eqRow('수량',inp('el_qty','',''))}</div></div>`;
+  h+=_eqRow('이동사유',inp('el_reason','','예: 개인지급 / 폐기 / 수리'));
+  h+=_eqRow('상태(자유)',inp('el_status','','예: 양호 / 불량 / 폐기'));
+  h+=`<div style="display:flex;gap:8px;"><div style="flex:1;">${_eqRow('인수자',inp('el_recv',(DB.g('currentUser')||{}).name||'',''))}</div><div style="flex:1;">${_eqRow('확인자',inp('el_conf',(last&&last.confirmer)||'손경완',''))}</div></div>`;
+  h+=_eqRow('비고',inp('el_note','',''));
+  h+=`<div style="font-size:10.5px;color:#6b7684;margin-bottom:10px;">※ 장비의 A/B/C 등급은 '정보 수정'에서 변경하세요. 관리일지는 이동·점검 이력 기록용입니다.</div>`;
+  h+=`<button onclick="submitEquipLog()" style="width:100%;background:linear-gradient(145deg,#1f8f52,#157a44);color:#fff;border:none;border-radius:11px;padding:13px;font-size:14px;font-weight:800;cursor:pointer;margin:2px 0 22px;">➕ 관리일지 추가</button>`;
+  b.innerHTML=h;
+}
+async function submitEquipLog(){
+  if(!_canEquipManage()){toast('⚠️ 권한 없음');return;}
+  const it=_equipById(_eqSel);if(!it)return;
+  const g=id=>{const e=document.getElementById(id);return e?String(e.value||'').trim():'';};
+  const row={date:g('el_date').replace(/-/g,'.'),qty:g('el_qty'),reason:g('el_reason'),status:g('el_status'),receiver:g('el_recv'),confirmer:g('el_conf'),note:g('el_note')};
+  if(!row.date&&!row.qty&&!row.reason&&!row.note&&!row.status){toast('⚠️ 내용을 입력하세요');return;}
+  const prev=it.log;it.log=(it.log||[]).concat([row]);
+  try{
+    if(typeof _busy==='function')_busy('💾 저장 중…');
+    await _equipPut(it);
+    if(typeof _busyDone==='function')_busyDone();
+    toast('✅ 관리일지가 추가되었습니다');
+    _eqView='unit';_equipRender();
+  }catch(e){it.log=prev;if(typeof _busyDone==='function')_busyDone();toast('⚠️ 저장 실패: '+((e&&e.message)||e),4500);}
+}
+
+// ── 담당 일괄 재배정 (퇴사·인원변경) — 관리번호(레이저마킹)는 고정, 담당만 변경 ──
+function equipReassignStart(fromPerson){
+  if(!_canEquipManage()){toast('⚠️ 권한 없음');return;}
+  const all=_eqData||[];
+  const n=all.filter(it=>it.person===fromPerson).length;
+  if(!n){toast('대상 장비가 없습니다');return;}
+  const targets=['공용','창고'].concat(Array.from(new Set(all.map(it=>it.person).filter(p=>p&&p!==fromPerson&&p!=='공용'&&p!=='창고'))).sort((a,b)=>a.localeCompare(b,'ko')));
+  let ov=document.getElementById('eqReassignOv');if(ov)ov.remove();
+  ov=document.createElement('div');ov.id='eqReassignOv';
+  ov.style.cssText='position:fixed;inset:0;z-index:9800;background:rgba(0,0,0,.6);display:flex;align-items:flex-end;justify-content:center;';
+  ov.onclick=e=>{if(e.target===ov)ov.remove();};
+  ov.innerHTML=`<div style="width:100%;max-width:430px;background:#16181d;border-radius:16px 16px 0 0;padding:16px 16px calc(16px + env(safe-area-inset-bottom));max-height:72vh;overflow-y:auto;">
+    <div style="font-size:15px;font-weight:800;color:#eef0f2;margin-bottom:4px;">🔄 '${_esc(fromPerson)}' 장비 재배정</div>
+    <div style="font-size:11.5px;color:#8b95a1;margin-bottom:14px;">${n}건을 누구에게 넘길까요? (관리번호·일련번호·마킹은 그대로, 담당만 변경)</div>
+    ${targets.map(t=>`<button onclick="equipReassignDo('${_escq(fromPerson)}','${_escq(t)}')" style="width:100%;text-align:left;background:#1c1f26;border:1px solid rgba(255,255,255,.1);border-radius:10px;padding:12px 14px;font-size:13px;color:#dfe4ea;margin-bottom:7px;cursor:pointer;">${t==='공용'?'🤝':t==='창고'?'🏬':'👤'} ${_esc(t)}</button>`).join('')}
+    <button onclick="document.getElementById('eqReassignOv').remove()" style="width:100%;background:none;border:none;color:#8b95a1;font-size:12.5px;padding:8px;cursor:pointer;margin-top:4px;">취소</button>
+  </div>`;
+  document.body.appendChild(ov);
+}
+async function equipReassignDo(fromPerson,toPerson){
+  if(!_canEquipManage()){toast('⚠️ 권한 없음');return;}
+  const ov=document.getElementById('eqReassignOv');if(ov)ov.remove();
+  const targets=(_eqData||[]).filter(it=>it.person===fromPerson);
+  if(!targets.length){toast('대상 없음');return;}
+  if(!confirm(`'${fromPerson}'의 ${targets.length}건을 '${toPerson}'(으)로 재배정할까요?\n\n· 관리번호·일련번호·마킹은 변경되지 않습니다.\n· 담당만 바뀝니다.`))return;
+  if(typeof _fdb==='undefined'||!_fdb){toast('⚠️ 온라인에서 실행하세요');return;}
+  const orig=targets.map(it=>it.person);
+  if(typeof _busy==='function')_busy('🔄 재배정 중…');
+  try{
+    const by=(DB.g('currentUser')||{}).name||getAuthor();const now=Date.now();
+    let batch=_fdb.batch(),ops=0,n=0;
+    for(const it of targets){
+      it.person=toPerson;it.updatedAt=now;it.updatedBy=by;
+      batch.set(_fdb.collection('equipInv').doc(String(it.id)),it);
+      ops++;n++;
+      if(ops>=400){await batch.commit();batch=_fdb.batch();ops=0;if(typeof _busy==='function')_busy('🔄 '+n+'건…');}
+    }
+    if(ops>0)await batch.commit();
+    _equipWriteOffline(_eqData);
+    if(typeof _busyDone==='function')_busyDone();
+    toast('✅ '+n+'건 재배정 완료 · '+fromPerson+' → '+toPerson,4200);
+    _eqTab='person';_eqView='list';_equipRender();
+    try{renderHomeActive();}catch(e){}
+  }catch(e){
+    targets.forEach((it,i)=>{it.person=orig[i];});
+    if(typeof _busyDone==='function')_busyDone();
+    toast('⚠️ 재배정 실패: '+((e&&e.message)||e),4500);
+  }
+}
+
+// ── ✅ 전체 점검(실사) ──
+let _eqAudit=null,_eqLastAudit=null;
+function _eqScopeLabel(){
+  const p=[];if(_eqF.cat1)p.push(_eqF.cat1);if(_eqF.cat2)p.push(_eqF.cat2);if(_eqF.region)p.push(EQ_REGION_SHORT[_eqF.region]||_eqF.region);if(_eqF.person)p.push(_eqF.person===EQ_UNASSIGNED?'미지정':_eqF.person);if(_eqF.cond==='BC')p.push('주의·교체');if(_eqF.cond==='A')p.push('A양호');if(_eqF.maker)p.push(_eqF.maker);if(_eqF.loc)p.push('📍'+_eqF.loc);if((_eqF.q||'').trim())p.push('"'+_eqF.q.trim()+'"');
+  return p.length?p.join(' · '):'전체';
+}
+function equipAuditStart(){
+  if(!_canEquipView())return;
+  const list=_eqSortedFiltered();
+  if(!list.length){toast('점검할 장비가 없습니다');return;}
+  _eqAudit={checked:new Set(),ids:list.map(x=>String(x.id)),scopeLabel:_eqScopeLabel()};
+  _eqView='audit';_equipRender();
+}
+function equipAuditToggle(id){if(!_eqAudit)return;id=String(id);if(_eqAudit.checked.has(id))_eqAudit.checked.delete(id);else _eqAudit.checked.add(id);_renderEquipAudit();}
+function equipAuditAll(on){if(!_eqAudit)return;if(on)_eqAudit.ids.forEach(id=>_eqAudit.checked.add(id));else _eqAudit.checked.clear();_renderEquipAudit();}
+function equipAuditExit(){if(_eqAudit&&_eqAudit.checked.size&&_eqView==='audit'&&!confirm('점검을 종료할까요? 저장하지 않은 체크는 사라집니다.'))return;_eqAudit=null;_eqView='list';_equipRender();}
+function _renderEquipAudit(){
+  const b=document.getElementById('equipBody');if(!b)return;
+  if(!_eqAudit){_eqView='list';return _renderEquipTabs();}
+  _equipSetTitle('✅ 전체 점검(실사)');
+  const items=_eqAudit.ids.map(id=>_equipById(id)).filter(Boolean);
+  const done=_eqAudit.checked.size,total=items.length;const pct=total?Math.round(done/total*100):0;
+  let h=`<button onclick="equipAuditExit()" style="background:none;border:none;color:#3182f6;font-size:12.5px;font-weight:700;cursor:pointer;padding:0 0 8px;">◀ 나가기</button>`;
+  h+=`<div style="font-size:11px;color:#8b95a1;margin-bottom:6px;">📍 범위: ${_esc(_eqAudit.scopeLabel)} · 항목을 눌러 '제자리 확인'</div>`;
+  h+=`<div style="position:sticky;top:-12px;background:#0f0f11;padding:8px 0;z-index:2;border-bottom:1px solid rgba(255,255,255,.08);margin-bottom:8px;">
+    <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;"><div style="flex:1;font-size:14px;font-weight:800;color:#eef0f2;">확인 ${done} <span style="color:#6b7684;font-size:12px;">/ ${total}</span></div>
+    <button onclick="equipAuditAll(true)" style="background:rgba(94,207,143,.14);color:#5fcf8f;border:1px solid rgba(94,207,143,.3);border-radius:7px;padding:5px 9px;font-size:11px;font-weight:700;cursor:pointer;">모두</button>
+    <button onclick="equipAuditAll(false)" style="background:rgba(255,255,255,.06);color:#9aa4ad;border:1px solid rgba(255,255,255,.15);border-radius:7px;padding:5px 9px;font-size:11px;font-weight:700;cursor:pointer;">초기화</button></div>
+    <div style="height:8px;background:rgba(255,255,255,.08);border-radius:5px;overflow:hidden;"><div style="height:100%;width:${pct}%;background:linear-gradient(90deg,#3a6ea5,#5fcf8f);transition:width .15s;"></div></div>
+  </div>`;
+  h+=items.map(it=>{
+    const on=_eqAudit.checked.has(String(it.id));
+    return `<div onclick="equipAuditToggle('${_escq(it.id)}')" style="display:flex;align-items:center;gap:10px;padding:9px 10px;margin-bottom:5px;border-radius:9px;cursor:pointer;background:${on?'rgba(94,207,143,.1)':'#16181d'};border:1px solid ${on?'rgba(94,207,143,.4)':'rgba(255,255,255,.07)'};">
+      <div style="width:24px;height:24px;border-radius:6px;flex-shrink:0;border:2px solid ${on?'#5fcf8f':'rgba(255,255,255,.25)'};background:${on?'#5fcf8f':'transparent'};display:flex;align-items:center;justify-content:center;font-size:13px;color:#0f0f11;font-weight:900;">${on?'✓':''}</div>
+      <div style="flex:1;min-width:0;"><div style="font-size:12.5px;font-weight:700;color:${on?'#a8e6c0':'#eef0f2'};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${_esc(it.name||'')}</div>
+      <div style="font-size:10px;color:#8b95a1;">${_esc(it.mgmtNo||'')}${it.person?' · '+_esc(it.person):''}${it.region?' · '+_esc(EQ_REGION_SHORT[it.region]||it.region):''}</div></div>
+    </div>`;
+  }).join('');
+  h+=`<button onclick="equipAuditFinish()" style="width:100%;background:linear-gradient(145deg,#1f8f52,#157a44);color:#fff;border:none;border-radius:11px;padding:13px;font-size:14px;font-weight:800;cursor:pointer;margin:10px 0 22px;">점검 완료 — 결과 보기</button>`;
+  b.innerHTML=h;
+}
+function equipAuditFinish(){
+  if(!_eqAudit)return;
+  const items=_eqAudit.ids.map(id=>_equipById(id)).filter(Boolean);
+  const missing=items.filter(it=>!_eqAudit.checked.has(String(it.id)));
+  _eqLastAudit={date:_equipTodayY(),by:(DB.g('currentUser')||{}).name||getAuthor(),scope:_eqAudit.scopeLabel,total:items.length,checked:_eqAudit.checked.size,missing:missing.length,missingIds:missing.map(x=>String(x.id)),at:Date.now(),saved:false};
+  const b=document.getElementById('equipBody');if(!b)return;
+  _equipSetTitle('✅ 점검 결과');
+  const rec=_eqLastAudit;
+  let h=`<button onclick="equipAuditExit()" style="background:none;border:none;color:#3182f6;font-size:12.5px;font-weight:700;cursor:pointer;padding:0 0 10px;">◀ 나가기</button>`;
+  h+=`<div style="display:flex;gap:8px;margin-bottom:12px;">
+    <div style="flex:1;background:#12151b;border:1px solid rgba(255,255,255,.08);border-radius:11px;padding:12px 6px;text-align:center;"><div style="font-size:22px;font-weight:800;color:#5fcf8f;">${rec.checked}</div><div style="font-size:10px;color:#8b95a1;">확인</div></div>
+    <div style="flex:1;background:#12151b;border:1px solid ${missing.length?'rgba(255,107,91,.35)':'rgba(255,255,255,.08)'};border-radius:11px;padding:12px 6px;text-align:center;"><div style="font-size:22px;font-weight:800;color:${missing.length?'#ff7a6e':'#5fcf8f'};">${missing.length}</div><div style="font-size:10px;color:#8b95a1;">미확인</div></div>
+    <div style="flex:1;background:#12151b;border:1px solid rgba(255,255,255,.08);border-radius:11px;padding:12px 6px;text-align:center;"><div style="font-size:22px;font-weight:800;color:#7fd0ff;">${rec.total}</div><div style="font-size:10px;color:#8b95a1;">전체</div></div>
+  </div>`;
+  h+=`<div style="font-size:11px;color:#8b95a1;margin-bottom:12px;">${_esc(rec.date)} · ${_esc(rec.by)} · 범위 ${_esc(rec.scope)}</div>`;
+  if(missing.length){
+    h+=`<div style="font-size:13px;font-weight:800;color:#ff8a80;margin-bottom:8px;">❗ 제자리에 없음(분실의심) ${missing.length}건</div>`;
+    h+=missing.map(it=>`<div class="scard" onclick="openEquipDetail('${_escq(it.id)}')" style="display:flex;align-items:center;gap:8px;margin-bottom:5px;padding:8px 10px;cursor:pointer;"><span style="font-size:13px;">❗</span><div style="flex:1;min-width:0;"><div style="font-size:12px;font-weight:700;color:#eef0f2;">${_esc(it.name||'')}</div><div style="font-size:10px;color:#8b95a1;">${_esc(it.mgmtNo||'')}${it.person?' · '+_esc(it.person):''}</div></div><span style="color:rgba(255,255,255,.3);">›</span></div>`).join('');
+  }else{
+    h+=`<div style="text-align:center;color:#5fcf8f;font-size:13.5px;padding:18px 0;font-weight:700;">✅ 전 품목 제자리 확인 완료</div>`;
+  }
+  h+=`<button id="eqAuditSaveBtn" onclick="equipAuditSave()" style="width:100%;background:rgba(49,130,246,.14);color:#8bb4f0;border:1px solid rgba(49,130,246,.35);border-radius:10px;padding:12px;font-size:13px;font-weight:800;cursor:pointer;margin:12px 0 8px;">💾 점검기록 저장</button>`;
+  h+=`<button onclick="equipAuditExit()" style="width:100%;background:rgba(255,255,255,.06);color:#9aa4ad;border:1px solid rgba(255,255,255,.14);border-radius:10px;padding:11px;font-size:12.5px;font-weight:700;cursor:pointer;margin-bottom:22px;">닫기</button>`;
+  b.innerHTML=h;
+}
+async function equipAuditSave(){
+  const rec=_eqLastAudit;if(!rec){toast('저장할 기록이 없습니다');return;}
+  if(rec.saved){toast('이미 저장됨');return;}
+  if(typeof _fdb==='undefined'||!_fdb){toast('⚠️ 온라인에서 저장하세요');return;}
+  try{
+    if(typeof _busy==='function')_busy('저장 중…');
+    await _fdb.collection('equipAudit').doc('a'+rec.at).set(rec);
+    rec.saved=true;
+    if(typeof _busyDone==='function')_busyDone();
+    const btn=document.getElementById('eqAuditSaveBtn');if(btn){btn.textContent='✅ 저장됨';btn.style.opacity='.6';}
+    toast('✅ 점검기록이 저장되었습니다');
+  }catch(e){if(typeof _busyDone==='function')_busyDone();toast('⚠️ 저장 실패: '+((e&&e.message)||e));}
+}
+
+// ── 내보내기 (엑셀=참고, 한글 이력카드=규정, 준비중) ──
+function equipExportMenu(){
+  let ov=document.getElementById('eqExportOv');if(ov)ov.remove();
+  ov=document.createElement('div');ov.id='eqExportOv';
+  ov.style.cssText='position:fixed;inset:0;z-index:9800;background:rgba(0,0,0,.6);display:flex;align-items:flex-end;justify-content:center;';
+  ov.onclick=e=>{if(e.target===ov)ov.remove();};
+  const cnt=_eqFilter(_eqData||[]).length;
+  ov.innerHTML=`<div style="width:100%;max-width:430px;background:#16181d;border-radius:16px 16px 0 0;padding:16px 16px calc(16px + env(safe-area-inset-bottom));">
+    <div style="font-size:15px;font-weight:800;color:#eef0f2;margin-bottom:12px;">📥 내보내기 <span style="font-size:11px;color:#8b95a1;font-weight:600;">(현재 목록 ${cnt}건)</span></div>
+    <button onclick="document.getElementById('eqExportOv').remove();equipExportXlsx();" style="width:100%;text-align:left;background:#1c1f26;border:1px solid rgba(255,255,255,.1);border-radius:10px;padding:13px 14px;font-size:13px;color:#dfe4ea;margin-bottom:8px;cursor:pointer;">📊 <b>엑셀(.xlsx)</b> — 재난과 통합파일과 대조용(참고)</button>
+    <div style="background:#1c1f26;border:1px solid rgba(255,255,255,.07);border-radius:10px;padding:13px 14px;font-size:13px;color:#8b95a1;margin-bottom:8px;">📄 <b style="color:#c9dcec;">한글 이력카드(.hwpx)</b> — 규정 제출용, 한 제품 한 장<br><span style="font-size:11px;">🛠️ 정확한 서식으로 제작 중 — 다음 업데이트</span></div>
+    <button onclick="document.getElementById('eqExportOv').remove()" style="width:100%;background:none;border:none;color:#8b95a1;font-size:12.5px;padding:8px;cursor:pointer;">취소</button>
+  </div>`;
+  document.body.appendChild(ov);
+}
+async function equipExportXlsx(){
+  try{
+    if(typeof _busy==='function')_busy('📊 엑셀 생성 중…');
+    const XLSX=await _loadXlsx();
+    const list=_eqSortedFiltered();
+    const rows=list.map(it=>({관리번호:it.mgmtNo||'',대분류:it.cat1||'',중분류:it.cat2||'',품명:it.name||'',제조사:it.maker||'',타입:it.type||'',등급:it.grade||'',상태:it.cond||'',인증:it.cert||'',EN:it.en||'',MBS:it.mbs||'',WLL:it.wll||'',생산연도:it.year||'',일련번호:it.serial||'',지역:it.region||'',담당:it.person||'',비고:it.note||''}));
+    const ws=XLSX.utils.json_to_sheet(rows);const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'장비관리표');
+    XLSX.writeFile(wb,'외설악_장비관리표_'+_equipTodayY()+'.xlsx');
+    if(typeof _busyDone==='function')_busyDone();
+    toast('📊 엑셀 '+rows.length+'건 저장');
+  }catch(e){if(typeof _busyDone==='function')_busyDone();toast('⚠️ 엑셀 생성 실패: '+((e&&e.message)||e),4000);}
+}
+// ── 📍 보관위치 (건물별 → 구역 A~E, 코드 예: A3·C1) ── 위치코드는 건물(지역) 안에서만 유효
+const EQ_ZONES=[
+  {k:'A',label:'하드웨어 벽',icon:'🔗',desc:'카라비너·퀵드로우·하강기·도르레·어센더'},
+  {k:'B',label:'로프·섬유 선반',icon:'🪢',desc:'로프·슬링·자일'},
+  {k:'C',label:'개인 배낭 큐비',icon:'🎒',desc:'대원별 배낭(C1=이름)'},
+  {k:'D',label:'동계·기타 선반',icon:'🧊',desc:'비콘·스토브·크램폰·침낭'},
+  {k:'E',label:'공구·기타',icon:'🧰',desc:''}
+];
+const EQ_ZONE_MAP=(()=>{const m={};EQ_ZONES.forEach(z=>{m[z.k]=z;});return m;})();
+const EQ_BUILDING={'특수산악구조대':{label:'특구대 컨테이너',icon:'📦',zones:true},'방재창고':{label:'방재창고(본소)',icon:'🏢'},'안전관리반':{label:'안전관리반',icon:'🏛️'},'대피소':{label:'대피소',icon:'⛺'}};
+function _eqZoneOf(loc){return String(loc||'').trim().charAt(0).toUpperCase();}
+
+// 🗺️ 배치도 — 건물(지역) → (특구대 컨테이너는 구역 A~E) → 위치코드·수량
+function _renderEquipZones(all){
+  const inner=document.getElementById('equipInner');if(!inner)return;
+  const canM=_canEquipManage();
+  const locChip=(L,n)=>`<span onclick="equipGotoList({loc:'${_escq(L)}'})" style="cursor:pointer;font-size:11px;background:#0e2436;border:1px solid rgba(255,255,255,.15);border-radius:8px;padding:4px 9px;color:#c9dcec;font-weight:700;margin:0 5px 5px 0;display:inline-block;">${_esc(L)} <span style="color:#7fb0f0;">${n}</span></span>`;
+  let h='';
+  if(canM)h+=`<div style="display:flex;gap:6px;margin-bottom:10px;"><button onclick="equipLocLabels()" style="flex:1;background:rgba(49,130,246,.12);color:#8bb4f0;border:1px solid rgba(49,130,246,.3);border-radius:9px;padding:9px;font-size:12px;font-weight:800;cursor:pointer;">🏷️ 선반 라벨·QR 인쇄</button></div>
+    <div style="font-size:10.5px;color:#8b95a1;margin-bottom:10px;line-height:1.5;">건물별 보관위치 · 코드는 건물 안에서만 유효(컨테이너 A1 ≠ 방재창고 A1). 위치 지정: 개별 목록에서 <b>필터로 묶어 → 📍위치지정</b>.</div>`;
+  const order=['특수산악구조대','방재창고','안전관리반','대피소'];
+  const present=order.filter(r=>all.some(it=>it.region===r));
+  const others=Array.from(new Set(all.map(it=>it.region).filter(r=>r&&order.indexOf(r)<0)));
+  const noReg=all.filter(it=>!String(it.region||'').trim()).length;
+  present.concat(others).forEach(rg=>{
+    const items=all.filter(it=>it.region===rg);
+    const bld=EQ_BUILDING[rg]||{label:rg,icon:'🏠'};
+    const noloc=items.filter(it=>!String(it.loc||'').trim()).length;
+    const byLoc={};items.forEach(it=>{const L=String(it.loc||'').trim();if(L)(byLoc[L]=byLoc[L]||[]).push(it);});
+    const locKeys=Object.keys(byLoc).sort((a,b)=>a.localeCompare(b,'ko',{numeric:true}));
+    h+=`<div style="margin:14px 0 8px;"><span onclick="equipGotoList({region:'${_escq(rg)}'})" style="cursor:pointer;font-size:14px;font-weight:800;color:#eef0f2;">${bld.icon} ${_esc(bld.label)}</span> <span style="font-size:11px;color:#6b7684;">${items.length}점</span>${noloc?` · <span style="font-size:11px;color:#f0b840;">위치 미지정 ${noloc}</span>`:''}</div>`;
+    if(bld.zones){
+      // 구역 A~E
+      EQ_ZONES.forEach(z=>{
+        const zk=locKeys.filter(L=>_eqZoneOf(L)===z.k);if(!zk.length)return;
+        h+=`<div class="scard" style="padding:9px 11px;margin-bottom:6px;"><div style="font-size:12px;font-weight:800;color:#a5abb3;margin-bottom:6px;">${z.icon} ${z.k}. ${_esc(z.label)}</div><div style="display:flex;flex-wrap:wrap;">${zk.map(L=>locChip(L,byLoc[L].length)).join('')}</div></div>`;
+      });
+      const misc=locKeys.filter(L=>!EQ_ZONE_MAP[_eqZoneOf(L)]);
+      if(misc.length)h+=`<div class="scard" style="padding:9px 11px;margin-bottom:6px;"><div style="font-size:12px;font-weight:800;color:#a5abb3;margin-bottom:6px;">기타 코드</div><div style="display:flex;flex-wrap:wrap;">${misc.map(L=>locChip(L,byLoc[L].length)).join('')}</div></div>`;
+      if(!locKeys.length)h+=`<div style="font-size:11px;color:#6b7684;padding:2px 2px 8px;">아직 위치가 지정되지 않았습니다.</div>`;
+    }else{
+      if(locKeys.length)h+=`<div class="scard" style="padding:9px 11px;margin-bottom:6px;"><div style="display:flex;flex-wrap:wrap;">${locKeys.map(L=>locChip(L,byLoc[L].length)).join('')}</div></div>`;
+      else h+=`<div style="font-size:11px;color:#6b7684;padding:2px 2px 8px;">위치 미지정.</div>`;
+    }
+  });
+  if(noReg)h+=`<div style="font-size:11px;color:#8b95a1;margin-top:10px;">건물(지역) 미지정 ${noReg}점 — 개별 목록에서 '정보 수정'으로 지역을 넣어주세요.</div>`;
+  h+=`<div style="font-size:9.5px;color:#565f6b;text-align:center;padding:12px 0 6px;">구역·위치를 눌러 해당 장비 보기 · 위치 변경은 개별 목록 📍위치지정 또는 '정보 수정'</div>`;
+  inner.innerHTML=h;
+}
+
+// 📍 위치 일괄 지정 (현재 목록에 위치코드 부여) — 관리번호·마킹 불변, 보관위치만
+function equipLocAssignStart(){
+  if(!_canEquipManage()){toast('⚠️ 권한 없음');return;}
+  const list=_eqSortedFiltered();
+  if(!list.length){toast('먼저 개별 목록에서 대상을 좁혀주세요');return;}
+  const regs=Array.from(new Set(list.map(x=>x.region).filter(Boolean)));
+  const regHint=regs.length===1?('건물: '+(EQ_BUILDING[regs[0]]?EQ_BUILDING[regs[0]].label:regs[0])+'\n'):(regs.length>1?'⚠️ 여러 건물이 섞여 있습니다 — 같은 건물로 좁혀서 지정하세요.\n':'');
+  const cur=list[0]&&list[0].loc?list[0].loc:'';
+  const code=prompt('이 목록 '+list.length+'건에 보관위치를 지정합니다.\n'+regHint+'\n구역-번호 (예: A3=하드웨어벽 3, C1=개인배낭 1)\n비우면 위치 지움.',cur);
+  if(code==null)return;
+  equipLocAssignDo(list.map(x=>String(x.id)),String(code).trim().toUpperCase());
+}
+async function equipLocAssignDo(ids,loc){
+  if(!_canEquipManage()){toast('⚠️ 권한 없음');return;}
+  const targets=(_eqData||[]).filter(it=>ids.indexOf(String(it.id))>=0);
+  if(!targets.length){toast('대상 없음');return;}
+  if(typeof _fdb==='undefined'||!_fdb){toast('⚠️ 온라인에서 실행하세요');return;}
+  if(!confirm(targets.length+'건의 보관위치를 '+(loc?"'"+loc+"'":'(지움)')+'(으)로 설정할까요?'))return;
+  const orig=targets.map(it=>it.loc);
+  if(typeof _busy==='function')_busy('📍 위치 지정 중…');
+  try{
+    const by=(DB.g('currentUser')||{}).name||getAuthor();const now=Date.now();
+    let batch=_fdb.batch(),ops=0,n=0;
+    for(const it of targets){
+      it.loc=loc;it.updatedAt=now;it.updatedBy=by;
+      batch.set(_fdb.collection('equipInv').doc(String(it.id)),it);
+      ops++;n++;
+      if(ops>=400){await batch.commit();batch=_fdb.batch();ops=0;if(typeof _busy==='function')_busy('📍 '+n+'건…');}
+    }
+    if(ops>0)await batch.commit();
+    _equipWriteOffline(_eqData);
+    if(typeof _busyDone==='function')_busyDone();
+    toast('✅ '+n+'건 위치 '+(loc||'지움')+' 설정',3500);
+    _equipRender();
+  }catch(e){if(typeof _busyDone==='function')_busyDone();toast('⚠️ 실패 — 서버와 재동기화: '+((e&&e.message)||e),4500);try{_eqData=null;await _equipLoadAll(true);}catch(e2){targets.forEach((it,i)=>{it.loc=orig[i];});}_equipRender();}
+}
+
+// QR 지연 로드(인쇄 시에만)
+let _qrLoading=null;
+function _loadQR(){
+  if(window.qrcode)return Promise.resolve(window.qrcode);
+  if(_qrLoading)return _qrLoading;
+  _qrLoading=new Promise((res,rej)=>{const s=document.createElement('script');s.src='https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js';s.onload=()=>window.qrcode?res(window.qrcode):rej(new Error('qr load fail'));s.onerror=()=>rej(new Error('qr net fail'));document.head.appendChild(s);});
+  return _qrLoading;
+}
+function _qrDataUrl(text){try{const qr=window.qrcode(0,'M');qr.addData(String(text));qr.make();return qr.createDataURL(4,8);}catch(e){return '';}}
+// 🏷️ 선반 라벨·QR 인쇄 — 건물+위치코드별 1장(대형 코드·품목·QR). QR=그 위치로 열리는 링크
+async function equipLocLabels(){
+  const all=_eqData||[];
+  const groups={};all.forEach(it=>{const L=String(it.loc||'').trim();if(!L)return;const rg=it.region||'';const key=rg+''+L;(groups[key]=groups[key]||{rg,loc:L,items:[]}).items.push(it);});
+  const keys=Object.keys(groups).sort((a,b)=>a.localeCompare(b,'ko',{numeric:true}));
+  if(!keys.length){toast('위치가 지정된 장비가 없습니다 — 먼저 위치를 지정하세요');return;}
+  if(typeof _busy==='function')_busy('🏷️ 라벨 생성 중…');
+  try{try{await _loadQR();}catch(e){}
+    const base='https://seorak1275.github.io/seoraksan/';
+    const cards=keys.map(k=>{
+      const g=groups[k];const bld=EQ_BUILDING[g.rg]||{label:g.rg||'',icon:'🏠'};
+      const names={};g.items.forEach(it=>{names[it.name||'-']=(names[it.name||'-']||0)+1;});
+      const list=Object.keys(names).sort((a,b)=>a.localeCompare(b,'ko')).map(n=>`<div style="font-size:12px;padding:1px 0;">• ${_esc(n)} <b>${names[n]}</b></div>`).join('');
+      const qr=window.qrcode?_qrDataUrl(base+'?equipReg='+encodeURIComponent(g.rg)+'&equipLoc='+encodeURIComponent(g.loc)):'';
+      return `<div style="border:2px solid #111;border-radius:8px;padding:12px 14px;margin:0 0 10px;page-break-inside:avoid;display:flex;gap:12px;">
+        <div style="flex:1;min-width:0;"><div style="font-size:11px;color:#666;">${_esc(bld.icon+' '+bld.label)}</div><div style="font-size:32px;font-weight:900;letter-spacing:1px;">${_esc(g.loc)}</div><div style="font-size:11px;color:#444;margin:0 0 8px;">총 ${g.items.length}점</div>${list}</div>
+        ${qr?`<div style="text-align:center;flex-shrink:0;"><img src="${qr}" style="width:96px;height:96px;"><div style="font-size:9px;color:#666;">앱에서 열기</div></div>`:''}
+      </div>`;
+    }).join('');
+    const doc=`<!doctype html><html><head><meta charset="utf-8"><title>보관위치 라벨</title><style>@page{size:A4;margin:12mm;}body{font-family:'Malgun Gothic',sans-serif;color:#111;margin:0;padding:14px;}h1{font-size:16px;margin:0 0 12px;}</style></head><body><h1>🧰 구조대 장비 보관위치 라벨 (${keys.length}칸 · ${_equipTodayY()})</h1>${cards}<div style="font-size:10px;color:#888;margin-top:10px;">각 칸(선반·고리·큐비)에 붙이세요. QR을 찍으면 그 위치 재고가 앱에 열립니다.</div></body></html>`;
+    if(typeof _busyDone==='function')_busyDone();
+    if(typeof _docPreviewOverlay==='function')_docPreviewOverlay(doc,'보관위치 라벨 인쇄');
+    else{const w=window.open('','_blank');if(w){w.document.write(doc);w.document.close();}}
+  }catch(e){if(typeof _busyDone==='function')_busyDone();toast('⚠️ 라벨 생성 실패: '+((e&&e.message)||e),4000);}
+}
+// QR 딥링크: ?equipReg=..&equipLoc=.. 로 열면 그 위치 목록으로 (부팅 시 1회 시도)
+function _equipDeepLink(){
+  try{
+    const p=new URLSearchParams(location.search);const L=p.get('equipLoc');if(!L)return;
+    if(!_canEquipView())return;
+    const reg=p.get('equipReg')||'';
+    openEquip();
+    setTimeout(()=>{try{equipGotoList(reg?{region:reg,loc:L}:{loc:L});}catch(e){}},700);
+  }catch(e){}
+}
+function _updateEquipMenu(){const el=document.getElementById('mbEquip');if(!el)return;el.style.display=_canEquipView()?'':'none';}
 
 // 직원 정렬: 직위 → 과순서 → 이름순
 const RANKS=['소장','과장','분소장','대장','팀장','계장','주임'];
@@ -3866,7 +4775,7 @@ function sosToRescue(id){
 // 앱 자체 업데이트 (OTA · Capgo 자체호스팅) — APK 전용. 웹/PWA는 서비스워커가 자동 갱신.
 // 번들(www)의 새 버전을 ota.json으로 알리면, 설치된 앱이 받아서 그 자리에서 교체(재빌드 불필요).
 // ══════════════════════════════════════════
-const OTA_VER='2026.07.22.328';                         // ← 현재 번들 버전 (릴리스마다 올림 · build-ota.sh가 ota.json에 반영)
+const OTA_VER='2026.07.21.343';                         // ← 현재 번들 버전 (릴리스마다 올림 · build-ota.sh가 ota.json에 반영)
 const OTA_MANIFEST='https://seorak1275.github.io/seoraksan/ota.json';
 // 업데이트 확인 폴백 소스 — 일부 기관망·통신사에서 github.io가 막혀 '확인 실패(네트워크)'가 나는 경우 대비.
 // 순서대로 시도: ① GitHub Pages(원본·즉시 반영) ② jsDelivr CDN(공개저장소 미러·거의 모든 망 통과)
@@ -4061,9 +4970,18 @@ window.onload=function(){
     // 관리자 로그인 오버레이가 떠 있으면 그것부터 닫기 (전체 화면을 덮고 있어 안 닫으면 먹통처럼 보임)
     var adminOv=document.getElementById('adminLoginOverlay');
     if(adminOv&&adminOv.style.display==='flex'){adminOv.style.display='none';history.pushState({view:'home'},'','');return;}
+    // 🧭 시설물 내비 오버레이 → 뒤로가기로 닫기(GPS·음성 정리)
+    var fnOv=document.getElementById('facNavOv');
+    if(fnOv){try{closeFacNav();}catch(e){fnOv.remove();}history.pushState({view:'home'},'','');return;}
     // 암벽 이용관리 패널(전체화면) → 뒤로가기로 닫기 (다른 홈 메뉴처럼 동작)
     var cPanel=document.getElementById('climbPanel');
     if(cPanel){cPanel.remove();history.pushState({view:'home'},'','');return;}
+    // 구조대 장비 관리 패널 → 하위뷰(상세·폼)면 목록으로, 목록이면 패널 닫기
+    var eqPanel=document.getElementById('equipPanel');
+    if(eqPanel){
+      if(typeof _eqView!=='undefined'&&_eqView&&_eqView!=='list'){_eqView='list';_eqSel=null;try{_equipRender();}catch(e){}history.pushState({view:'home'},'','');return;}
+      eqPanel.remove();history.pushState({view:'home'},'','');return;
+    }
     // 사진 전체보기 닫기
     var lb=document.getElementById('photoLightbox');
     if(lb&&lb.style.display==='flex'){lb.style.display='none';history.pushState({view:'home'},'','');return;}
@@ -4256,6 +5174,7 @@ window.onload=function(){
       try{_startKmaWarnPoll();}catch(e){}
       try{_initSosWatch();}catch(e){} // 🆘 조난·사고자 위치 실시간 구독
       try{setTimeout(_climbPrefetchToday,8000);}catch(e){} // 🧗 출동 대비: 오늘·내일 암벽 명단 자동 저장(음영지역 진입 대비)
+      try{setTimeout(function(){if(typeof _equipDeepLink==='function')_equipDeepLink();},2500);}catch(e){} // 🧰 라벨 QR(?equipLoc=) 딥링크 → 그 위치 목록 열기
       try{setTimeout(_autoPreloadParkTiles,25000);}catch(e){} // 🗺️ 설악산 타일 자동 미리받기(7일마다, 요금 배려) — 깜빡임 없는 지도
       // 위험상황 비활성화: 정적 버튼(지도 FAB·통계 탭) 숨김
       try{if(typeof _HAZ_OFF!=='undefined'&&_HAZ_OFF){['hazFab','rsTabHaz'].forEach(function(id){var el=document.getElementById(id);if(el)el.style.display='none';});}}catch(e){}

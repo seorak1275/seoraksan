@@ -215,7 +215,7 @@ function _showFacOverlapList(group,tappedId){
 const DC={lat:38.1328,lng:128.4107};
 // HTML/attribute escaping for user-generated content
 function _esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');}
-function _escq(s){return String(s==null?'':s).replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/"/g,'&quot;').replace(/</g,'&lt;');}
+function _escq(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/"/g,'&quot;').replace(/</g,'&lt;');}
 function _haversine(lat1,lng1,lat2,lng2){
   var R=6371000,r=Math.PI/180;
   var dL=(lat2-lat1)*r,dG=(lng2-lng1)*r;
