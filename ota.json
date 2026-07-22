@@ -1,1 +1,1 @@
-{"version":"2026.07.21.327","url":"https://seorak1275.github.io/seoraksan/bundle.zip","notes":"구역관리 패널: 구역 표시 끌 때 함께 정리(잔류 방지) — 검증 지적 반영"}
+{"version":"2026.07.22.328","url":"https://seorak1275.github.io/seoraksan/bundle.zip","notes":"구역 경계 KML/GeoJSON 불러오기(관리자) — Google Earth·QGIS 편집 경계를 앱에 반영(zoneGeom 교체·전 직원 동기화), 되돌리기가 불러온 경계도 원복 · 검증지적 3건(KML 외곽링만·패널 카운터) 반영"}

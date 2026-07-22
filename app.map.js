@@ -411,7 +411,7 @@ function _zoneDraw(){
   (zd.zones||[]).forEach(z=>{
     const mine=_isMine(z.n);
     const off=_zoneOff(z.n); // 앱 내 경계 조정(zoneEdits) 보정 반영
-    (z.rings||[]).forEach(ring=>{
+    _effRings(z).forEach(ring=>{
       const ri=_rc[z.n]=(_rc[z.n]===undefined?0:_rc[z.n]+1); // 짧아서 스킵되는 링도 번호는 소비 — _zonePip과 번호 일치
       if(ring.length<3)return;
       const pg=new kakao.maps.Polygon({path:_zeRingPath(ring,ri,off),
@@ -533,7 +533,7 @@ function _zoneDrawBoard(){
   const _rcB={}; // 링 번호 규칙은 _zoneDraw와 동일해야 꼭짓점 보정이 같은 자리에 적용됨
   (_zoneData.zones||[]).forEach(z=>{
     const off=_zoneOff(z.n); // 경계 조정 보정 반영(상황판도 동일)
-    (z.rings||[]).forEach(ring=>{
+    _effRings(z).forEach(ring=>{
       const ri=_rcB[z.n]=(_rcB[z.n]===undefined?0:_rcB[z.n]+1);
       if(ring.length<3)return;
       const pg=new kakao.maps.Polygon({path:_zeRingPath(ring,ri,off),
@@ -586,7 +586,7 @@ function _zonePip(n,la,ln){
   const adj=_zoneOff(n)||{};const dla=adj.dlat||0,dln=adj.dlng||0,vs=adj.verts||null;
   const zs=((_zoneData&&_zoneData.zones)||[]).filter(z=>z.n===n);
   let ri=-1;
-  for(const z of zs)for(const ring of (z.rings||[])){
+  for(const z of zs)for(const ring of _effRings(z)){
     ri++; // 링 번호 소비 규칙이 _zoneDraw와 동일해야 verts 키가 같은 링에 적용됨
     let ins=false;
     for(let i=0,j=ring.length-1;i<ring.length;j=i++){
@@ -694,6 +694,13 @@ function _zeRingPath(ring,ri,adj){
   return ring.map((p,vi)=>{const vd=vs&&vs[ri+','+vi];
     return new kakao.maps.LatLng(p[0]+dla+(vd?vd[0]:0),p[1]+dln+(vd?vd[1]:0));});
 }
+// 구역의 '실제 사용할' 경계 링들: 불러온 경계(zoneGeom)가 있으면 그걸로 교체, 없으면 원본 park-zones.json 링
+function _effRings(z){const g=DB.g('zoneGeom')||{};const gr=g&&g[z.n];return (gr&&gr.length)?gr:(z.rings||[]);}
+// zoneGeom(경계 교체) 원격/로컬 변경 → 레이어 전체 재그리기(교체는 점 개수가 달라 in-place 이동 불가)
+function _zoneGeomReload(){
+  try{if(_zoneLayer){_zoneClear();_zoneDraw();}}catch(e){}
+  try{if(_zoneLayerB&&_boardMap){_zoneLayerB.forEach(o=>{try{o.setMap(null);}catch(e){}});_zoneLayerB=null;_zoneDrawBoard();}}catch(e){}
+}
 // zoneEdits 원격 수신 → 켜져 있는 구역 레이어를 제자리 갱신 (app.core.js 문서 리스너가 호출)
 // _zoneDraw() 재호출 대신 setPath/setPosition만 쓰는 이유: 재센터·토스트 부작용 없이 선택·깜빡임 상태 유지
 function _zoneRemoteRefresh(){
@@ -713,7 +720,7 @@ function _zaDownload(text,fname,mime){
   }catch(e){toast('⚠️ 내보내기 실패: '+((e&&e.message)||e));}
 }
 // 저장된 보정을 반영한 각 구역의 현재 경계 링들(숫자 [lat,lng]) — 링 번호 규칙은 _zoneDraw와 동일
-function _zoneCurrentRings(z){const out=[];let ri=-1;(z.rings||[]).forEach(ring=>{ri++;if(ring.length<3)return;out.push(_zaAdjRing(z.n,ring,ri));});return out;}
+function _zoneCurrentRings(z){const out=[];let ri=-1;_effRings(z).forEach(ring=>{ri++;if(ring.length<3)return;out.push(_zaAdjRing(z.n,ring,ri));});return out;}
 function _zoneExportKml(){
   if(!_zoneData){toast('구역 데이터를 불러오는 중입니다');return;}
   const info=_zoneData.info||{};
@@ -745,20 +752,92 @@ function _zoneExportGeojson(){
   toast('📄 GeoJSON 저장 완료');
 }
 function _zoneRevertConfirm(){
-  const e=DB.g('zoneEdits')||{};const n=Object.keys(e).length;
-  if(!n){toast('되돌릴 편집이 없습니다 — 이미 원본 상태입니다');return;}
-  if(!confirm('⚠️ 저장된 구역 위치 편집 '+n+'개를 모두 삭제하고 원본 경계로 되돌립니다.\n모든 직원 지도·상황판에 반영되며 되돌릴 수 없습니다.\n\n계속할까요?'))return;
-  try{DB.d('zoneEdits');}catch(e2){}       // 공유DB 문서 삭제 = 전부 원본
-  try{DB.s('zoneEdits',{});}catch(e2){}     // 병합 기준도 비워 다른 기기 동기화 확실히
-  try{_zoneRemoteRefresh();}catch(e2){}     // 이 기기 즉시 원본 표시
+  const nE=Object.keys(DB.g('zoneEdits')||{}).length, nG=Object.keys(DB.g('zoneGeom')||{}).length;
+  if(!nE&&!nG){toast('되돌릴 편집이 없습니다 — 이미 원본 상태입니다');return;}
+  if(!confirm('⚠️ 저장된 구역 편집(위치 '+nE+'개'+(nG?' · 경계교체 '+nG+'개':'')+')을 모두 삭제하고 원본 경계로 되돌립니다.\n모든 직원 지도·상황판에 반영되며 되돌릴 수 없습니다.\n\n계속할까요?'))return;
+  try{DB.d('zoneEdits');}catch(e2){}try{DB.s('zoneEdits',{});}catch(e2){}   // offset 편집 전부 제거
+  try{DB.d('zoneGeom');}catch(e2){}try{DB.s('zoneGeom',{});}catch(e2){}     // 불러온 경계 교체도 전부 제거
+  try{_zoneGeomReload();}catch(e2){}                                          // 이 기기 즉시 원본 재그리기
+  try{_zoneRemoteRefresh();}catch(e2){}
   toast('↩ 원본 경계로 되돌렸습니다 — 전 직원 지도에 반영');
+  const p=document.getElementById('zoneAdminPanel');if(p)p.remove();
+}
+// ── 📥 KML/GeoJSON 불러오기 — Google Earth·QGIS에서 편집한 구역 경계를 앱에 반영 ──
+// GeoJSON: [경도,위도] → [위도,경도] 변환. 구역 매칭은 properties.zone / name의 숫자
+function _parseZonesGeojson(txt){
+  const d=JSON.parse(txt);const feats=(d&&d.type==='FeatureCollection')?(d.features||[]):(Array.isArray(d)?d:[d]);
+  const out={};
+  feats.forEach(f=>{if(!f)return;const pr=f.properties||{};
+    const m=String(pr.zone!=null?pr.zone:(pr.n!=null?pr.n:(pr.name||''))).match(/\d+/);if(!m)return;
+    const g=f.geometry;if(!g)return;let rings=[];
+    if(g.type==='Polygon')rings=[g.coordinates&&g.coordinates[0]].filter(Boolean); // 외곽 링만(구멍 무시)
+    else if(g.type==='MultiPolygon')rings=(g.coordinates||[]).map(poly=>poly&&poly[0]).filter(Boolean);
+    else return;
+    const conv=rings.map(r=>r.map(p=>[+p[1],+p[0]]).filter(q=>isFinite(q[0])&&isFinite(q[1]))).filter(r=>r.length>=3);
+    if(conv.length)out[m[0]]=conv;
+  });
+  return out;
+}
+// KML: Placemark name의 숫자로 매칭, coordinates는 "경도,위도,고도" → [위도,경도]
+function _parseZonesKml(txt){
+  const doc=new DOMParser().parseFromString(txt,'text/xml');
+  if(doc.getElementsByTagName('parsererror').length)throw new Error('KML 형식 오류');
+  const out={},pms=doc.getElementsByTagName('Placemark');
+  for(let i=0;i<pms.length;i++){const pm=pms[i];
+    const nmEl=pm.getElementsByTagName('name')[0];const m=String((nmEl&&nmEl.textContent)||'').match(/\d+/);if(!m)continue;
+    const rings=[];
+    // 외곽 링만 취함(구멍 innerBoundaryIs 무시) — GeoJSON 파서와 동작 일치. outerBoundaryIs 없으면 모든 LinearRing 폴백
+    const obs=pm.getElementsByTagName('outerBoundaryIs');
+    const lrs=obs.length?[]:pm.getElementsByTagName('LinearRing');
+    const coordEls=[];
+    for(let k=0;k<obs.length;k++){const lr=obs[k].getElementsByTagName('LinearRing')[0];const ce=lr&&lr.getElementsByTagName('coordinates')[0];if(ce)coordEls.push(ce);}
+    for(let k=0;k<lrs.length;k++){const ce=lrs[k].getElementsByTagName('coordinates')[0];if(ce)coordEls.push(ce);}
+    coordEls.forEach(cEl=>{
+      const pts=String(cEl.textContent||'').trim().split(/\s+/).map(t=>{const a=t.split(',');return [parseFloat(a[1]),parseFloat(a[0])];}).filter(p=>isFinite(p[0])&&isFinite(p[1]));
+      if(pts.length>=3)rings.push(pts);
+    });
+    if(rings.length)out[m[0]]=rings;
+  }
+  return out;
+}
+function _zoneImportPick(){
+  if(!(typeof isAdminUser==='function'&&isAdminUser())){try{_showAdminDenied();}catch(e){}return;}
+  let inp=document.getElementById('zoneImportInput');
+  if(!inp){inp=document.createElement('input');inp.type='file';inp.id='zoneImportInput';inp.accept='.kml,.geojson,.json,application/vnd.google-earth.kml+xml,application/geo+json';inp.style.display='none';inp.onchange=function(){_zoneImportFile(inp);};document.body.appendChild(inp);}
+  inp.value='';inp.click();
+}
+function _zoneImportFile(inp){
+  const f=inp.files&&inp.files[0];if(!f)return;
+  const rd=new FileReader();
+  rd.onload=function(){try{
+    const txt=String(rd.result||'');
+    const parsed=/^\s*[\{\[]/.test(txt)?_parseZonesGeojson(txt):_parseZonesKml(txt);
+    _zoneImportApply(parsed);
+  }catch(e){toast('⚠️ 파일을 해석하지 못했습니다: '+((e&&e.message)||e),4000);}};
+  rd.onerror=function(){toast('⚠️ 파일 읽기 실패');};
+  rd.readAsText(f);
+}
+function _zoneImportApply(parsed){
+  const known=new Set(((_zoneData&&_zoneData.zones)||[]).map(z=>String(z.n)));
+  const keys=Object.keys(parsed||{}).filter(n=>known.has(String(n)));
+  if(!keys.length){toast('불러온 파일에서 인식되는 구역을 찾지 못했습니다 (이름이 "N구역" 또는 zone 속성 필요)',4500);return;}
+  const geom=Object.assign({},DB.g('zoneGeom')||{});
+  keys.forEach(n=>{geom[n]=parsed[n].map(r=>r.map(p=>[+p[0].toFixed(6),+p[1].toFixed(6)]));});
+  if(JSON.stringify(geom).length>950000){toast('⚠️ 구역 경계 용량이 Firestore 한계(1MB)에 근접 — 좌표를 단순화한(점 수를 줄인) 파일로 다시 시도하세요',5000);return;}
+  const pts=keys.reduce((s,n)=>s+geom[n].reduce((a,r)=>a+r.length,0),0);
+  if(!confirm('📥 '+keys.length+'개 구역('+keys.join(', ')+')의 경계를 불러온 파일로 교체합니다.\n총 '+pts+'개 꼭짓점 · 모든 직원 지도·상황판에 반영됩니다.\n\n계속할까요?'))return;
+  DB.s('zoneGeom',geom);
+  // 교체된 구역의 예전 offset 편집은 무의미하므로 제거
+  const ed=Object.assign({},DB.g('zoneEdits')||{});let ch=false;keys.forEach(n=>{if(ed[n]){delete ed[n];ch=true;}});if(ch)DB.s('zoneEdits',ed);
+  try{_zoneGeomReload();}catch(e){}
+  toast('📥 '+keys.length+'개 구역 경계 반영 완료 — 전 직원 지도에 적용됩니다');
   const p=document.getElementById('zoneAdminPanel');if(p)p.remove();
 }
 function _zoneAdminPanel(){
   if(!(typeof isAdminUser==='function'&&isAdminUser())){try{_showAdminDenied();}catch(e){}return;}
   if(!_zoneData){toast('구역 표시를 먼저 켜 주세요');return;}
   let p=document.getElementById('zoneAdminPanel');if(p)p.remove();
-  const e=DB.g('zoneEdits')||{};const nEdit=Object.keys(e).length;
+  const nEdit=Object.keys(DB.g('zoneEdits')||{}).length, nGeom=Object.keys(DB.g('zoneGeom')||{}).length, nTot=nEdit+nGeom;
   p=document.createElement('div');p.id='zoneAdminPanel';p._baseTf='translateX(-50%)';
   p.style.cssText='position:fixed;left:50%;transform:translateX(-50%);bottom:calc(74px + env(safe-area-inset-bottom));z-index:9500;width:calc(100% - 24px);max-width:460px;box-sizing:border-box;background:#16161a;border:1px solid rgba(255,255,255,.18);border-radius:13px;box-shadow:0 6px 20px rgba(0,0,0,.6);';
   const btn=(cb,bg,bd,cl,t,sub)=>`<button onclick="${cb}" style="width:100%;text-align:left;padding:11px 12px;border-radius:9px;border:1px solid ${bd};background:${bg};color:${cl};font-size:12.5px;font-weight:700;cursor:pointer;margin-top:7px;line-height:1.4;">${t}${sub?`<br><span style="font-weight:500;font-size:10.5px;color:#8b9099;">${sub}</span>`:''}</button>`;
@@ -766,12 +845,13 @@ function _zoneAdminPanel(){
     <div class="sheetGrab" style="padding:7px 0 2px;cursor:grab;touch-action:none;"><div class="dbhandle"></div></div>
     <div style="padding:2px 14px 12px;">
       <div style="display:flex;align-items:center;gap:8px;"><span style="font-size:13px;font-weight:800;color:#e8ecf1;">🛠 담당구역 관리</span>
-        <span style="font-size:10.5px;color:#8b9099;">저장된 편집 ${nEdit}개 구역</span></div>
+        <span style="font-size:10.5px;color:#8b9099;">${nTot?('저장된 편집 '+nTot+'개 구역'+(nGeom?(' · 경계교체 '+nGeom):'')):'편집 없음(원본)'}</span></div>
       ${btn('_zoneExportKml()','rgba(49,130,246,.12)','rgba(49,130,246,.4)','#7db4ff','📤 KML로 내보내기','Google Earth Pro·QGIS에서 정밀 편집')}
       ${btn('_zoneExportGeojson()','rgba(255,255,255,.06)','rgba(255,255,255,.18)','#cdd4dc','📄 GeoJSON으로 내보내기','QGIS 권장')}
+      ${btn('_zoneImportPick()','rgba(46,204,113,.12)','rgba(46,204,113,.4)','#57d98a','📥 편집한 파일 불러오기','Google Earth·QGIS에서 고친 KML/GeoJSON → 경계 교체')}
       ${btn('_zoneAudit()','rgba(255,255,255,.06)','rgba(255,255,255,.18)','#cdd4dc','🔍 겹침·경계 검사','')}
-      ${btn('_zoneRevertConfirm()','rgba(255,160,80,.1)','rgba(255,160,80,.4)','#f0b070','↩ 전버전(원본)으로 되돌리기',nEdit?(nEdit+'개 편집 전부 삭제'):'현재 편집 없음')}
-      <div style="font-size:10px;color:#5d6570;padding:10px 2px 0;line-height:1.65;">정밀 편집은 <b>KML을 받아 Google Earth Pro나 QGIS</b>에서 꼭짓점을 다듬는 방식을 권장합니다. 편집한 파일을 다시 앱에 반영하는 <b>불러오기</b>는 다음 단계로 준비 중입니다.</div>
+      ${btn('_zoneRevertConfirm()','rgba(255,160,80,.1)','rgba(255,160,80,.4)','#f0b070','↩ 전버전(원본)으로 되돌리기',nTot?(nTot+'개 편집 전부 삭제'):'현재 편집 없음')}
+      <div style="font-size:10px;color:#5d6570;padding:10px 2px 0;line-height:1.65;">정밀 편집: <b>📤 내보내기 → Google Earth Pro/QGIS에서 위성사진 위 경계 편집 → 📥 불러오기</b>. 바뀐 구역만 저장되어 전 직원에게 반영됩니다.</div>
     </div>`;
   document.body.appendChild(p);
   try{_bindDragClose(p,()=>{const q=document.getElementById('zoneAdminPanel');if(q)q.remove();});}catch(e){}
@@ -801,7 +881,7 @@ function _zoneAuditRun(){
   // (구역 데이터와 공원경계가 서로 다른 출처라 ~30m 어긋나 있어, 절대 겹침/이탈은 편집과 무관하게 늘 발생 → 델타만이 사용자 편집의 영향을 가려냄)
   const zones=[],byN={},_rc={};
   (_zoneData.zones||[]).forEach(z=>{
-    (z.rings||[]).forEach(ring=>{
+    _effRings(z).forEach(ring=>{
       const ri=_rc[z.n]=(_rc[z.n]===undefined?0:_rc[z.n]+1);
       if(ring.length<3)return;
       let zn=byN[z.n];if(!zn){zn=byN[z.n]={n:z.n,orig:[],now:[],pts:[]};zones.push(zn);}

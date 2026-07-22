@@ -785,11 +785,17 @@ function _parseZonesKml(txt){
   const out={},pms=doc.getElementsByTagName('Placemark');
   for(let i=0;i<pms.length;i++){const pm=pms[i];
     const nmEl=pm.getElementsByTagName('name')[0];const m=String((nmEl&&nmEl.textContent)||'').match(/\d+/);if(!m)continue;
-    const rings=[];const lrs=pm.getElementsByTagName('LinearRing');
-    for(let k=0;k<lrs.length;k++){const cEl=lrs[k].getElementsByTagName('coordinates')[0];if(!cEl)continue;
+    const rings=[];
+    // 외곽 링만 취함(구멍 innerBoundaryIs 무시) — GeoJSON 파서와 동작 일치. outerBoundaryIs 없으면 모든 LinearRing 폴백
+    const obs=pm.getElementsByTagName('outerBoundaryIs');
+    const lrs=obs.length?[]:pm.getElementsByTagName('LinearRing');
+    const coordEls=[];
+    for(let k=0;k<obs.length;k++){const lr=obs[k].getElementsByTagName('LinearRing')[0];const ce=lr&&lr.getElementsByTagName('coordinates')[0];if(ce)coordEls.push(ce);}
+    for(let k=0;k<lrs.length;k++){const ce=lrs[k].getElementsByTagName('coordinates')[0];if(ce)coordEls.push(ce);}
+    coordEls.forEach(cEl=>{
       const pts=String(cEl.textContent||'').trim().split(/\s+/).map(t=>{const a=t.split(',');return [parseFloat(a[1]),parseFloat(a[0])];}).filter(p=>isFinite(p[0])&&isFinite(p[1]));
       if(pts.length>=3)rings.push(pts);
-    }
+    });
     if(rings.length)out[m[0]]=rings;
   }
   return out;
@@ -831,7 +837,7 @@ function _zoneAdminPanel(){
   if(!(typeof isAdminUser==='function'&&isAdminUser())){try{_showAdminDenied();}catch(e){}return;}
   if(!_zoneData){toast('구역 표시를 먼저 켜 주세요');return;}
   let p=document.getElementById('zoneAdminPanel');if(p)p.remove();
-  const e=DB.g('zoneEdits')||{};const nEdit=Object.keys(e).length;
+  const nEdit=Object.keys(DB.g('zoneEdits')||{}).length, nGeom=Object.keys(DB.g('zoneGeom')||{}).length, nTot=nEdit+nGeom;
   p=document.createElement('div');p.id='zoneAdminPanel';p._baseTf='translateX(-50%)';
   p.style.cssText='position:fixed;left:50%;transform:translateX(-50%);bottom:calc(74px + env(safe-area-inset-bottom));z-index:9500;width:calc(100% - 24px);max-width:460px;box-sizing:border-box;background:#16161a;border:1px solid rgba(255,255,255,.18);border-radius:13px;box-shadow:0 6px 20px rgba(0,0,0,.6);';
   const btn=(cb,bg,bd,cl,t,sub)=>`<button onclick="${cb}" style="width:100%;text-align:left;padding:11px 12px;border-radius:9px;border:1px solid ${bd};background:${bg};color:${cl};font-size:12.5px;font-weight:700;cursor:pointer;margin-top:7px;line-height:1.4;">${t}${sub?`<br><span style="font-weight:500;font-size:10.5px;color:#8b9099;">${sub}</span>`:''}</button>`;
@@ -839,12 +845,12 @@ function _zoneAdminPanel(){
     <div class="sheetGrab" style="padding:7px 0 2px;cursor:grab;touch-action:none;"><div class="dbhandle"></div></div>
     <div style="padding:2px 14px 12px;">
       <div style="display:flex;align-items:center;gap:8px;"><span style="font-size:13px;font-weight:800;color:#e8ecf1;">🛠 담당구역 관리</span>
-        <span style="font-size:10.5px;color:#8b9099;">저장된 편집 ${nEdit}개 구역</span></div>
+        <span style="font-size:10.5px;color:#8b9099;">${nTot?('저장된 편집 '+nTot+'개 구역'+(nGeom?(' · 경계교체 '+nGeom):'')):'편집 없음(원본)'}</span></div>
       ${btn('_zoneExportKml()','rgba(49,130,246,.12)','rgba(49,130,246,.4)','#7db4ff','📤 KML로 내보내기','Google Earth Pro·QGIS에서 정밀 편집')}
       ${btn('_zoneExportGeojson()','rgba(255,255,255,.06)','rgba(255,255,255,.18)','#cdd4dc','📄 GeoJSON으로 내보내기','QGIS 권장')}
       ${btn('_zoneImportPick()','rgba(46,204,113,.12)','rgba(46,204,113,.4)','#57d98a','📥 편집한 파일 불러오기','Google Earth·QGIS에서 고친 KML/GeoJSON → 경계 교체')}
       ${btn('_zoneAudit()','rgba(255,255,255,.06)','rgba(255,255,255,.18)','#cdd4dc','🔍 겹침·경계 검사','')}
-      ${btn('_zoneRevertConfirm()','rgba(255,160,80,.1)','rgba(255,160,80,.4)','#f0b070','↩ 전버전(원본)으로 되돌리기',nEdit?(nEdit+'개 편집 전부 삭제'):'현재 편집 없음')}
+      ${btn('_zoneRevertConfirm()','rgba(255,160,80,.1)','rgba(255,160,80,.4)','#f0b070','↩ 전버전(원본)으로 되돌리기',nTot?(nTot+'개 편집 전부 삭제'):'현재 편집 없음')}
       <div style="font-size:10px;color:#5d6570;padding:10px 2px 0;line-height:1.65;">정밀 편집: <b>📤 내보내기 → Google Earth Pro/QGIS에서 위성사진 위 경계 편집 → 📥 불러오기</b>. 바뀐 구역만 저장되어 전 직원에게 반영됩니다.</div>
     </div>`;
   document.body.appendChild(p);
