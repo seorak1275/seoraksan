@@ -750,7 +750,8 @@ function _facNavCompute(la,ln,hd,acc){
   if(primary){
     if(walkOn){primary._walk=true;primary._wtime=_facNav.walkRoute.time;primary._ori=!!_facNav.walkRoute.fixed;
       primary._td=primary._ori?_facNav.walkRoute.dist:_fnRemainWalk(la,ln,_facNav.walkRoute.path);} // 지정출발=총거리, 내위치=남은거리
-    else{primary._route=_fnTrailRoute(la,ln,primary.f);primary._td=primary._route.dist;}
+    else if(isDest){primary._route=_fnTrailRoute(la,ln,primary.f);primary._td=primary._route.dist;} // 목적지 있을 때만 경로
+    else{primary._td=primary.d;} // 앰비언트(목적지 없음): 가까운 시설 거리만, 경로 없음
   }
   _facNav.list=list;_facNav.primary=primary;
   _facNavRender(list,acc,hd,primary,isDest);
@@ -826,9 +827,12 @@ function _facNavRender(list,acc,hd,primary,isDest){
       h+=node(big('#ff8a80','🎯'),'도착 · '+dName,(pr._wtime?'약 '+_fnTimeStr(pr._wtime):''),'end',null);
       h+='</div>';
       fnList.innerHTML=h;
+    }else if(_facNav.dest){
+      // 목적지 있으나 실경로 준비 전/불가 — 직선 목록 안 띄움
+      fnList.innerHTML='<div style="text-align:center;color:#6b7684;font-size:11.5px;padding:14px 0;">'+(_facNav.walkLoading?'🥾 도보경로 계산 중…':'경로 준비 중… (프록시 미설정 시 표지판 경로)')+'</div>';
     }else{
-      var rest=list.filter(function(e){return !primary||String(e.f.id)!==String(pr.f.id);}).slice(0,4);
-      fnList.innerHTML=rest.length?('<div style="font-size:11px;color:#6b7684;margin:14px 4px 6px;">다음 안내 <span style="color:#565f6b;">(눌러서 목적지 지정 → 탐방로 경로)</span></div>'+rest.map(function(e){var d=_fnDisp(e.f),c=(typeof _facTypeColor==='function')?_facTypeColor(e.f.type):'#3182f6';var dirtxt=e.rel==null?'':(Math.abs(e.rel)<22?'· 직진':e.rel>0?'· 오른편':'· 왼편');return '<div onclick="_facNavFocus(\''+_escq(e.f.id)+'\')" style="display:flex;align-items:center;gap:9px;padding:9px 11px;background:#12151b;border:1px solid rgba(255,255,255,.07);border-radius:10px;margin-bottom:5px;cursor:pointer;"><span style="width:9px;height:9px;border-radius:50%;background:'+c+';flex-shrink:0;"></span><span style="flex:1;min-width:0;font-size:12.5px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+_esc(d.main)+'</span><span style="font-size:10px;color:#6b7684;">'+dirtxt+'</span><span style="font-size:13px;font-weight:800;color:#7fd0ff;flex-shrink:0;">'+_fnDistShort(e.d)+'</span></div>';}).join('')):'';
+      // 앰비언트(목적지 없음): 직선 거리 목록 제거 → 검색 안내
+      fnList.innerHTML='<div style="text-align:center;color:#6b7684;font-size:12px;padding:18px 12px;line-height:1.8;">🔍 위에서 <b style="color:#9fb0bf;">도착</b>을 검색하면<br>실제 <b style="color:#8fd6a8;">등산로 경로</b>로 안내합니다.<br><span style="font-size:10.5px;color:#565f6b;">움직이면 가까운 시설을 음성으로 알려줘요.</span></div>';
     }
   }
   var ae=document.getElementById('fnAcc');if(ae)ae.textContent=acc!=null?('GPS 정확도 ±'+Math.round(acc)+'m'+(hd!=null?' · 방향 '+Math.round(hd)+'°':'')):'';
@@ -865,10 +869,11 @@ function _facNavUpdateMap(la,ln,hd,list,primary){
   var ar=document.getElementById('fnMeArrow');if(ar)ar.style.transform='translate(-50%,-50%) rotate('+(hd==null?0:hd)+'deg)';
   if(_facNav.follow){try{_facNav.map.setCenter(meLL);}catch(e){}}
   var pr=primary||list[0];
-  // 경로선: 카카오 도보 실경로 우선, 없으면 표지판 근사 탐방로
+  // 경로선: 목적지 있을 때만. 카카오 도보 실경로 우선, 없으면 표지판 탐방로(직선은 안 그림)
   if(_facNav.line){
-    if(_fnWalkActive()){var wp=_facNav.walkRoute.path.map(function(p){return new kakao.maps.LatLng(p[0],p[1]);});_facNav.line.setPath(_facNav.walkRoute.fixed?wp:[meLL].concat(wp));}
-    else{var rt=pr?(pr._route||_fnTrailRoute(la,ln,pr.f)):null;_facNav.line.setPath((rt&&rt.trail)?rt.path:[]);} // 실제 탐방로(표지판 열)만, 직선은 안 그림
+    if(!_facNav.dest){_facNav.line.setPath([]);} // 목적지 없으면 경로선 없음
+    else if(_fnWalkActive()){var wp=_facNav.walkRoute.path.map(function(p){return new kakao.maps.LatLng(p[0],p[1]);});_facNav.line.setPath(_facNav.walkRoute.fixed?wp:[meLL].concat(wp));}
+    else{var rt=pr?(pr._route||_fnTrailRoute(la,ln,pr.f)):null;_facNav.line.setPath((rt&&rt.trail)?rt.path:[]);}
   }
   // 출발지 마커(지정출발 🚩)
   if(_facNav.origin&&_facNav.origin.lat!=null){
