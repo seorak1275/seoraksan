@@ -167,9 +167,9 @@ function renderInspectMap(){
   // Firestore 수신 전엔 경량 부트 캐시로 핀 먼저 표시(즉시 표시) — 수신되면 자동 재렌더로 교체
   const _facsAll=DB.g('facilities')||(typeof _facBootCache==='function'&&_facBootCache())||[];
   const facs=_facsAll.filter(f=>_admin||!(_meta[f.type]||{}).adminOnly);
-  const types=['전체',...new Set(facs.map(f=>f.type.split(' ').slice(1).join(' ')||f.type).filter(Boolean))];
+  const types=['전체',...new Set(facs.map(f=>{const t=String(f.type||'');return t.split(' ').slice(1).join(' ')||t;}).filter(Boolean))];
   const _signFacs=_facsAll.filter(f=>f.type&&f.type.includes('다목적위치표지판'));
-  const locs=['전체',...new Set(_signFacs.map(f=>(f.name.match(/\d+/)||[''])[0]).filter(Boolean)).values()].sort((a,b)=>a==='전체'?-1:a.localeCompare(b,'ko'));
+  const locs=['전체',...new Set(_signFacs.map(f=>(String(f.name||'').match(/\d+/)||[''])[0]).filter(Boolean)).values()].sort((a,b)=>a==='전체'?-1:a.localeCompare(b,'ko'));
   _updateInspFilterPanel(types,locs);
   const filtered=facs.filter(f=>{
     if(!_facVisibleTo(f))return false; // 숨김 시설은 일반 사용자에게 미표시
@@ -346,7 +346,7 @@ function _updateInspFilterPanel(types,locs){
   _filterSec('inspFP_loc','위치 (구간)',
     _filterAllChip(facMapLocF,`_smfsAll('l')`)+locs.filter(v=>v!=='전체').map(v=>_filterChip(_zoneLbl(v),facMapLocF,v,`_smfs('l','${v.replace(/'/g,"\\'")}')`,'#9b59b6')).join(''),facMapLocF);
   // 배지/카운트 업데이트
-  const total=facMapStatusF.size+facMapTypeF.size+facMapLocF.size;
+  const total=facMapStatusF.size+facMapTypeF.size+facMapLocF.size+facMapGradeF.size;
   ['inspFilterBadge','facListFilterBadge'].forEach(id=>{const el=document.getElementById(id);if(!el)return;el.style.display=total?'inline-flex':'none';if(total)el.textContent=total;});
   ['inspFilterCount','facListFilterCount'].forEach(id=>{const el=document.getElementById(id);if(!el)return;el.textContent=total?`(${total})`:'';});
 }
@@ -422,7 +422,7 @@ function _updateFacListFilterPanel(types,locs){
   _filterSec('facLFP_grade','안전등급',_filterAllChip(facMapGradeF,`_smfsAll('g')`)+['A','B','C','D','E'].map(g=>_filterChip(g+' '+_gLabel(g),facMapGradeF,g,`_smfs('g','${g}');renderFacList();`,_gColor(g))).join(''),facMapGradeF);
   _filterSec('facLFP_type','종류',_filterAllChip(facMapTypeF,`_smfsAll('t')`)+(types||[]).map(v=>_filterChip(v,facMapTypeF,v,`_smfs('t','${v.replace(/'/g,"\\'")}');renderFacList();`,'#3182f6')).join(''),facMapTypeF);
   _filterSec('facLFP_loc','위치 (구간)',_filterAllChip(facMapLocF,`_smfsAll('l')`)+(locs||[]).map(v=>_filterChip(_zoneLbl(v),facMapLocF,v,`_smfs('l','${v.replace(/'/g,"\\'")}');renderFacList();`,'#9b59b6')).join(''),facMapLocF);
-  const total=facMapStatusF.size+facMapTypeF.size+facMapLocF.size;
+  const total=facMapStatusF.size+facMapTypeF.size+facMapLocF.size+facMapGradeF.size;
   ['facListFilterBadge'].forEach(id=>{const el=document.getElementById(id);if(!el)return;el.style.display=total?'inline-flex':'none';if(total)el.textContent=total;});
   const fc=document.getElementById('facListFilterCount');if(fc)fc.textContent=total?`(${total})`:'';
 }
@@ -1195,9 +1195,9 @@ function renderFacList(){
   _facMigrateV2();
   const _admin=isAdminUser();const _meta=DB.g('catFacMeta')||{};
   const facs=(DB.g('facilities')||[]).filter(f=>_admin||!(_meta[f.type]||{}).adminOnly);
-  const types=[...new Set(facs.map(f=>f.type.split(' ').slice(1).join(' ')||f.type).filter(Boolean))];
+  const types=[...new Set(facs.map(f=>{const t=String(f.type||'');return t.split(' ').slice(1).join(' ')||t;}).filter(Boolean))];
   const _sf=(DB.g('facilities')||[]).filter(f=>f.type&&f.type.includes('다목적위치표지판'));
-  const locs=[...new Set(_sf.map(f=>(f.name.match(/\d+/)||[''])[0]).filter(Boolean))].sort();
+  const locs=[...new Set(_sf.map(f=>(String(f.name||'').match(/\d+/)||[''])[0]).filter(Boolean))].sort();
   _updateFacListFilterPanel(types,locs);
   const filtered=facs.filter(f=>{
     if(!_facVisibleTo(f))return false;
@@ -1772,6 +1772,15 @@ function _facIssueReviewCore(id,grade,opinion,fromWork){
     it.status='closed';it.stage=2;it.closeReason='담당자 '+grade+'등급 판정 — 이상없음 회신';it.closedBy=getAuthor();it.closedAt=Date.now();
     _issueLog(it,`담당자 검토 — ${_gLabel(grade)} 사유 회신·이상없음 종료`);
     _saveFacIssue(it);
+    // 담당자가 A·B·C로 재평가 = 이상없음 → 점검(D·E)이 자동으로 켰던 경고표시 해제
+    // (예전엔 여기서 안 지워, 등급은 우수인데 지도·목록에 빨간 경고가 영구 잔존하던 문제)
+    try{
+      const _fs2=DB.g('facilities')||[];const _fi=_fs2.findIndex(x=>x.id===it.facId);
+      if(_fi>=0&&_fs2[_fi].warn&&_fs2[_fi].warn.on&&_fs2[_fi].warn.auto){
+        _fs2[_fi].warn={on:false,clearedBy:getAuthor(),clearedAt:Date.now()};
+        DB.s('facilities',_fs2);
+      }
+    }catch(e){}
     _notiFacFollow(`✅ 점검 검토 종료(${_gLabel(grade)}) · ${it.facName} — ${getAuthor()}`,_facIssueLink(id),it);
     toast('✅ '+grade+'등급 회신 — 이상없음 종료');
   }else{
@@ -3942,7 +3951,7 @@ function renderAdmMembers(){
             ${deptOpts.map(d=>`<option value="${d}"${u.dept===d?' selected':''}>${d}</option>`).join('')}
           </select>
           <div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:8px;" id="admME_ranks_${editId}">
-            ${rankOpts.map(r=>`<div onclick="_toggleAdmRank('${_escq(editId)}','${r}')" id="admMER_${editId}_${r}" style="cursor:pointer;border-radius:20px;font-size:10px;font-weight:700;padding:4px 10px;border:1px solid;${u.rank===r?'background:rgba(255,255,255,.2);color:#3182f6;border-color:rgba(255,255,255,.5);':'background:rgba(255,255,255,.04);color:rgba(255,255,255,.4);border-color:rgba(255,255,255,.12);'}">${r}</div>`).join('')}
+            ${rankOpts.map(r=>`<div onclick="_toggleAdmRank('${_escq(editId)}','${r}')" id="admMER_${editId}_${r}" data-sel="${u.rank===r?'1':''}" style="cursor:pointer;border-radius:20px;font-size:10px;font-weight:700;padding:4px 10px;border:1px solid;${u.rank===r?'background:rgba(255,255,255,.2);color:#3182f6;border-color:rgba(255,255,255,.5);':'background:rgba(255,255,255,.04);color:rgba(255,255,255,.4);border-color:rgba(255,255,255,.12);'}">${r}</div>`).join('')}
           </div>
           <div style="display:flex;gap:6px;">
             <button onclick="_saveAdmMemberByKakao('${_escq(u.kakaoId)}','${_escq(editId)}')" style="flex:1;background:#1a4a6e;color:#fff;border:none;padding:7px;border-radius:7px;font-size:11px;font-weight:700;cursor:pointer;">저장</button>
@@ -3970,7 +3979,8 @@ function _saveAdmMemberByKakao(kakaoId,editId){
   if(!name){toast('⚠️ 이름을 입력하세요');return;}
   const idx=list.findIndex(u=>String(u.kakaoId||u.id)===String(kakaoId));
   if(idx>=0){
-    list[idx]={...list[idx],realName:name,name,dept,rank};
+    // 직위 미선택 시 기존 값 보존 — 이름만 고치려다 직위가 지워지던 문제 방지
+    list[idx]={...list[idx],realName:name,name,dept,rank:rank||list[idx].rank||''};
   } else {
     list.push({id:Date.now(),kakaoId:String(kakaoId),realName:name,name,dept,rank,approvalStatus:'approved',createdAt:now()});
   }

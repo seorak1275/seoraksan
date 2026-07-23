@@ -49,7 +49,11 @@ function addPhase(){
 
 
 function submitNBoFromForm(){
+  if(window._nboSubmitting)return; // 빠른 더블탭 중복 제출 방지(같은 보 2개 저장·타임라인 중복 누적 차단)
   const res=DB.g('rescues')||[];const idx=res.findIndex(x=>x.id===curResId);if(idx===-1)return;
+  window._nboSubmitting=true;
+  setTimeout(function(){window._nboSubmitting=false;},1500); // 예외로 멈춰도 자가 해제
+  try{var _nboBtn=document.querySelector('#rep1BoFooter .btn-submit');if(_nboBtn){_nboBtn.disabled=true;_nboBtn.style.opacity='.5';}}catch(e){}
   if(!res[idx].reports)res[idx].reports=[];
   const members=[...document.querySelectorAll('#memChkGrid .chk-grid .chk-box.on')].map(b=>{
     const txt=b.closest('.chk-item')?.querySelector('.chk-txt');
@@ -152,7 +156,7 @@ function submitNBoFromForm(){
       const moved=(res[idx].lat&&res[idx].lng)?_haversineKm(res[idx].lat,res[idx].lng,nlat,nlng)*1000:999999;
       if(moved>5){ // 5m 초과 이동 시에만(반올림 오차 무시)
         if(res[idx].origLat==null){res[idx].origLat=res[idx].lat;res[idx].origLng=res[idx].lng;} // 최초접수 원본 1회 보존
-        res[idx].locLog=(res[idx].locLog||[]).concat([{from:{lat:res[idx].lat||0,lng:res[idx].lng||0},to:{lat:+nlat.toFixed(6),lng:+nlng.toFixed(6)},at:now(),by:phaseData.author,dist:Math.round(moved),via:(phaseData._phaseNum||'추가')+'보'}]);
+        res[idx].locLog=(res[idx].locLog||[]).concat([{from:{lat:res[idx].lat||0,lng:res[idx].lng||0},to:{lat:+nlat.toFixed(6),lng:+nlng.toFixed(6)},at:now(),by:phaseData.author,dist:Math.round(moved),via:(res[idx].reports.length+2)+'보'}]);
         changes.push({label:'위치좌표',from:(res[idx].lat!=null?(+res[idx].lat).toFixed(5)+', '+(+res[idx].lng).toFixed(5):'(없음)'),to:nlat.toFixed(5)+', '+nlng.toFixed(5)});
         res[idx].lat=+nlat.toFixed(6);res[idx].lng=+nlng.toFixed(6);
         phaseData.lat=res[idx].lat;phaseData.lng=res[idx].lng;
@@ -470,7 +474,10 @@ function confirmTlBuild(){
 }
 
 function _initTlTeams(r){
-  if(_tlWpResId===r.id&&(_tlTeams.length||_tlBuilding))return;
+  // 팀 추가 입력 중(_tlBuilding)일 때만 재로드 보류(입력 보호). 그 외엔 렌더마다 레코드에서 최신 팀을 다시 읽어,
+  // 다른 기기가 추가/삭제한 팀이 이 기기의 옛 스냅샷 저장으로 덮여 사라지던 문제(동시편집 유실)를 완화한다.
+  // (모든 팀 변경은 즉시 _persistTeams 로 저장되므로 재로드해도 미저장 상태 손실 없음)
+  if(_tlWpResId===r.id&&_tlBuilding)return;
   _tlWpResId=r.id;_tlBuilding=false;
   _tlBuildType=null;_tlBuildMembers=[];_tlBuildOtherOpen=false;_tlBuildAgencyType='소방(환동해)';_tlBuildRegion='';
   // Load persisted teams from rescue record
@@ -3209,7 +3216,10 @@ function render1BoForm(prefill=null){
       :`<button class="btn-submit" style="background:#1a4a6e;color:#fff;" onclick="submit1Bo()">💾 최초 접수 등록</button>`;
   }
 
-  _ttInlineEntries=p.timetable||[];   // (수정) 미선언 _ttEntries → strict 모드 ReferenceError로 이후 초기화 전체 중단되던 버그
+  // N보는 '이번에 새로 추가할' 타임라인만 담아야 한다. 기존 timetable을 넣으면 제출 시
+  // [...기존, ...이것] 으로 append 되어 매 추가보고마다 전체 타임라인이 통째로 중복 누적되던 버그 수정.
+  // (또한 라이브 배열 참조를 그대로 쓰면 폼에서 in-place 변형될 위험 → slice 복사)
+  _ttInlineEntries=isNbo?[]:(p.timetable||[]).slice();
   initExtraDispatch(p);
   initExtraTeams(p);
   initWAlerts(p);
