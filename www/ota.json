@@ -1,1 +1,1 @@
-{"version":"2026.07.23.347","url":"https://seorak1275.github.io/seoraksan/bundle.zip","notes":"장비 제품/개별 수정 분리 + 리뷰 7건 수정(개별저장·merge일괄·이름변경 유지·개별추가취소·JSON키·사진esc), origin/main 보안·구역 작업 병합"}
+{"version":"2026.07.23.347","url":"https://seorak1275.github.io/seoraksan/bundle.zip","notes":"보안 PHASE B 준비: 개인정보 읽기잠금 규칙 대비 — 익명 부팅 후 멤버 확정 시 공유 리스너 1회 재연결(강화규칙 미적용 시 무동작)"}

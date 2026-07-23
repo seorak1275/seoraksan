@@ -390,6 +390,8 @@ function kakaoLogout(){
   // 관리자 권한을 그대로 물려받는 사고(권한 상승) 방지.
   localStorage.removeItem('_tokenAdmin');_authRole='';_authKakaoId='';
   try{localStorage.removeItem('_kkAT');localStorage.removeItem('_kkRT');localStorage.removeItem('_memberOk');localStorage.removeItem('_masterAuthed');localStorage.removeItem('_adminAuthed');window._memberAuthWarned=false;}catch(e){}
+  // PHASE B 리스너 재연결 가드 초기화 — 같은 탭에서 다시 로그인할 때 필요 시 1회 새로고침이 다시 동작하도록
+  try{sessionStorage.removeItem('_reloadedForMember');}catch(e){}
   var _g=document.getElementById('approvalGate');if(_g)_g.style.display='none';
   try{firebase.auth().signOut();}catch(e){}
   if(window.showLoginScreen)window.showLoginScreen();

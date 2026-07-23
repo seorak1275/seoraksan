@@ -210,6 +210,9 @@ let _fst=null;
 let _fmsg=null;
 let _authReady=false;  // 인증(익명 또는 커스텀 토큰) 성공 여부
 let _authErrCode='';   // 인증 실패 코드 (auth/operation-not-allowed 등)
+// PHASE B(개인정보 읽기잠금 규칙) 대응 플래그: 익명 상태로 부팅해 공유 리스너가
+// permission-denied 로 죽었는지 기록. 강화규칙 미적용 시엔 절대 true가 되지 않는다(무변화).
+let _sharedReadDenied=false;
 let _authRole='';      // 커스텀 토큰 역할: 'admin' | 'member' | '' (익명/미인증)
 let _authKakaoId='';   // 인증된 카카오 ID (커스텀 토큰 발급 시)
 let _swReg=null;
@@ -647,6 +650,18 @@ function initFirebase(onReady){
                 _authKakaoId=c.kakaoId||'';
                 if(c.admin)localStorage.setItem('_tokenAdmin','1');else localStorage.removeItem('_tokenAdmin');
                 try{_markMemberOk();}catch(e){}
+                // PHASE B 대응: 익명으로 부팅해 공유 리스너가 permission-denied로 죽은 세션이
+                // 방금 멤버가 됐다면(최초 로그인·로그아웃 후 재로그인·세션 만료 복구),
+                // 멤버 토큰으로 리스너를 다시 붙이기 위해 1회만 새로고침.
+                //  · 강화규칙·클레임 미배포 상태에선 _sharedReadDenied가 절대 true가 안 됨 → 실행 안 함(무변화)
+                //  · 세션이 유지되는 재방문 직원은 첫 리스너부터 멤버 토큰이라 여기 안 걸림
+                //  · sessionStorage 가드로 무한 새로고침 방지(규칙 오설정으로 계속 거부돼도 1회만)
+                try{
+                  if(_sharedReadDenied&&!sessionStorage.getItem('_reloadedForMember')){
+                    sessionStorage.setItem('_reloadedForMember','1');
+                    setTimeout(function(){try{location.reload();}catch(e){}},400);
+                  }
+                }catch(e){}
               }else{
                 // 비익명인데 member 클레임이 없는 비정상 세션 → 카카오로 재발급 시도
                 setTimeout(function(){try{_ensureMemberAuth();}catch(e){}},400);
@@ -801,7 +816,7 @@ function initFirebase(onReady){
         }
         if(!loaded.has(k)){loaded.add(k);_checkReady();}
         else{_onRemoteUpdate();}
-      },()=>{if(!loaded.has(k)){loaded.add(k);_checkReady();}}); // 리스너 오류 시엔 시드하지 않음(빈 캐시 기준 오판 방지)
+      },(e)=>{if(e&&(e.code==='permission-denied'||/permission|insufficient/i.test(String(e.message||''))))_sharedReadDenied=true;if(!loaded.has(k)){loaded.add(k);_checkReady();}}); // 리스너 오류 시엔 시드하지 않음(빈 캐시 기준 오판 방지)
     });
     // ── 단일 문서 리스너: appData/{key} ── (온디맨드 문서는 구독 제외 — 화면 열 때 _refreshDoc으로 1회 읽기)
     _SHARED_DOC.filter(k=>!_ONDEMAND_DOC.includes(k)).forEach(k=>{
@@ -817,7 +832,7 @@ function initFirebase(onReady){
           if(k==='catFacMeta')try{_invalidateSignCache();}catch(e){}
           _onRemoteUpdate();
         }
-      },()=>{if(!loaded.has(k)){loaded.add(k);_checkReady();}});
+      },(e)=>{if(e&&(e.code==='permission-denied'||/permission|insufficient/i.test(String(e.message||''))))_sharedReadDenied=true;if(!loaded.has(k)){loaded.add(k);_checkReady();}});
     });
     // ── 시설물 레거시(단일문서) 백업 읽기: 컬렉션 비었을 때 폴백·이관 소스 ──
     _fdb.collection('appData').doc('facilities').get().then(snap=>{
