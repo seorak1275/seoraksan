@@ -2491,6 +2491,7 @@ function openEquip(){
 function equipBack(){
   if(_eqView==='audit'){return equipAuditExit();}
   if(_eqView==='form'&&_eqFormScope==='product'){_eqView='detail';return _equipRender();} // 제품수정 취소→제품
+  if(_eqView==='form'&&_eqPrefill&&_eqProdKey){_eqView='detail';return _equipRender();} // 개별추가 취소→제품(_eqPrefill=추가플로우 표식)
   if(_eqView==='form'||_eqView==='log'){if(_eqSel&&_equipById(_eqSel)){_eqView='unit';return _equipRender();}_eqView='list';_eqSel=null;return _equipRender();}
   if(_eqView==='unit'){_eqView='detail';return _equipRender();}       // 개별 → 제품
   if(_eqView==='detail'){_eqView='list';_eqSel=null;return _equipRender();} // 제품 → 목록
@@ -2593,7 +2594,7 @@ function _renderEquipChips(){
 // 같은 제품(품명·규격·상태·담당·지역·위치 동일)을 한 줄로 묶고 수량 표시 → 128개도 한 줄. 탭하면 개별 펼침.
 let _eqExpanded={};
 function equipToggleGroup(k){_eqExpanded[k]=!_eqExpanded[k];_renderEquipResults();}
-function _eqGroupKey(it){return [it.name||'',it.cat2||'',it.maker||''].join('§');} // 같은 제품(품명·종류·제조사)이면 한 줄 — 보유자는 펼침 안에서 소제목으로 구분
+function _eqGroupKey(it){return JSON.stringify([it.name||'',it.cat2||'',it.maker||'']);} // 같은 제품(품명·종류·제조사)이면 한 줄 · JSON=구분자 충돌 방지
 // 보유자(누가 가지고 있나): 개인이면 이름, 아니면 보관장소
 function _eqHolder(it){
   const p=(it.person||'').trim();
@@ -2628,7 +2629,7 @@ function _renderEquipResults(){
     if(n===1){const cl=EQ_COND_LBL[it.cond]||it.cond||'';if(cl)condBadge=`<span style="flex-shrink:0;font-size:9px;font-weight:800;color:${EQ_COND_COL[it.cond]||'#8b95a1'};background:${_eqCondBad(it.cond)?'rgba(255,107,91,.14)':'rgba(255,255,255,.07)'};border-radius:5px;padding:1px 5px;">${_esc(it.cond)}·${_esc(cl)}</span>`;}
     else if(badN>0)condBadge=`<span style="flex-shrink:0;font-size:9px;font-weight:800;color:#ff8a80;background:rgba(255,107,91,.16);border-radius:5px;padding:1px 6px;">⚠️ ${badN} 점검</span>`;
     else if(uniform==='A')condBadge=`<span style="flex-shrink:0;font-size:9px;font-weight:800;color:#5fcf8f;background:rgba(94,207,143,.12);border-radius:5px;padding:1px 6px;">양호</span>`;
-    const thumb=(it.photos&&it.photos.length)?`<img src="${it.photos[0]}" style="width:42px;height:42px;border-radius:8px;object-fit:cover;flex-shrink:0;">`:`<div style="width:42px;height:42px;border-radius:8px;flex-shrink:0;background:rgba(255,255,255,.06);display:flex;align-items:center;justify-content:center;font-size:18px;">${EQ_CAT1_ICON[it.cat1]||'📦'}</div>`;
+    const thumb=(it.photos&&it.photos.length)?`<img src="${_esc(it.photos[0])}" style="width:42px;height:42px;border-radius:8px;object-fit:cover;flex-shrink:0;">`:`<div style="width:42px;height:42px;border-radius:8px;flex-shrink:0;background:rgba(255,255,255,.06);display:flex;align-items:center;justify-content:center;font-size:18px;">${EQ_CAT1_ICON[it.cat1]||'📦'}</div>`;
     const meta2=n>1?_esc(it.cat2||it.cat1||''):`${_esc(it.mgmtNo||'')}${it.serial?' · '+_esc(it.serial):''}`;
     // 어느 행이든 탭 → 제품 페이지(실사사진·공통제원·보유명단)
     return `<div class="scard" onclick="openEquipDetail('${_escq(it.id)}')" style="display:flex;align-items:center;gap:9px;margin-bottom:6px;padding:8px 10px;cursor:pointer;">
@@ -2742,7 +2743,7 @@ function _renderEquipDetail(){
   const uniform=Object.keys(conds).length===1?Object.keys(conds)[0]:'';
   // 대표 실사사진(사진 있는 첫 개별)
   const photoUnit=units.find(x=>x.photos&&x.photos.length)||rep;const photos=photoUnit.photos||[];window._eqGalleryPhotos=photos;
-  const gal=photos.length?`<div style="display:flex;gap:7px;overflow-x:auto;padding-bottom:4px;margin-bottom:10px;">${photos.map((u,i)=>`<img src="${u}" onclick="_eqGalleryOpen(${i})" style="width:96px;height:96px;border-radius:10px;object-fit:cover;flex-shrink:0;cursor:pointer;border:1px solid rgba(255,255,255,.1);">`).join('')}</div>`
+  const gal=photos.length?`<div style="display:flex;gap:7px;overflow-x:auto;padding-bottom:4px;margin-bottom:10px;">${photos.map((u,i)=>`<img src="${_esc(u)}" onclick="_eqGalleryOpen(${i})" style="width:96px;height:96px;border-radius:10px;object-fit:cover;flex-shrink:0;cursor:pointer;border:1px solid rgba(255,255,255,.1);">`).join('')}</div>`
     :`<div style="display:flex;align-items:center;justify-content:center;gap:8px;background:rgba(255,255,255,.04);border:1px dashed rgba(255,255,255,.15);border-radius:10px;padding:15px;margin-bottom:10px;color:#6b7684;font-size:11.5px;">${EQ_CAT1_ICON[rep.cat1]||'📦'} 실사 사진 없음${canM?' — 개별을 눌러 📷 추가':''}</div>`;
   // 이전/다음(제품 단위)
   const idx=_eqNavKeys.indexOf(_eqProdKey);const hasP=idx>0,hasN=idx>=0&&idx<_eqNavKeys.length-1;
@@ -2776,7 +2777,7 @@ function _renderEquipDetail(){
   hks.forEach(hk=>{
     const hd=hgm[hk].hd,arr=hgm[hk].arr;const hbad=arr.filter(x=>_eqCondBad(x.cond)).length;
     h+=`<div style="display:flex;align-items:center;gap:6px;margin:10px 0 4px;"><span style="font-size:12px;">${hd.icon}</span><span style="font-size:11.5px;font-weight:800;color:#d7c48a;">${_esc(hd.label)}</span><span style="font-size:10px;color:#6b7684;">${arr.length}점${hbad?` · <span style="color:#ff8a80;">점검 ${hbad}</span>`:''}</span><span style="flex:1;height:1px;background:rgba(255,255,255,.06);"></span></div>`;
-    h+=arr.map(x=>{const bad=_eqCondBad(x.cond);const cl=EQ_COND_LBL[x.cond]||x.cond||'';const th=(x.photos&&x.photos.length)?`<img src="${x.photos[0]}" style="width:34px;height:34px;border-radius:7px;object-fit:cover;flex-shrink:0;">`:`<div style="width:34px;height:34px;border-radius:7px;flex-shrink:0;background:rgba(255,255,255,.06);display:flex;align-items:center;justify-content:center;font-size:15px;">${EQ_CAT1_ICON[x.cat1]||'📦'}</div>`;return `<div onclick="openEquipUnit('${_escq(x.id)}')" class="scard" style="display:flex;align-items:center;gap:8px;margin-bottom:3px;padding:7px 9px;cursor:pointer;">
+    h+=arr.map(x=>{const bad=_eqCondBad(x.cond);const cl=EQ_COND_LBL[x.cond]||x.cond||'';const th=(x.photos&&x.photos.length)?`<img src="${_esc(x.photos[0])}" style="width:34px;height:34px;border-radius:7px;object-fit:cover;flex-shrink:0;">`:`<div style="width:34px;height:34px;border-radius:7px;flex-shrink:0;background:rgba(255,255,255,.06);display:flex;align-items:center;justify-content:center;font-size:15px;">${EQ_CAT1_ICON[x.cat1]||'📦'}</div>`;return `<div onclick="openEquipUnit('${_escq(x.id)}')" class="scard" style="display:flex;align-items:center;gap:8px;margin-bottom:3px;padding:7px 9px;cursor:pointer;">
       ${th}
       <div style="flex:1;min-width:0;"><div style="font-size:12px;font-weight:800;color:#eef0f2;">${_esc(x.mgmtNo||'-')}</div><div style="font-family:ui-monospace,'DejaVu Sans Mono',monospace;font-size:10px;color:#9bb8cc;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${_esc(x.serial||'—')}</div></div>
       <span style="flex-shrink:0;font-size:9.5px;font-weight:800;color:${EQ_COND_COL[x.cond]||'#8b95a1'};background:${bad?'rgba(255,107,91,.14)':'rgba(94,207,143,.1)'};border-radius:5px;padding:2px 7px;">${_esc(x.cond||'?')}${cl?' '+_esc(cl):''}</span>
@@ -2796,7 +2797,7 @@ function _renderEquipUnit(){
   const cc=EQ_COND_COL[it.cond]||'#8b95a1';const cl=EQ_COND_LBL[it.cond]||'';
   const row=(k,v)=>v?`<div style="display:flex;gap:8px;padding:3px 0;"><span style="width:64px;flex-shrink:0;font-size:11px;color:#5d86a3;font-weight:700;">${k}</span><span style="flex:1;min-width:0;font-size:12px;color:#c9dcec;line-height:1.5;word-break:break-all;">${v}</span></div>`:'';
   const photos=it.photos||[];
-  const gal=photos.length?`<div style="display:flex;gap:7px;overflow-x:auto;padding-bottom:4px;margin-bottom:10px;">${photos.map((u,i)=>`<img src="${u}" onclick="_equipDetailPhoto(${i})" style="width:96px;height:96px;border-radius:10px;object-fit:cover;flex-shrink:0;cursor:pointer;border:1px solid rgba(255,255,255,.1);">`).join('')}</div>`
+  const gal=photos.length?`<div style="display:flex;gap:7px;overflow-x:auto;padding-bottom:4px;margin-bottom:10px;">${photos.map((u,i)=>`<img src="${_esc(u)}" onclick="_equipDetailPhoto(${i})" style="width:96px;height:96px;border-radius:10px;object-fit:cover;flex-shrink:0;cursor:pointer;border:1px solid rgba(255,255,255,.1);">`).join('')}</div>`
     :`<div style="display:flex;align-items:center;justify-content:center;gap:8px;background:rgba(255,255,255,.04);border:1px dashed rgba(255,255,255,.15);border-radius:10px;padding:15px;margin-bottom:10px;color:#6b7684;font-size:11.5px;">${EQ_CAT1_ICON[it.cat1]||'📦'} 실사 사진 없음${canM?' — 아래 📷 로 추가':''}</div>`;
   // 이전/다음 내비(같은 제품 안의 개별)
   const idx=_eqUnitNav.indexOf(String(_eqSel));const hasP=idx>0,hasN=idx>=0&&idx<_eqUnitNav.length-1;
@@ -2954,7 +2955,7 @@ function _equipViewFormPhoto(i){if(_eqFormPhotos[i])_facPhotoView(_eqFormPhotos[
 function _equipRenderFormPhotos(){
   const el=document.getElementById('equipFormPhotos');if(!el)return;
   el.innerHTML=_eqFormPhotos.map((u,i)=>`<div style="position:relative;width:74px;height:74px;flex-shrink:0;">
-    <img src="${u}" onclick="_equipViewFormPhoto(${i})" style="width:74px;height:74px;border-radius:9px;object-fit:cover;cursor:pointer;border:1px solid rgba(255,255,255,.12);">
+    <img src="${_esc(u)}" onclick="_equipViewFormPhoto(${i})" style="width:74px;height:74px;border-radius:9px;object-fit:cover;cursor:pointer;border:1px solid rgba(255,255,255,.12);">
     <button onclick="equipFormPhotoDel(${i})" style="position:absolute;top:-6px;right:-6px;width:20px;height:20px;border-radius:50%;background:#e2483a;color:#fff;border:2px solid #0f0f11;font-size:12px;line-height:1;cursor:pointer;">×</button>
   </div>`).join('')+`<label style="width:74px;height:74px;flex-shrink:0;border:1px dashed rgba(255,255,255,.25);border-radius:9px;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#8b95a1;font-size:11px;cursor:pointer;"><span style="font-size:20px;">＋</span>사진<input type="file" accept="image/*" multiple onchange="equipFormPhoto(this)" style="display:none;"></label>`;
 }
@@ -2972,34 +2973,37 @@ async function _equipUpdateProductCommon(oldKey,common){
   if(typeof _fdb==='undefined'||!_fdb)throw new Error('DB 미연결 — 온라인에서 저장하세요');
   const units=_eqProductUnits(oldKey);if(!units.length)return 0;
   const now=Date.now(),by=(DB.g('currentUser')||{}).name||getAuthor();
-  let batch=_fdb.batch(),ops=0;const updated=[];
+  const patch=Object.assign({},common,{updatedAt:now,updatedBy:by}); // 바뀐 공통필드만
+  let batch=_fdb.batch(),ops=0;const touched=[];
   for(const u of units){
-    const nu=Object.assign({},u,common,{updatedAt:now,updatedBy:by}); // 공통값 덮어쓰기(개별필드·사진·일지 유지)
-    batch.set(_fdb.collection('equipInv').doc(String(u.id)),nu);
-    updated.push(nu);ops++;
+    // merge=병합: 개별필드(관리번호·일련·상태·담당·사진·일지)와 다른 기기의 최신 변경을 덮어쓰지 않음
+    batch.set(_fdb.collection('equipInv').doc(String(u.id)),patch,{merge:true});
+    touched.push(u);ops++;
     if(ops>=400){await batch.commit();batch=_fdb.batch();ops=0;}
   }
   if(ops>0)await batch.commit();
-  if(!_eqData)_eqData=[];
-  updated.forEach(nu=>{const i=_eqData.findIndex(x=>String(x.id)===String(nu.id));if(i>=0)_eqData[i]=nu;else _eqData.push(nu);});
+  touched.forEach(u=>{Object.assign(u,patch);}); // 로컬 즉시 반영(공통필드만)
   try{_equipWriteOffline(_eqData);}catch(e){}
-  return updated.length;
+  return touched.length;
 }
 async function submitEquipForm(){
   if(!_canEquipManage()){toast('⚠️ 권한 없음');return;}
   const g=id=>{const e=document.getElementById(id);return e?String(e.value||'').trim():'';};
-  const name=g('ef_name');if(!name){toast('⚠️ 품명을 입력하세요');return;}
+  const name=g('ef_name');if(_eqFormScope!=='unit'&&!name){toast('⚠️ 품명을 입력하세요');return;} // 개별 폼엔 품명 입력칸 없음(공통값 유지)
 
-  // ── 제품(공통) 일괄 수정 ──
+  // ── 제품(공통) 일괄 수정 — 실제 바뀐 필드만 전체 개별에 병합 ──
   if(_eqFormScope==='product'){
-    const common={name:name,cat1:g('ef_cat1')||'기타',cat2:g('ef_cat2'),maker:g('ef_maker'),type:g('ef_type'),grade:g('ef_grade'),cert:g('ef_cert'),en:g('ef_en'),mbs:g('ef_mbs'),wll:g('ef_wll')};
-    const oldKey=_eqProdKey;
+    const oldKey=_eqProdKey;const base=_eqProductUnits(oldKey)[0]||{};
+    const raw={name:name,cat1:g('ef_cat1')||'기타',cat2:g('ef_cat2'),maker:g('ef_maker'),type:g('ef_type'),grade:g('ef_grade'),cert:g('ef_cert'),en:g('ef_en'),mbs:g('ef_mbs'),wll:g('ef_wll')};
+    const common={};EQ_COMMON_FIELDS.forEach(k=>{const nv=raw[k]==null?'':String(raw[k]);const ov=base[k]==null?'':String(base[k]);if(nv!==ov)common[k]=raw[k];}); // 바뀐 것만 → 안 건드린 개별 제원 보존
+    if(!Object.keys(common).length){toast('변경 사항이 없습니다');_eqView='detail';_equipRender();return;}
     try{
       if(typeof _busy==='function')_busy('💾 제품 전체 저장 중…');
       const n=await _equipUpdateProductCommon(oldKey,common);
       if(typeof _busyDone==='function')_busyDone();
       toast('✅ 제품 '+n+'개에 일괄 적용되었습니다');
-      _eqProdKey=_eqGroupKey({name:common.name,cat2:common.cat2,maker:common.maker}); // 품명·중분류·제조사 변경 시 새 묶음키
+      _eqProdKey=_eqGroupKey({name:common.name!=null?common.name:base.name,cat2:common.cat2!=null?common.cat2:base.cat2,maker:common.maker!=null?common.maker:base.maker}); // 품명·중분류·제조사 변경 시 새 묶음키
+      const _ki=_eqNavKeys.indexOf(oldKey);if(_ki>=0)_eqNavKeys[_ki]=_eqProdKey; // 이전/다음 위치 유지
       const u=_eqProductUnits(_eqProdKey);if(u[0])_eqSel=u[0].id;
       _eqView='detail';_equipRender();
       try{renderHomeActive();}catch(e){}
@@ -4861,7 +4865,7 @@ function sosToRescue(id){
 // 앱 자체 업데이트 (OTA · Capgo 자체호스팅) — APK 전용. 웹/PWA는 서비스워커가 자동 갱신.
 // 번들(www)의 새 버전을 ota.json으로 알리면, 설치된 앱이 받아서 그 자리에서 교체(재빌드 불필요).
 // ══════════════════════════════════════════
-const OTA_VER='2026.07.21.343';                         // ← 현재 번들 버전 (릴리스마다 올림 · build-ota.sh가 ota.json에 반영)
+const OTA_VER='2026.07.23.344';                         // ← 현재 번들 버전 (릴리스마다 올림 · build-ota.sh가 ota.json에 반영)
 const OTA_MANIFEST='https://seorak1275.github.io/seoraksan/ota.json';
 // 업데이트 확인 폴백 소스 — 일부 기관망·통신사에서 github.io가 막혀 '확인 실패(네트워크)'가 나는 경우 대비.
 // 순서대로 시도: ① GitHub Pages(원본·즉시 반영) ② jsDelivr CDN(공개저장소 미러·거의 모든 망 통과)
