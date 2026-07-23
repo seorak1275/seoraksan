@@ -532,7 +532,58 @@ function _closeResListFilter(){_fpClose('resListFilterPanel');}
 //   · 트레일: 앱 내부 직선거리 GPS 안내(등산로 적합, 오프라인 가능)
 //   · 도로: 각 시설의 🚗 버튼 → 카카오맵 앱으로 차량 길안내 핸드오프(REST키 불필요)
 // ═══════════════════════════════════════════════════════════════════
-var _facNav={on:false,watch:null,voice:true,signOnly:false,announced:{},heading:null,lastLa:null,lastLn:null,wake:null,list:[],map:null,meMk:null,meEl:null,line:null,facMks:[],follow:true,sim:null,simIv:null,spdIdx:0,dest:null,trails:null,trailLines:[],audioCtx:null,audioSrc:null};
+var _facNav={on:false,watch:null,voice:true,signOnly:false,announced:{},heading:null,lastLa:null,lastLn:null,wake:null,list:[],map:null,meMk:null,meEl:null,line:null,facMks:[],follow:true,sim:null,simIv:null,spdIdx:0,dest:null,trails:null,trailLines:[],audioCtx:null,audioSrc:null,walkRoute:null,walkLoading:false};
+// ── 카카오 도보(등산로) 실경로 — 프록시(워커) 통해 조회 ──
+function _facNavWalkProxy(){return (DB.g('walkProxyUrl')||'').trim().replace(/\/+$/,'');}
+function _fnRemainWalk(la,ln,path){ // path=[[lat,lng]…] → 현재위치에서 목적지까지 경로상 남은 거리(m)
+  var bi=0,bd=Infinity;for(var i=0;i<path.length;i++){var d=_haversine(la,ln,path[i][0],path[i][1]);if(d<bd){bd=d;bi=i;}}
+  var rem=bd;for(var j=bi;j<path.length-1;j++)rem+=_haversine(path[j][0],path[j][1],path[j+1][0],path[j+1][1]);
+  return rem;
+}
+async function _facNavFetchWalk(df,la,ln){
+  var base=_facNavWalkProxy();if(!base||!df||!df.lat)return null;
+  var url=base+'/?start_x='+ln+'&start_y='+la+'&end_x='+df.lng+'&end_y='+df.lat+'&route_mode=SHORTEST';
+  try{
+    var r=await fetch(url);var j=await r.json();
+    if(!j||j.status!=='OK'||!j.route)return {error:(j&&j.status)||'ERR'};
+    var pts=[],steps=[];
+    (j.route.legs||[]).forEach(function(lg){(lg.steps||[]).forEach(function(st){
+      var sp=st.properties||{};
+      if(sp.guidance&&sp.y!=null)steps.push({g:sp.guidance,lat:sp.y,lng:sp.x,dist:sp.distance||0}); // 턴바이턴 안내(지점 x=lng,y=lat)
+      ((st.path&&st.path.points)||[]).forEach(function(pt){pts.push([pt[1],pt[0]]);}); // [lng,lat]→[lat,lng]
+    });});
+    var pr=j.route.properties||{};
+    return {path:pts,steps:steps,dist:pr.totalDistance||0,time:pr.totalTime||0};
+  }catch(e){return {error:'NET'};}
+}
+// 목적지 설정/이동 시 도보경로 요청(같은 목적지+120m내 재출발이면 재요청 안 함)
+function _facNavRequestWalk(){
+  var destId=_facNav.dest;
+  if(!destId||!_facNavWalkProxy()||_facNav.lastLa==null){return;}
+  var df=(DB.g('facilities')||[]).find(function(x){return String(x.id)===String(destId);});
+  if(!df||!df.lat)return;
+  var wr=_facNav.walkRoute;
+  if(wr&&String(wr.destId)===String(destId)&&wr.path&&_haversine(wr.fromLa,wr.fromLn,_facNav.lastLa,_facNav.lastLn)<120)return;
+  if(_facNav.walkLoading)return;
+  _facNav.walkLoading=true;var la=_facNav.lastLa,ln=_facNav.lastLn;
+  _facNavFetchWalk(df,la,ln).then(function(res){
+    _facNav.walkLoading=false;
+    if(res&&res.path&&res.path.length)_facNav.walkRoute={destId:destId,fromLa:la,fromLn:ln,path:res.path,steps:res.steps||[],dist:res.dist,time:res.time};
+    else _facNav.walkRoute={destId:destId,fromLa:la,fromLn:ln,path:null,error:(res&&res.error)||'ERR'};
+    if(_facNav.lastLa!=null&&_facNav.on)_facNavCompute(_facNav.lastLa,_facNav.lastLn,_facNav.heading,null);
+  });
+}
+function _fnCleanGuide(g){return String(g||'').replace(/^.*?까지\s*/,'').trim();} // "…대피소까지 오른쪽으로 972m 이동"→"오른쪽으로 972m 이동"
+function _fnTimeStr(sec){sec=+sec||0;var h=Math.floor(sec/3600),m=Math.round((sec%3600)/60);return h?(h+'시간 '+m+'분'):(m+'분');}
+function _fnWalkActive(){var wr=_facNav.walkRoute;return !!(_facNav.dest&&wr&&wr.path&&wr.path.length&&String(wr.destId)===String(_facNav.dest));}
+// 카카오 도보 턴바이턴: 회전지점 접근 시 안내문 음성(지점당 1회)
+function _facNavWalkGuide(la,ln){
+  var wr=_facNav.walkRoute;if(!wr||!wr.steps||!_facNav.voice)return;
+  for(var i=0;i<wr.steps.length;i++){var s=wr.steps[i];if(s.lat==null)continue;
+    var key='step:'+wr.destId+':'+i;if(_facNav.announced[key])continue;
+    if(_haversine(la,ln,s.lat,s.lng)<35){_facNav.announced[key]=1;var g=_fnCleanGuide(s.g);if(g)_facNavSpeak(g);}
+  }
+}
 // 화면 꺼짐/백그라운드에서 더 오래 유지 — 무음 오디오 루프(안드로이드 WebView가 '재생 중'으로 보고 프로세스 유지)
 function _facNavKeepAlive(on){
   try{
@@ -668,15 +719,24 @@ function _facNavCompute(la,ln,hd,acc){
   if(_facNav.dest){var df=(DB.g('facilities')||[]).find(function(x){return String(x.id)===String(_facNav.dest)&&x.lat;});
     if(df){var b=_fnBearing(la,ln,df.lat,df.lng);primary={f:df,d:_haversine(la,ln,df.lat,df.lng),b:b,rel:_fnRel(b,hd)};isDest=true;}else{_facNav.dest=null;}}
   if(!primary)primary=list[0]||null;
-  if(primary){primary._route=_fnTrailRoute(la,ln,primary.f);primary._td=primary._route.dist;}
+  if(isDest)_facNavRequestWalk(); // 카카오 도보경로 요청(있으면 실경로 사용)
+  var walkOn=isDest&&_fnWalkActive();
+  if(primary){
+    if(walkOn){primary._walk=true;primary._td=_fnRemainWalk(la,ln,_facNav.walkRoute.path);primary._wtime=_facNav.walkRoute.time;}
+    else{primary._route=_fnTrailRoute(la,ln,primary.f);primary._td=primary._route.dist;}
+  }
   _facNav.list=list;_facNav.primary=primary;
   _facNavRender(list,acc,hd,primary,isDest);
   _facNavUpdateMap(la,ln,hd,list,primary);
-  if(primary&&_facNav.voice)_facNavMaybeAnnounce(primary);
+  // 음성: 실경로면 카카오 턴바이턴, 아니면 거리 임계 안내
+  if(primary&&_facNav.voice){
+    if(walkOn){_facNavWalkGuide(la,ln);if(primary.d<20&&!_facNav.announced['arr:'+_facNav.dest]){_facNav.announced['arr:'+_facNav.dest]=1;_facNavSpeak(_fnDisp(primary.f).main+' 도착입니다');}}
+    else _facNavMaybeAnnounce(primary);
+  }
   // 목적지로 가는 중이면 지나치는 표지판도 "통과" 안내(내 위치 파악용)
   if(isDest&&list[0]&&_facNav.voice&&String(list[0].f.id)!==String(primary.f.id))_facNavMaybeAnnouncePass(list[0]);
   // 목적지 도착 → 해제하고 일반 안내로
-  if(isDest&&primary&&primary.d<20){_facNav.dest=null;}
+  if(isDest&&primary&&primary.d<20){_facNav.dest=null;_facNav.walkRoute=null;}
 }
 function _facNavMaybeAnnouncePass(e){
   var id='pass:'+e.f.id;if(e.d>60)return;if(_facNav.announced[id])return;_facNav.announced[id]=1;
@@ -702,6 +762,8 @@ function _facNavRender(list,acc,hd,primary,isDest){
   if(!pr){pe.innerHTML='<div style="font-size:13px;color:#8b95a1;">주변 시설물이 없습니다</div>';document.getElementById('fnList').innerHTML='';return;}
   var disp=_fnDisp(pr.f),col=(typeof _facTypeColor==='function')?_facTypeColor(pr.f.type):'#3182f6';
   var td=(pr._td!=null?pr._td:pr.d),trail=pr._route&&pr._route.trail;
+  var modeLbl=pr._walk?('🥾 카카오 도보경로'+(pr._wtime?' · 약 '+_fnTimeStr(pr._wtime):'')):(_facNav.walkLoading&&isDest?'🥾 도보경로 계산 중…':(trail?'🥾 탐방로 따라':'직선거리'));
+  var modeCol=pr._walk?'#8fe0ab':(trail?'#8fd6a8':'#6b7684');
   var carB=(typeof _fnCarOk==='function'&&_fnCarOk(pr.f))?'<span style="font-size:10px;font-weight:800;color:#ffd23f;background:rgba(255,214,0,.16);border-radius:6px;padding:2px 7px;margin-left:6px;">🚗 차량 진입</span>':'';
   var arrow='';
   if(pr.rel!=null){var deg=pr.rel;var dw=Math.abs(deg)<22?'직진':deg>=110?'뒤 오른쪽':deg<=-110?'뒤 왼쪽':deg>0?'오른쪽':'왼쪽';
@@ -712,7 +774,7 @@ function _facNavRender(list,acc,hd,primary,isDest){
     '<div style="font-size:12px;color:#8b95a1;margin-bottom:4px;">'+(disp.sub?_esc(disp.sub):'&nbsp;')+'</div>'+
     '<div style="display:flex;align-items:center;justify-content:center;gap:8px;flex-wrap:wrap;"><span style="width:11px;height:11px;border-radius:50%;background:'+col+';flex-shrink:0;"></span><span style="font-size:19px;font-weight:800;">'+_esc(disp.main)+'</span>'+carB+'</div>'+
     '<div style="font-size:44px;font-weight:900;letter-spacing:-1px;margin:8px 0 0;color:#eef0f2;">'+_fnDistShort(td)+'</div>'+
-    '<div style="font-size:10.5px;color:'+(trail?'#8fd6a8':'#6b7684')+';margin-bottom:2px;">'+(trail?'🥾 탐방로 따라':'직선거리')+'</div>'+
+    '<div style="font-size:10.5px;color:'+modeCol+';margin-bottom:2px;">'+modeLbl+'</div>'+
     arrow;
   var rest=list.filter(function(e){return !primary||String(e.f.id)!==String(pr.f.id);}).slice(0,4);
   document.getElementById('fnList').innerHTML=rest.length?('<div style="font-size:11px;color:#6b7684;margin:14px 4px 6px;">다음 안내 <span style="color:#565f6b;">(눌러서 목적지 지정 → 탐방로 경로)</span></div>'+rest.map(function(e){var d=_fnDisp(e.f),c=(typeof _facTypeColor==='function')?_facTypeColor(e.f.type):'#3182f6';var dirtxt=e.rel==null?'':(Math.abs(e.rel)<22?'· 직진':e.rel>0?'· 오른편':'· 왼편');return '<div onclick="_facNavFocus(\''+_escq(e.f.id)+'\')" style="display:flex;align-items:center;gap:9px;padding:9px 11px;background:#12151b;border:1px solid rgba(255,255,255,.07);border-radius:10px;margin-bottom:5px;cursor:pointer;"><span style="width:9px;height:9px;border-radius:50%;background:'+c+';flex-shrink:0;"></span><span style="flex:1;min-width:0;font-size:12.5px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+_esc(d.main)+'</span><span style="font-size:10px;color:#6b7684;">'+dirtxt+'</span><span style="font-size:13px;font-weight:800;color:#7fd0ff;flex-shrink:0;">'+_fnDistShort(e.d)+'</span></div>';}).join('')):'';
@@ -750,8 +812,11 @@ function _facNavUpdateMap(la,ln,hd,list,primary){
   var ar=document.getElementById('fnMeArrow');if(ar)ar.style.transform='translate(-50%,-50%) rotate('+(hd==null?0:hd)+'deg)';
   if(_facNav.follow){try{_facNav.map.setCenter(meLL);}catch(e){}}
   var pr=primary||list[0];
-  // 목표까지 탐방로(표지판 열)를 따라가는 노란 경로
-  if(_facNav.line){var rt=pr?(pr._route||_fnTrailRoute(la,ln,pr.f)):null;_facNav.line.setPath(rt?rt.path:[]);}
+  // 경로선: 카카오 도보 실경로 우선, 없으면 표지판 근사 탐방로
+  if(_facNav.line){
+    if(_fnWalkActive()){_facNav.line.setPath([meLL].concat(_facNav.walkRoute.path.map(function(p){return new kakao.maps.LatLng(p[0],p[1]);})));}
+    else{var rt=pr?(pr._route||_fnTrailRoute(la,ln,pr.f)):null;_facNav.line.setPath(rt?rt.path:[]);}
+  }
   // 목표 핀(가까운 순 상위) 갱신
   _facNav.facMks.forEach(function(m){try{m.setMap(null);}catch(e){}});_facNav.facMks=[];
   list.forEach(function(e,i){
@@ -794,7 +859,7 @@ function _fnTrailRoute(mLat,mLng,tf){
   }
   return{path:[new kakao.maps.LatLng(mLat,mLng),new kakao.maps.LatLng(tf.lat,tf.lng)],dist:_haversine(mLat,mLng,tf.lat,tf.lng),trail:false};
 }
-function _facNavClearDest(){_facNav.dest=null;_facNav.announced={};if(_facNav.lastLa!=null)_facNavCompute(_facNav.lastLa,_facNav.lastLn,_facNav.heading,null);}
+function _facNavClearDest(){_facNav.dest=null;_facNav.walkRoute=null;_facNav.announced={};if(_facNav.lastLa!=null)_facNavCompute(_facNav.lastLa,_facNav.lastLn,_facNav.heading,null);}
 function _fnChain(anchor,cands,n){var pool=cands.slice(),chain=[],cur=anchor;for(var k=0;k<n&&pool.length;k++){var bi=-1,bd=Infinity;for(var i=0;i<pool.length;i++){var d=_haversine(cur.lat,cur.lng,pool[i].lat,pool[i].lng);if(d>0.5&&d<bd){bd=d;bi=i;}}if(bi<0)break;var nx=pool.splice(bi,1)[0];chain.push({lat:nx.lat,lng:nx.lng});cur=nx;}return chain;}
 function facNavSetSpeed(i){_facNav.spdIdx=i;_facNavSpdSync();}
 function _facNavSpdSync(){for(var i=0;i<3;i++){var b=document.getElementById('fnSpd'+i);if(!b)continue;var on=_facNav.spdIdx===i;b.style.background=on?'rgba(94,207,143,.18)':'rgba(255,255,255,.06)';b.style.borderColor=on?'rgba(94,207,143,.55)':'rgba(255,255,255,.15)';b.style.color=on?'#8fe0ab':'#c9dcec';}}
@@ -808,7 +873,9 @@ function _facNavSimStart(){
   if(df){
     label=_fnDisp(df).main;
     var z=_fnIsSign(df)?_fnSignZone(df):null;
-    if(z&&t[z]&&t[z].length>1){ // 목적지 구역의 표지판 열을 트레일 초입→목적지 순서로
+    if(_fnWalkActive()){ // 카카오 도보 실경로가 있으면 그 길로 시뮬(실제 등산로)
+      chain=_facNav.walkRoute.path.map(function(p){return{lat:p[0],lng:p[1]};});
+    }else if(z&&t[z]&&t[z].length>1){ // 목적지 구역의 표지판 열을 트레일 초입→목적지 순서로
       var arr=t[z],ti=0,td=Infinity;
       for(var i=0;i<arr.length;i++){var d=_haversine(df.lat,df.lng,arr[i].lat,arr[i].lng);if(d<td){td=d;ti=i;}}
       chain=arr.slice(0,ti+1).map(function(p){return{lat:p.lat,lng:p.lng};});
@@ -866,7 +933,7 @@ function _facNavFocus(id){
   var f=(DB.g('facilities')||[]).find(function(x){return String(x.id)===String(id);});
   if(!f||!f.lat)return;
   _facNav.dest=(String(_facNav.dest)===String(id))?null:String(id); // 같은 걸 다시 누르면 해제
-  _facNav.announced={};
+  _facNav.walkRoute=null;_facNav.announced={};
   if(_facNav.map){_facNav.follow=false;try{_facNav.map.setCenter(new kakao.maps.LatLng(f.lat,f.lng));}catch(e){}}
   if(_facNav.lastLa!=null)_facNavCompute(_facNav.lastLa,_facNav.lastLn,_facNav.heading,null);
 }
@@ -887,7 +954,7 @@ function facNavSearch(q){
 function facNavPickDest(id){
   var f=(DB.g('facilities')||[]).find(function(x){return String(x.id)===String(id);});
   if(!f)return;
-  _facNav.dest=String(id);_facNav.announced={};
+  _facNav.dest=String(id);_facNav.walkRoute=null;_facNav.announced={};
   var si=document.getElementById('fnSearch');if(si)si.value='';
   var res=document.getElementById('fnSearchRes');if(res){res.style.display='none';res.innerHTML='';}
   if(_facNav.map&&f.lat){_facNav.follow=false;try{_facNav.map.setCenter(new kakao.maps.LatLng(f.lat,f.lng));}catch(e){}}
@@ -3978,6 +4045,15 @@ function renderAdmSheets(){
         <button onclick="saveKmaProxy()" style="background:#1a3a20;color:#86efac;border:1px solid rgba(74,222,128,.3);padding:8px 14px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;">저장</button>
       </div>
       <div style="font-size:10px;color:#3a4a6a;margin-top:7px;">Cloudflare Workers 무료: 1일 10만 요청 · 설정 후 날씨 상세 출처가 '기상청'으로 표시</div>
+    </div>
+    <div class="scard">
+      <div class="stitle">🥾 도보경로 프록시 주소</div>
+      <div style="font-size:11px;color:#8b95a1;margin-bottom:8px;">시설물 내비에서 <b>카카오 도보(등산로) 경로</b>를 받기 위한 본인 소유 프록시(Cloudflare Worker). REST키는 워커 시크릿에 저장돼 안전. 설정법: 저장소 <b>cloudflare-worker/kakao-walk-proxy.js</b></div>
+      <div style="display:flex;gap:6px;">
+        <input id="walkProxyInp" type="text" class="fi" value="${_esc(DB.g('walkProxyUrl')||'')}" placeholder="https://seoraksan-walk.xxx.workers.dev" style="flex:1;font-family:monospace;font-size:11px;">
+        <button onclick="saveWalkProxy()" style="background:#1a3a20;color:#86efac;border:1px solid rgba(74,222,128,.3);padding:8px 14px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;">저장</button>
+      </div>
+      <div style="font-size:10px;color:#3a4a6a;margin-top:7px;">설정하면 내비 목적지까지 <b>실제 등산로 경로·거리·시간</b> 표시. 비우면 표지판 근사경로로 동작.</div>
     </div>`;
   setTimeout(_loadTplNames,80); // hwpx 서식 등록 상태 비동기 표시
 }

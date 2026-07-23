@@ -502,6 +502,14 @@ function saveKmaProxy(){
   try{fetchWeather();}catch(e){}
   toast(url?'✅ 기상청 프록시 저장됨 — 날씨 새로고침':'✅ 프록시 해제됨');
 }
+function saveWalkProxy(){
+  const _wp=document.getElementById('walkProxyInp');let url=(_wp?_wp.value:'').trim();
+  if(url&&!/^https?:\/\//.test(url)){toast('⚠️ https:// 로 시작하는 주소를 입력하세요');return;}
+  url=url.replace(/\/+$/,''); // 끝 슬래시 제거
+  DB.s('walkProxyUrl',url);
+  try{if(window._facNav){_facNav.walkRoute=null;}}catch(e){}
+  toast(url?'✅ 도보경로 프록시 저장됨 — 내비에서 실제 등산로 경로 사용':'✅ 도보 프록시 해제됨(표지판 근사경로)');
+}
 function saveFcmCfg(){
   const _fu=document.getElementById('fcmUrlInp');const url=(_fu?_fu.value:'').trim();
   const _fs=document.getElementById('fcmSecInp');const sec=(_fs?_fs.value:'').trim();
