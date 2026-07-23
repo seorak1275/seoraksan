@@ -1,1 +1,1 @@
-{"version":"2026.07.23.347","url":"https://seorak1275.github.io/seoraksan/bundle.zip","notes":"보안 PHASE B 준비: 개인정보 읽기잠금 규칙 대비 — 익명 부팅 후 멤버 확정 시 공유 리스너 1회 재연결(강화규칙 미적용 시 무동작)"}
+{"version":"2026.07.23.349","url":"https://seorak1275.github.io/seoraksan/bundle.zip","notes":"내비 카카오 도보(등산로) 실경로 연동: 목적지 검색→실제 등산로 경로선·거리·소요시간 표시 + 카카오 턴바이턴 음성안내(회전지점 접근 시), 시뮬도 실경로 따라감. 관리자설정 '🥾도보경로 프록시 주소'(walkProxyUrl 전직원 동기화). 프록시 없으면 표지판 근사경로 폴백"}
