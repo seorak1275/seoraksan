@@ -215,7 +215,7 @@ function _showFacOverlapList(group,tappedId){
 const DC={lat:38.1328,lng:128.4107};
 // HTML/attribute escaping for user-generated content
 function _esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');}
-function _escq(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/"/g,'&quot;').replace(/</g,'&lt;');}
+function _escq(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/\r/g,'').replace(/\n/g,'\\n');}
 function _haversine(lat1,lng1,lat2,lng2){
   var R=6371000,r=Math.PI/180;
   var dL=(lat2-lat1)*r,dG=(lng2-lng1)*r;
@@ -239,9 +239,10 @@ function _nearestSign(lat,lng){
   var best=null,bestD=Infinity;
   _cachedRescueSigns.forEach(function(f){var d=_haversine(lat,lng,f.lat,f.lng);if(d<bestD){bestD=d;best=f;}});
   if(!best||bestD>3000)return null;
+  var _bnm=String(best.name||'');
   var label=best.type.includes('다목적위치표지판')
-    ?(best.name.match(/\d[\d\-]*\d|\d/)||[best.name.slice(0,6)])[0]
-    :best.name;
+    ?(_bnm.match(/\d[\d\-]*\d|\d/)||[_bnm.slice(0,6)])[0]
+    :_bnm;
   var dist=bestD<1000?Math.round(bestD)+'m':((bestD/1000).toFixed(1)+'km');
   return label+' 인근 '+dist;
 }
@@ -1458,7 +1459,7 @@ function _renderBoardPins(fit){
   try{
     const _og=(DB.g('rescues')||[]).filter(r=>r.status==='ongoing').map(r=>r.id+':'+r.lat+','+r.lng+','+(r.status||''));
     const _hz=((typeof _HAZ_OFF!=='undefined'&&_HAZ_OFF)?[]:(DB.g('hazards')||[]).filter(h=>!h.hazStatus||h.hazStatus==='미조치'||h.hazStatus==='조치중')).map(h=>h.id+':'+h.lat+','+h.lng);
-    const _ss=(window._sosPings||[]).map(p=>p.id+':'+(p.ts||''));
+    const _ss=((typeof _sosPings!=='undefined'&&_sosPings)||[]).map(p=>p.id+':'+p.lat+','+p.lng);
     _sig=_og.join('|')+'#'+_hz.join('|')+'#'+_ss.join('|');
   }catch(e){_sig='err'+Date.now();}
   if(!fit&&_sig===window._boardPinSig)return;
@@ -1497,7 +1498,7 @@ function _renderBoardPins(fit){
   });
   // 다목적위치표지판 핀 (번호 표시, 작은 레이블)
   (DB.g('facilities')||[]).filter(f=>f.type&&f.type.includes('다목적위치표지판')&&f.lat&&f.lng).forEach(f=>{
-    const code=(f.name.match(/\d[\d\-]*\d|\d/)||[f.name.slice(0,6)])[0];
+    const _fnm=String(f.name||'');const code=(_fnm.match(/\d[\d\-]*\d|\d/)||[_fnm.slice(0,6)])[0];
     const el=document.createElement('div');
     el.innerHTML=`<div style="background:rgba(10,30,55,.85);border:1px solid rgba(255,255,255,.6);color:#aab4c0;border-radius:5px;padding:1px 5px;font-size:9px;font-weight:700;white-space:nowrap;box-shadow:0 1px 3px rgba(0,0,0,.5);cursor:default;">${_esc(code)}</div>`;
     const pos=new kakao.maps.LatLng(f.lat,f.lng);
