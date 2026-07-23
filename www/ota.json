@@ -1,1 +1,1 @@
-{"version":"2026.07.23.346","url":"https://seorak1275.github.io/seoraksan/bundle.zip","notes":"보안 강화: 보고서 폼 XSS 이스케이프·로그아웃 시 관리자플래그 정리·탈퇴자 권한필터·SOS 링크 토큰 암호강화·외부기관 목록 열람제한 (+firestore 규칙 강화안·토큰 클레임 준비)"}
+{"version":"2026.07.23.347","url":"https://seorak1275.github.io/seoraksan/bundle.zip","notes":"장비 제품/개별 수정 분리 + 리뷰 7건 수정(개별저장·merge일괄·이름변경 유지·개별추가취소·JSON키·사진esc), origin/main 보안·구역 작업 병합"}
