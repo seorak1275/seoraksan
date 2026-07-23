@@ -1,0 +1,132 @@
+rules_version = '2';
+// ══════════════════════════════════════════════════════════════════════════
+// 설악산 현장관리 — 강화된 Firestore 보안 규칙 (제안본)
+//
+// ⚠️ 지금 라이브(firestore.rules)는 "인증만 되면 누구나 읽기/쓰기"라
+//    익명 인증(공개)만 하면 구조기록·명단 등 개인정보 전체가 노출됩니다.
+//    이 파일은 그 구멍을 막는 목표 규칙입니다. 아래 "배포 순서"를 반드시 지키세요.
+//
+// ── 배포 순서 (순서 어기면 전원 잠김) ──────────────────────────────────────
+//  1) apps_script/Code.gs 를 먼저 배포한다.
+//     - handleMintToken 이 커스텀 토큰에 { member:true, admin:(role==='admin') }
+//       클레임을 넣도록 이미 수정됨. 이 클레임이 있어야 아래 isMember()/isAdmin()가 동작.
+//     - 배포 후, 승인된 직원 계정으로 "다시 로그인"하여 새 토큰(=member 클레임 포함)을 받게 한다.
+//       (기존 세션은 최대 1시간 뒤 토큰 갱신 시 자동 반영)
+//  2) [1단계 — 쓰기 잠금] 아래 "PHASE A" 블록을 Firestore 콘솔 규칙에 붙여 게시한다.
+//     - 읽기는 그대로 열어 두므로(부팅 리스너 보호) 동기화가 깨질 위험이 없다.
+//     - 익명(비승인) 사용자의 데이터 변조·오염을 차단한다. 가장 안전한 1차 방어.
+//  3) 며칠간 이상 없음을 확인한다(로그인·구조기록 작성·시설점검·특보·명단 업로드 정상).
+//  4) [2단계 — 읽기/개인정보 잠금] 아래 "PHASE B" 블록으로 교체 게시한다.
+//     - ‼️ 선행조건: 클라이언트가 "로그인 직후 리스너를 멤버 토큰으로 다시 붙이는" 처리가
+//       되어 있어야 한다(아래 <클라이언트 선행조건> 참조). 안 되어 있으면
+//       "처음 로그인/로그아웃 후 재로그인" 세션에서 데이터 동기화가 새로고침 전까지 멈춘다.
+//       (이미 승인돼 세션이 유지되는 재방문 직원은 영향 없음 — 멤버 토큰으로 첫 리스너를 붙이므로)
+//  ⎘ 롤백: 문제가 생기면 즉시 기존 firestore.rules(느슨한 버전) 내용으로 되돌려 게시.
+//
+// ── <클라이언트 선행조건> (PHASE B 전에 필요) ─────────────────────────────
+//   앱은 부팅 시 익명 인증 상태에서 appData/rescues/hazards/facilities/history/facIssues
+//   컬렉션에 onSnapshot 리스너를 건다(app.core.js). PHASE B는 이 컬렉션 읽기를 멤버로 제한하므로,
+//   "익명으로 리스너를 건 뒤 로그인해 멤버가 되는" 세션(최초 로그인·로그아웃 후 재로그인)에서는
+//   최초 리스너가 permission-denied 로 죽는다(Firestore 리스너는 권한오류 시 자동 재시도 안 함).
+//   해결(둘 중 하나):
+//     (가) 로그인 성공(signInWithCustomToken 직후)에 location.reload() 1회 — 가장 단순.
+//          재부팅 시 세션이 이미 '멤버'라 첫 리스너가 멤버 토큰으로 붙어 정상.
+//     (나) onAuthStateChanged 에서 멤버 확정 시 공유 리스너를 unsubscribe 후 재구독.
+//   ※ 위 처리는 라이브에서 검증 후 PHASE B를 올리는 것을 권장(가능하면 테스트 프로젝트/Rules Playground).
+// ══════════════════════════════════════════════════════════════════════════
+
+// ┌────────────────────────────────────────────────────────────────────────┐
+// │ PHASE A — 쓰기 잠금(읽기는 유지). 지금 바로(Code.gs 배포 후) 안전하게 적용 가능. │
+// └────────────────────────────────────────────────────────────────────────┘
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isMember() { return request.auth != null && request.auth.token.member == true; }
+    function isAdmin()  { return request.auth != null && request.auth.token.admin  == true; }
+    // 좌표가 들어오면 반드시 설악권 유효범위. 좌표 없는 쓰기(발급·openedAt·종료 등)는 통과.
+    function coordOk() {
+      return (!('lat' in request.resource.data) && !('lng' in request.resource.data))
+        || (request.resource.data.lat is number && request.resource.data.lng is number
+            && request.resource.data.lat > 33 && request.resource.data.lat < 39
+            && request.resource.data.lng > 124 && request.resource.data.lng < 132);
+    }
+
+    // 🆘 SOS: 조난자(비로그인)가 위치를 보냄. 토큰(=문서ID)을 아는 경우에만 단건 get,
+    //    좌표검증 후 생성/수정. 목록·삭제는 멤버(구조대)만 — 전체 열람·삭제 차단.
+    match /sos/{doc} {
+      allow get: if true;
+      allow list, delete: if isMember();
+      allow create, update: if coordOk();
+    }
+
+    // 오류 로그: 부팅 중 익명 세션의 오류도 남겨야 함 → 생성만 허용, 열람·변경은 멤버.
+    match /errLogs/{doc} {
+      allow create: if request.auth != null;
+      allow read, update, delete: if isMember();
+    }
+
+    // FCM 푸시 토큰: 로그인 전 부팅 시 기기 등록. 생성/수정은 인증(익명 포함),
+    //    목록 조회(대상자 찾기)·삭제는 멤버.
+    match /fcmTokens/{deviceId} {
+      allow create, update: if request.auth != null;
+      allow read, delete: if isMember();
+    }
+
+    // 단일 문서 저장소 appData/{key}: 대부분 멤버 전용 쓰기.
+    //    단, 로그인 전·승인대기 사용자가 반드시 써야 하는 문서만 익명 인증에도 쓰기 허용.
+    //    (loginLog=로그인기록, pendingUsers=가입대기명단, otaInfo=웹 OTA 미러)
+    //    ※ PHASE A에서는 read를 열어 둔다(부팅 리스너 보호).
+    match /appData/{key} {
+      allow read: if request.auth != null;
+      allow write: if isMember()
+                || (request.auth != null && (key == 'loginLog' || key == 'pendingUsers' || key == 'otaInfo'));
+    }
+
+    // 그 외 모든 컬렉션(rescues·hazards·facilities·history·facIssues·climbUsage·
+    //    accessLog·sharedNotis·sosNotiClaims 등 — 개인정보 포함).
+    //    PHASE A: 읽기는 유지(부팅 리스너 보호), 쓰기는 멤버만.
+    match /{collection}/{doc} {
+      allow read: if request.auth != null;
+      allow write: if isMember();
+    }
+  }
+}
+
+// ┌────────────────────────────────────────────────────────────────────────┐
+// │ PHASE B — 읽기/개인정보 잠금. <클라이언트 선행조건> 충족·검증 후 교체 게시.    │
+// │ 위 service 블록 전체를 아래로 교체하면 됨(함수 정의 동일).                    │
+// └────────────────────────────────────────────────────────────────────────┘
+//
+// service cloud.firestore {
+//   match /databases/{database}/documents {
+//     function isMember() { return request.auth != null && request.auth.token.member == true; }
+//     function isAdmin()  { return request.auth != null && request.auth.token.admin  == true; }
+//     function coordOk() {
+//       return (!('lat' in request.resource.data) && !('lng' in request.resource.data))
+//         || (request.resource.data.lat is number && request.resource.data.lng is number
+//             && request.resource.data.lat > 33 && request.resource.data.lat < 39
+//             && request.resource.data.lng > 124 && request.resource.data.lng < 132);
+//     }
+//     match /sos/{doc} {
+//       allow get: if true;
+//       allow list, delete: if isMember();
+//       allow create, update: if coordOk();
+//     }
+//     match /errLogs/{doc} {
+//       allow create: if request.auth != null;
+//       allow read, update, delete: if isMember();
+//     }
+//     match /fcmTokens/{deviceId} {
+//       allow create, update: if request.auth != null;
+//       allow read, delete: if isMember();
+//     }
+//     match /appData/{key} {
+//       allow read: if isMember();   // ← 개인정보 보호: 익명 읽기 차단
+//       allow write: if isMember()
+//                 || (request.auth != null && (key == 'loginLog' || key == 'pendingUsers' || key == 'otaInfo'));
+//     }
+//     match /{collection}/{doc} {
+//       allow read, write: if isMember();   // ← 개인정보 보호: 익명 읽기 차단
+//     }
+//   }
+// }

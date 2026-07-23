@@ -386,8 +386,10 @@ function kakaoLogout(){
   DB.s('currentUser',{});
   DB.s('authType','');
   // 커스텀 토큰 세션·역할 정리 → 익명 인증으로 복귀
+  // 관리자·마스터 플래그도 반드시 제거 — 로그아웃 후에도 남으면 다음 사용자가 그 기기에서
+  // 관리자 권한을 그대로 물려받는 사고(권한 상승) 방지.
   localStorage.removeItem('_tokenAdmin');_authRole='';_authKakaoId='';
-  try{localStorage.removeItem('_kkAT');localStorage.removeItem('_kkRT');localStorage.removeItem('_memberOk');window._memberAuthWarned=false;}catch(e){}
+  try{localStorage.removeItem('_kkAT');localStorage.removeItem('_kkRT');localStorage.removeItem('_memberOk');localStorage.removeItem('_masterAuthed');localStorage.removeItem('_adminAuthed');window._memberAuthWarned=false;}catch(e){}
   var _g=document.getElementById('approvalGate');if(_g)_g.style.display='none';
   try{firebase.auth().signOut();}catch(e){}
   if(window.showLoginScreen)window.showLoginScreen();
@@ -4478,10 +4480,20 @@ function _updateSosFab(){
 // ⚠️ location.origin 사용 금지 — 안드로이드 APK(Capacitor)는 앱을 https://localhost 에서 실행하므로
 // 그대로 쓰면 조난자에게 'https://localhost/?sos=…'라는 열 수 없는 링크가 감. 항상 공개 웹 주소로 고정.
 function _sosVictimUrl(tok){return 'https://seorak1275.github.io/seoraksan/?sos='+tok;}
+// 1회용 링크 토큰 — 추측·열거 불가하도록 암호학적 난수 12자(혼동문자 제외 32자 알파벳, ~60bit).
+// 이 토큰만 알면 조난자 실시간 위치가 노출되므로 짧은 랜덤(구 5자리)은 열거공격에 취약 → 강화.
+function _sosGenToken(){
+  try{
+    var a=new Uint8Array(12);(window.crypto||crypto).getRandomValues(a);
+    var cs='23456789abcdefghijkmnpqrstuvwxyz',s='';
+    for(var i=0;i<a.length;i++)s+=cs[a[i]&31];
+    return s;
+  }catch(e){return Math.random().toString(36).slice(2,10)+Math.random().toString(36).slice(2,10);}
+}
 // 새 1회용 링크 발급 (토큰 생성 → active:true 문서 생성)
 function _sosNewLink(){
   if(!_fdb){toast('연결 준비 중 — 잠시 후 다시');return;}
-  const tok=Math.random().toString(36).slice(2,7); // 5자리 토큰
+  const tok=_sosGenToken();
   const by=(typeof getAuthor==='function')?getAuthor():'구조대';
   _fdb.collection('sos').doc(tok).set({id:tok,active:true,issuedAt:Date.now(),by:by},{merge:true})
     .then(function(){toast('🔗 1회용 링크 생성됨 — 조난자에게 보내세요',5000);openSosRequest();if(navigator.share)_sosShareUrl(tok);})
@@ -4716,7 +4728,7 @@ function _callTel(tel){tel=String(tel||'').replace(/[^0-9+]/g,'');if(!tel){toast
 function _smsSosTo(tel,resId,role,name){
   tel=String(tel||'').replace(/[^0-9+]/g,'');if(!tel){toast('전화번호 없음');return;}
   if(!_fdb){toast('연결 준비 중 — 잠시 후 다시');return;}
-  const tok=Math.random().toString(36).slice(2,7);
+  const tok=_sosGenToken();
   const by=(typeof getAuthor==='function')?getAuthor():'구조대';
   toast('🆘 위치요청 링크 생성 중…');
   _fdb.collection('sos').doc(tok).set({id:tok,active:true,issuedAt:Date.now(),by:by},{merge:true})
@@ -4865,7 +4877,7 @@ function sosToRescue(id){
 // 앱 자체 업데이트 (OTA · Capgo 자체호스팅) — APK 전용. 웹/PWA는 서비스워커가 자동 갱신.
 // 번들(www)의 새 버전을 ota.json으로 알리면, 설치된 앱이 받아서 그 자리에서 교체(재빌드 불필요).
 // ══════════════════════════════════════════
-const OTA_VER='2026.07.23.344';                         // ← 현재 번들 버전 (릴리스마다 올림 · build-ota.sh가 ota.json에 반영)
+const OTA_VER='2026.07.23.346';                         // ← 현재 번들 버전 (릴리스마다 올림 · build-ota.sh가 ota.json에 반영)
 const OTA_MANIFEST='https://seorak1275.github.io/seoraksan/ota.json';
 // 업데이트 확인 폴백 소스 — 일부 기관망·통신사에서 github.io가 막혀 '확인 실패(네트워크)'가 나는 경우 대비.
 // 순서대로 시도: ① GitHub Pages(원본·즉시 반영) ② jsDelivr CDN(공개저장소 미러·거의 모든 망 통과)

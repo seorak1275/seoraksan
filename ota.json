@@ -1,1 +1,1 @@
-{"version":"2026.07.23.344","url":"https://seorak1275.github.io/seoraksan/bundle.zip","notes":"장비 제품/개별 수정 분리 + 적대적리뷰 7건 수정: 개별저장 막힘(품명가드) 해제·제품일괄은 바뀐필드만 merge저장(개별/사진/일지·동시변경 보존)·이름변경 시 이전다음 유지·개별추가 취소→제품복귀·묶음키 JSON충돌방지·사진 src 이스케이프"}
+{"version":"2026.07.23.346","url":"https://seorak1275.github.io/seoraksan/bundle.zip","notes":"보안 강화: 보고서 폼 XSS 이스케이프·로그아웃 시 관리자플래그 정리·탈퇴자 권한필터·SOS 링크 토큰 암호강화·외부기관 목록 열람제한 (+firestore 규칙 강화안·토큰 클레임 준비)"}

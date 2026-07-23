@@ -4167,6 +4167,8 @@ function _autoApproveSweep(){
 // 본인 기기: 자동 승인 모드면 스스로 멤버 등록(관리자 부재여도 입장). _acl 쓰기는 인증사용자 누구나 허용.
 function _aclSelfApprove(kakaoId){
   kakaoId=String(kakaoId||'');if(!kakaoId)return false;
+  // 탈퇴자는 자동승인 모드에서도 스스로 멤버가 될 수 없음(부활 방지). 정식 재가입 승인 시 deletedKakaoIds에서 제거됨.
+  var _del=new Set((DB.g('deletedKakaoIds')||[]).map(String));if(_del.has(kakaoId))return false;
   const acl=_getAcl();
   if(acl.members.indexOf(kakaoId)<0&&acl.admins.indexOf(kakaoId)<0){acl.members.push(kakaoId);DB.s('_acl',acl);}
   // pendingUsers 상태도 approved로 — 자동승인으로 들어왔는데 관리자 화면에 '승인' 버튼이 남던 문제 방지
