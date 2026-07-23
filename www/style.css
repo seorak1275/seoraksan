@@ -330,7 +330,9 @@ img{-webkit-user-drag:none;}
 /* ═══ 폼 ═══ */
 .fg{margin-bottom:11px;}.fg:last-child{margin-bottom:0;}
 .fl{display:block;font-size:10.5px;color:#6fa6cc;margin-bottom:5px;font-weight:600;}
-.fi,.fsel,.fta{width:100%;background:#0f0f11;border:1px solid rgba(255,255,255,.09);color:#eaecef;padding:9px 11px;border-radius:8px;font-size:12px;outline:none;font-family:inherit;}
+/* font-size는 16px 이상이어야 iOS Safari가 입력 포커스 때 페이지를 자동 확대하지 않음.
+   구조 1보 폼 등 일반 입력이 12px라 매 필드 탭마다 확대되던 문제 → 전역 16px로 통일(모달은 기존 !important 유지). */
+.fi,.fsel,.fta{width:100%;background:#0f0f11;border:1px solid rgba(255,255,255,.09);color:#eaecef;padding:9px 11px;border-radius:8px;font-size:16px;outline:none;font-family:inherit;}
 .fi,.fsel{min-height:44px;}
 /* 활력징후 스테퍼: [−] 값 [+] — 예시값 시드 + 마이너스 방지 */
 .vit-step{display:flex;align-items:stretch;gap:6px;}
@@ -344,7 +346,8 @@ img{-webkit-user-drag:none;}
 .gps-row{display:flex;gap:5px;}
 .sm-btn{background:rgba(255,255,255,.07);color:#3182f6;border:1px solid rgba(255,255,255,.18);border-radius:7px;padding:0 10px;font-size:11px;cursor:pointer;white-space:nowrap;font-weight:600;flex-shrink:0;height:42px;}
 .pills{display:flex;flex-wrap:wrap;gap:5px;}
-.pill{padding:6px 11px;border-radius:20px;font-size:11px;font-weight:600;cursor:pointer;border:1.5px solid rgba(255,255,255,.12);color:rgba(255,255,255,.52);background:transparent;transition:all .15s;}
+/* 부상부위·중증도·구조방법 등 안전 관련 선택칩 — 장갑·악천후 오탭 방지 위해 탭 타깃 확대(min-height 40px) */
+.pill{display:inline-flex;align-items:center;min-height:40px;padding:8px 14px;border-radius:20px;font-size:12px;font-weight:600;cursor:pointer;border:1.5px solid rgba(255,255,255,.12);color:rgba(255,255,255,.52);background:transparent;transition:all .15s;}
 .pill.on{border-color:rgba(255,255,255,.65);color:#3182f6;background:rgba(255,255,255,.09);}
 .chk-grid{display:grid;grid-template-columns:1fr 1fr;gap:5px;}
 .chk-item{display:flex;align-items:center;gap:6px;padding:7px 9px;background:rgba(255,255,255,.03);border-radius:7px;cursor:pointer;border:1px solid transparent;}
@@ -621,7 +624,9 @@ button.set-row:active,a.set-row:active,.set-row.tap:active{background:rgba(255,2
 .navi.on .navi-lbl{color:#3182f6;}
 
 /* ─── 토스트·기타 ─── */
-.toast{position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:#1c1c1e;color:#eaecef;padding:10px 18px;border-radius:24px;font-size:13px;font-weight:600;border:1px solid rgba(255,255,255,.35);box-shadow:0 4px 16px rgba(0,0,0,.6);z-index:100000;opacity:0;transition:opacity .28s;white-space:nowrap;pointer-events:none;max-width:90%;overflow:hidden;text-overflow:ellipsis;}
+/* 토스트는 앱의 주요 피드백 채널 — 긴 경고문("사진 처리 실패 — 다시 촬영")이 한 줄 말줄임으로 잘려
+   조치 문구가 안 보이던 문제 → 여러 줄 허용(최대 3줄). */
+.toast{position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:#1c1c1e;color:#eaecef;padding:11px 18px;border-radius:16px;font-size:13px;font-weight:600;border:1px solid rgba(255,255,255,.35);box-shadow:0 4px 16px rgba(0,0,0,.6);z-index:100000;opacity:0;transition:opacity .28s;white-space:normal;line-height:1.45;text-align:center;pointer-events:none;max-width:88%;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:3;overflow:hidden;}
 .toast.on{opacity:1;}
 .empty{text-align:center;padding:40px 16px;margin:8px 4px;border-radius:12px;background:rgba(255,255,255,.05);border:1px dashed rgba(255,255,255,.18);color:#88acc4;}
 .empty-ico{font-size:38px;margin-bottom:9px;opacity:.85;}.empty-txt{font-size:13px;line-height:1.6;font-weight:500;}

@@ -191,7 +191,7 @@ function submitNBoFromForm(){
   const phaseNum=res[idx].reports.length;
   pushNoti(`📋 추가 보고: ${res[idx].title}`,'📋','rescue_update',{app:'rescue',tab:2,id:res[idx].id});
   try{renderRescueMap();}catch(e){}try{renderResList();}catch(e){} // 좌표 변경 즉시 지도 반영
-  toast('✅ 추가 보고 저장 완료');
+  toast((typeof navigator!=='undefined'&&navigator.onLine===false)?'📡 오프라인 — 이 기기에 저장됨, 연결되면 자동 전송':'✅ 추가 보고 저장 완료',(typeof navigator!=='undefined'&&navigator.onLine===false)?5000:undefined);
   try{document.getElementById('phaseBar').innerHTML='';}catch(e){}
   renderTimeline(res[idx],'brief');
 }
@@ -504,10 +504,13 @@ function tlMarkArrival(idx){
 }
 // 백그라운드 복귀 시: 날씨가 끝내 안 떠 있으면(첫 로드 실패) 다시 시도
 document.addEventListener('visibilitychange',function(){
-  if(document.hidden)return;
+  // 백그라운드로 넘어가는 즉시(카메라 실행·앱전환 등) 임시저장 — 30초 자동저장 주기 사이 입력 유실 방지
+  if(document.hidden){try{_saveDraftNow();}catch(e){}return;}
   var _ws=document.getElementById('weatherStrip');
   if(_ws&&_ws.style.display==='none'){try{fetchWeather();}catch(e){}}
 });
+// OS가 백그라운드 PWA를 회수하기 직전에도 마지막으로 임시저장
+window.addEventListener('pagehide',function(){try{_saveDraftNow();}catch(e){}});
 
 function _tlTeamFullHtml(team,idx){
   const cnt=_teamCnt(team);
@@ -3437,7 +3440,11 @@ function submit1Bo(){
   if(r.mobilize&&r.mobilize.length)pushNoti('🚨 야간 응소 요청: '+r.mobilize.join(', ')+' — '+title,'🚨','rescue_mobilize',{app:'rescue',tab:2,id:r.id});
   syncToSheets('rescue',{id:r.id,title,type:r.type,date:r.date,author:r.author});
   if(typeof _hapt==='function')_hapt([30,40,30]); // 등록 성공 햅틱 — 긴박한 상황에서 화면 안 보고도 확인
-  toast('🚨 1보 등록 완료'+(r.mobilize&&r.mobilize.length?' · 응소: '+r.mobilize.join(', '):''));
+  // 오프라인이면 '완료'로 오인하지 않도록 — 이 기기에 저장됐고 연결 시 자동 전송됨을 명확히 안내
+  const _mobStr=(r.mobilize&&r.mobilize.length?' · 응소: '+r.mobilize.join(', '):'');
+  toast((typeof navigator!=='undefined'&&navigator.onLine===false)
+    ?'📡 오프라인 — 이 기기에 저장됨, 연결되면 자동 전송'+_mobStr
+    :'🚨 1보 등록 완료'+_mobStr, (typeof navigator!=='undefined'&&navigator.onLine===false)?5000:undefined);
   _clearRescueDraft(); // 정상 등록됐으므로 임시저장 폐기
   // 저장 즉시 고도화 타임라인으로 이동
   selResId=r.id;curResId=r.id;

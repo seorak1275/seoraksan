@@ -160,9 +160,6 @@ function _facMigrateV2(){
 function renderInspectMap(){
   if(!mapI){return;}
   _facMigrateV2();
-  try{_closeFacOverlapSheet();}catch(e){} // 열린 겹침 목록 시트가 있으면 닫기(재구성 시)
-  iOvs.forEach(o=>{try{o.setMap(null);}catch(e){}});iOvs=[];iEls=[];
-  _iClusterOvs.forEach(o=>{try{o.setMap(null);}catch(e){}});_iClusterOvs=[];
   const _admin=isAdminUser();const _meta=DB.g('catFacMeta')||{};
   // Firestore 수신 전엔 경량 부트 캐시로 핀 먼저 표시(즉시 표시) — 수신되면 자동 재렌더로 교체
   const _facsAll=DB.g('facilities')||(typeof _facBootCache==='function'&&_facBootCache())||[];
@@ -180,6 +177,16 @@ function renderInspectMap(){
     const gOk=facMapGradeF.size===0||(_cg&&facMapGradeF.has(_cg.g));
     return wOk&&tOk&&lOk&&gOk;
   });
+  // 변경 서명 — 원격 갱신마다 수백 오버레이(각 div+리스너3)를 전부 재생성하던 비용 제거:
+  // 표시 시설·필터·권한이 그대로면 재구성 건너뜀(다른 컬렉션만 바뀐 원격 갱신 시 지도 잔틱·배터리 소모 방지).
+  // 줌 시 스케일·클러스터는 _reclusterInspect가 별도(idle) 처리하므로 여기서 건너뛰어도 안전.
+  const _sig=[facMapStatusF,facMapTypeF,facMapLocF,facMapGradeF].map(s=>[...s].sort().join('.')).join('|')+'#'+(_admin?'a':'')
+    +'#'+filtered.map(f=>f.id+':'+f.lat+','+f.lng+':'+(_facWarn(f)?'w':'')+(f.hidden?'h':'')+':'+f.type).join('|');
+  if(iOvs.length&&_sig===window._inspMapSig)return;
+  window._inspMapSig=_sig;
+  try{_closeFacOverlapSheet();}catch(e){} // 열린 겹침 목록 시트가 있으면 닫기(재구성 시)
+  iOvs.forEach(o=>{try{o.setMap(null);}catch(e){}});iOvs=[];iEls=[];
+  _iClusterOvs.forEach(o=>{try{o.setMap(null);}catch(e){}});_iClusterOvs=[];
   filtered.forEach(f=>{
     if(!f.lat||!f.lng)return;
     const el=document.createElement('div');el.className='mpin '+(_facWarn(f)?'p-bad blink':'p-fac');el.innerHTML=f.type.split(' ')[0];

@@ -1059,15 +1059,19 @@ function _busy(msg){
   var el=document.getElementById('_busyOv');
   if(!el){el=document.createElement('div');el.id='_busyOv';
     el.style.cssText='position:fixed;inset:0;z-index:99995;background:rgba(4,10,20,.55);display:flex;align-items:center;justify-content:center;backdrop-filter:blur(1px);';
-    el.innerHTML='<div style="background:#1c1c1e;border:1px solid rgba(255,255,255,.3);border-radius:14px;padding:20px 26px;display:flex;flex-direction:column;align-items:center;gap:13px;box-shadow:0 10px 34px rgba(0,0,0,.6);max-width:78vw;"><div style="width:30px;height:30px;border:3px solid rgba(255,255,255,.2);border-top-color:#3182f6;border-radius:50%;animation:spin .8s linear infinite;"></div><div id="_busyMsg" style="font-size:13px;color:#d5d8dc;font-weight:600;text-align:center;line-height:1.5;"></div></div>';
+    el.innerHTML='<div style="background:#1c1c1e;border:1px solid rgba(255,255,255,.3);border-radius:14px;padding:20px 26px;display:flex;flex-direction:column;align-items:center;gap:13px;box-shadow:0 10px 34px rgba(0,0,0,.6);max-width:78vw;"><div style="width:30px;height:30px;border:3px solid rgba(255,255,255,.2);border-top-color:#3182f6;border-radius:50%;animation:spin .8s linear infinite;"></div><div id="_busyMsg" style="font-size:13px;color:#d5d8dc;font-weight:600;text-align:center;line-height:1.5;"></div><button id="_busyClose" onclick="_busyDone()" style="display:none;margin-top:2px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.32);color:#c4c8ce;border-radius:8px;padding:8px 18px;font-size:12px;font-weight:700;cursor:pointer;">닫기</button></div>';
     document.body.appendChild(el);}
   var m=el.querySelector('#_busyMsg');if(m)m.textContent=msg||'처리 중…';
   el.style.display='flex';
+  // 작업이 6초 넘게 걸리면 수동 '닫기' 노출 — 어떤 이유로 멈춰도 발견하기 어려운 3연타 대신 바로 빠져나갈 수 있게
+  var _cb=el.querySelector('#_busyClose');if(_cb)_cb.style.display='none';
+  if(window._busyCloseTimer)clearTimeout(window._busyCloseTimer);
+  window._busyCloseTimer=setTimeout(function(){var b=document.getElementById('_busyClose');if(b)b.style.display='block';},6000);
   // 안전장치: 작업이 실패해 _busyDone()이 안 불려도 25초 뒤 자동 해제 — 전체화면 스피너가 앱을 영구 먹통시키는 것 방지
   if(window._busyTimer)clearTimeout(window._busyTimer);
   window._busyTimer=setTimeout(function(){try{_busyDone();console.warn('[busy] 타임아웃 자동 해제');}catch(_){}},25000);
 }
-function _busyDone(){var el=document.getElementById('_busyOv');if(el)el.style.display='none';if(window._busyTimer){clearTimeout(window._busyTimer);window._busyTimer=null;}}
+function _busyDone(){var el=document.getElementById('_busyOv');if(el)el.style.display='none';if(window._busyTimer){clearTimeout(window._busyTimer);window._busyTimer=null;}if(window._busyCloseTimer){clearTimeout(window._busyCloseTimer);window._busyCloseTimer=null;}}
 function toast(m,dur){const t=document.getElementById('toast');t.textContent=m;t.classList.add('on');clearTimeout(_toastTimer);
   // 중요 메시지(실패·경고·오류)는 자동으로 4초간 표시 — 놓치지 않도록
   if(dur===undefined){dur=(/실패|오류|⚠️|에러|불가|없습니다|권한/.test(String(m)))?4000:2200;}
