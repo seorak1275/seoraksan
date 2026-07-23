@@ -245,7 +245,11 @@ function handleMintToken(req) {
   }
 
   // ④ Firebase 커스텀 토큰 발급 (서비스 계정 키로 서명)
-  var token = _mintCustomToken('kakao:' + kakaoId, { role: role, kakaoId: kakaoId });
+  //    보안규칙(request.auth.token.member/admin)과 클라이언트(app.core.js: c.member/c.admin)가
+  //    이 커스텀 클레임을 읽는다. role은 여기서 항상 'member' 또는 'admin'이므로 member는 항상 true.
+  //    ⚠️ 이 클레임을 먼저 배포·검증한 뒤에 강화된 firestore.rules를 게시할 것(순서 반대면 전원 잠김).
+  var token = _mintCustomToken('kakao:' + kakaoId,
+    { role: role, kakaoId: kakaoId, member: true, admin: (role === 'admin') });
   if (!token) return _json({ error: 'mint_failed' });
   return _json({ token: token, role: role, kakaoId: kakaoId });
 }

@@ -1,1 +1,1 @@
-{"version":"2026.07.22.345","url":"https://seorak1275.github.io/seoraksan/bundle.zip","notes":"35구역 경계 수정 — 34·36 사이로 35를 삽입해 34-36 직접 접촉 해소(park-zones.json 34·35 링 교체, 겹침 없음)"}
+{"version":"2026.07.23.346","url":"https://seorak1275.github.io/seoraksan/bundle.zip","notes":"보안 강화: 보고서 폼 XSS 이스케이프·로그아웃 시 관리자플래그 정리·탈퇴자 권한필터·SOS 링크 토큰 암호강화·외부기관 목록 열람제한 (+firestore 규칙 강화안·토큰 클레임 준비)"}

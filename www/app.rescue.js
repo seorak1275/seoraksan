@@ -253,7 +253,7 @@ function _canManageFac(){
 // 이 시설이 나에게 보이는가: 숨김(hidden)이면 권한자에게만 보임(일반 사용자에겐 숨김)
 function _facVisibleTo(f){return !(f&&f.hidden)||_canManageFac();}
 // ── 시설물 담당자(하자 접수 재평가자) — 직원관리에서 지정, facManagers에 카카오ID 저장 ──
-function _facManagers(){return (DB.g('facManagers')||[]).map(String).filter(Boolean);}
+function _facManagers(){var del=new Set((DB.g('deletedKakaoIds')||[]).map(String));return (DB.g('facManagers')||[]).map(String).filter(function(id){return id&&!del.has(id);});}
 function _isFacManager(kakaoId){
   var k=String(kakaoId||((DB.g('currentUser')||{}).kakaoId)||'');
   if(!k)return false;
@@ -275,6 +275,9 @@ function _isDeveloper(kakaoId){
 // 멤버/관리자만 앱 사용 가능. 외부기관은 별도 경로(자체 제한)라 통과시킨다.
 function _isMember(){
   if(isExternal&&typeof isExternal==='function'&&isExternal())return true; // 외부기관: 자체 제한 적용
+  // 탈퇴 처리된 카카오 사용자는 옛 토큰(_authRole)·_memberOk 캐시가 남아 있어도 즉시 차단 — 부활 방지
+  var _u0=DB.g('currentUser')||{};
+  if(_u0.kakaoId){var _del=new Set((DB.g('deletedKakaoIds')||[]).map(String));if(_del.has(String(_u0.kakaoId)))return false;}
   if(isAdminUser())return true;
   if(_authRole==='member'||_authRole==='admin')return true;   // 토큰 클레임
   if(localStorage.getItem('_memberOk')==='1')return true;      // 이전에 멤버 확인됨(오프라인 보호)
@@ -980,7 +983,9 @@ function renderResList(){
   // 진행중 구조를 상단에 별도 그룹으로 모아 일일 운영 시인성 강화
   if(_showRes){
     // res는 id(=시각) 내림차순(최신 먼저). 기본 최신순, 토글 시 오래된순
-    const _rescues=res.filter(r=>_dateOkL(r.date)&&_resMatchSearch(r)).slice();
+    // 외부기관은 목록에서도 진행중·최근3시간만 열람 — 지도(renderRescueMap)와 동일 제한(과거 구조 미노출)
+    const _isExt=typeof isExternal==='function'&&isExternal();
+    const _rescues=res.filter(r=>_dateOkL(r.date)&&_resMatchSearch(r)&&(!_isExt||_extRescueVisible(r))).slice();
     if(!_resSortNewest)_rescues.reverse();
     const _og=_rescues.filter(r=>r.status==='ongoing');
     const _dn=_rescues.filter(r=>r.status!=='ongoing');

@@ -2906,7 +2906,7 @@ function render1BoForm(prefill=null){
           <div style="display:flex;gap:6px;" id="recvRouteBtns">
             ${['119','사무소 전화','현장 접수'].map(o=>`<button class="tog-btn${(p.recvRoute||'119')===o?' on':''}" data-val="${o}" style="flex:1;white-space:nowrap;padding:9px 4px;font-size:11.5px;" onclick="selRecvRoute('${o}')">${o==='119'?'🚒 119':o==='사무소 전화'?'☎️ 사무소전화':'🧍 현장접수'}</button>`).join('')}
           </div>
-          <input type="hidden" id="r_recvRoute" value="${p.recvRoute||'119'}">
+          <input type="hidden" id="r_recvRoute" value="${_esc(p.recvRoute||'119')}">
         </div>
         <div class="fg"><span class="fl">🚨 사고 유형</span>
           <div class="pills" id="typePills">
@@ -2919,7 +2919,7 @@ function render1BoForm(prefill=null){
           <div style="display:flex;gap:5px;flex-wrap:wrap;" id="loctypeBtns">
             ${['법정탐방로','비법정탐방로','암벽','빙벽'].map(o=>{const off=(o==='암벽'&&typeof _climbInSeason==='function'&&!_climbInSeason())||(o==='빙벽'&&typeof _iceInSeason==='function'&&!_iceInSeason());return `<button class="tog-btn${(p.loctype||'법정탐방로')===o?' on':''}" data-val="${o}" onclick="${off?`_loctypeSeasonWarn('${o}')`:`selLoctype('${o}')`}"${off?' style="opacity:.45;"':''}>${o}${off?'<span style="font-size:8px;opacity:.85;"> ·비시즌</span>':''}</button>`;}).join('')}
           </div>
-          <input type="hidden" id="r_loctype" value="${p.loctype||'법정탐방로'}">
+          <input type="hidden" id="r_loctype" value="${_esc(p.loctype||'법정탐방로')}">
         </div>
         <div id="climbLocWrap" style="display:${(p.loctype==='암벽'||p.loctype==='빙벽')?'block':'none'};" class="fg">
           ${(p.loctype==='암벽'||p.loctype==='빙벽')?`<span class="fl">📍 ${p.loctype} 위치 선택 <span style="font-size:9px;color:#8b95a1;font-weight:400;">${p.loctype==='암벽'?'지구별':''}</span></span>${_climbLocBtnsHtml(p.loctype,p.location)}`:''}
@@ -2928,15 +2928,15 @@ function render1BoForm(prefill=null){
           <span class="fl">🏔️ 암빙벽 허가 <span style="font-size:9px;color:#8b95a1;font-weight:400;">신청명단에서 찾으면 자동 표시됩니다</span></span>
           <button type="button" onclick="openClimbVictimPick()" style="width:100%;background:linear-gradient(145deg,#3a2409,#5a3a12);color:#f0c88a;border:1px solid rgba(240,200,138,.35);border-radius:8px;padding:10px;font-size:12.5px;font-weight:800;cursor:pointer;">🧗 그날 암벽 신청명단에서 사고자 찾기</button>
           <div id="permitStatus" style="font-size:11px;font-weight:700;margin-top:6px;color:${p.permit==='허가자 있음'?'#5fcf8f':(p.permit==='무허가'?'#ff8a73':'#8b95a1')};">${p.permit==='허가자 있음'?'✅ 허가자(신청명단 확인됨)':(p.permit==='무허가'?'⛔ 무허가(명단에 없음)':'명단에서 찾거나, 없으면 아래 명단 창의 「허가자 아님」을 누르세요')}</div>
-          <input type="hidden" id="r_permit" value="${p.permit||'해당없음'}">
+          <input type="hidden" id="r_permit" value="${_esc(p.permit||'해당없음')}">
         </div>
         <div class="fg"><span class="fl">접수 내용 <span style="font-size:9px;color:#8b95a1;font-weight:400;">(신고 원문 — 파악된 사고 전개는 환자·부상 탭 '사고 경위'에)</span></span>
-          <textarea id="r_recv" class="fta" rows="3" placeholder="예) 119 이첩 — 천불동계곡 하산 중 발목 부상, 자력 이동 불가, 일행 1명">${p.reception||''}</textarea>
+          <textarea id="r_recv" class="fta" rows="3" placeholder="예) 119 이첩 — 천불동계곡 하산 중 발목 부상, 자력 이동 불가, 일행 1명">${_esc(p.reception||'')}</textarea>
         </div>
       </div>
       <div class="rsec"><div class="rsec-t">📍 사고 위치</div>
         <div class="fg"><span class="fl">사고 장소</span>
-          <input type="text" id="r_loc" class="fi" placeholder="예: 비선대 직상부 암릉 구간" value="${p.location||''}" oninput="autoGenTitle();this.dataset.userEdited='1'">
+          <input type="text" id="r_loc" class="fi" placeholder="예: 비선대 직상부 암릉 구간" value="${_esc(p.location||'')}" oninput="autoGenTitle();this.dataset.userEdited='1'">
         </div>
         <div class="fg">
           <span class="fl">GPS 좌표</span>
@@ -2967,7 +2967,7 @@ function render1BoForm(prefill=null){
           <div class="pills" id="weatherPills">${['맑음','흐림','비','눈','강풍','안개'].map(o=>`<div class="pill${p.weather===o?' on':''}" onclick="sPill(this,'weatherPills')">${o}</div>`).join('')}</div>
         </div>
         <div class="fg"><span class="fl">최초접수 당시 기온 (°C) <span style="font-size:9px;color:#8b95a1;font-weight:400;">(가까운 관측지점 자동 · 수정 가능)</span></span>
-          <input type="number" inputmode="decimal" step="0.1" id="r_initTemp" class="fi" placeholder="자동 입력" value="${p.initTemp!=null&&p.initTemp!==''?p.initTemp:(()=>{try{const t=(document.getElementById('wTmp')||{}).textContent||'';const n=parseInt(t);return isNaN(n)?'':n;}catch(e){return '';}})()}">
+          <input type="number" inputmode="decimal" step="0.1" id="r_initTemp" class="fi" placeholder="자동 입력" value="${_esc(p.initTemp!=null&&p.initTemp!==''?p.initTemp:(()=>{try{const t=(document.getElementById('wTmp')||{}).textContent||'';const n=parseInt(t);return isNaN(n)?'':n;}catch(e){return '';}})())}">
         </div>
         <div class="fg"><span class="fl">기상 특보</span>
           <div style="background:#0f0f11;border-radius:8px;border:1px solid rgba(255,255,255,.07);padding:10px;margin-top:4px;">
@@ -2998,7 +2998,7 @@ function render1BoForm(prefill=null){
           </select>
         </div>
         <div class="fg"><span class="fl">사고 경위 <span style="font-size:9px;color:#8b95a1;font-weight:400;">(파악된 사실 — 접수 원문과 달라진 내용 포함)</span></span>
-          <textarea id="r_sit" class="fta" rows="4" placeholder="예) 오전 09:00 비선대 주차장에서 산행 시작, 11:30경 천불동계곡 3km 지점 하산 중 실족하여 우측 발목 부상 발생">${p.situation||''}</textarea>
+          <textarea id="r_sit" class="fta" rows="4" placeholder="예) 오전 09:00 비선대 주차장에서 산행 시작, 11:30경 천불동계곡 3km 지점 하산 중 실족하여 우측 발목 부상 발생">${_esc(p.situation||'')}</textarea>
           <button type="button" onclick="_copyRecvToSit()" style="margin-top:5px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.25);color:#6b7684;border-radius:7px;padding:5px 10px;font-size:10.5px;font-weight:700;cursor:pointer;">📞 접수 내용 가져와서 시작</button>
         </div>
       </div>
@@ -3048,31 +3048,31 @@ function render1BoForm(prefill=null){
         <div style="font-size:9px;color:#6b7684;margin-bottom:6px;">＋/− 버튼은 예시값에서 시작해 조정 · 안 건드리면 빈값으로 저장</div>
         <div class="frow">
           <div class="fg"><span class="fl">맥박 (회/분)</span>
-            <div class="vit-step"><button type="button" onclick="_vitStep('r_hr',-1,80,1)">−</button><input type="number" inputmode="numeric" id="r_hr" class="fi vit-input" min="0" placeholder="예: 80" value="${p.vitals?.hr||''}" enterkeyhint="next" onkeydown="_vitNext(event)" oninput="_vitClamp(this)"><button type="button" onclick="_vitStep('r_hr',1,80,1)">＋</button></div>
+            <div class="vit-step"><button type="button" onclick="_vitStep('r_hr',-1,80,1)">−</button><input type="number" inputmode="numeric" id="r_hr" class="fi vit-input" min="0" placeholder="예: 80" value="${_esc(p.vitals?.hr||'')}" enterkeyhint="next" onkeydown="_vitNext(event)" oninput="_vitClamp(this)"><button type="button" onclick="_vitStep('r_hr',1,80,1)">＋</button></div>
           </div>
           <div class="fg"><span class="fl">SpO₂ (%)</span>
-            <div class="vit-step"><button type="button" onclick="_vitStep('r_spo2',-1,98,1,100)">−</button><input type="number" inputmode="numeric" id="r_spo2" class="fi vit-input" min="0" max="100" placeholder="예: 98" value="${p.vitals?.spo2||''}" enterkeyhint="next" onkeydown="_vitNext(event)" oninput="_vitClamp(this,100)"><button type="button" onclick="_vitStep('r_spo2',1,98,1,100)">＋</button></div>
+            <div class="vit-step"><button type="button" onclick="_vitStep('r_spo2',-1,98,1,100)">−</button><input type="number" inputmode="numeric" id="r_spo2" class="fi vit-input" min="0" max="100" placeholder="예: 98" value="${_esc(p.vitals?.spo2||'')}" enterkeyhint="next" onkeydown="_vitNext(event)" oninput="_vitClamp(this,100)"><button type="button" onclick="_vitStep('r_spo2',1,98,1,100)">＋</button></div>
           </div>
         </div>
         <div class="frow">
           <div class="fg"><span class="fl">체온 (℃)</span>
-            <div class="vit-step"><button type="button" onclick="_vitStep('r_temp',-1,36.5,0.1)">−</button><input type="number" inputmode="decimal" step="0.1" id="r_temp" class="fi vit-input" min="0" placeholder="예: 36.5" value="${p.vitals?.temp||''}" enterkeyhint="next" onkeydown="_vitNext(event)" oninput="_vitClamp(this)"><button type="button" onclick="_vitStep('r_temp',1,36.5,0.1)">＋</button></div>
+            <div class="vit-step"><button type="button" onclick="_vitStep('r_temp',-1,36.5,0.1)">−</button><input type="number" inputmode="decimal" step="0.1" id="r_temp" class="fi vit-input" min="0" placeholder="예: 36.5" value="${_esc(p.vitals?.temp||'')}" enterkeyhint="next" onkeydown="_vitNext(event)" oninput="_vitClamp(this)"><button type="button" onclick="_vitStep('r_temp',1,36.5,0.1)">＋</button></div>
           </div>
           <div class="fg"><span class="fl">의식 (AVPU)</span>
             <select id="r_avpu" class="fsel">${['','A (명료)','V (음성반응)','P (통증반응)','U (무반응)'].map(o=>`<option${(p.vitals?.avpu||'')===o?' selected':''}>${o||'선택'}</option>`).join('')}</select>
           </div>
         </div>
-        <div class="fg"><span class="fl">혈압 (선택)</span><input type="text" id="r_bp" class="fi vit-input" placeholder="예: 120/80" value="${p.vitals?.bp||''}" enterkeyhint="done"></div>
+        <div class="fg"><span class="fl">혈압 (선택)</span><input type="text" id="r_bp" class="fi vit-input" placeholder="예: 120/80" value="${_esc(p.vitals?.bp||'')}" enterkeyhint="done"></div>
         <!-- 음주 여부 — 버튼식 -->
         <div class="fg"><span class="fl">음주 여부</span>
           <div style="display:flex;gap:6px;" id="alcPills">
             ${['없음','의심','확인됨'].map(o=>`<div class="pill${(p.alcohol||'없음')===o?' on':''}" onclick="sPill(this,'alcPills');_toggleAlcAmount()" style="flex:1;text-align:center;font-size:12px;font-weight:700;padding:8px 0;cursor:pointer;">${o==='없음'?'🚫 없음':o==='의심'?'⚠️ 의심':'🍺 확인됨'}</div>`).join('')}
           </div>
-          <input type="hidden" id="r_alc" value="${p.alcohol||'없음'}">
+          <input type="hidden" id="r_alc" value="${_esc(p.alcohol||'없음')}">
         </div>
         <div class="fg" id="alcAmountWrap" style="display:${(p.alcohol&&p.alcohol!=='없음')?'block':'none'};">
           <span class="fl">음주량 (선택)</span>
-          <input type="text" id="r_alcAmount" class="fi" placeholder="예: 소주 1병, 맥주 2캔, 추정 다량" value="${p.alcAmount||''}">
+          <input type="text" id="r_alcAmount" class="fi" placeholder="예: 소주 1병, 맥주 2캔, 추정 다량" value="${_esc(p.alcAmount||'')}">
         </div>
         <!-- 중증도 -->
         <div class="fg"><span class="fl">중증도 <button class="info-btn" onclick="openGuide('severity')">ℹ KTAS</button></span>
@@ -3088,29 +3088,29 @@ function render1BoForm(prefill=null){
         <!-- 암벽 명단 불러오기 — 장소구분=암벽일 때만 표시 (chkIllegal이 토글). 코스를 골랐으면 그 코스 명단만 뜸 -->
         ${(DB.g('climbDates')||[]).length?`<div id="climbPickWrap3" style="display:${p.loctype==='암벽'?'block':'none'};"><button type="button" onclick="openClimbVictimPick()" style="width:100%;margin-bottom:9px;background:linear-gradient(145deg,#3a2409,#5a3a12);color:#f0c88a;border:1px solid rgba(240,200,138,.35);border-radius:8px;padding:10px;font-size:12.5px;font-weight:800;cursor:pointer;">🧗 암벽 명단에서 불러오기 (사고자·동반자 자동입력)</button></div>`:''}
         <div class="frow">
-          <div class="fg"><span class="fl">성명</span><input type="text" id="r_vName" class="fi" value="${p.vName||''}"></div>
-          <div class="fg"><span class="fl">연락처</span><input type="tel" id="r_vTel" class="fi" value="${p.vTel||''}"></div>
+          <div class="fg"><span class="fl">성명</span><input type="text" id="r_vName" class="fi" value="${_esc(p.vName||'')}"></div>
+          <div class="fg"><span class="fl">연락처</span><input type="tel" id="r_vTel" class="fi" value="${_esc(p.vTel||'')}"></div>
         </div>
         ${isNbo&&p.vTel?`<div style="margin:-2px 0 8px;">${(typeof _telBtnsHtml==='function')?_telBtnsHtml(p.vTel,curResId,'사고자',p.vName):''}</div>`:''}
         <div class="fg"><span class="fl">성별</span>
           <div style="display:flex;gap:6px;" id="genderBtns">
             ${['남','여','알수없음'].map(o=>`<button class="tog-btn${(p.vGender||'알수없음')===o?' on':''}" data-val="${o}" style="flex:1;" onclick="selGender('${o}')">${o==='남'?'👨 남':o==='여'?'👩 여':'알수없음'}</button>`).join('')}
           </div>
-          <input type="hidden" id="r_vGender" value="${p.vGender||'알수없음'}">
+          <input type="hidden" id="r_vGender" value="${_esc(p.vGender||'알수없음')}">
         </div>
         <div class="fg"><span class="fl">내/외국인</span>
           <div style="display:flex;gap:6px;" id="nationBtns">
             ${['내국인','외국인','알수없음'].map(o=>`<button class="tog-btn${(p.vNation||'알수없음')===o?' on':''}" data-val="${o}" style="flex:1;" onclick="selNation('${o}')">${o==='내국인'?'🇰🇷 내국인':o==='외국인'?'🌏 외국인':'알수없음'}</button>`).join('')}
           </div>
-          <input type="hidden" id="r_vNat" value="${p.vNation||'알수없음'}">
+          <input type="hidden" id="r_vNat" value="${_esc(p.vNation||'알수없음')}">
         </div>
         <div class="frow">
-          <div class="fg"><span class="fl">생년월일</span><input type="text" inputmode="numeric" id="r_vBirth" class="fi" placeholder="19901231" maxlength="10" value="${p.vBirth||''}" oninput="_fmtBirth(this)"></div>
-          <div class="fg"><span class="fl" id="vAddrLabel">${p.vNation==='외국인'?'국적 (국가명)':'거주지'}</span><input type="text" id="r_vAddr" class="fi" placeholder="${p.vNation==='외국인'?'예: 미국, 중국':'시/도'}" value="${p.vAddr||((p.vNation==='외국인'&&p.vNationality)?p.vNationality:'')}"></div>
+          <div class="fg"><span class="fl">생년월일</span><input type="text" inputmode="numeric" id="r_vBirth" class="fi" placeholder="19901231" maxlength="10" value="${_esc(p.vBirth||'')}" oninput="_fmtBirth(this)"></div>
+          <div class="fg"><span class="fl" id="vAddrLabel">${p.vNation==='외국인'?'국적 (국가명)':'거주지'}</span><input type="text" id="r_vAddr" class="fi" placeholder="${p.vNation==='외국인'?'예: 미국, 중국':'시/도'}" value="${_esc(p.vAddr||((p.vNation==='외국인'&&p.vNationality)?p.vNationality:''))}"></div>
         </div>
-        <div class="fg"><span class="fl">기저질환</span><input type="text" id="r_vDis" class="fi" placeholder="없음 또는 해당 질환" value="${p.vDisease||''}"></div>
-        <div class="fg"><span class="fl">알레르기</span><input type="text" id="r_vAll" class="fi" placeholder="없음 또는 항목" value="${p.vAllergy||''}"></div>
-        <div class="fg"><span class="fl">복용약</span><input type="text" id="r_vMed" class="fi" placeholder="없음 또는 항목" value="${p.vMeds||''}"></div>
+        <div class="fg"><span class="fl">기저질환</span><input type="text" id="r_vDis" class="fi" placeholder="없음 또는 해당 질환" value="${_esc(p.vDisease||'')}"></div>
+        <div class="fg"><span class="fl">알레르기</span><input type="text" id="r_vAll" class="fi" placeholder="없음 또는 항목" value="${_esc(p.vAllergy||'')}"></div>
+        <div class="fg"><span class="fl">복용약</span><input type="text" id="r_vMed" class="fi" placeholder="없음 또는 항목" value="${_esc(p.vMeds||'')}"></div>
       </div>
       <div class="rsec"><div class="rsec-t">👥 추가 사고자 <span style="font-size:9px;color:#8b95a1;font-weight:400;">(다수 사상자 발생 시)</span></div>
         <div id="victim2List">${(p.victims2||[]).map(v=>`<div class="victim2-item" style="background:#0f0f11;border-radius:8px;padding:10px;margin-bottom:6px;border:1px solid rgba(231,76,60,.15);">${_victim2CardHtml(v)}</div>`).join('')}</div>
@@ -3123,26 +3123,26 @@ function render1BoForm(prefill=null){
             <button class="tog-btn${p.hasRep==='y'?'':' on'}" data-val="n" onclick="selHasRep('n')">없음</button>
             <button class="tog-btn${p.hasRep==='y'?' on':''}" data-val="y" onclick="selHasRep('y')">있음</button>
           </div>
-          <input type="hidden" id="r_hasRep" value="${p.hasRep||'n'}">
+          <input type="hidden" id="r_hasRep" value="${_esc(p.hasRep||'n')}">
         </div>
         <div id="reporterWrap" style="display:${p.hasRep==='y'?'block':'none'};">
           <div class="fg"><span class="fl">사고자와의 관계 <span style="font-size:9px;color:#8b95a1;font-weight:400;">(동반자 선택 시 동반자1 정보 자동 입력)</span></span>
             <div style="display:flex;gap:5px;flex-wrap:wrap;" id="repRelBtns">
               ${['동반자','가족','일행','목격자','기타'].map(o=>`<button class="tog-btn${p.repRel===o?' on':''}" data-val="${o}" onclick="selRepRel('${o}')" style="padding:7px 12px;min-height:34px;font-size:11px;">${o}</button>`).join('')}
             </div>
-            <input type="hidden" id="r_repRel" value="${p.repRel||''}">
+            <input type="hidden" id="r_repRel" value="${_esc(p.repRel||'')}">
           </div>
           <div class="frow">
-            <div class="fg"><span class="fl">성명</span><input type="text" id="r_repName" class="fi" value="${p.repName||''}"></div>
-            <div class="fg"><span class="fl">연락처</span><input type="tel" id="r_repTel" class="fi" value="${p.repTel||''}"></div>
+            <div class="fg"><span class="fl">성명</span><input type="text" id="r_repName" class="fi" value="${_esc(p.repName||'')}"></div>
+            <div class="fg"><span class="fl">연락처</span><input type="tel" id="r_repTel" class="fi" value="${_esc(p.repTel||'')}"></div>
           </div>
           <div class="frow">
-            <div class="fg"><span class="fl">생년월일 (선택)</span><input type="text" inputmode="numeric" id="r_repBirth" class="fi" placeholder="19801231" maxlength="10" value="${p.repBirth||''}" oninput="_fmtBirth(this)"></div>
+            <div class="fg"><span class="fl">생년월일 (선택)</span><input type="text" inputmode="numeric" id="r_repBirth" class="fi" placeholder="19801231" maxlength="10" value="${_esc(p.repBirth||'')}" oninput="_fmtBirth(this)"></div>
             <div class="fg"><span class="fl">성별</span>
               <div style="display:flex;gap:5px;" id="repGenderBtns">
                 ${['남','여','알수없음'].map(o=>`<button class="tog-btn${(p.repGender||'알수없음')===o?' on':''}" data-val="${o}" style="flex:1;padding:7px 2px;min-height:36px;font-size:11px;" onclick="selRepGender('${o}')">${o}</button>`).join('')}
               </div>
-              <input type="hidden" id="r_repGender" value="${p.repGender||'알수없음'}">
+              <input type="hidden" id="r_repGender" value="${_esc(p.repGender||'알수없음')}">
             </div>
           </div>
           ${isNbo&&p.repTel?`<div style="margin:-2px 0 8px;">${(typeof _telBtnsHtml==='function')?_telBtnsHtml(p.repTel,curResId,'신고자',p.repName):''}</div>`:''}
@@ -3181,13 +3181,13 @@ function render1BoForm(prefill=null){
       <div class="rsec" style="margin-top:${isNbo?'0':'12px'};"><div class="rsec-t">📋 사고 제목 및 작성 정보</div>
         <div class="fg">
           <span class="fl">사고 제목 <span style="font-size:9px;color:#8b95a1;font-weight:400;">(자동생성 — 수정 가능)</span></span>
-          <input type="text" id="r_title" class="fi" placeholder="위치·기상 탭 입력 시 자동생성" value="${p.title||''}">
+          <input type="text" id="r_title" class="fi" placeholder="위치·기상 탭 입력 시 자동생성" value="${_esc(p.title||'')}">
         </div>
         <div class="fg"><span class="fl">보고 작성자</span>
           <input type="text" id="r_author" class="fi" value="${isExternal()?_extAuthorStr():getAuthor()}" disabled style="opacity:.6;cursor:default;">
         </div>
         <div class="fg"><span class="fl">기타 특이사항</span>
-          <textarea id="r_extra" class="fta" rows="3">${p.extra||''}</textarea>
+          <textarea id="r_extra" class="fta" rows="3">${_esc(p.extra||'')}</textarea>
         </div>
       </div>
       <div class="rsec" style="margin-top:12px;"><div class="rsec-t">🛠️ 동원 장비</div>
@@ -3195,7 +3195,7 @@ function render1BoForm(prefill=null){
           <div class="pills" id="rescMeth">${['들것','부축','헬기','동행하산','응급처치','119구급대','차량','자력하산','로프구조','기타'].map(o=>`<div class="pill${(p.rescueMethod||[]).includes(o)?' on':''}" onclick="tPill(this)">${o}</div>`).join('')}</div>
         </div>
         <div class="fg"><span class="fl">동원 장비</span>
-          <textarea id="r_equip" class="fta" rows="2" placeholder="들것, 로프, AED, 헬기 등">${p.equipment||''}</textarea>
+          <textarea id="r_equip" class="fta" rows="2" placeholder="들것, 로프, AED, 헬기 등">${_esc(p.equipment||'')}</textarea>
         </div>
       </div>
     </div>
