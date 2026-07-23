@@ -532,7 +532,7 @@ function _closeResListFilter(){_fpClose('resListFilterPanel');}
 //   · 트레일: 앱 내부 직선거리 GPS 안내(등산로 적합, 오프라인 가능)
 //   · 도로: 각 시설의 🚗 버튼 → 카카오맵 앱으로 차량 길안내 핸드오프(REST키 불필요)
 // ═══════════════════════════════════════════════════════════════════
-var _facNav={on:false,watch:null,voice:true,signOnly:false,announced:{},heading:null,lastLa:null,lastLn:null,wake:null,list:[],map:null,meMk:null,meEl:null,line:null,facMks:[],follow:true,sim:null,simIv:null,spdIdx:0,dest:null,trails:null,trailLines:[],audioCtx:null,audioSrc:null,walkRoute:null,walkLoading:false,origin:null,oriMk:null,annOff:{},destPt:null,lineCase:null,armPick:false};
+var _facNav={on:false,watch:null,voice:true,signOnly:false,announced:{},heading:null,lastLa:null,lastLn:null,wake:null,list:[],map:null,meMk:null,meEl:null,line:null,facMks:[],follow:true,sim:null,simIv:null,spdIdx:0,dest:null,trails:null,trailLines:[],audioCtx:null,audioSrc:null,walkRoute:null,walkLoading:false,origin:null,oriMk:null,annOff:{},destPt:null,lineCase:null,lineDone:null,armPick:false};
 // 목적지: _facNav.dest(시설 id) 또는 _facNav.destPt({lat,lng,name}) — 지도 길게눌러 임의 지점
 function _fnDestKey(){if(_facNav.dest)return 'f:'+_facNav.dest;if(_facNav.destPt)return 'p:'+(+_facNav.destPt.lat).toFixed(5)+','+(+_facNav.destPt.lng).toFixed(5);return '';}
 function _fnDestF(){if(_facNav.dest){var f=(DB.g('facilities')||[]).find(function(x){return String(x.id)===String(_facNav.dest)&&x.lat;});if(f)return f;}if(_facNav.destPt)return{id:null,lat:_facNav.destPt.lat,lng:_facNav.destPt.lng,name:_facNav.destPt.name||'선택 지점',type:'📍 지도 지점'};return null;}
@@ -586,7 +586,9 @@ function _facNavRequestWalk(){
   _facNav.walkLoading=true;var la=st.la,ln=st.ln;
   _facNavFetchWalk(target,la,ln).then(function(res){
     _facNav.walkLoading=false;
-    if(res&&res.path&&res.path.length){_facNav.walkRoute={destId:dkey,okey:okey,fixed:st.fixed,fromLa:la,fromLn:ln,path:res.path,steps:res.steps||[],dist:res.dist,time:res.time};_facNav.walkRoute.waypoints=_fnRouteWaypoints(res.path,_facNav.dest,_facNav.origin);}
+    if(res&&res.path&&res.path.length){var wrr={destId:dkey,okey:okey,fixed:st.fixed,fromLa:la,fromLn:ln,path:res.path,steps:res.steps||[],dist:res.dist,time:res.time};
+      wrr.steps.forEach(function(sp){var bi=0,bd=Infinity;for(var i=0;i<res.path.length;i++){var d=_haversine(sp.lat,sp.lng,res.path[i][0],res.path[i][1]);if(d<bd){bd=d;bi=i;}}sp.pi=bi;}); // 각 회전지점의 경로 인덱스
+      wrr.waypoints=_fnRouteWaypoints(res.path,_facNav.dest,_facNav.origin);_facNav.walkRoute=wrr;}
     else _facNav.walkRoute={destId:dkey,okey:okey,fromLa:la,fromLn:ln,path:null,error:(res&&res.error)||'ERR'};
     if(_facNav.on&&_facNav.lastLa!=null)_facNavCompute(_facNav.lastLa,_facNav.lastLn,_facNav.heading,null);
   });
@@ -667,6 +669,7 @@ function openFacNav(){
   '</div>'+
   '<div id="fnMap" style="flex:0 0 44%;min-height:180px;background:#0c0f14;position:relative;">'+
     '<button onclick="_facNavRecenter()" title="내 위치로" style="position:absolute;right:9px;bottom:9px;z-index:5;width:40px;height:40px;border-radius:50%;background:#1c1c1e;color:#3182f6;border:1.5px solid rgba(255,255,255,.35);font-size:16px;cursor:pointer;">📍</button>'+
+    '<div id="fnTurnBanner" style="display:none;position:absolute;left:8px;right:8px;top:8px;z-index:6;background:rgba(11,31,58,.95);border:1px solid rgba(61,139,255,.55);border-radius:13px;padding:9px 13px;align-items:center;gap:11px;box-shadow:0 5px 18px rgba(0,0,0,.55);"></div>'+
   '</div>'+
   '<div style="flex-shrink:0;display:flex;align-items:center;gap:6px;padding:6px 12px;border-bottom:1px solid rgba(255,255,255,.08);background:#0c0f14;">'+
     '<span style="font-size:10.5px;color:#8b95a1;font-weight:700;white-space:nowrap;">🧪 시뮬 속도</span>'+
@@ -693,8 +696,9 @@ function openFacNav(){
     '</div>'+
     '<div id="fnList" style="margin-top:6px;"></div>'+
     '<div id="fnAcc" style="text-align:center;font-size:10.5px;color:#565f6b;margin-top:12px;"></div>'+
-    '<div style="text-align:center;font-size:10.5px;color:#565f6b;margin-top:6px;line-height:1.7;">지도에 내 위치(파란 화살표)·목표까지 노란선 표시.<br>진행방향 앞 시설을 가까운 순으로 음성 안내 — 전부 앱 안에서.</div>'+
-  '</div>';
+    '<div style="text-align:center;font-size:10.5px;color:#565f6b;margin-top:6px;line-height:1.7;">지도에 내 위치(파란 화살표)·목적지까지 파란 경로선.<br>진행방향 앞 시설을 음성 안내 · 지도 길게눌러 임의 지점 지정.</div>'+
+  '</div>'+
+  '<div id="fnBottomBar" style="display:none;flex-shrink:0;align-items:center;gap:10px;padding:10px 16px calc(10px + env(safe-area-inset-bottom));border-top:1px solid rgba(255,255,255,.12);background:#0c0f14;"></div>';
   (document.getElementById('app')||document.body).appendChild(ov);
   try{history.pushState({view:'facnav'},'','');}catch(e){}
   _facNav.on=true;_facNav.announced={};_facNav.heading=null;_facNav.lastLa=null;_facNav.lastLn=null;
@@ -711,7 +715,8 @@ function closeFacNav(){
   if(_facNav.simIv){clearInterval(_facNav.simIv);_facNav.simIv=null;}_facNav.sim=null;
   _facNavKeepAlive(false);
   try{if(_facNav.watch!=null)navigator.geolocation.clearWatch(_facNav.watch);}catch(e){}_facNav.watch=null;
-  _facNav.map=null;_facNav.meMk=null;_facNav.meEl=null;_facNav.line=null;_facNav.lineCase=null;_facNav.facMks=[];_facNav.trailLines=[];_facNav.dest=null;_facNav.destPt=null;_facNav.oriMk=null;_facNav.origin=null;_facNav.walkRoute=null;
+  var tb=document.getElementById('fnTurnBanner');if(tb)tb.style.display='none';var bb=document.getElementById('fnBottomBar');if(bb)bb.style.display='none';
+  _facNav.map=null;_facNav.meMk=null;_facNav.meEl=null;_facNav.line=null;_facNav.lineCase=null;_facNav.lineDone=null;_facNav.facMks=[];_facNav.trailLines=[];_facNav.dest=null;_facNav.destPt=null;_facNav.oriMk=null;_facNav.origin=null;_facNav.walkRoute=null;
   try{window.speechSynthesis&&window.speechSynthesis.cancel();}catch(e){}
   try{if(_facNav.wake&&_facNav.wake.release)_facNav.wake.release();}catch(e){}_facNav.wake=null;
   var sh=document.getElementById('fnAnnSheet');if(sh)sh.remove();var wsh=document.getElementById('fnWpSheet');if(wsh)wsh.remove();
@@ -759,6 +764,9 @@ function _facNavCompute(la,ln,hd,acc){
   _facNav.list=list;_facNav.primary=primary;
   _facNavRender(list,acc,hd,primary,isDest);
   _facNavUpdateMap(la,ln,hd,list,primary);
+  _facNavUpdateNavUI(la,ln,primary,walkOn);
+  // 경로 이탈 자동 재탐색(경로에서 60m 이상 벗어남)
+  if(walkOn&&!_facNav.walkLoading&&!_facNav.walkRoute.fixed){var _m=_fnMyPathIdx(la,ln,_facNav.walkRoute.path);if(_m.md>60){_facNav.walkRoute=null;_facNavRequestWalk();}}
   // 음성: 실경로면 카카오 턴바이턴, 아니면 거리 임계 안내
   if(primary&&_facNav.voice){
     if(walkOn){_facNavWalkGuide(la,ln);if(primary.d<20&&!_facNav.announced['arr:'+_facNav.dest]){_facNav.announced['arr:'+_facNav.dest]=1;_facNavSpeak(_fnDisp(primary.f).main+' 도착입니다');}}
@@ -768,6 +776,31 @@ function _facNavCompute(la,ln,hd,acc){
   if(isDest&&list[0]&&_facNav.voice&&String(list[0].f.id)!==String(primary.f.id))_facNavMaybeAnnouncePass(list[0]);
   // 목적지 도착 → 해제하고 일반 안내로
   if(isDest&&primary&&primary.d<20){_facNav.dest=null;_facNav.destPt=null;_facNav.walkRoute=null;}
+}
+// ── 진짜 네비: 다음 회전 배너 · 하단 ETA · 경로이탈 ──
+function _fnTurnIcon(g){g=String(g||'');if(/유턴|되돌/.test(g))return '⤾';if(/오른|우측|우회전/.test(g))return '↱';if(/왼|좌측|좌회전/.test(g))return '↰';if(/도착|목적지/.test(g))return '🏁';return '↑';}
+function _fnMyPathIdx(la,ln,path){var mi=0,md=Infinity;for(var i=0;i<path.length;i++){var d=_haversine(la,ln,path[i][0],path[i][1]);if(d<md){md=d;mi=i;}}return{mi:mi,md:md};}
+function _fnNextTurn(la,ln){
+  var wr=_facNav.walkRoute;if(!wr||!wr.path||!wr.steps||!wr.steps.length)return null;
+  var path=wr.path,m=_fnMyPathIdx(la,ln,path),best=null;
+  for(var s=0;s<wr.steps.length;s++){var stp=wr.steps[s];if(stp.pi==null)continue;if(stp.pi>m.mi+1&&(!best||stp.pi<best.pi))best=stp;}
+  if(!best)return null;
+  var dd=m.md;for(var j=m.mi;j<best.pi&&j<path.length-1;j++)dd+=_haversine(path[j][0],path[j][1],path[j+1][0],path[j+1][1]);
+  return{icon:_fnTurnIcon(best.g),dist:dd,text:_fnCleanGuide(best.g)};
+}
+function _facNavUpdateNavUI(la,ln,primary,walkOn){
+  var tb=document.getElementById('fnTurnBanner'),bb=document.getElementById('fnBottomBar');
+  if(!walkOn||!primary){if(tb)tb.style.display='none';if(bb)bb.style.display='none';return;}
+  var wr=_facNav.walkRoute;
+  var nt=_fnNextTurn(la,ln);
+  if(tb){if(nt){tb.style.display='flex';tb.innerHTML='<div style="font-size:34px;line-height:1;width:44px;text-align:center;flex-shrink:0;color:#8fc0ff;">'+nt.icon+'</div><div style="flex:1;min-width:0;"><div style="font-size:21px;font-weight:900;color:#fff;line-height:1.1;">'+_fnDistShort(nt.dist)+'</div><div style="font-size:11.5px;color:rgba(255,255,255,.82);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+_esc(nt.text||'경로를 따라 이동')+'</div></div>';}else tb.style.display='none';}
+  if(bb){
+    var rem=(primary._td!=null?primary._td:primary.d);
+    var totalT=wr.time||0,totalD=wr.dist||1,remT=totalT*(rem/Math.max(1,totalD));
+    var eta=new Date(Date.now()+remT*1000),p=function(n){return (n<10?'0':'')+n;};
+    bb.style.display='flex';
+    bb.innerHTML='<div style="flex:1;min-width:0;"><div style="font-size:17px;font-weight:900;color:#eef0f2;">'+p(eta.getHours())+':'+p(eta.getMinutes())+' 도착</div><div style="font-size:11px;color:#8b95a1;">남은 '+_fnDistShort(rem)+' · 약 '+_fnTimeStr(remT)+'</div></div><button onclick="_facNavClearDest()" style="flex-shrink:0;background:rgba(255,80,60,.16);color:#ff8a80;border:1px solid rgba(255,80,60,.4);border-radius:9px;padding:9px 15px;font-size:12.5px;font-weight:800;cursor:pointer;">안내 종료</button>';
+  }
 }
 // 시설 종류키(색·필터 공용) · 울림 대상 여부
 function _fnTypeKey(f){var t=String(f&&f.type||'');var lbl=(t.split(' ').slice(1).join(' ')||t).trim();return lbl||'기타';}
@@ -862,7 +895,9 @@ function _facNavInitMap(la,ln){
   // 경로선: 외곽선(어두운 casing) + 본선(파란색) — 실제 내비 앱 느낌
   _facNav.lineCase=new kakao.maps.Polyline({strokeWeight:11,strokeColor:'#0b1f3a',strokeOpacity:.9,strokeStyle:'solid',zIndex:2});
   _facNav.lineCase.setMap(_facNav.map);
-  _facNav.line=new kakao.maps.Polyline({strokeWeight:6,strokeColor:'#3d8bff',strokeOpacity:.98,strokeStyle:'solid',zIndex:3});
+  _facNav.lineDone=new kakao.maps.Polyline({strokeWeight:6,strokeColor:'#59636f',strokeOpacity:.85,strokeStyle:'solid',zIndex:3}); // 지나온 구간(회색)
+  _facNav.lineDone.setMap(_facNav.map);
+  _facNav.line=new kakao.maps.Polyline({strokeWeight:6,strokeColor:'#3d8bff',strokeOpacity:.98,strokeStyle:'solid',zIndex:4}); // 남은 구간(파랑)
   _facNav.line.setMap(_facNav.map);
   kakao.maps.event.addListener(_facNav.map,'dragstart',function(){_facNav.follow=false;});
   kakao.maps.event.addListener(_facNav.map,'rightclick',function(me){try{var ll=me.latLng;facNavPickPoint(ll.getLat(),ll.getLng());}catch(e){}}); // 길게 눌러 임의 지점 목적지
@@ -877,13 +912,19 @@ function _facNavUpdateMap(la,ln,hd,list,primary){
   var ar=document.getElementById('fnMeArrow');if(ar)ar.style.transform='translate(-50%,-50%) rotate('+(hd==null?0:hd)+'deg)';
   if(_facNav.follow){try{_facNav.map.setCenter(meLL);}catch(e){}}
   var pr=primary||list[0];
-  // 경로선(외곽선 casing + 파란 본선): 목적지 있을 때만. 실경로 우선, 없으면 표지판 탐방로(직선 X)
+  // 경로선: casing(외곽) + 지나온(회색) + 남은(파랑). 실경로 진행표시 · 직선 X
   if(_facNav.line){
-    var lpath=[];
-    if(!_fnDestKey()){lpath=[];}
-    else if(_fnWalkActive()){var wp=_facNav.walkRoute.path.map(function(p){return new kakao.maps.LatLng(p[0],p[1]);});lpath=_facNav.walkRoute.fixed?wp:[meLL].concat(wp);}
-    else{var rt=pr?(pr._route||_fnTrailRoute(la,ln,pr.f)):null;lpath=(rt&&rt.trail)?rt.path:[];}
-    if(_facNav.lineCase)_facNav.lineCase.setPath(lpath);_facNav.line.setPath(lpath);
+    var toLL=function(p){return new kakao.maps.LatLng(p[0],p[1]);};
+    var full=[],done=[],ahead=[];
+    if(!_fnDestKey()){}
+    else if(_fnWalkActive()){
+      var P=_facNav.walkRoute.path;full=P.map(toLL);
+      if(_facNav.walkRoute.fixed){ahead=full;}
+      else{var mm=_fnMyPathIdx(la,ln,P).mi;done=P.slice(0,mm+1).map(toLL);ahead=[meLL].concat(P.slice(mm).map(toLL));}
+    }else{var rt=pr?(pr._route||_fnTrailRoute(la,ln,pr.f)):null;full=(rt&&rt.trail)?rt.path:[];ahead=full;}
+    if(_facNav.lineCase)_facNav.lineCase.setPath(full);
+    if(_facNav.lineDone)_facNav.lineDone.setPath(done);
+    _facNav.line.setPath(ahead);
   }
   // 출발지 마커(지정출발 🚩)
   if(_facNav.origin&&_facNav.origin.lat!=null){
