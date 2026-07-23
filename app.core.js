@@ -1660,8 +1660,16 @@ function _myNotiLevel(){
 }
 // 기본은 '모두에게'(내가 준 def 그대로). 개인이 끄면 그 사람만 안 받음.
 function _notiDefaultOn(k){return _NOTI_DEF[k]!==false;}
-// 이 알림(k)이 나에게 켜져 있는가: 개인설정에 명시값 있으면 그것, 없으면 정책 기본값
-function _notiOn(k){const s=DB.g('notiSetting')||{};if(s[k]!==undefined)return s[k]!==false;return _notiDefaultOn(k);}
+// 이 알림(k)이 나에게 켜져 있는가: ① 개인이 직접 켠/끈 항목 최우선 → ② 없으면 관리자 알림수준 정책 적용
+//  정책: all=전체 수신 / min=생명·안전 핵심(_NOTI_MIN)만 / recommended=내가 준 기본값(_notiDefaultOn)
+//  기본 정책이 recommended라 관리자가 바꾸지 않으면 종전과 동일하게 동작.
+function _notiOn(k){
+  const s=DB.g('notiSetting')||{};if(s[k]!==undefined)return s[k]!==false;
+  var lv=(typeof _myNotiLevel==='function')?_myNotiLevel():'recommended';
+  if(lv==='all')return true;
+  if(lv==='min')return _NOTI_MIN.has(k);
+  return _notiDefaultOn(k);
+}
 // 서버 푸시 필터용: 정책+개인설정을 합친 실효 설정(전 항목 bool)
 function _effectiveNotiSettings(){const m={};NOTI_GROUPS.forEach(g=>g.items.forEach(it=>{m[it.k]=_notiOn(it.k);}));return m;}
 // 신규 카테고리를 기존 사용자 설정에 기본값으로 보강
