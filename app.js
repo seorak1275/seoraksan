@@ -1239,7 +1239,8 @@ setInterval(_checkStaleRescues,15*60*1000);
 setTimeout(_checkStaleRescues,60*1000);
 function updateSummary(){
   const res=DB.g('rescues')||[];const facs=DB.g('facilities')||[];
-  const og=res.filter(r=>r.status==='ongoing');const bad=facs.filter(f=>f.status==='bad');const warn=facs.filter(f=>f.status==='warn');const ok=facs.filter(f=>f.status==='ok');
+  // 시설 위험은 폐지된 status 대신 현재 경고표시(_facWarn) 기준 — 홈 '위험시설' 수가 항상 0이던 문제 수정
+  const og=res.filter(r=>r.status==='ongoing');const bad=facs.filter(f=>typeof _facWarn==='function'&&_facWarn(f));
   const thisMonth=res.filter(r=>r.date&&r.date.startsWith(today().slice(0,7))).length;
   function se(id,v){const e=document.getElementById(id);if(!e)return;if(typeof _countTo==='function')_countTo(e,v);else e.textContent=v;}
   se('hs-og',og.length);

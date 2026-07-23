@@ -870,6 +870,8 @@ function initFirebase(onReady){
             var _myK=String((DB.g('currentUser')||{}).kakaoId||'');
             if(!_myK||d.targetKakaoIds.map(String).indexOf(_myK)<0)return;
           }
+          // 수신자 본인이 끈 카테고리는 벨·OS알림 표시 안 함(대상 지정·info 제외) — 개인 알림설정을 수신측에서 적용
+          if(!(d.targetKakaoIds&&d.targetKakaoIds.length)&&d.type&&d.type!=='info'&&typeof _notiOn==='function'&&!_notiOn(d.type))return;
           // 앱 내 벨 알림 추가
           const ns=DB.g('notis')||[];
           ns.unshift({id:d.id||Date.now(),msg:d.msg,ico:d.ico,time:d.timeStr||now(),read:false,link:d.link||null});
@@ -1692,8 +1694,10 @@ function pushNoti(msg,ico,type='info',link=null,pushCat=null,opts){
   const devOnly=String(type).indexOf('op_')===0;
   // 특정 카카오ID들에게만 보낼 알림(시설물 담당자 등) — 전체 진동·푸시 없이 대상자 기기에서만 표시
   const targets=(opts&&Array.isArray(opts.targetKakaoIds))?opts.targetKakaoIds.map(String).filter(Boolean):null;
-  // 대상 지정 알림은 발신자 개인설정과 무관하게 반드시 브로드캐스트(대상자에게 도달해야 함)
-  if(type!=='info'&&!targets&&!_notiOn(type))return; // 개인설정·관리자정책 기준으로 꺼져 있으면 표시 안 함
+  // ※ 발신자 개인 알림설정으로 '전체 브로드캐스트'를 막지 않는다.
+  //   (옛 버그: 발신자가 그 카테고리를 꺼두면 그 행동으로 생긴 알림이 팀 전원에게 아예 안 가던 문제 —
+  //    알림 발송 여부가 '누가 그 행동을 했는지'에 좌우됐다.)
+  //   개인설정은 아래 두 곳에서 각자 적용한다: ① 발신자 '내 벨 추가'  ② 수신측 리스너(수신자 본인 설정).
   // pushCat 미지정 시: 카테고리 정의에 push:false면 OS 푸시 끔(앱 내 종만)
   if(pushCat===null)pushCat=(NOTI_PUSH[type]===false)?'info':type;
   const id=Date.now();
@@ -1703,7 +1707,7 @@ function pushNoti(msg,ico,type='info',link=null,pushCat=null,opts){
   const _myK=String((DB.g('currentUser')||{}).kakaoId||'');
   const _iAmTarget=!targets||(_myK&&targets.indexOf(_myK)>=0);
   // 내 벨에 추가 — 관리자 전용인데 관리자 아니거나 / 대상 지정인데 내가 대상 아니면 추가 안 함 / 개발자 전용은 개발자만
-  if((!adminOnly||(typeof isAdminUser==='function'&&isAdminUser()))&&_iAmTarget&&(!devOnly||_amDev())){
+  if((!adminOnly||(typeof isAdminUser==='function'&&isAdminUser()))&&_iAmTarget&&(!devOnly||_amDev())&&(type==='info'||!!targets||_notiOn(type))){
     const ns=DB.g('notis')||[];ns.unshift({id,msg,ico,time:now(),read:false,link});
     if(ns.length>80)ns.splice(80);DB.s('notis',ns);updateBell();
   }
