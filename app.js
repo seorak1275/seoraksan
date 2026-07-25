@@ -1291,29 +1291,32 @@ function _setHomeMenuHidden(key,hidden){
 function renderHomeActive(){
   try{_applyHomeMenuVisibility();}catch(e){}
   const el=document.getElementById('homeActiveStrip');if(!el)return;
-  if(isExternal()){el.style.display='none';el.innerHTML='';return;}
+  // 내용이 그대로면 innerHTML 재작성 생략 — 원격 갱신 버스트마다 홈 스트립 DOM 재구성하던 비용 제거
+  const _setHA=h=>{if(el._lastHtml!==h){el._lastHtml=h;el.innerHTML=h;}};
+  if(isExternal()){el.style.display='none';_setHA('');return;}
   el.style.display='block';
   const og=(DB.g('rescues')||[]).filter(r=>r.status==='ongoing');
   const haz=(typeof _HAZ_OFF!=='undefined'&&_HAZ_OFF)?[]:(DB.g('hazards')||[]).filter(h=>!h.hazStatus||h.hazStatus==='미조치'||h.hazStatus==='조치중');
-  const badFac=(DB.g('facilities')||[]).filter(f=>f.status==='bad');
+  // 폐지된 status 대신 현재 경고표시(_facWarn) 기준 — 홈 주의현황에 위험시설 카드가 안 뜨던 문제 수정(updateSummary와 동일)
+  const badFac=(DB.g('facilities')||[]).filter(f=>typeof _facWarn==='function'&&_facWarn(f));
   const total=og.length+haz.length+badFac.length;
   try{_updateClimbMenu();}catch(e){}
   try{_updateEquipMenu();}catch(e){}
   if(!total){
     // 첫 동기화 전(콜드 부팅)엔 '없음'으로 단정하지 않고 스켈레톤 자리표시 — 데이터 도착 시 자동 교체
     if(!window._dbFirstReady){
-      el.innerHTML=`<div style="display:flex;align-items:center;gap:12px;background:#0c1826;border:1px solid rgba(255,255,255,.05);border-radius:16px;padding:15px 16px;">
+      _setHA(`<div style="display:flex;align-items:center;gap:12px;background:#0c1826;border:1px solid rgba(255,255,255,.05);border-radius:16px;padding:15px 16px;">
         <div class="skl" style="width:40px;height:40px;border-radius:50%;flex-shrink:0;"></div>
         <div style="flex:1;min-width:0;"><div class="skl" style="width:55%;height:14px;margin-bottom:7px;"></div>
         <div class="skl" style="width:82%;height:10px;"></div></div>
-      </div>`;
+      </div>`);
       return;
     }
-    el.innerHTML=`<div style="display:flex;align-items:center;gap:12px;background:linear-gradient(135deg,#0e2a20,#0b1c19);border:1px solid rgba(39,174,96,.22);border-radius:16px;padding:15px 16px;">
+    _setHA(`<div style="display:flex;align-items:center;gap:12px;background:linear-gradient(135deg,#0e2a20,#0b1c19);border:1px solid rgba(39,174,96,.22);border-radius:16px;padding:15px 16px;">
       <div style="width:40px;height:40px;border-radius:50%;background:rgba(39,174,96,.15);display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;">✅</div>
       <div style="min-width:0;"><div style="font-size:14px;font-weight:800;color:#eef0f2;">현재 주의 항목 없음</div>
       <div style="font-size:11.5px;color:#7fb89c;margin-top:2px;">진행 중인 구조·위험 상황이 없습니다</div></div>
-    </div>`;
+    </div>`);
     return;
   }
   // 상단 요약(0건 카테고리는 생략)
@@ -1350,16 +1353,16 @@ function renderHomeActive(){
       _esc(h.loc||'위치 미상')+(h.danger?' · '+_esc(h.danger):'')));
   });
   badFac.forEach(f=>{
-    const fico=(f.type||'').split(' ')[0]||'🛠️';
+    const fico=(String(f.type||'')).split(' ')[0]||'🛠️';
     cards.push(_card(`openFacFromHome(${f.id})`,'#e0a030','rgba(224,160,48,.32)','rgba(224,160,48,.18)','#ffc05a','위험',fico,'',
       _esc(f.name||'시설물'),
-      _esc(f.type.split(' ').slice(1).join(' ')||'시설')+(f.loc?' · '+_esc(f.loc):'')));
+      _esc(String(f.type||'').split(' ').slice(1).join(' ')||'시설')+(f.loc?' · '+_esc(f.loc):'')));
   });
-  el.innerHTML=`<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+  _setHA(`<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
       <span style="font-size:12.5px;font-weight:800;color:#eef0f2;">⚡ 주의 현황</span>
       <span style="font-size:10.5px;color:#9bb8cc;">${sum.join(' <span style=\"color:#3a5a74;\">·</span> ')}</span>
     </div>
-    <div style="display:flex;gap:8px;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch;padding-bottom:2px;">${cards.join('')}</div>`;
+    <div style="display:flex;gap:8px;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch;padding-bottom:2px;">${cards.join('')}</div>`);
 }
 function openRescueFromHome(id){
   openApp('rescue');
@@ -3565,13 +3568,15 @@ function _myPendingMobilizations(){
 }
 function renderMobilizeBanner(){
   const el=document.getElementById('mobilizeBanner');if(!el)return;
-  if(isExternal()){el.innerHTML='';return;}
+  // 내용이 그대로면 innerHTML 재작성 생략 — 원격 갱신 버스트마다 배너 DOM 재구성하던 비용 제거
+  const _setMB=h=>{if(el._lastHtml!==h){el._lastHtml=h;el.innerHTML=h;}};
+  if(isExternal()){_setMB('');return;}
   const pend=_myPendingMobilizations();
-  if(!pend.length){el.innerHTML='';return;}
+  if(!pend.length){_setMB('');return;}
   const first=pend[0];
   const onclick=first.coll==='rescues'?`openRescueFromHome(${first.id})`:`openHazFromHome(${first.id})`;
   const qBtn=(label,min)=>`<button onclick="event.stopPropagation();submitMobilizeResp('${first.coll}',${first.id},'eta',_etaFromMinutes(${min}))" style="flex:1;background:rgba(39,174,96,.18);color:#3ad17a;border:1px solid rgba(39,174,96,.4);border-radius:8px;padding:6px 2px;font-size:10.5px;font-weight:700;cursor:pointer;">${label}</button>`;
-  el.innerHTML=`<div style="background:linear-gradient(135deg,#3a1410,#240a08);border:1px solid rgba(231,76,60,.5);border-radius:16px;padding:14px 16px;margin-bottom:20px;">
+  _setMB(`<div style="background:linear-gradient(135deg,#3a1410,#240a08);border:1px solid rgba(231,76,60,.5);border-radius:16px;padding:14px 16px;margin-bottom:20px;">
     <div onclick="${onclick}" style="display:flex;align-items:center;gap:12px;cursor:pointer;">
       <div style="width:40px;height:40px;border-radius:50%;background:rgba(231,76,60,.22);display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;"><span class="blink">🚨</span></div>
       <div style="min-width:0;flex:1;">
@@ -3584,7 +3589,7 @@ function renderMobilizeBanner(){
       ${qBtn('🟢 +10분',10)}${qBtn('🟢 +30분',30)}${qBtn('🟢 +1시간',60)}
       <button onclick="event.stopPropagation();submitMobilizeResp('${first.coll}',${first.id},'unable')" style="flex:1;background:rgba(231,76,60,.15);color:#e74c3c;border:1px solid rgba(231,76,60,.35);border-radius:8px;padding:6px 2px;font-size:10.5px;font-weight:700;cursor:pointer;">🔴 불가</button>
     </div>
-  </div>`;
+  </div>`);
 }
 
 function chkHazOnSite(el){
@@ -4880,7 +4885,7 @@ function sosToRescue(id){
 // 앱 자체 업데이트 (OTA · Capgo 자체호스팅) — APK 전용. 웹/PWA는 서비스워커가 자동 갱신.
 // 번들(www)의 새 버전을 ota.json으로 알리면, 설치된 앱이 받아서 그 자리에서 교체(재빌드 불필요).
 // ══════════════════════════════════════════
-const OTA_VER='2026.07.23.358';                         // ← 현재 번들 버전 (릴리스마다 올림 · build-ota.sh가 ota.json에 반영)
+const OTA_VER='2026.07.25.359';                         // ← 현재 번들 버전 (릴리스마다 올림 · build-ota.sh가 ota.json에 반영)
 const OTA_MANIFEST='https://seorak1275.github.io/seoraksan/ota.json';
 // 업데이트 확인 폴백 소스 — 일부 기관망·통신사에서 github.io가 막혀 '확인 실패(네트워크)'가 나는 경우 대비.
 // 순서대로 시도: ① GitHub Pages(원본·즉시 반영) ② jsDelivr CDN(공개저장소 미러·거의 모든 망 통과)

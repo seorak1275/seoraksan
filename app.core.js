@@ -345,6 +345,17 @@ function _markSyncFail(it,code,msg){
   if(terminal){
     const dead=Object.assign({},cur[ci],{_n:n,_err:code||'unknown',_errMsg:(msg||'').slice(0,140),_at:Date.now()});
     cur.splice(ci,1);_saveSyncQ(cur); // 활성 큐에서 제거 → 배지·경고 중단
+    // 증분 _fsSync 가드: 재시도 커버리지가 사라진(데드레터) 항목의 낙관적 baseline을 정리 —
+    //  set: 항목 제거 → 이후 동일 내용 재수정이 '변경 없음'으로 스킵되지 않고 다시 저장 시도됨
+    //  del: 감지용 표식 복원 → 이후 저장 diff에서 삭제가 다시 시도됨 (전체 재구성 시절의 자가치유 동등 유지)
+    try{
+      if(dead.coll){const _bm=_fsSync[dead.coll];
+        if(_bm instanceof Map){
+          if(dead.op==='del')_bm.set(String(dead.id),'"__dead_del__"');
+          else _bm.delete(String(dead.id));
+        }
+      }
+    }catch(e){}
     try{const dl=_syncDead();if(!dl.some(x=>x.key===dead.key&&x.json===dead.json)){dl.push(dead);localStorage.setItem('_syncQDead',JSON.stringify(dl.slice(-300)));}}catch(e){}
     if(Date.now()-_syncQWarnedAt>30000){_syncQWarnedAt=Date.now();try{toast('⚠️ 서버 저장 불가한 변경을 대기목록에서 내렸습니다 (설정→시스템에서 확인·재시도)',4500);}catch(e){}}
   }else{
@@ -709,7 +720,7 @@ function initFirebase(onReady){
       try{if(typeof updateSummary==='function')updateSummary();}catch(e){}
     }}
     function _onRemoteUpdate(){
-      _checkDeletedUser();updateSummary();
+      _checkDeletedUser();
       // 관리자에서 강등(_acl)되면 즉시 반영 — 옛 플래그 정리 + 관리자 화면이면 홈으로
       try{
         if(typeof isAdminUser==='function'&&!isAdminUser()){
@@ -739,6 +750,7 @@ function initFirebase(onReady){
       try{if(!_fcmTokenCache)_initFCM();}catch(e){} // VAPID 키가 방금 동기화됐으면 재시작 없이 웹푸시 토큰 등록
       clearTimeout(_remoteUpdateTimer);
       _remoteUpdateTimer=setTimeout(function(){
+        try{if(typeof updateSummary==='function')updateSummary();}catch(e){} // 홈 요약(카운트·응소배너)을 스냅샷 버스트당 1회로 배칭 — 매 스냅샷 동기 실행 제거
         try{if(typeof _applyHomeMenuVisibility==='function')_applyHomeMenuVisibility();}catch(e){} // 관리자의 홈메뉴 숨김 설정 동기화 즉시 반영
         if(window.curApp==='rescue'){renderResList();try{renderRescueMap();}catch(e){}}
         else if(window.curApp==='inspect'){renderFacList();renderInspectMap();try{renderFacIssues();}catch(e){}
@@ -795,9 +807,18 @@ function initFirebase(onReady){
           _fs[k]=docs;
           try{_fs[k].sort((a,b)=>(Number(b.id)||0)-(Number(a.id)||0));}catch{}
           // 동기화 기준 스냅샷 갱신 (서버 상태 = 마지막 동기화 상태)
-          const syncMap=new Map();
-          _fs[k].forEach(r=>{syncMap.set(String(r.id),JSON.stringify(r));});
-          _fsSync[k]=syncMap;
+          // 대량 컬렉션(시설물 등)에서 매 스냅샷마다 전체 레코드(사진 포함)를 재문자열화하지 않도록 변경분만 반영.
+          // 첫 스냅샷(!loaded.has(k))은 빈 맵으로 시작 → docChanges()가 전 문서를 'added'로 통지하므로
+          // 전체 집합이 그대로 복원되고, 이후 스냅샷은 added/modified→set·removed→delete를 누적 적용한다.
+          // (유일 소비자 DB.s의 diff 결과 불변 — 데드레터 이관 시 _markSyncFail이 해당 항목을 지워 자가치유 유지)
+          let sm=_fsSync[k];
+          if(!(sm instanceof Map)||!loaded.has(k))sm=new Map();
+          snap.docChanges().forEach(ch=>{
+            const rec=ch.doc.data(),rid=String(rec.id);
+            if(ch.type==='removed')sm.delete(rid);
+            else sm.set(rid,JSON.stringify(rec));
+          });
+          _fsSync[k]=sm;
         }
         // 시설물: 컬렉션이 비어있으면 레거시 단일문서 백업으로 폴백 표시 + 1회 이관 시도
         if(k==='facilities'){
@@ -1744,6 +1765,19 @@ function _cleanOldSharedNotis(){
   // SOS 알림 1회발송 선점표(claim)도 48시간 지나면 정리
   _fdb.collection('sosNotiClaims').where('at','<',Date.now()-48*3600000).limit(50).get()
     .then(snap=>snap.docs.forEach(d=>d.ref.delete())).catch(()=>{});
+  // 만료된 SOS 링크 문서 축소: 팀 발급(issuedAt) 후 48h 지나고 활동 없는 것만.
+  //  ⚠️ 하드삭제 금지 — 옛 문자 링크를 다시 연 조난자가 '종료됨' 안내(active:false 경로)를 계속 받아야 하므로
+  //  무거운 필드(위치·메시지 등)만 떨군 묘비문서로 교체. issuedAt을 없애 다음 세션 쿼리에 다시 안 걸림.
+  //  활성(active===true)·최근 활동(위치 ts/종료 closedAt/접속 openedAt 48h내) 문서는 절대 건드리지 않음.
+  const _sosCut=Date.now()-48*3600000;
+  _fdb.collection('sos').where('issuedAt','<',_sosCut).limit(50).get()
+    .then(snap=>snap.docs.forEach(d=>{
+      const p=d.data()||{};
+      if(p.active===true)return; // 발급이 오래돼도 활성 링크는 보호(다일 구조 등)
+      const last=Math.max(p.issuedAt||0,p.ts||0,p.closedAt||0,p.openedAt||0);
+      if(last>_sosCut)return;    // 최근 활동 있으면 보호
+      d.ref.set({id:p.id||d.id,active:false,closedAt:p.closedAt||last||_sosCut,gc:1}).catch(()=>{});
+    })).catch(()=>{});
 }
 function _vibeOn(){return DB.g('notiVibrate')!==false;} // 진동 설정(기본 켜짐)
 function _showSystemNoti(body,ico){
