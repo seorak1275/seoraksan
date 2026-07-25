@@ -139,6 +139,12 @@ function submitNBoFromForm(){
     if(!b||a===b)return;
     changes.push({label,from:a||'(없음)',to:b});
   });
+  // 부상 목록(구조화 배열) 변경도 기록 — NRS·소견·메모 포함 전체 문자열로 비교 (통증 추이도 여기서 포착)
+  try{
+    const _injS=v=>(Array.isArray(v)?v:[]).filter(i=>i&&(i.part||i.type)).map(i=>(typeof _injFull==='function')?_injFull(i):((i.part||'')+(i.type||''))).filter(Boolean).join(', ');
+    const ia=_injS(prev.injuries),ib=_injS(phaseData.injuries);
+    if(ib&&ia!==ib)changes.push({label:'부상',from:ia||'(없음)',to:ib});
+  }catch(e){}
   // 활력징후 변경도 기록 (추이 파악용)
   try{
     const pv=prev.vitals||{},nv=phaseData.vitals||{};
@@ -209,7 +215,7 @@ function viewFullPrev(){
     document.getElementById('prevRepContent').innerHTML=`<div style="font-size:12px;color:#8b95a1;line-height:2;">
       <b>유형:</b> ${_esc(r.type)}<br><b>발생:</b> ${r.date}<br><b>위치:</b> ${_esc(r.location||'-')}<br>
       <b>사고자:</b> ${_esc(r.vName||'미상')} / ${(r.vGender&&r.vGender!=='알수없음')?_esc(r.vGender):'-'}<br><b>중증도:</b> ${_esc(r.severity||'-')}<br>
-      <b>부상부위:</b> ${_esc((r.injuryParts||[]).join(', ')||'-')}<br><b>구조방법:</b> ${_esc((r.rescueMethod||[]).join(', ')||'-')}
+      <b>부상:</b> ${_esc((Array.isArray(r.injuries)&&r.injuries.length)?r.injuries.map(i=>(typeof _injFull==='function')?_injFull(i):((i.part||'')+(i.type||''))).filter(Boolean).join(', '):((r.injuryParts||[]).join(', ')||'-'))}<br><b>구조방법:</b> ${_esc((r.rescueMethod||[]).join(', ')||'-')}
     </div>`;
   }
   document.getElementById('modalPrevReport').classList.add('on');
@@ -609,12 +615,51 @@ function _tlRecSelStage(el){
   const sr=document.getElementById('tlRecSaveRow');
   if(sr&&_tlRecStage)sr.style.display='';
 }
-function _tlRecSave(rid){
+// ── 기록 시간 입력(개선): 기본 '지금' HH:MM + 원탭 보정 칩 — 날짜는 오늘 자동 ──
+function _tlRecTimeAdj(min){
+  const el=document.getElementById('tlRecTimeHM');if(!el)return;
+  const p=n=>('0'+n).slice(-2);
+  let d=new Date();
+  if(min){const m=/^(\d{1,2}):(\d{2})$/.exec(el.value||'');if(m)d.setHours(+m[1],+m[2],0,0);d=new Date(d.getTime()-min*60000);}
+  el.value=p(d.getHours())+':'+p(d.getMinutes());
+  window._tlRecDirty=true; // 시각 보정 중 원격 재렌더로 값 초기화 방지
+  if(typeof _hapt==='function')_hapt(4);
+}
+// 드문 '과거 날짜' 기록용 — 그때만 datetime-local 노출(기본 숨김)
+function _tlRecTimeAdvTgl(){
+  const w=document.getElementById('tlRecTimeAdvWrap');if(!w)return;
+  const open=w.style.display==='none';
+  w.style.display=open?'block':'none';
+  window._tlRecDirty=true;
+  const hm=document.getElementById('tlRecHMRow');if(hm)hm.style.display=open?'none':'flex'; // 날짜변경 중엔 HH:MM 행 숨김 — 어느 입력이 적용되는지 명확히
+  if(open){const adv=document.getElementById('tlRecTime');if(adv&&!adv.value)adv.value=new Date(Date.now()-new Date().getTimezoneOffset()*60000).toISOString().slice(0,16);}
+}
+// 저장용 시각 — 기존 포맷 'YYYY-MM-DD HH:MM' 그대로 유지(절대 변경 금지).
+// 날짜변경 입력이 열려 있으면 그 값 / 아니면 오늘+HH:MM, 현재보다 미래(1분 초과)면 전날로 해석(자정 넘김)
+function _tlRecTimeVal(){
+  const w=document.getElementById('tlRecTimeAdvWrap');
+  const adv=document.getElementById('tlRecTime');
+  if(w&&w.style.display!=='none'&&adv&&adv.value)return adv.value.replace('T',' ');
+  const m=/^(\d{1,2}):(\d{2})$/.exec((document.getElementById('tlRecTimeHM')||{}).value||'');
+  if(!m)return now();
+  const p=n=>('0'+n).slice(-2);
+  const nd=new Date();
+  let d=new Date(nd.getFullYear(),nd.getMonth(),nd.getDate(),+m[1],+m[2]);
+  if(d.getTime()-nd.getTime()>60000)d=new Date(d.getTime()-86400000);
+  return d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate())+' '+p(d.getHours())+':'+p(d.getMinutes());
+}
+function _tlRecSave(rid,outId,btn){
   let stage=_tlRecStage;
   if(stage==='__custom')stage=(document.getElementById('tlRecCustom')?.value||'').trim();
   if(!stage){toast('무엇을 했는지 선택하거나 직접 입력하세요');return;}
-  const timeRaw=document.getElementById('tlRecTime')?.value||'';
-  const time=timeRaw?timeRaw.replace('T',' '):now();
+  const time=_tlRecTimeVal(); // 기본 오늘+HH:MM, 미래면 전날 해석 — 저장 포맷은 기존과 동일
+  // 중복탭 가드①: 처리 중(0.8s) 재탭 무시. 가드②: 2초 내 같은 단계+같은 시각(분) 재저장 차단(수정모드 제외)
+  if(window._tlRecBusy)return;
+  const _dupK=stage+'|'+String(time).slice(0,16);
+  if(!window._tlEdit&&window._tlRecLastK===_dupK&&Date.now()-(window._tlRecLastAt||0)<2000){toast('⚠️ 방금 같은 기록이 저장됐습니다 — 상황일지를 확인하세요');return;}
+  window._tlRecBusy=true;setTimeout(function(){window._tlRecBusy=false;},800);
+  if(btn&&btn.tagName==='BUTTON'){try{btn.disabled=true;btn.style.opacity='.55';btn.textContent='✓ 저장됨';}catch(e){}}
+  window._tlRecLastK=_dupK;window._tlRecLastAt=Date.now();
   // seq=입력 순서(생성 ms) — 같은 분(초 없음) 기록의 정렬 안정화용
   const entry={stage,time,note:(document.getElementById('tlRecNote')?.value||'').trim(),by:getAuthor(),team:_tlRecTeam==='본소'?'본소':(_tlRecTeam||''),seq:Date.now()};
   // ⬇️ 하산 방법(업기법·부축 등) — 기록 메모 맨 앞에 병기 + 아래에서 보고서 구조방법에 자동 반영
@@ -636,7 +681,8 @@ function _tlRecSave(rid){
     const aedY=document.getElementById('tlRecAedY');
     entry.aed=(aedY&&aedY._v)?'사용':'미사용';
   }
-  const res=DB.g('rescues')||[];const idx=res.findIndex(x=>x.id===rid);if(idx===-1)return;
+  const res=DB.g('rescues')||[];const idx=res.findIndex(x=>x.id===rid);
+  if(idx===-1){window._tlRecBusy=false;window._tlRecLastK=null;if(btn&&btn.tagName==='BUTTON'){try{btn.disabled=false;btn.style.opacity='';btn.textContent='+ 기록 저장';}catch(e){}}toast('⚠️ 사건을 찾을 수 없습니다 — 목록을 새로고침하세요');return;}
   if(!res[idx].timetable)res[idx].timetable=[];
   // ✏️ 수정모드: 원본 항목을 제거+툼스톤(다른 기기 병합에도 안 되살아남) 후 새 값으로 교체
   let _edited=false;
@@ -679,11 +725,13 @@ function _tlRecSave(rid){
     if(entry.team){const tt=(res[idx].teams||[]).find(t=>t.name===entry.team);if(tt&&!tt.arrivedAt)tt.arrivedAt=entry.time;}
   }
   DB.s('rescues',res);
-  _tlRecTeam='';_tlRecStage='';
+  _tlRecTeam='';_tlRecStage='';window._tlRecDirty=false;
   window._tlStepSel=null; // 저장 후엔 자동으로 다음(현재) 단계로 이동
   if(typeof _hapt==='function')_hapt(8);
-  toast((typeof _edited!=='undefined'&&_edited?'✏️ 수정됨: ':'📌 기록됨: ')+stage+(_synced.length?' — 📄 보고서에 자동 반영: '+_synced.join(', '):''));
-  renderTimeline(res[idx],'advanced');
+  toast((typeof _edited!=='undefined'&&_edited?'✏️ 수정됨: ':'📌 기록됨: ')+stage+' '+String(time).slice(11,16)+(_synced.length?' — 📄 보고서에 자동 반영: '+_synced.join(', '):''));
+  // 낙관적 즉시 반영: 상황판 상세(outId)에서 저장해도 '보이는 그 패널'을 즉시 재렌더
+  // (기존엔 항상 숨은 repContent만 그려져, 상황판에선 원격 에코+400ms 디바운스까지 화면이 안 바뀌어 연타·중복의 원인)
+  renderTimeline(res[idx],'advanced',(outId&&outId!=='repContent')?outId:undefined);
 }
 // 상황일지 엔트리 수집(공용) — 화면(_buildLogHtml)과 한글 보고서 생성이 함께 사용
 function _collectLogEntries(r){
@@ -784,7 +832,10 @@ function _tlRecEditStart(reg){
         if(!matched){const cp=document.querySelector('#tlRecStages .pill[data-v="__custom"]');if(cp){_tlRecSelStage(cp);const ci=document.getElementById('tlRecCustom');if(ci)ci.value=ent.stage||'';}}
       }
       const sr=document.getElementById('tlRecSaveRow');if(sr)sr.style.display='';
+      // 수정모드: 원본 시각은 날짜까지 보존해야 하므로 '날짜 변경' 입력을 자동으로 열고 원본 일시를 채움
+      const aw=document.getElementById('tlRecTimeAdvWrap');if(aw)aw.style.display='block';
       const t=document.getElementById('tlRecTime');if(t&&ent.time)t.value=String(ent.time).replace(' ','T').slice(0,16);
+      const hm=document.getElementById('tlRecTimeHM');if(hm&&ent.time)hm.value=String(ent.time).slice(11,16);
       const n=document.getElementById('tlRecNote');if(n)n.value=ent.note||'';
       const card=document.getElementById('tlStepPanel');if(card)card.scrollIntoView({behavior:'smooth',block:'center'});
       toast('✏️ 수정 모드 — 시간·내용 고치고 [기록 저장]을 누르면 교체됩니다',4000);
@@ -1238,7 +1289,7 @@ async function govReport(rid,kind,noPass){
   const nb=v=>{const s=String(v==null?'':v).trim();return (s&&s!=='-'&&!['미상','없음','모르겠음','알수없음','미정','해당없음'].includes(s))?s:'';};
   // ── 공통 데이터 가공 ──
   const injStr=(Array.isArray(r.injuries)&&r.injuries.length)
-    ? r.injuries.map(i=>(typeof _injLabel==='function')?_injLabel(i):((i.part||'')+(i.type||''))).filter(Boolean).join(', ')
+    ? r.injuries.map(i=>(typeof _injFull==='function')?_injFull(i):((i.part||'')+(i.type||''))).filter(Boolean).join(', ')
     : [(r.injuryParts||[]).join(','),(r.injuryTypes||[]).join(',')].filter(Boolean).join(' / ');
   // 한글용 보고서(hwpx) — 'N보 보고' 같은 내부 진행 표시(type:report)는 제외하고 실제 현장 대응 흐름만 수록
   let _logSrc=_collectLogEntries(r).filter(e=>e.type!=='report'&&!/일시 수정/.test(e.label||'')); // 수정 감사 줄은 문서 제외
@@ -1559,7 +1610,7 @@ function _safetyReportHtml(rid){
   if(/타박/.test(injAll))injSel.add('타박상');
   if(/찰과|열상/.test(injAll))injSel.add('찰과상');
   if(/저혈당|심정지|저체온|열사병|탈진|호흡곤란|흉통|복통|경련|의식|익수|지병/.test(injAll))injSel.add('지병');
-  if(/통증/.test(injAll+(r.situation||'')))injSel.add('통증');
+  if(/통증/.test(injAll+(r.situation||''))||(r.injuries||[]).some(i=>i&&i.nrs!=null&&+i.nrs>0))injSel.add('통증');
   if(!injSel.size&&injAll)injSel.add('기타(    )');
   // 성별·연령대
   const gSel=new Set();if(/^남/.test(r.vGender||''))gSel.add('남성');else if(/^여/.test(r.vGender||''))gSel.add('여성');else gSel.add('모름');
@@ -1665,7 +1716,7 @@ function renderTimeline(r,viewMode,outId){
 
   // ── 통합 화면: 탭 없이 보고서(접이식)+기록 입력+상황일지+출동팀+댓글을 한 번에 ──
   _initTlTeams(r);
-  _tlRecTeam='';_tlRecStage='';
+  _tlRecTeam='';_tlRecStage='';window._tlRecDirty=false;
   const _canWriteTl=!isExternal();
   if(window._tlRecOpen===undefined)window._tlRecOpen=(r.status==='ongoing'); // 진행중=기록 입력 펼침 / 종료 건=접힘
   // ── 큰 틀 스테퍼: 접수→출동→조우→처치→하산→종료 를 단계 버튼으로 —
@@ -1689,6 +1740,7 @@ function renderTimeline(r,viewMode,outId){
           if(window._tlStepSelRid!==r.id){window._tlStepSel=null;window._tlStepSelRid=r.id;}
           const sel=window._tlStepSel||cur;
           _tlRecStage=({'조우':'요구조자 조우','하산':'하산 시작'})[sel]||'';
+          window._tlRecStageAuto=_tlRecStage; // 렌더가 자동 세팅한 기본 단계 — 사용자가 직접 고른 초안과 구분(원격 갱신 차단 오작동 방지)
           const btns=STEPS.map(([k,ico])=>{
             const d=D[k],selq=k===sel,curq=k===cur;
             return `<div onclick="_tlStepTap('${k}')" style="flex:1;min-width:0;text-align:center;cursor:pointer;padding:8px 2px 7px;border-radius:10px;border:1.5px solid ${selq?'rgba(49,130,246,.7)':d?'rgba(61,220,132,.3)':'rgba(255,255,255,.12)'};background:${selq?'rgba(49,130,246,.16)':d?'rgba(61,220,132,.05)':'rgba(255,255,255,.02)'};">
@@ -1706,14 +1758,14 @@ function renderTimeline(r,viewMode,outId){
             // 조우+처치 통합 패널 — 출동 팀 버튼(ㅇㅇ팀 조우)로 도착을 대체, 처치·CPR도 여기서
             const _tn=(r.teams||[]).map(t=>t.name).filter(Boolean);
             panel=`${_tn.length?`<div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:7px;" id="tlEncTeams">
-                ${_tn.map((n,i)=>`<div class="pill${i===0?' on':''}" data-v="${_esc(n)}" onclick="document.querySelectorAll('#tlEncTeams .pill').forEach(p=>p.classList.remove('on'));this.classList.add('on');" style="font-size:11px;cursor:pointer;">🤝 ${_esc(_deptShort(n))} 조우</div>`).join('')}
+                ${_tn.map((n,i)=>`<div class="pill${i===0?' on':''}" data-v="${_esc(n)}" onclick="document.querySelectorAll('#tlEncTeams .pill').forEach(p=>p.classList.remove('on'));this.classList.add('on');window._tlRecDirty=true;" style="font-size:11px;cursor:pointer;">🤝 ${_esc(_deptShort(n))} 조우</div>`).join('')}
               </div>`:''}
               <div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:7px;">
                 <div class="pill on" id="tlEncModeEnc" onclick="_tlEncMode('enc')" style="font-size:11px;cursor:pointer;">🤝 조우</div>
                 <div class="pill" id="tlEncModeAid" onclick="_tlEncMode('aid')" style="font-size:11px;cursor:pointer;">🩹 응급처치</div>
                 <div class="pill" id="tlEncModeCpr" onclick="_tlEncMode('cpr')" style="font-size:11px;cursor:pointer;border-color:rgba(231,76,60,.4);color:#e74c3c;">🫀 심정지·CPR</div>
               </div>
-              <div class="pill" id="tlRecEncAid" onclick="this.classList.toggle('on')" style="font-size:11px;cursor:pointer;display:inline-flex;border-color:rgba(231,76,60,.35);color:#e88;margin-bottom:7px;">🩹 응급처치도 함께 기록</div>
+              <div class="pill" id="tlRecEncAid" onclick="this.classList.toggle('on');window._tlRecDirty=true" style="font-size:11px;cursor:pointer;display:inline-flex;border-color:rgba(231,76,60,.35);color:#e88;margin-bottom:7px;">🩹 응급처치도 함께 기록</div>
               <div id="tlRecCprWrap" style="display:none;background:rgba(231,76,60,.07);border:1px solid rgba(231,76,60,.25);border-radius:9px;padding:9px 11px;">
                 <div style="font-size:10px;color:#e74c3c;font-weight:700;margin-bottom:6px;">🫀 CPR 기록 (시작/종료·AED)</div>
                 <div style="display:flex;gap:6px;margin-bottom:6px;">
@@ -1728,7 +1780,7 @@ function renderTimeline(r,viewMode,outId){
           }else if(sel==='하산'){
             panel=`<div style="font-size:10.5px;color:#4d9bf5;font-weight:700;margin-bottom:5px;">⬇️ 어떻게 하산하나요? <span style="font-weight:400;color:#565f6b;">선택하면 보고서 구조방법에 자동 반영</span></div>
               <div style="display:flex;gap:4px;flex-wrap:wrap;" id="tlRecDescMeth">
-                ${['업기법','부축','들것','동행하산','자력하산','로프구조'].map(m=>`<div class="pill" data-v="${m}" onclick="this.classList.toggle('on')" style="font-size:11px;cursor:pointer;">${m}</div>`).join('')}
+                ${['업기법','부축','들것','동행하산','자력하산','로프구조'].map(m=>`<div class="pill" data-v="${m}" onclick="this.classList.toggle('on');window._tlRecDirty=true" style="font-size:11px;cursor:pointer;">${m}</div>`).join('')}
               </div>`;
           }else{
             panel=D['종료']?`<div style="font-size:12px;color:#3ad17a;font-weight:800;">✅ 상황 종료됨${r.completion?' · 완료 '+_esc(r.completion):''}</div>`
@@ -1744,12 +1796,18 @@ function renderTimeline(r,viewMode,outId){
             </div>
             <div id="tlRecCustomWrap" style="display:none;margin-bottom:7px;"><input type="text" id="tlRecCustom" class="fi" placeholder="무엇을 했는지 직접 입력 (예: 장비 보급, 01-15 통과)"></div>
             <div id="tlRecSaveRow" style="display:${showSave?'':'none'};">
-              <div style="display:flex;gap:6px;margin-bottom:8px;">
-                <input type="datetime-local" id="tlRecTime" class="fi" style="flex:1.3;min-width:0;" value="${new Date(Date.now()-new Date().getTimezoneOffset()*60000).toISOString().slice(0,16)}">
-                <input type="text" id="tlRecNote" class="fi" style="flex:1;min-width:0;" placeholder="메모 (선택)">
+              <div id="tlRecHMRow" style="display:flex;gap:5px;margin-bottom:6px;flex-wrap:wrap;align-items:center;">
+                <input type="time" onchange="window._tlRecDirty=true" id="tlRecTimeHM" class="fi" style="flex:0 0 86px;min-width:0;" value="${(d=>('0'+d.getHours()).slice(-2)+':'+('0'+d.getMinutes()).slice(-2))(new Date())}">
+                <div class="pill" onclick="_tlRecTimeAdj(0)" style="font-size:10.5px;cursor:pointer;">지금</div>
+                <div class="pill" onclick="_tlRecTimeAdj(5)" style="font-size:10.5px;cursor:pointer;">-5분</div>
+                <div class="pill" onclick="_tlRecTimeAdj(10)" style="font-size:10.5px;cursor:pointer;">-10분</div>
+                <div class="pill" onclick="_tlRecTimeAdj(30)" style="font-size:10.5px;cursor:pointer;">-30분</div>
+                <span onclick="_tlRecTimeAdvTgl()" style="font-size:9.5px;color:#4d9bf5;font-weight:700;cursor:pointer;margin-left:auto;">📅 날짜 변경</span>
               </div>
-              <button onclick="_tlRecSave(${r.id})" style="width:100%;padding:10px;background:#1a4a6e;color:#fff;border:none;border-radius:9px;font-size:12px;font-weight:700;cursor:pointer;">＋ 기록 저장</button>
-              <div style="font-size:9px;color:#3a5a7a;margin-top:5px;">시간을 과거로 바꾸면 늦은 입력 가능 — 상황일지는 시간순 자동 정렬</div>
+              <div id="tlRecTimeAdvWrap" style="display:none;margin-bottom:6px;"><input type="datetime-local" id="tlRecTime" class="fi" style="width:100%;"></div>
+              <div style="margin-bottom:8px;"><input type="text" id="tlRecNote" class="fi" style="width:100%;" placeholder="메모 (선택)"></div>
+              <button onclick="_tlRecSave(${_tglArg},this)" style="width:100%;padding:10px;background:#1a4a6e;color:#fff;border:none;border-radius:9px;font-size:12px;font-weight:700;cursor:pointer;">＋ 기록 저장</button>
+              <div style="font-size:9px;color:#3a5a7a;margin-top:5px;">날짜는 자동으로 오늘 — 지금보다 늦은 시각을 넣으면 전날(자정 넘김)로 기록 · 상황일지는 시간순 자동 정렬</div>
             </div>`;
         })()}
       </div>`;
@@ -1762,12 +1820,22 @@ function renderTimeline(r,viewMode,outId){
     const _row=(k,v)=>v?`<div style="display:flex;gap:8px;padding:6px 0;border-bottom:.5px solid rgba(255,255,255,.04);align-items:flex-start;"><span style="font-size:10px;color:#6b7684;font-weight:700;letter-spacing:.2px;flex-shrink:0;width:50px;padding-top:1px;">${k}</span><span style="font-size:12px;color:#c9cdd3;line-height:1.55;flex:1;">${v}</span></div>`:'';
     // ── 우선순위: ① 부상 ② 위치 ③ 인적사항 ④ 나머지 ⑤ 추가내용 ──
     const _injList=(Array.isArray(r.injuries)?r.injuries:[]).filter(i=>i&&(i.part||i.type));
+    // 부상 메인 라인 — 라벨 + 통증 NRS 배지(0-3 초록/4-6 호박/7-10 적색) + 동반 소견 칩 (구형 기록은 필드가 없어 라벨만)
+    const _nrsBg=n=>n>=7?'#c0392b':n>=4?'#a8720e':'#1e7a4e';
     const _injMain=_injList.length
-      ? _injList.map(i=>(typeof _injLabel==='function')?_injLabel(i):((i.part||'')+(i.type||''))).filter(Boolean).join(', ')
+      ? _injList.map(i=>{
+          const lbl=(typeof _injLabel==='function')?_injLabel(i):((i.part||'')+(i.type||''));
+          if(!lbl)return '';
+          const nrs=(i.nrs!=null&&i.nrs!==''&&!isNaN(+i.nrs))?` <span style="font-size:10px;font-weight:800;color:#fff;background:${_nrsBg(+i.nrs)};border-radius:6px;padding:1px 6px;vertical-align:2px;white-space:nowrap;">NRS ${+i.nrs}</span>`:'';
+          const fl=(Array.isArray(i.flags)&&i.flags.length)?` <span style="font-size:10px;color:#e8a79a;font-weight:700;white-space:nowrap;">${_esc(i.flags.join('·'))}</span>`:'';
+          return `<span style="display:inline-block;">${_esc(lbl)}${nrs}${fl}</span>`;
+        }).filter(Boolean).join(', ')
       : (()=>{const ip=_okA(r.injuryParts),it=_okA(r.injuryTypes);return [ip.join(', '),it.join(', ')].filter(Boolean).join(' / ');})(); // 부위가 비면 '/' 없이 유형만
+    // 부상별 메모(선택 입력) — 메인 라인 아래 작은 줄
+    const _injMemoRows=_injList.filter(i=>i.memo).map(i=>`<div style="font-size:10.5px;color:#c99a90;line-height:1.5;margin-top:3px;">✎ ${_esc((typeof _injLabel==='function')?_injLabel(i):'')}: ${_esc(i.memo)}</div>`).join('');
     const _vit0=(r.vitals&&_vitalsStr(r.vitals))?_vitalsStr(r.vitals):'';
     const injurySect=`<div style="display:flex;align-items:center;margin-bottom:4px;"><span style="font-size:10px;color:#ff8a73;font-weight:700;letter-spacing:.2px;">🤕 부상</span>${_ok(r.severity)?`<span style="margin-left:auto;font-size:10px;font-weight:800;color:#fff;background:#c0392b;border-radius:6px;padding:2px 8px;">${_esc(r.severity)}</span>`:''}</div>
-      <div style="font-size:17px;font-weight:800;color:#ffd9d0;line-height:1.4;">${_injMain||'<span style="color:#9c7a72;font-weight:600;font-size:13px;">부상 정보 미입력</span>'}</div>
+      <div style="font-size:17px;font-weight:800;color:#ffd9d0;line-height:1.4;">${_injMain||'<span style="color:#9c7a72;font-weight:600;font-size:13px;">부상 정보 미입력</span>'}</div>${_injMemoRows}
       <div style="display:flex;flex-wrap:wrap;gap:5px;margin-top:6px;">
         ${_ok(r.cause)?`<span style="font-size:10.5px;color:#c99a90;background:rgba(231,76,60,.08);border-radius:6px;padding:2px 8px;">원인: ${_esc(r.cause)}</span>`:''}
         ${_ok(r.outcome)?`<span style="font-size:10.5px;color:#d5d8dc;background:rgba(255,255,255,.06);border-radius:6px;padding:2px 8px;">결과: ${_esc(r.outcome)}</span>`:''}
@@ -1904,16 +1972,20 @@ function renderTimeline(r,viewMode,outId){
     // 두 구역을 색 밴드(칸)로 명확히 구분 — 📄 보고서(코랄) vs 🕘 현장기록·타임라인(블루)
     const _secHd=(col,txt,mt,click)=>`<div ${click?`onclick="${click}"`:''} style="display:flex;align-items:center;gap:7px;margin:${mt||6}px 0 9px;padding:8px 12px;border-radius:9px;background:${col}1f;border-left:3px solid ${col};${click?'cursor:pointer;':''}"><span style="font-size:12.5px;font-weight:800;color:${col};letter-spacing:.2px;flex:1;">${txt}</span>${click?`<span style="font-size:12px;color:${col};font-weight:800;">${window._repSecOpen===false?'▸ 펼치기':'▾'}</span>`:''}</div>`;
     // 📄 보고서 구역 전체 접기 — 밴드를 탭하면 요약 카드까지 통째로 접힘(타임라인만 크게 보고 싶을 때)
+    // 진행중=🕘 현장 기록을 먼저(보고서 기본 접힘) / 종료=📄 보고서 먼저 — 열자마자 '지금 할 일'이 맨 위
+    const _ongoing=r.status==='ongoing';
+    if(window._repSecFor!==r.id){window._repSecFor=r.id;window._repSecOpen=_ongoing?false:undefined;} // 다른 사건으로 이동 시 기본값 재설정
     const _rsOpen=window._repSecOpen!==false;
-    w.innerHTML=tabHdr
-      +_secHd('#ff8a73','📄 보고서'+(_rsOpen?'':' <span style="font-size:10px;font-weight:400;color:#9c7a72;">(접힘)</span>'),6,`_toggleRepSection(${r.id},'${_isBoard?_esc(outId):''}')`)
+    const _repBlock=_secHd('#ff8a73','📄 보고서'+(_rsOpen?'':' <span style="font-size:10px;font-weight:400;color:#9c7a72;">(접힘 — 탭하면 펼침)</span>'),_ongoing?16:6,`_toggleRepSection(${r.id},'${_isBoard?_esc(outId):''}')`)
       +(_rsOpen?reportSheet:'')
-      +(_rsOpen?_mkReportDetail():'')
-      +_secHd('#3182f6','🕘 현장 기록 · 타임라인',16)
+      +(_rsOpen?_mkReportDetail():'');
+    const _recBlock=_secHd('#3182f6','🕘 현장 기록 · 타임라인',_ongoing?6:16)
       +_mobilizeBlockHtml('rescues',r)
       +_mkRecCard()
       +(logHtml?`<div style="margin:2px 0 8px;">${logHtml}</div>`
-               :'<div style="text-align:center;font-size:11px;color:#565f6b;padding:12px 0 8px;">기록 없음 — 위 📌 기록 추가로 입력하세요</div>')
+               :'<div style="text-align:center;font-size:11px;color:#565f6b;padding:12px 0 8px;">기록 없음 — 위 📌 기록 추가로 입력하세요</div>');
+    w.innerHTML=tabHdr
+      +(_ongoing?_recBlock+_repBlock:_repBlock+_recBlock)
       +`<div style="background:#1c1c1e;border-radius:10px;padding:12px;border:.5px solid rgba(255,255,255,.07);margin-top:8px;">
         <div style="font-size:11px;color:#3182f6;font-weight:700;margin-bottom:8px;">💬 댓글</div>
         <div id="commentList_${r.id}">${renderComments(r.id)}</div>
@@ -3046,6 +3118,19 @@ function render1BoForm(prefill=null){
               ${['좌','우','양쪽'].map(s=>`<div class="pill" onclick="selInjSide(this,'${s}')" style="font-size:11px;cursor:pointer;">${s}</div>`).join('')}
             </div>
           </div>
+          <!-- ③ 통증 정도 NRS 0-10 (선택) -->
+          <div id="injNrsWrap" style="margin-bottom:8px;">
+            <div style="font-size:10px;color:#8b95a1;font-weight:700;margin-bottom:5px;">③ 통증 정도 (NRS) <span style="font-weight:400;color:#5a7a92;">0=없음 · 10=극심 — 선택 안 해도 됨</span></div>
+            <div style="display:flex;gap:3px;" id="injNrsPills">
+              ${Array.from({length:11},(_,n)=>`<div class="pill" data-v="${n}" onclick="selInjNrs(this,${n})" style="flex:1;min-width:0;justify-content:center;padding:8px 0;font-size:12.5px;border-radius:9px;cursor:pointer;">${n}</div>`).join('')}
+            </div>
+          </div>
+          <!-- ④ 동반 소견·메모 (선택) -->
+          <div style="font-size:10px;color:#8b95a1;font-weight:700;margin-bottom:5px;">④ 동반 소견·메모 <span style="font-weight:400;color:#5a7a92;">해당 시에만</span></div>
+          <div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:8px;" id="injFlagPills">
+            ${(typeof _INJ_FLAGS!=='undefined'?_INJ_FLAGS:[]).map(f=>`<div class="pill" onclick="toggleInjFlag(this,'${f}')" style="font-size:11px;cursor:pointer;">${f}</div>`).join('')}
+          </div>
+          <input type="text" id="injMemo" class="fi" placeholder="부상 상세 메모 (예: 부종 심함, 압박지혈 실시)" style="margin-bottom:8px;">
           <button onclick="addInjury()" style="width:100%;padding:7px;background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.3);color:#3182f6;border-radius:7px;font-size:12px;font-weight:700;cursor:pointer;">＋ 부상 추가</button>
           <div id="injuryList" style="margin-top:6px;"></div>
         </div>

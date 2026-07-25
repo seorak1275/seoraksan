@@ -766,7 +766,8 @@ function initFirebase(onReady){
           if(_vr&&_vr.classList.contains('on')&&typeof curResId!=='undefined'&&curResId&&typeof renderTimeline==='function'&&typeof getRes==='function'){
             var _ae2=document.activeElement;
             var _typing2=_ae2&&_vr.contains(_ae2)&&/INPUT|TEXTAREA/.test(_ae2.tagName||'');
-            var _draft2=(typeof _tlRecStage!=='undefined'&&_tlRecStage)||(typeof _tlRecTeam!=='undefined'&&_tlRecTeam)
+            // 단계가 렌더 자동 세팅값(_tlRecStageAuto)과 같으면 초안 아님 — 대기 상태에선 원격 기록이 즉시 그려지게
+            var _draft2=window._tlRecDirty===true||(typeof _tlRecStage!=='undefined'&&_tlRecStage&&_tlRecStage!==window._tlRecStageAuto)||(typeof _tlRecTeam!=='undefined'&&_tlRecTeam)
               ||((document.getElementById('tlRecNote')||{}).value)||((document.getElementById('tlRecCustom')||{}).value)
               ||((document.getElementById('cmtInput_'+curResId)||{}).value)||((document.getElementById('cmtInput_adv_'+curResId)||{}).value);
             if(!_typing2&&!_draft2){var _rr2=getRes(curResId);if(_rr2&&_rr2.id)renderTimeline(_rr2,(typeof _tlViewMode!=='undefined'&&_tlViewMode)||'advanced');}
@@ -784,7 +785,8 @@ function initFirebase(onReady){
               var _br=(DB.g('rescues')||[]).find(function(x){return x.id===_boardDetailId;});
               var _ae=document.activeElement;
               var _typing=_ae&&_bd&&_bd.contains(_ae)&&/INPUT|TEXTAREA/.test(_ae.tagName||'');
-              if(_br&&_bd&&_bd.style.display!=='none'&&!_typing&&typeof renderTimeline==='function')
+              // 상황판에서도 기록카드 조작 중(_tlRecDirty)엔 재렌더 보류 — 포커스 없는 칩·시각 초안이 원격 에코로 초기화되는 것 방지
+              if(_br&&_bd&&_bd.style.display!=='none'&&!_typing&&window._tlRecDirty!==true&&typeof renderTimeline==='function')
                 renderTimeline(_br,(typeof _tlViewMode!=='undefined'&&_tlViewMode)||'advanced','boardDetailContent');
             }
           }
@@ -1201,6 +1203,7 @@ function _relayoutIfChanged(map,elId){
 function _relayoutMaps(){
   _relayoutIfChanged(typeof mapI!=='undefined'?mapI:null,'mapInspect');
   _relayoutIfChanged(typeof mapR!=='undefined'?mapR:null,'mapRescue');
+  try{_relayoutIfChanged((typeof _facNav!=='undefined'&&_facNav.map)?_facNav.map:null,'fnMap');}catch(e){} // 시설물 내비 지도도 뷰포트 변화 시 재계산(좌표 어긋남 방지)
   try{if(typeof _boardMap!=='undefined'&&_boardMap){var be=document.getElementById('boardMap');if(be&&be.offsetWidth)_boardMap.relayout();}}catch(e){}
   try{if(typeof _applyMapVOff==='function')_applyMapVOff();}catch(e){}
 }

@@ -1485,10 +1485,16 @@ function _renderBoardPins(fit){
     ov.setMap(_boardMap);_boardOvs.push(ov);bounds.extend(pos);n++;
   });
   // 🆘 조난·사고자 위치 (실시간) — 가장 눈에 띄게
+  // 🚨진행중 구조 핀과 ~20m 이내(같은 사고 좌표) 겹침 → 화면상 오른쪽 위로 비껴 표시 + 실제 위치 연결선(content 내부 픽셀 오프셋 — 줌 무관)
+  const _bdOg=(DB.g('rescues')||[]).filter(r=>r.status==='ongoing'&&r.lat&&r.lng);
   (_sosPings||[]).forEach(p=>{
     if(!p.lat||!p.lng)return;
+    let _near=false;
+    try{_near=typeof _haversineKm==='function'&&_bdOg.some(r=>_haversineKm(r.lat,r.lng,p.lat,p.lng)*1000<=20);}catch(e){}
     const el=document.createElement('div');
-    el.innerHTML=`<div style="display:flex;flex-direction:column;align-items:center;cursor:pointer;">
+    if(_near){el.style.position='relative';el.style.transform='translate(38px,-24px)';} // 오프셋은 클릭 루트에 — 원위치 투명박스가 아래 핀 탭을 가로채지 않게
+    el.innerHTML=`<div style="display:flex;flex-direction:column;align-items:center;cursor:pointer;position:relative;">
+      ${_near?'<div style="position:absolute;left:50%;bottom:0;width:45px;height:0;border-top:1.5px dashed rgba(255,225,77,.8);transform-origin:0 0;transform:rotate(148deg);pointer-events:none;"></div><div style="position:absolute;left:calc(50% - 41px);bottom:-27px;width:6px;height:6px;border-radius:50%;background:#ffe14d;box-shadow:0 1px 3px rgba(0,0,0,.6);pointer-events:none;"></div>':''}
       <div style="background:#c0392b;border:2.5px solid #ffe14d;border-radius:50%;width:34px;height:34px;display:flex;align-items:center;justify-content:center;font-size:16px;box-shadow:0 0 0 3px rgba(231,76,60,.4),0 2px 8px rgba(0,0,0,.6);animation:blink 1s infinite;">🆘</div>
       <div style="margin-top:3px;background:rgba(10,22,38,.92);border:1.5px solid #ffe14d;color:#fff;border-radius:8px;padding:2px 8px;font-size:11px;font-weight:800;white-space:nowrap;box-shadow:0 1px 5px rgba(0,0,0,.5);">🆘 ${_esc(p.name||'조난·사고자')}</div></div>`;
     el.onclick=()=>{try{_boardMap.setCenter(new kakao.maps.LatLng(p.lat,p.lng));_boardMap.setLevel(4);}catch(e){}};
@@ -2839,6 +2845,11 @@ function selRepRel(v){
 // 부상 현황
 let _injuries=[];
 let _injType='',_injPart='',_injSide='',_injCat='외상';
+let _injNrs=null,_injFlags=[],_injEditIdx=-1; // 통증 NRS(0-10)·동반 소견 입력 상태 + 부상 카드 인라인 편집 인덱스
+// 동반 소견 토글 목록 — 현장 응급처치 판단에 직결되는 항목만 (필요 시 여기만 추가)
+const _INJ_FLAGS=['출혈','변형','개방창','부종','감각이상'];
+// NRS 색상: 0-3 경증 초록 / 4-6 중등 호박 / 7-10 중증 적색
+function _nrsColor(n){return n>=7?'#e74c3c':n>=4?'#e8b34a':'#2ecc71';}
 const _BILATERAL_PARTS=['어깨','팔꿈치','손목','손','무릎','발목','발'];
 // 같은 부상(유형·부위·좌우 동일) 중복 추가 방지
 function _injDup(n){return (_injuries||[]).some(i=>i&&i.type===n.type&&(i.part||'')===(n.part||'')&&(i.side||'')===(n.side||''));}
@@ -2869,10 +2880,27 @@ function _injLabel(i){
   if(side)return side+' '+part+' '+type;       // '왼쪽 팔목 골절'
   return part+type;                            // '팔목골절'
 }
+// 부상 세부(NRS·동반 소견·메모) — 구형 기록엔 없는 선택 필드라 있을 때만 문자열 생성 (하위호환)
+function _injDetail(i){
+  if(!i)return '';
+  const d=[];
+  if(i.nrs!=null&&i.nrs!=='')d.push('NRS '+i.nrs);
+  if(Array.isArray(i.flags)&&i.flags.length)d.push(i.flags.join('·'));
+  if(i.memo)d.push(i.memo);
+  return d.join(' · ');
+}
+// 라벨+세부 통합 표기 — 보고서·변경이력 문서용: '왼쪽 발목 골절 (NRS 7 · 출혈·변형)'
+// ※ _injLabel은 제목 자동생성·중복검사·통계 칩이 쓰므로 건드리지 않음
+function _injFull(i){
+  const l=_injLabel(i),d=_injDetail(i);
+  return d?(l?l+' ('+d+')':d):l;
+}
 function initInjuries(prefill){
-  _injuries=(prefill&&prefill.injuries)||[];
+  _injuries=JSON.parse(JSON.stringify((prefill&&prefill.injuries)||[])); // 라이브 레코드 참조 차단 — 편집이 이전 보고를 오염시키고 N보 diff가 죽던 문제
   _injType='';_injPart='';_injSide='';_injCat='외상';
+  _injEditIdx=-1;
   renderInjTypePills();
+  try{_resetInjExtras();}catch(e){} // NRS·소견·메모 입력 상태 초기화 — 폼 재진입 시 잔류 방지
   renderInjuries();
 }
 // 외상/내상 카테고리 전환 → 유형 pill 목록 다시 그림
@@ -2932,10 +2960,12 @@ function addInjury(){
     type=c;
   }
   if(_injCat!=='내상'&&!_injPart){toast('부상 부위를 선택하세요');return;}
-  const _nInj={type:type,part:_injCat==='내상'?'전신':_injPart,side:_injSide,cat:_injCat};
+  const _memo=(document.getElementById('injMemo')?.value||'').trim();
+  const _nInj={type:type,part:_injCat==='내상'?'전신':_injPart,side:_injSide,cat:_injCat,nrs:_injNrs,flags:_injFlags.slice(),memo:_memo};
   if(_injDup(_nInj)){toast('이미 추가된 부상입니다');return;}
   _injuries.push(_nInj);
   _injType='';_injPart='';_injSide='';
+  _resetInjExtras();
   const ci=document.getElementById('injTypeCustom');if(ci)ci.value='';
   const cw=document.getElementById('injTypeCustomWrap');if(cw)cw.style.display='none';
   document.querySelectorAll('#injTypePills .pill,#injPartPills .pill,#injSidePills .pill').forEach(p=>p.classList.remove('on'));
@@ -2944,7 +2974,32 @@ function addInjury(){
   renderInjuries();
   try{autoGenTitle();}catch(e){}
 }
-function removeInjury(i){_injuries.splice(i,1);renderInjuries();try{autoGenTitle();}catch(e){}}
+function removeInjury(i){_injuries.splice(i,1);_injEditIdx=-1;renderInjuries();try{autoGenTitle();}catch(e){}}
+// ── 부상 세부 입력(신규 입력 영역): 통증 NRS 0-10 · 동반 소견 토글 · 메모 ──
+function selInjNrs(el,n){
+  _injNrs=(_injNrs===n)?null:n; // 같은 숫자 재탭=해제(미평가)
+  document.querySelectorAll('#injNrsPills .pill').forEach(p=>{
+    const v=+p.dataset.v,on=(v===_injNrs);
+    p.classList.toggle('on',on);
+    p.style.borderColor=on?_nrsColor(v):'';p.style.color=on?_nrsColor(v):'';p.style.fontWeight=on?'800':'';
+  });
+}
+function toggleInjFlag(el,f){
+  const x=_injFlags.indexOf(f);
+  if(x>=0)_injFlags.splice(x,1);else _injFlags.push(f);
+  el.classList.toggle('on',x<0);
+}
+function _resetInjExtras(){
+  _injNrs=null;_injFlags=[];
+  document.querySelectorAll('#injNrsPills .pill').forEach(p=>{p.classList.remove('on');p.style.borderColor='';p.style.color='';p.style.fontWeight='';});
+  document.querySelectorAll('#injFlagPills .pill').forEach(p=>p.classList.remove('on'));
+  const m=document.getElementById('injMemo');if(m)m.value='';
+}
+// ── 부상 카드 인라인 편집 — 카드 탭으로 NRS·소견·메모 수정 (⚡프리셋 원터치 추가분 세부 보강용) ──
+function toggleInjEdit(i){_injEditIdx=(_injEditIdx===i)?-1:i;renderInjuries();}
+function setInjNrsAt(i,n){const a=_injuries[i];if(!a)return;a.nrs=(a.nrs===n)?null:n;renderInjuries();}
+function toggleInjFlagAt(i,f){const a=_injuries[i];if(!a)return;a.flags=Array.isArray(a.flags)?a.flags:[];const x=a.flags.indexOf(f);if(x>=0)a.flags.splice(x,1);else a.flags.push(f);renderInjuries();}
+function setInjMemoAt(i,v){const a=_injuries[i];if(a)a.memo=String(v||'').trim();} // onchange만 — 입력 중 재렌더 시 포커스 소실 방지
 // ⚡ 자주 발생 부상 원터치 추가 — 실사고 통계 상위 조합을 한 번에 (세부는 기존 유형·부위 pill로 언제든 가능)
 function quickInjury(type,part){
   const cat=(_INJ_TYPES['내상']||[]).includes(type)?'내상':'외상';
@@ -2955,18 +3010,37 @@ function quickInjury(type,part){
   try{autoGenTitle();}catch(e){}
   try{if(typeof _updateTabDots==='function')_updateTabDots();}catch(e){}
   if(typeof _hapt==='function')_hapt(8);
-  toast('🩺 추가됨: '+((part&&part!=='전신')?part+' ':'')+type+' — 좌/우 등 세부는 아래에서 다시 추가 가능');
+  toast('🩺 추가됨: '+((part&&part!=='전신')?part+' ':'')+type+' — 카드를 탭하면 통증(NRS)·소견·메모 입력');
 }
 function renderInjuries(){
   const el=document.getElementById('injuryList');
   if(!el) return;
   if(!_injuries.length){el.innerHTML='';return;}
-  el.innerHTML=_injuries.map((a,i)=>`
-    <div style="display:flex;align-items:center;gap:6px;padding:6px 10px;background:#1c1c1e;border-radius:7px;margin-bottom:4px;border:1px solid rgba(255,255,255,.1);">
-      <span style="font-size:10px;color:${a.cat==='내상'?'#c4b5fd':'#aab4c0'};font-weight:700;flex-shrink:0;">${a.cat==='내상'?'💊':'🩹'}</span>
-      <span style="font-size:12px;flex:1;color:#eaecef;font-weight:600;">${_injLabel(a)}</span>
-      <button onclick="removeInjury(${i})" style="background:none;border:none;color:#c0392b;font-size:15px;cursor:pointer;padding:0 2px;">×</button>
-    </div>`).join('');
+  el.innerHTML=_injuries.map((a,i)=>{
+    const _ed=(_injEditIdx===i);
+    const _hasNrs=(a.nrs!=null&&a.nrs!==''&&!isNaN(+a.nrs));
+    const nrsB=_hasNrs?`<span style="flex-shrink:0;font-size:10px;font-weight:800;color:#fff;background:${+a.nrs>=7?'#c0392b':+a.nrs>=4?'#a8720e':'#1e7a4e'};border-radius:6px;padding:2px 7px;white-space:nowrap;">NRS ${+a.nrs}</span>`:'';
+    const flagB=(Array.isArray(a.flags)&&a.flags.length)?`<div style="display:flex;gap:3px;flex-wrap:wrap;margin-top:4px;">${a.flags.map(f=>`<span style="font-size:10px;color:#e8a79a;background:rgba(231,76,60,.12);border:1px solid rgba(231,76,60,.25);border-radius:6px;padding:1px 7px;">${_esc(f)}</span>`).join('')}</div>`:'';
+    const memoB=a.memo?`<div style="font-size:10.5px;color:#8b95a1;line-height:1.5;margin-top:3px;">✎ ${_esc(a.memo)}</div>`:'';
+    // 카드 탭 → 인라인 편집기: NRS 11칩 + 소견 토글 + 메모 (⚡프리셋으로 만든 카드도 여기서 세부 보강)
+    const editor=_ed?`
+      <div style="margin-top:7px;padding-top:7px;border-top:1px dashed rgba(255,255,255,.12);" onclick="event.stopPropagation()">
+        <div style="font-size:9.5px;color:#8b95a1;font-weight:700;margin-bottom:4px;">통증 NRS <span style="font-weight:400;color:#5a7a92;">같은 숫자 재탭=해제</span></div>
+        <div style="display:flex;gap:3px;margin-bottom:6px;">${Array.from({length:11},(_,n)=>`<div class="pill" onclick="setInjNrsAt(${i},${n})" style="flex:1;min-width:0;justify-content:center;padding:7px 0;font-size:11.5px;border-radius:8px;cursor:pointer;${a.nrs===n?`background:rgba(255,255,255,.15);border-color:${_nrsColor(n)};color:${_nrsColor(n)};font-weight:800;`:''}">${n}</div>`).join('')}</div>
+        <div style="display:flex;gap:3px;flex-wrap:wrap;margin-bottom:6px;">${_INJ_FLAGS.map(f=>`<div class="pill${(Array.isArray(a.flags)&&a.flags.includes(f))?' on':''}" onclick="toggleInjFlagAt(${i},'${f}')" style="font-size:11px;cursor:pointer;">${f}</div>`).join('')}</div>
+        <input type="text" class="fi" value="${_esc(a.memo||'')}" placeholder="부상 상세 메모 (선택)" onchange="setInjMemoAt(${i},this.value)">
+      </div>`:'';
+    return `<div onclick="toggleInjEdit(${i})" style="padding:8px 10px;background:#1c1c1e;border-radius:9px;margin-bottom:4px;border:1px solid ${_ed?'rgba(49,130,246,.45)':'rgba(255,255,255,.1)'};cursor:pointer;">
+      <div style="display:flex;align-items:center;gap:6px;">
+        <span style="font-size:10px;color:${a.cat==='내상'?'#c4b5fd':'#aab4c0'};font-weight:700;flex-shrink:0;">${a.cat==='내상'?'💊':'🩹'}</span>
+        <span style="font-size:12.5px;flex:1;color:#eaecef;font-weight:700;">${_esc(_injLabel(a))}</span>
+        ${nrsB}
+        <span style="flex-shrink:0;font-size:9px;color:#565f6b;">${_ed?'▲':'✎'}</span>
+        <button onclick="event.stopPropagation();removeInjury(${i})" style="background:none;border:none;color:#c0392b;font-size:15px;cursor:pointer;padding:0 2px;flex-shrink:0;">×</button>
+      </div>
+      ${flagB}${memoB}${editor}
+    </div>`;
+  }).join('');
 }
 
 // 기상 특보

@@ -4670,6 +4670,11 @@ function _drawSosPins(){
       :String(p.name||'조난자').slice(0,8);
     const el=document.createElement('div');
     el.className='sos-pin'+(link?' sos-live':'');
+    // 🚨진행중 구조 핀과 ~20m 이내(같은 사고의 좌표) 겹침 → 화면상 오른쪽 위로 비껴 표시(연결선·실제위치 점은 CSS .sos-offset — 픽셀 오프셋이라 줌 무관)
+    try{
+      const _resShown=(typeof resTypeF==='undefined'||resTypeF.size===0||resTypeF.has('🚨구조'))&&(typeof resStatusF==='undefined'||resStatusF.size===0||resStatusF.has('진행중'));
+      if(_resShown&&typeof _haversineKm==='function'&&_rescues.some(r=>r&&r.status==='ongoing'&&r.lat&&r.lng&&_haversineKm(r.lat,r.lng,p.lat,p.lng)*1000<=20))el.className+=' sos-offset';
+    }catch(e){}
     el.innerHTML=`<span class="sos-dot">🆘</span><span class="sos-lbl">${_esc(who)}</span>`;
     el.addEventListener('click',e=>{e.stopPropagation();_sosPinPopup(p.id);});
     const ov=new kakao.maps.CustomOverlay({position:pos,content:el,clickable:true,yAnchor:0.5,zIndex:12});
@@ -4885,7 +4890,7 @@ function sosToRescue(id){
 // 앱 자체 업데이트 (OTA · Capgo 자체호스팅) — APK 전용. 웹/PWA는 서비스워커가 자동 갱신.
 // 번들(www)의 새 버전을 ota.json으로 알리면, 설치된 앱이 받아서 그 자리에서 교체(재빌드 불필요).
 // ══════════════════════════════════════════
-const OTA_VER='2026.07.25.359';                         // ← 현재 번들 버전 (릴리스마다 올림 · build-ota.sh가 ota.json에 반영)
+const OTA_VER='2026.07.25.360';                         // ← 현재 번들 버전 (릴리스마다 올림 · build-ota.sh가 ota.json에 반영)
 const OTA_MANIFEST='https://seorak1275.github.io/seoraksan/ota.json';
 // 업데이트 확인 폴백 소스 — 일부 기관망·통신사에서 github.io가 막혀 '확인 실패(네트워크)'가 나는 경우 대비.
 // 순서대로 시도: ① GitHub Pages(원본·즉시 반영) ② jsDelivr CDN(공개저장소 미러·거의 모든 망 통과)
