@@ -304,6 +304,11 @@ function _renderBuildPanelHtml(){
         <div id="tlOtherDeptsWrap" style="display:none;">
           ${Object.entries(byDept).map(([dept,members])=>`<div style="margin-bottom:8px;"><div style="font-size:10px;color:#565f6b;font-weight:600;margin-bottom:4px;">📂 ${dept}</div><div style="display:flex;flex-wrap:wrap;gap:5px;">${members.map(chip).join('')}</div></div>`).join('')}
         </div>`:''}
+      <div style="display:flex;align-items:center;gap:6px;margin-bottom:7px;">
+        <span style="font-size:10px;color:#8fa8c0;font-weight:700;white-space:nowrap;">⏱ 출동시각</span>
+        <input type="time" id="tlBuildTime" class="fi" style="flex:0 0 86px;min-width:0;" value="${(d=>('0'+d.getHours()).slice(-2)+':'+('0'+d.getMinutes()).slice(-2))(new Date())}">
+        <span style="font-size:9px;color:#565f6b;">동시 출동은 같은 시각으로</span>
+      </div>
       <div style="display:flex;gap:7px;margin-top:10px;">
         <button onclick="cancelTlBuild()" style="flex:1;padding:8px;border-radius:8px;border:1px solid rgba(255,255,255,.12);background:transparent;color:rgba(255,255,255,.45);font-size:12px;font-weight:600;cursor:pointer;">취소</button>
         <button onclick="confirmTlBuild()" style="flex:2;padding:8px;border-radius:8px;background:rgba(255,255,255,.18);border:1px solid rgba(255,255,255,.4);color:#3182f6;font-size:12px;font-weight:700;cursor:pointer;">확인</button>
@@ -347,6 +352,11 @@ function _renderBuildPanelHtml(){
       <div style="display:flex;gap:7px;margin-bottom:10px;">
         <div style="flex:2;"><input id="tlBuildNameInput" type="text" class="fi" value="${_esc(_agTeamName(sel.k,_tlBuildRegion,hw))}" placeholder="팀 이름 (직접 수정 가능)" style="width:100%;box-sizing:border-box;"></div>
         <div style="flex:1;"><input id="tlBuildMemCount" type="number" inputmode="numeric" class="fi" value="${sel.mem||''}" placeholder="인원 수" min="0" max="99" style="width:100%;box-sizing:border-box;"></div>
+      </div>
+      <div style="display:flex;align-items:center;gap:6px;margin-bottom:7px;">
+        <span style="font-size:10px;color:#8fa8c0;font-weight:700;white-space:nowrap;">⏱ 출동시각</span>
+        <input type="time" id="tlBuildTime" class="fi" style="flex:0 0 86px;min-width:0;" value="${(d=>('0'+d.getHours()).slice(-2)+':'+('0'+d.getMinutes()).slice(-2))(new Date())}">
+        <span style="font-size:9px;color:#565f6b;">동시 출동은 같은 시각으로</span>
       </div>
       <div style="display:flex;gap:7px;">
         <button onclick="cancelTlBuild()" style="flex:1;padding:8px;border-radius:8px;border:1px solid rgba(255,255,255,.12);background:transparent;color:rgba(255,255,255,.45);font-size:12px;font-weight:600;cursor:pointer;">취소</button>
@@ -428,6 +438,17 @@ function toggleTlOtherDepts(){
   if(btn)btn.textContent=(_tlBuildOtherOpen?'추가인원 ▲':'추가인원 ▼');
 }
 
+// 팀 출동시각: 빌드패널 HH:MM → 'YYYY-MM-DD HH:MM'(현재보다 미래면 전날 해석). 미입력·비정상은 지금
+function _tlBuildTimeVal(){
+  try{
+    const m=/^(\d{1,2}):(\d{2})$/.exec((document.getElementById('tlBuildTime')||{}).value||'');
+    if(!m)return now();
+    const p=n=>('0'+n).slice(-2);const nd=new Date();
+    let d=new Date(nd.getFullYear(),nd.getMonth(),nd.getDate(),+m[1],+m[2]);
+    if(d.getTime()-nd.getTime()>60000)d=new Date(d.getTime()-86400000);
+    return d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate())+' '+p(d.getHours())+':'+p(d.getMinutes());
+  }catch(e){return now();}
+}
 function confirmTlBuild(){
   const r=getRes(_tlWpResId);if(!r){toast('⚠️ 구조 정보 없음');return;}
   const nameEl=document.getElementById('tlBuildNameInput');
@@ -462,7 +483,7 @@ function confirmTlBuild(){
     const _prevNps=_tlTeams.filter(t=>t.id&&t.id.startsWith('nps_'));
     const _sameNps=_prevNps.filter(t=>(t.dept&&t.dept===_dept)||String(t.name||'').indexOf(_dept)===0||/추가지원인력/.test(String(t.name||'')));
     const name=(nameEl&&nameEl.value.trim())||(_sameNps.length?_sameNps.length+'차 추가지원인력('+_tlBuildMembers.length+'명)':_dept);
-    _tlTeams.push({id:'nps_'+Date.now(),name,dept:_dept,type:'foot',members:_tlBuildMembers.slice(),requestedAt:now(),arrivedAt:null,createdAt:now()});
+    _tlTeams.push({id:'nps_'+Date.now(),name,dept:_dept,type:'foot',members:_tlBuildMembers.slice(),requestedAt:_tlBuildTimeVal(),arrivedAt:null,createdAt:now()});
   }else{
     const memCount=parseInt(document.getElementById('tlBuildMemCount')?.value||'0')||0;
     // 환동해는 3교대 — 오늘 당직팀 번호를 팀명에 반영해 현장 혼선 방지
@@ -472,7 +493,7 @@ function confirmTlBuild(){
     const isVehicle=!isHeli&&['소방','경찰'].some(k=>_tlBuildAgencyType===k||_tlBuildAgencyType.startsWith(k));
     const type=isHeli?'heli':isVehicle?'vehicle':'foot';
     // requestedAt=출동요청 시각(생성시점), arrivedAt=현장도착(별도 기록)
-    _tlTeams.push({id:'agency_'+Date.now(),name,type,agType:_tlBuildAgencyType,agRegion:_tlBuildRegion||'',hwTeam:_tlBuildAgencyType==='소방(환동해)'?hw:null,memberCount:memCount,requestedAt:now(),arrivedAt:null,createdAt:now()});
+    _tlTeams.push({id:'agency_'+Date.now(),name,type,agType:_tlBuildAgencyType,agRegion:_tlBuildRegion||'',hwTeam:_tlBuildAgencyType==='소방(환동해)'?hw:null,memberCount:memCount,requestedAt:_tlBuildTimeVal(),arrivedAt:null,createdAt:now()});
   }
   _tlBuilding=false;
   _persistTeams(); // save to Firestore so rescue map can show team chips
@@ -608,10 +629,13 @@ function _tlRecSelStage(el){
     if(confirm('🚁 헬기를 요청하셨습니까?\n[확인]하면 지금 시각으로 바로 기록됩니다\n(시간이 다르면 일지에서 ✏️로 고치세요)'))_tlQuickRec('헬기 요청');
     return;
   }
-  _tlRecStage=_tlRecStage===v?'':v; // 재탭 시 해제
-  document.querySelectorAll('#tlRecStages .pill').forEach(p=>p.classList.toggle('on',p.dataset.v===_tlRecStage&&_tlRecStage!==''));
+  // 다중선택: 동시 사건(휴식+기상악화 등)을 한 번에 — 탭한 칩만 토글, 마지막 선택이 대표(메모 귀속)
+  el.classList.toggle('on');
+  window._tlRecDirty=true;
+  const _sels=[...document.querySelectorAll('#tlRecStages .pill.on')].map(p=>p.dataset.v||'');
+  _tlRecStage=el.classList.contains('on')?v:(_sels[_sels.length-1]||'');
   const cw=document.getElementById('tlRecCustomWrap');
-  if(cw){cw.style.display=_tlRecStage==='__custom'?'block':'none';if(_tlRecStage==='__custom')setTimeout(()=>{try{document.getElementById('tlRecCustom').focus();}catch(e){}},50);}
+  if(cw){cw.style.display=_sels.includes('__custom')?'block':'none';if(_tlRecStage==='__custom')setTimeout(()=>{try{document.getElementById('tlRecCustom').focus();}catch(e){}},50);}
   const sr=document.getElementById('tlRecSaveRow');
   if(sr&&_tlRecStage)sr.style.display='';
 }
@@ -694,6 +718,11 @@ function _tlRecSave(rid,outId,btn){
     window._tlEdit=null;_edited=true;
   }
   res[idx].timetable.push(entry);
+  // 동시 기록: 기타 칩을 여러 개 선택했으면 나머지도 같은 시각으로 함께 저장(메모는 대표 항목에만)
+  try{
+    const _extras=[...document.querySelectorAll('#tlRecStages .pill.on')].map(p=>p.dataset.v||'').filter(v=>v&&v!=='__custom'&&v!==stage);
+    _extras.forEach((s2,ix)=>{res[idx].timetable.push({stage:s2,time,note:'',by:getAuthor(),team:'',seq:Date.now()+ix+1});});
+  }catch(e){}
   // 같은 서명이 예전에 삭제(툼스톤)돼 있으면: 새 항목에 re(재입력 구분자)를 부여해 키 자체를 분리.
   // (예전 방식처럼 툼스톤을 지우면 다른 기기와의 병합(union)에서 툼스톤이 되살아나 재입력이 다시 숨겨졌음 — 17시 상황종료 미표시 사례)
   if(Array.isArray(res[idx]._del)&&res[idx]._del.length&&typeof _logKey==='function'){
@@ -732,6 +761,13 @@ function _tlRecSave(rid,outId,btn){
   // 낙관적 즉시 반영: 상황판 상세(outId)에서 저장해도 '보이는 그 패널'을 즉시 재렌더
   // (기존엔 항상 숨은 repContent만 그려져, 상황판에선 원격 에코+400ms 디바운스까지 화면이 안 바뀌어 연타·중복의 원인)
   renderTimeline(res[idx],'advanced',(outId&&outId!=='repContent')?outId:undefined);
+  // 보정한(과거) 시각은 유지 — 같은 시각 연속 입력 편의('지금' 칩으로 복귀). 호박 테두리로 표시
+  try{
+    if(Math.abs(new Date(String(time).replace(' ','T')).getTime()-Date.now())>90000){
+      const _hm2=document.getElementById('tlRecTimeHM');
+      if(_hm2){_hm2.value=String(time).slice(11,16);_hm2.style.borderColor='#f0a500';}
+    }
+  }catch(e){}
 }
 // 상황일지 엔트리 수집(공용) — 화면(_buildLogHtml)과 한글 보고서 생성이 함께 사용
 function _collectLogEntries(r){
@@ -950,7 +986,7 @@ function _buildLogHtml(r){
   const collapseWp=wpCount>=4; // 통과 기록이 많으면 기본 접힘 — 주요 이벤트만 한눈에
   // 날짜 라벨(다음날 넘어감 표시용) — 자정 넘어가면 'M/D (요일)' 구분선 삽입
   const _dLbl=d=>{try{const a=d.split('-').map(Number);const wd=['일','월','화','수','목','금','토'][new Date(a[0],a[1]-1,a[2]).getDay()];return a[1]+'/'+a[2]+' ('+wd+')';}catch(e){return d;}};
-  let _prevDate='';
+  let _prevDate='',_prevT2='';
   const rows=logEntries.map((e,i)=>{
     const col=TYPE_COL[e.type]||'#8b95a1';
     const bg=TYPE_BG[e.type]||'transparent';
@@ -958,6 +994,9 @@ function _buildLogHtml(r){
     // 날짜가 바뀌면(자정 경과) 구분선 — 첫 날은 표시 안 함(하루짜리 상황엔 안 나옴)
     const _d=String(e.k||'').slice(0,10);let _dv='';
     if(_d&&_d!==_prevDate){if(_prevDate&&/^\d{4}-\d{2}-\d{2}$/.test(_d))_dv=`<div style="display:flex;align-items:center;gap:8px;margin:8px 0 6px;"><span style="flex:1;height:1px;background:rgba(255,255,255,.22);"></span><span style="font-size:10px;color:#6b7684;font-weight:800;white-space:nowrap;">📅 ${_dLbl(_d)}</span><span style="flex:1;height:1px;background:rgba(255,255,255,.22);"></span></div>`;_prevDate=_d;}
+    // 같은 분(동시) 기록은 시각을 〃로 묶어 표시 — 동시 사건이 한 묶음으로 읽히게
+    const _sameT=!isWpPass(e)&&!_dv&&_prevT2!==''&&e.t===_prevT2;
+    if(!isWpPass(e))_prevT2=e.t;
     return _dv+`<div class="${isWpPass(e)?'log-wp':''}" style="display:${(collapseWp&&isWpPass(e))?'none':'flex'};gap:0;position:relative;">
       <!-- 세로 타임라인 트랙 -->
       <div style="display:flex;flex-direction:column;align-items:center;width:28px;flex-shrink:0;">
@@ -967,7 +1006,7 @@ function _buildLogHtml(r){
       <!-- 이벤트 내용 -->
       <div style="flex:1;padding:2px 0 ${isLast?'0':'10px'} 4px;">
         <div style="display:flex;align-items:center;gap:6px;margin-bottom:${e.sub?'2':'0'}px;">
-          <span style="font-size:11px;color:#8b95a1;font-family:monospace;font-weight:600;white-space:nowrap;">${e.t}</span>
+          <span style="font-size:11px;color:${_sameT?'#5a6470':'#8b95a1'};font-family:monospace;font-weight:600;white-space:nowrap;display:inline-block;min-width:37px;text-align:${_sameT?'center':'left'};"${_sameT?' title="같은 시각(동시)"':''}>${_sameT?'〃':e.t}</span>
           <span style="font-size:${isWpPass(e)?'11':'12'}px;font-weight:${isWpPass(e)?'600':'700'};color:${isWpPass(e)?'rgba(255,255,255,.55)':col};">${e.ico} ${_esc(e.label)}</span>
           ${(e.sig&&(e.by===getAuthor()||(typeof isAdminUser==='function'&&isAdminUser())))?(()=>{const _di=window._tlDelReg.push({rid:r.id,sig:e.sig})-1;return `<span onclick="event.stopPropagation();_tlRecEditStart(${_di})" style="margin:-8px 0 -8px auto;color:rgba(77,155,245,.9);font-size:13px;cursor:pointer;padding:8px 8px;flex-shrink:0;line-height:1;touch-action:manipulation;" title="기록 수정">✏️</span><span onclick="event.stopPropagation();_tlRecDel(${_di})" style="margin:-8px -6px -8px 0;color:rgba(255,107,91,.9);font-size:16px;font-weight:800;cursor:pointer;padding:8px 12px;flex-shrink:0;line-height:1;touch-action:manipulation;-webkit-tap-highlight-color:rgba(255,107,91,.2);" title="기록 삭제">×</span>`;})():(e.label==='최초접수'&&!(typeof isExternal==='function'&&isExternal()))?`<span onclick="event.stopPropagation();_tlEditFirstDate(${r.id})" style="margin:-8px -6px -8px auto;color:rgba(77,155,245,.9);font-size:13px;cursor:pointer;padding:8px 10px;flex-shrink:0;line-height:1;touch-action:manipulation;" title="최초접수 일시 수정">✏️</span>`:(e.tid&&!(typeof isExternal==='function'&&isExternal()))?`<span onclick="event.stopPropagation();_tlTeamRowEdit('${_escq(String(e.tid))}','${e.kind||''}')" style="margin:-8px 0 -8px auto;color:rgba(77,155,245,.9);font-size:13px;cursor:pointer;padding:8px 8px;flex-shrink:0;line-height:1;touch-action:manipulation;" title="시각 수정">✏️</span><span onclick="event.stopPropagation();_tlTeamRowDel('${_escq(String(e.tid))}','${e.kind||''}')" style="margin:-8px -6px -8px 0;color:rgba(255,107,91,.9);font-size:16px;font-weight:800;cursor:pointer;padding:8px 12px;flex-shrink:0;line-height:1;touch-action:manipulation;" title="삭제">×</span>`:''}
         </div>
