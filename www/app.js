@@ -4428,7 +4428,9 @@ function _initSosWatch(){
     _fdb.collection('sos').onSnapshot(function(snap){
       window._sosRetryMs=0; // 수신 성공 → 재시도 백오프 초기화
       // 팀이 발급(active:true)했고 48시간 이내인 것만 — 밤샘·다일 구조 커버, 옛 링크 자동 무효
-      _sosPings=snap.docs.map(d=>d.data()).filter(p=>p&&p.active===true&&Date.now()-(p.issuedAt||p.ts||0)<48*3600000);
+      // 보안: 문서 id가 앱 토큰 형식(_sosGenToken)이 아니면 폐기 — 세계쓰기 가능한 sos 컬렉션에 심긴
+      //  악성 id/필드가 onclick 핸들러·HTML에 그대로 박혀 실행되던 저장형 XSS 경로 원천 차단.
+      _sosPings=snap.docs.map(d=>d.data()).filter(p=>p&&p.active===true&&/^[a-z0-9]{4,12}$/i.test(String(p.id||''))&&Date.now()-(p.issuedAt||p.ts||0)<48*3600000);
       // 위치가 새로 수신된 조난자 알림(최초 스냅샷·미수신 토큰은 제외)
       const seen=window._sosSeen||(window._sosSeen={});
       const seenOpen=window._sosSeenOpen||(window._sosSeenOpen={});
@@ -4562,7 +4564,7 @@ function openSosRequest(){
         <div style="font-size:10px;color:#6b7684;font-family:monospace;margin-top:2px;">${(+p.lat).toFixed(5)}, ${(+p.lng).toFixed(5)} · 탭하면 지도 이동</div>
       </div>`:''}
       <div style="display:flex;gap:5px;margin-bottom:6px;">
-        <input readonly value="${url}" onclick="this.select()" style="flex:1;min-width:0;background:#0f0f11;border:1px solid rgba(255,255,255,.3);color:#aab4c0;border-radius:7px;padding:8px;font-size:11px;font-family:monospace;">
+        <input readonly value="${_esc(url)}" onclick="this.select()" style="flex:1;min-width:0;background:#0f0f11;border:1px solid rgba(255,255,255,.3);color:#aab4c0;border-radius:7px;padding:8px;font-size:11px;font-family:monospace;">
         <button onclick="_sosCopyUrl('${p.id}',this)" style="flex-shrink:0;background:#1a4a6e;color:#fff;border:none;border-radius:7px;padding:0 13px;font-size:12px;font-weight:700;cursor:pointer;transition:background .15s;">복사</button>
       </div>
       <div style="display:flex;gap:5px;">
@@ -4605,7 +4607,7 @@ function _sosCloseModal(){window._sosPopupId=null;const m=document.getElementByI
 function _sosForeignBadge(p){
   if(!p||!p.lang||p.lang==='ko')return '';
   const lbl=(typeof _SOS_LABEL!=='undefined'&&_SOS_LABEL[p.lang])||p.lang;
-  return '<span style="font-size:10px;background:rgba(241,196,15,.15);color:#f0c040;border:1px solid rgba(241,196,15,.35);border-radius:6px;padding:1px 7px;font-weight:700;">🌐 외국인 · '+lbl+(p.country?' · '+_esc(p.country):'')+'</span>';
+  return '<span style="font-size:10px;background:rgba(241,196,15,.15);color:#f0c040;border:1px solid rgba(241,196,15,.35);border-radius:6px;padding:1px 7px;font-weight:700;">🌐 외국인 · '+_esc(lbl)+(p.country?' · '+_esc(p.country):'')+'</span>';
 }
 function _sosAtStr(p){if(!p)return '';if(p.at)return p.at.slice(11);try{return new Date(p.ts).toTimeString().slice(0,8);}catch(e){return '';}}
 function deleteSosPing(id,silent){
@@ -4890,7 +4892,7 @@ function sosToRescue(id){
 // 앱 자체 업데이트 (OTA · Capgo 자체호스팅) — APK 전용. 웹/PWA는 서비스워커가 자동 갱신.
 // 번들(www)의 새 버전을 ota.json으로 알리면, 설치된 앱이 받아서 그 자리에서 교체(재빌드 불필요).
 // ══════════════════════════════════════════
-const OTA_VER='2026.07.26.361';                         // ← 현재 번들 버전 (릴리스마다 올림 · build-ota.sh가 ota.json에 반영)
+const OTA_VER='2026.07.26.362';                         // ← 현재 번들 버전 (릴리스마다 올림 · build-ota.sh가 ota.json에 반영)
 const OTA_MANIFEST='https://seorak1275.github.io/seoraksan/ota.json';
 // 업데이트 확인 폴백 소스 — 일부 기관망·통신사에서 github.io가 막혀 '확인 실패(네트워크)'가 나는 경우 대비.
 // 순서대로 시도: ① GitHub Pages(원본·즉시 반영) ② jsDelivr CDN(공개저장소 미러·거의 모든 망 통과)

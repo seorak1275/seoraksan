@@ -6,6 +6,19 @@ rules_version = '2';
 //    익명 인증(공개)만 하면 구조기록·명단 등 개인정보 전체가 노출됩니다.
 //    이 파일은 그 구멍을 막는 목표 규칙입니다. 아래 "배포 순서"를 반드시 지키세요.
 //
+// ══ 🔴 치명 (2026-07 심층감사) — _acl 권한상승. 위 PHASE A/B와 별개로 반드시 처리 ══
+//  근본원인: 권한의 원천인 appData/_acl 문서를 "인증된 아무나"가 덮어쓸 수 있다.
+//   (a) _acl을 비우면 Apps Script 부트스트랩이 재발동해 아무나 서버서명 admin 토큰 획득 + 전원 잠금(DoS)
+//   (b) 멤버가 자기 id를 acl.admins에 직접 써넣고 다음 로그인에 admin 토큰 획득
+//  조치 3종:
+//   ① [완료·배포 필요] Code.gs 부트스트랩을 BOOTSTRAP_DONE 속성으로 1회만 허용하도록 잠금(이 저장소 Code.gs 반영됨).
+//      → 앱스 스크립트에 이 Code.gs 배포하면 (a)의 재발동 차단. 마스터 이메일은 여전히 복구용 admin.
+//   ② [규칙] 아래 PHASE B 블록에 _acl 쓰기를 관리자로 제한하는 match를 추가(이 파일 PHASE B의 // 🔒_acl 참고).
+//      ⚠️ 선행조건: 클라이언트 자동승인(_aclSelfApprove: app.ops.js·app.core.js·app.rescue.js)이 _acl을 직접 쓰므로,
+//         규칙만 조이면 자동승인 가입이 막힌다. → 멤버 추가를 Apps Script(mintToken이 서버측 autoApprove 확인 후
+//         _acl.members에 append)로 옮긴 뒤 규칙을 조일 것. 이 서버 이관 전에는 ②를 켜지 말 것.
+//   ③ 즉시 완화: ①만 먼저 배포해도 "list 비우기→admin"·전원잠금은 막힌다((b)의 잔여 위험만 남음).
+//
 // ── 배포 순서 (순서 어기면 전원 잠김) ──────────────────────────────────────
 //  1) [완료됨] 커스텀 토큰의 member/admin 클레임 — 이미 배포된 Apps Script에 들어 있음.
 //     - 배포본 handleMintToken_ 이 mintFirebaseCustomToken_('kakao:'+id,
@@ -119,6 +132,12 @@ service cloud.firestore {
 //     match /fcmTokens/{deviceId} {
 //       allow create, update: if request.auth != null;
 //       allow read, delete: if isMember();
+//     }
+//     // 🔒_acl: 권한의 원천 문서 — 관리자만 쓰기(치명#1 ②). 반드시 아래 generic match보다 위에 둘 것.
+//     //   ⚠️ 선행조건: 클라이언트 _aclSelfApprove(자동승인)를 Apps Script로 이관한 뒤에만 켤 것(안 그러면 자동승인 가입 막힘)
+//     match /appData/_acl {
+//       allow read: if isMember();
+//       allow write: if isAdmin();
 //     }
 //     match /appData/{key} {
 //       allow read: if isMember();   // ← 개인정보 보호: 익명 읽기 차단

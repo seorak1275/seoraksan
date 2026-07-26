@@ -1,1 +1,1 @@
-{"version":"2026.07.26.361","url":"https://seorak1275.github.io/seoraksan/bundle.zip","notes":"상황일지 동시입력: ①기타 칩 다중선택(동시 사건 1탭 저장) ②저장 후 보정시각 유지(같은 시각 연속입력·호박 표시·지금으로 복귀) ③같은 분 기록 〃묶음 표시(동시성 가독) ④팀 추가에 ⏱출동시각 입력(유관기관 동시출동을 같은 분으로 등록·자정 넘김 해석)"}
+{"version":"2026.07.26.362","url":"https://seorak1275.github.io/seoraksan/bundle.zip","notes":"보안 치명#2 SOS 저장형 XSS 차단(세계쓰기 sos 컬렉션 수신부에서 앱 토큰형식 아닌 문서 폐기 + lbl·url 이스케이프) / 치명#1 서버준비: Code.gs 부트스트랩 BOOTSTRAP_DONE 1회잠금(_acl 비우기→admin 탈취 차단), firestore.rules.hardened에 _acl 관리자쓰기 제한안 문서화"}

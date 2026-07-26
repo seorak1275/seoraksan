@@ -196,8 +196,13 @@ function handleMintToken_(req) {
   var isMember = isAdmin || acl.members.indexOf(info.id) >= 0;
 
   // 부트스트랩(TOFU): 허용목록이 완전히 비어 있으면 첫 로그인 사용자에게 admin 부여.
+  //  ⚠️ 보안(2026-07 심층감사 치명): _acl은 클라이언트가 쓸 수 있는 문서라, 공격자가 _acl을 비우면
+  //  이 분기가 매번 재발동해 아무나 서버서명 admin 토큰을 받아 앱을 탈취할 수 있었다.
+  //  → 최초 1회만 허용하도록 스크립트 속성 BOOTSTRAP_DONE로 잠근다. 마스터 이메일(MASTER_EMAIL)은
+  //    위 isMaster로 항상 admin이 되므로, 잠긴 뒤에도 허용목록 유실 시 마스터로 복구 가능.
   var bootstrap = false;
-  if (!isMember && listEmpty) { isAdmin = true; isMember = true; bootstrap = true; }
+  if (!isMember && listEmpty && _prop('BOOTSTRAP_DONE') !== '1') { isAdmin = true; isMember = true; bootstrap = true; }
+  if (bootstrap) { try { PropertiesService.getScriptProperties().setProperty('BOOTSTRAP_DONE', '1'); } catch (e) {} }
 
   if (!isMember) {
     return { error: 'not_allowed', kakaoId: info.id, email: info.email };
