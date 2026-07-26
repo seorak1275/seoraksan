@@ -1,1 +1,1 @@
-{"version":"2026.07.26.362","url":"https://seorak1275.github.io/seoraksan/bundle.zip","notes":"보안 치명#2 SOS 저장형 XSS 차단(세계쓰기 sos 컬렉션 수신부에서 앱 토큰형식 아닌 문서 폐기 + lbl·url 이스케이프) / 치명#1 서버준비: Code.gs 부트스트랩 BOOTSTRAP_DONE 1회잠금(_acl 비우기→admin 탈취 차단), firestore.rules.hardened에 _acl 관리자쓰기 제한안 문서화"}
+{"version":"2026.07.26.363","url":"https://seorak1275.github.io/seoraksan/bundle.zip","notes":"구역 겹침 검사 수정: 불러오기(KML/GeoJSON→zoneGeom)로 바꾼 지역담당구역도 감사가 인식 — 기준을 순정 원본(park-zones.json) 대비로 변경(드래그·불러오기 모두 델타 계산), edited 판정에 zoneGeom 포함, 패널에 '불러오기' 표시, 원본겹쳐보기도 포함"}

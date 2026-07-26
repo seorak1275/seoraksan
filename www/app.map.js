@@ -880,18 +880,22 @@ function _zoneAuditRun(){
   _zaClearHi();
   // 원본(orig)·편집적용(now) 링을 함께 보관 — 검사는 '편집 전 대비 증가분(delta)'으로 판정한다.
   // (구역 데이터와 공원경계가 서로 다른 출처라 ~30m 어긋나 있어, 절대 겹침/이탈은 편집과 무관하게 늘 발생 → 델타만이 사용자 편집의 영향을 가려냄)
-  const zones=[],byN={},_rc={};
+  const zones=[],byN={};
+  const _zGeom=DB.g('zoneGeom')||{};
   (_zoneData.zones||[]).forEach(z=>{
-    _effRings(z).forEach(ring=>{
-      const ri=_rc[z.n]=(_rc[z.n]===undefined?0:_rc[z.n]+1);
-      if(ring.length<3)return;
-      let zn=byN[z.n];if(!zn){zn=byN[z.n]={n:z.n,orig:[],now:[],pts:[]};zones.push(zn);}
-      zn.orig.push(ring);
-      const adj=_zaAdjRing(z.n,ring,ri);
-      zn.now.push(adj);for(const p of adj)zn.pts.push(p);
-    });
+    // orig = 순정 원본(park-zones.json) / now = 현재 유효 경계(불러오기 zoneGeom + 드래그 zoneEdits 모두 반영)
+    // ← 예전엔 orig도 _effRings(불러온 값)라 '불러오기로 겹치게 만든 구역'이 델타 0으로 안 잡혔다(인식 실패).
+    const origRings=(z.rings||[]).filter(r=>r&&r.length>=3);
+    const nowRings=_zoneCurrentRings(z).filter(r=>r&&r.length>=3);
+    if(!nowRings.length&&!origRings.length)return;
+    const zn={n:z.n,orig:origRings,now:nowRings,pts:[]};
+    nowRings.forEach(r=>{for(const p of r)zn.pts.push(p);});
+    byN[z.n]=zn;zones.push(zn);
   });
-  zones.forEach(z=>{z.bbox=_zaBbox(z.pts);const off=_zoneOff(z.n);z.edited=!!off;z.moveM=off?Math.round(Math.hypot((off.dlat||0)*_ZE_MLAT,(off.dlng||0)*_ZE_MLNG)):0;z.vN=off&&off.verts?Object.keys(off.verts).length:0;});
+  zones.forEach(z=>{z.bbox=_zaBbox(z.pts);const off=_zoneOff(z.n);const _gm=_zGeom[z.n];
+    z.imported=!!(_gm&&_gm.length);
+    z.edited=!!off||z.imported; // 드래그(zoneEdits) 또는 불러오기(zoneGeom) 어느 쪽이든 편집으로 인식
+    z.moveM=off?Math.round(Math.hypot((off.dlat||0)*_ZE_MLAT,(off.dlng||0)*_ZE_MLNG)):0;z.vN=off&&off.verts?Object.keys(off.verts).length:0;});
   // 공원 경계 큰 링만 [lng,lat]→[lat,lng] 변환(편집 구역만 검사하므로 다운샘플 없이 정밀하게)
   const parkRings=((_parkBoundary&&_parkBoundary.rings)||[]).filter(r=>r.length>=20).map(r=>r.map(p=>[p[1],p[0]]));
   const inPark=(la,ln)=>parkRings.some(pr=>_zaPip(la,ln,pr));
@@ -926,7 +930,8 @@ function _zaHiDraw(outZones,overlaps,byN){
 function _zoneGhostToggle(){
   const b=document.getElementById('zaGhostBtn');
   if(_zaGhost.length){_zaClearGhost();if(b){b.style.background='rgba(255,255,255,.08)';b.style.color='#a5abb3';}return;}
-  (_zoneData.zones||[]).forEach(z=>{if(!_zoneOff(z.n))return; // 편집된 구역의 '원본' 경계를 회색 점선으로 겹쳐 표시
+  const _gG=DB.g('zoneGeom')||{};
+  (_zoneData.zones||[]).forEach(z=>{if(!_zoneOff(z.n)&&!(_gG[z.n]&&_gG[z.n].length))return; // 편집·불러오기된 구역의 '순정 원본' 경계를 회색 점선으로 겹쳐 표시
     (z.rings||[]).forEach(ring=>{if(ring.length<3)return;const pl=new kakao.maps.Polyline({path:ring.map(p=>new kakao.maps.LatLng(p[0],p[1])),strokeWeight:2,strokeColor:'#b8c0cc',strokeOpacity:.85,strokeStyle:'shortdash',zIndex:7});pl.setMap(mapI);_zaGhost.push(pl);});
   });
   if(!_zaGhost.length)toast('아직 변경된 구역이 없습니다');
@@ -947,7 +952,7 @@ function _zoneAuditPanel(R){
   const ok='<div style="padding:9px 6px;font-size:12px;color:#7ec8a0;">문제 없음 ✅</div>';
   const ovH=overlaps.length?overlaps.map(o=>row('#ff9500',`<b>${_esc(o.a)}</b>구역 ↔ <b>${_esc(o.b)}</b>구역 <span style="color:#8b9099;">겹침(정도 ${o.depth})</span>`,o.a)).join(''):ok;
   const outH=outZones.length?outZones.map(o=>row('#ff3b30',`<b>${_esc(o.n)}</b>구역 — <span style="color:#ff8a7a;">경계 밖으로 밀려남 ${o.out.length}곳</span>`,o.n)).join(''):ok;
-  const edH=edited.length?edited.slice().sort((a,b)=>b.moveM-a.moveM).map(z=>row('#7db4ff',`<b>${_esc(z.n)}</b>구역 — ${z.moveM?('통째 '+z.moveM+'m'):''}${z.vN?((z.moveM?' · ':'')+'부분 '+z.vN+'점'):''}${(!z.moveM&&!z.vN)?'미세':''}`,z.n)).join(''):'<div style="padding:9px 6px;font-size:12px;color:#8b9099;">아직 변경한 구역이 없습니다</div>';
+  const edH=edited.length?edited.slice().sort((a,b)=>b.moveM-a.moveM).map(z=>row('#7db4ff',`<b>${_esc(z.n)}</b>구역 — ${z.moveM?('통째 '+z.moveM+'m'):''}${z.vN?((z.moveM?' · ':'')+'부분 '+z.vN+'점'):''}${(!z.moveM&&!z.vN)?(z.imported?'📥 불러오기(외부 편집)':'미세'):''}`,z.n)).join(''):'<div style="padding:9px 6px;font-size:12px;color:#8b9099;">아직 변경한 구역이 없습니다</div>';
   const sec=(t,body)=>`<div style="font-size:11px;font-weight:800;color:#9aa4b0;padding:9px 6px 3px;">${t}</div>${body}`;
   p.innerHTML=`
     <div class="sheetGrab" style="padding:7px 0 2px;cursor:grab;touch-action:none;flex-shrink:0;"><div class="dbhandle"></div></div>
