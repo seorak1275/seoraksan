@@ -1,1 +1,1 @@
-{"version":"2026.07.26.363","url":"https://seorak1275.github.io/seoraksan/bundle.zip","notes":"구역 겹침 검사 수정: 불러오기(KML/GeoJSON→zoneGeom)로 바꾼 지역담당구역도 감사가 인식 — 기준을 순정 원본(park-zones.json) 대비로 변경(드래그·불러오기 모두 델타 계산), edited 판정에 zoneGeom 포함, 패널에 '불러오기' 표시, 원본겹쳐보기도 포함"}
+{"version":"2026.07.26.364","url":"https://seorak1275.github.io/seoraksan/bundle.zip","notes":"담당구역 정본화: 경계선을 공식 KML(2026-07-26)로 교체(예전 34·35 근사치→실제, '경계밖' 오경보 해소) + 담당자·범위를 담당표 PDF(2026.7.1)로 갱신(10 한소현·27 김영진 정정, 46·47 장은규 추가, 1·11·28·29·33·39~43 담당 채움)"}
