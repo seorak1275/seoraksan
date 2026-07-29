@@ -1963,12 +1963,12 @@ function openNoti(){
       const linkStr=hasLink?`goNotiLink(${JSON.stringify(n.link).replace(/"/g,"'")})`:'';
       return `<div class="ni ${n.read?'read':'unread'}" style="${hasLink?'cursor:pointer;':''}" ${hasLink?`onclick="${linkStr}"`:''}  >
         <div style="position:relative;flex-shrink:0;">
-          <div class="ni-ico">${n.ico}</div>
+          <div class="ni-ico">${_esc(n.ico)}</div>
           ${n.read?'':'<div style="position:absolute;top:-2px;right:-3px;width:6px;height:6px;background:#e05050;border-radius:50%;border:1px solid #1c1c1e;"></div>'}
         </div>
         <div style="flex:1;min-width:0;">
           <div class="ni-msg">${_esc(n.msg)}</div>
-          <div class="ni-t">${n.time}${hasLink?' · <span style="color:#3182f6;">탭하여 이동 →</span>':''}</div>
+          <div class="ni-t">${_esc(n.time)}${hasLink?' · <span style="color:#3182f6;">탭하여 이동 →</span>':''}</div>
         </div>
       </div>`;
     }).join('')

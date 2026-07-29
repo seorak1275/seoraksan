@@ -1034,7 +1034,7 @@ function _toggleWpLog(btn){
 // (각 보고는 빈값이면 직전값을 이어받으므로, 비어있지 않은 최신값이 이김. 메타·증분 필드는 제외)
 function _mergedRescue(r){
   if(!r||!r.reports||!r.reports.length)return r;
-  const SKIP={id:1,rid:1,repTime:1,date:1,status:1,title:1,reports:1,author:1,update:1,victimChange:1,addMem:1,comments:1,reception:1,initTemp:1,sosId:1};
+  const SKIP={id:1,rid:1,repTime:1,date:1,status:1,title:1,reports:1,author:1,update:1,victimChange:1,addMem:1,comments:1,reception:1,initTemp:1,sosId:1,timetable:1};
   const BLANK=['','-','미정','해당없음','알수없음','없음','미상','모르겠음'];
   const m=Object.assign({},r);
   r.reports.forEach(p=>{

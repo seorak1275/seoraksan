@@ -1,1 +1,1 @@
-{"version":"2026.07.26.364","url":"https://seorak1275.github.io/seoraksan/bundle.zip","notes":"담당구역 정본화: 경계선을 공식 KML(2026-07-26)로 교체(예전 34·35 근사치→실제, '경계밖' 오경보 해소) + 담당자·범위를 담당표 PDF(2026.7.1)로 갱신(10 한소현·27 김영진 정정, 46·47 장은규 추가, 1·11·28·29·33·39~43 담당 채움)"}
+{"version":"2026.07.29.365","url":"https://seorak1275.github.io/seoraksan/bundle.zip","notes":"마무리 안전건 2: 알림함 아이콘·시각 이스케이프(원격 sharedNotis 경유 저장형 XSS 차단) + N보 병합이 부분 timetable로 전체 상황일지를 덮어 유실하던 것 수정(_mergedRescue가 timetable 보존)"}
