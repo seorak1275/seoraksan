@@ -473,7 +473,9 @@ function _unionBy(server,local,keyFn){
 // 로컬 레코드를 서버 최신본과 병합. 누적 배열은 합집합(의미키로 중복 자동 제거) + 삭제 툼스톤(_del)으로 삭제 반영.
 function _mergeRecord(local,server){
   if(!server||typeof server!=='object')return local;
-  const out=Object.assign({},local);
+  // 서버본 위에 로컬을 덮는다: 공통 필드는 로컬 우선(기존 동작), 서버에만 있는 신규 필드(다른 대원이
+  // 추가했으나 이 기기 로컬엔 없는 값)는 보존 — 예전엔 out={...local}이라 그런 필드가 병합 때 유실됐다.
+  const out=Object.assign({},server,local);
   const fields=[
     ['reports',r=>r&&r.rid?('rid:'+r.rid):((r&&r.repTime||'')+'|'+(r&&r.author||'')+'|'+(r&&r.update||''))],
     ['comments',c=>(c&&c.id!=null)?('id:'+c.id):_canonKey(c)],

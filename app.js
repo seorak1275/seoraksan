@@ -1683,7 +1683,7 @@ function _climbBindDnD(ov){
 let _climbCache=null;
 async function _climbLoadAll(){
   if(_climbCache)return _climbCache;
-  if(!_fdb){window._climbFromOffline=true;return _climbReadOffline();}
+  if(!_fdb){window._climbFromOffline=true;_climbCache=_climbReadOffline();return _climbCache;}
   try{
     const snap=await _fdb.collection('climbUsage').get();
     const all=[];snap.forEach(d=>{const v=d.data()||{};(v.records||[]).forEach(r=>all.push(r));});
@@ -4892,7 +4892,7 @@ function sosToRescue(id){
 // 앱 자체 업데이트 (OTA · Capgo 자체호스팅) — APK 전용. 웹/PWA는 서비스워커가 자동 갱신.
 // 번들(www)의 새 버전을 ota.json으로 알리면, 설치된 앱이 받아서 그 자리에서 교체(재빌드 불필요).
 // ══════════════════════════════════════════
-const OTA_VER='2026.07.29.365';                         // ← 현재 번들 버전 (릴리스마다 올림 · build-ota.sh가 ota.json에 반영)
+const OTA_VER='2026.07.29.366';                         // ← 현재 번들 버전 (릴리스마다 올림 · build-ota.sh가 ota.json에 반영)
 const OTA_MANIFEST='https://seorak1275.github.io/seoraksan/ota.json';
 // 업데이트 확인 폴백 소스 — 일부 기관망·통신사에서 github.io가 막혀 '확인 실패(네트워크)'가 나는 경우 대비.
 // 순서대로 시도: ① GitHub Pages(원본·즉시 반영) ② jsDelivr CDN(공개저장소 미러·거의 모든 망 통과)
@@ -4905,6 +4905,8 @@ const OTA_SOURCES=[
 let _otaInfo=null;
 function _otaPlugin(){try{return (window.Capacitor&&window.Capacitor.Plugins&&window.Capacitor.Plugins.CapacitorUpdater)||null;}catch(e){return null;}}
 function _isNativeApp(){try{return !!(window.Capacitor&&window.Capacitor.isNativePlatform&&window.Capacitor.isNativePlatform());}catch(e){return false;}}
+// OTA 버전 비교 'YYYY.MM.DD.build' — a가 b보다 크면 1, 작으면 -1, 같으면 0. (구버전으로 '업데이트' 되던 것 방지)
+function _otaCmp(a,b){var pa=String(a||'').split('.').map(function(n){return parseInt(n,10)||0;}),pb=String(b||'').split('.').map(function(n){return parseInt(n,10)||0;});for(var i=0;i<Math.max(pa.length,pb.length);i++){var x=pa[i]||0,y=pb[i]||0;if(x!==y)return x>y?1:-1;}return 0;}
 async function _otaCheck(manual){
   const plug=_otaPlugin();
   if(!_isNativeApp()||!plug){ if(manual)toast('웹은 새로고침으로 자동 갱신됩니다(앱 전용 기능)'); return; }
@@ -4925,8 +4927,8 @@ async function _otaCheck(manual){
   // github.io가 막힌 망: 매니페스트를 받아온 폴백 소스에서 번들도 받도록 URL 재작성
   try{ if(src&&src.base.indexOf('github.io')<0){ const fn=String(m.url).split('/').pop()||'bundle.zip'; m.url=src.base+fn; } }catch(e){}
   // 확인 성공분을 Firestore에 미러 — github이 막힌 다른 기기들의 폴백 정보로 사용
-  try{ if(typeof _authReady!=='undefined'&&_authReady){ const cur=DB.g('otaInfo'); if(!cur||String(cur.version)!==String(m.version))DB.s('otaInfo',{version:m.version,url:m.url,notes:m.notes||'',at:Date.now()}); } }catch(e){}
-  if(String(m.version)===String(OTA_VER)){ _otaInfo=null;_otaBanner(); if(manual)toast('✅ 최신 버전입니다 ('+OTA_VER+')'); return; }
+  try{ if(typeof _authReady!=='undefined'&&_authReady){ const cur=DB.g('otaInfo'); if(!cur||_otaCmp(m.version,cur.version)>0)DB.s('otaInfo',{version:m.version,url:m.url,notes:m.notes||'',at:Date.now()}); } }catch(e){}
+  if(_otaCmp(m.version,OTA_VER)<=0){ _otaInfo=null;_otaBanner(); if(manual)toast('✅ 최신 버전입니다 ('+OTA_VER+')'); return; } // 같거나 낮은 버전이면 업데이트 안내·적용 안 함
   _otaInfo=m; _otaBanner();
   if(manual)_otaApply();
 }
@@ -5280,7 +5282,7 @@ window.onload=function(){
             if(!(m&&m.version&&m.url))return;
             if(typeof _authReady==='undefined'||!_authReady)return; // 인증 전 쓰기 금지(동기화 대기 방지)
             var cur=DB.g('otaInfo');
-            if(!cur||String(cur.version)!==String(m.version))DB.s('otaInfo',{version:m.version,url:m.url,notes:m.notes||'',at:Date.now()});
+            if(!cur||_otaCmp(m.version,cur.version)>0)DB.s('otaInfo',{version:m.version,url:m.url,notes:m.notes||'',at:Date.now()});
           }).catch(function(){});
         },6000);
       }catch(e){}

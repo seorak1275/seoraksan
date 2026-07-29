@@ -1,1 +1,1 @@
-{"version":"2026.07.29.365","url":"https://seorak1275.github.io/seoraksan/bundle.zip","notes":"마무리 안전건 2: 알림함 아이콘·시각 이스케이프(원격 sharedNotis 경유 저장형 XSS 차단) + N보 병합이 부분 timetable로 전체 상황일지를 덮어 유실하던 것 수정(_mergedRescue가 timetable 보존)"}
+{"version":"2026.07.29.366","url":"https://seorak1275.github.io/seoraksan/bundle.zip","notes":"마무리 클라이언트 정리 3건: OTA 구버전 다운그레이드 방지(버전 순서비교 _otaCmp)·climb 오프라인시 명단캐시 미표시 수정·오프라인 3-way 병합이 서버 신규 필드를 버리던 것 보존(_mergeRecord)"}
