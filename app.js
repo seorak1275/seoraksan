@@ -4120,16 +4120,16 @@ const _SOS_T={
 };
 // 추가 문구(링크 종료 안내·구조대 메시지) — 본 사전이 길어 분리 보관
 const _SOS_T2={
-  ko:{closedT:'위치 접수가 종료되었습니다',closed:'구조대가 이 링크의 접수를 종료했습니다.<br>도움이 더 필요하면 119 또는 구조대에 다시 연락해 주세요.',teamLabel:'구조대 메시지'},
-  en:{closedT:'Location sharing ended',closed:'The rescue team has closed this request.<br>If you still need help, call 119 or contact the rescue team again.',teamLabel:'Message from rescue team'},
-  zh:{closedT:'位置接收已结束',closed:'救援队已结束此链接的接收。<br>如仍需帮助，请拨打119或再次联系救援队。',teamLabel:'救援队消息'},
-  ja:{closedT:'位置の受付が終了しました',closed:'救助隊がこのリンクの受付を終了しました。<br>さらに支援が必要な場合は119または救助隊に再度ご連絡ください。',teamLabel:'救助隊からのメッセージ'},
-  vi:{closedT:'Đã kết thúc chia sẻ vị trí',closed:'Đội cứu hộ đã đóng yêu cầu này.<br>Nếu vẫn cần trợ giúp, hãy gọi 119 hoặc liên hệ lại đội cứu hộ.',teamLabel:'Tin nhắn từ đội cứu hộ'},
-  th:{closedT:'สิ้นสุดการรับตำแหน่งแล้ว',closed:'ทีมกู้ภัยได้ปิดคำขอนี้แล้ว<br>หากยังต้องการความช่วยเหลือ โปรดโทร 119 หรือติดต่อทีมกู้ภัยอีกครั้ง',teamLabel:'ข้อความจากทีมกู้ภัย'},
-  ru:{closedT:'Приём геолокации завершён',closed:'Спасатели закрыли этот запрос.<br>Если вам всё ещё нужна помощь, позвоните 119 или свяжитесь со спасателями снова.',teamLabel:'Сообщение спасателей'},
-  es:{closedT:'Recepción de ubicación finalizada',closed:'El equipo de rescate ha cerrado esta solicitud.<br>Si aún necesitas ayuda, llama al 119 o contacta de nuevo con el equipo de rescate.',teamLabel:'Mensaje del equipo de rescate'},
-  fr:{closedT:'Réception de position terminée',closed:'L’équipe de secours a clôturé cette demande.<br>Si vous avez encore besoin d’aide, appelez le 119 ou recontactez les secours.',teamLabel:'Message de l’équipe de secours'},
-  de:{closedT:'Standortempfang beendet',closed:'Das Rettungsteam hat diese Anfrage geschlossen.<br>Wenn Sie weiterhin Hilfe brauchen, rufen Sie 119 an oder kontaktieren Sie das Rettungsteam erneut.',teamLabel:'Nachricht des Rettungsteams'}
+  ko:{closedT:'위치 접수가 종료되었습니다',closed:'구조대가 이 링크의 접수를 종료했습니다.<br>도움이 더 필요하면 119 또는 구조대에 다시 연락해 주세요.',teamLabel:'구조대 메시지',notice:'ⓘ [내 위치 전송]을 누르면 구조 출동을 위해 현재 위치(GPS)와 입력하신 정보가 설악산국립공원 구조대에 전송됩니다. 위치정보는 구조 목적 외에는 사용·제공되지 않으며, 버튼을 누르면 이에 동의한 것으로 처리됩니다.'},
+  en:{closedT:'Location sharing ended',closed:'The rescue team has closed this request.<br>If you still need help, call 119 or contact the rescue team again.',teamLabel:'Message from rescue team',notice:'ⓘ By tapping [Send my location], your current GPS location and any info you enter will be sent to the Seoraksan National Park rescue team for rescue dispatch. It is used only for rescue purposes; tapping the button constitutes your consent.'},
+  zh:{closedT:'位置接收已结束',closed:'救援队已结束此链接的接收。<br>如仍需帮助，请拨打119或再次联系救援队。',teamLabel:'救援队消息',notice:'ⓘ 点击[发送我的位置]即表示您同意：为救援出动，您的当前位置(GPS)及所填信息将发送给雪岳山国立公园救援队，仅用于救援目的。'},
+  ja:{closedT:'位置の受付が終了しました',closed:'救助隊がこのリンクの受付を終了しました。<br>さらに支援が必要な場合は119または救助隊に再度ご連絡ください。',teamLabel:'救助隊からのメッセージ',notice:'ⓘ [自分の位置を送信]を押すと、救助出動のため現在地(GPS)と入力情報が雪岳山国立公園救助隊に送信されます。位置情報は救助目的以外に使用・提供されず、ボタンを押すことで同意したものとみなされます。'},
+  vi:{closedT:'Đã kết thúc chia sẻ vị trí',closed:'Đội cứu hộ đã đóng yêu cầu này.<br>Nếu vẫn cần trợ giúp, hãy gọi 119 hoặc liên hệ lại đội cứu hộ.',teamLabel:'Tin nhắn từ đội cứu hộ',notice:'ⓘ Khi nhấn [Gửi vị trí của tôi], vị trí GPS hiện tại và thông tin bạn nhập sẽ được gửi tới đội cứu hộ VQG Seoraksan để triển khai cứu hộ, chỉ dùng cho mục đích cứu hộ; việc nhấn nút được coi là bạn đồng ý.'},
+  th:{closedT:'สิ้นสุดการรับตำแหน่งแล้ว',closed:'ทีมกู้ภัยได้ปิดคำขอนี้แล้ว<br>หากยังต้องการความช่วยเหลือ โปรดโทร 119 หรือติดต่อทีมกู้ภัยอีกครั้ง',teamLabel:'ข้อความจากทีมกู้ภัย',notice:'ⓘ เมื่อกด [ส่งตำแหน่งของฉัน] ตำแหน่ง GPS ปัจจุบันและข้อมูลที่กรอกจะถูกส่งไปยังทีมกู้ภัยอุทยานฯ ซอรัคซานเพื่อการช่วยเหลือ ใช้เพื่อการกู้ภัยเท่านั้น การกดปุ่มถือว่าท่านยินยอม'},
+  ru:{closedT:'Приём геолокации завершён',closed:'Спасатели закрыли этот запрос.<br>Если вам всё ещё нужна помощь, позвоните 119 или свяжитесь со спасателями снова.',teamLabel:'Сообщение спасателей',notice:'ⓘ Нажимая [Отправить геолокацию], вы соглашаетесь: ваши координаты GPS и введённые данные будут переданы спасателям нацпарка Сораксан для выезда на спасение и используются только в целях спасения.'},
+  es:{closedT:'Recepción de ubicación finalizada',closed:'El equipo de rescate ha cerrado esta solicitud.<br>Si aún necesitas ayuda, llama al 119 o contacta de nuevo con el equipo de rescate.',teamLabel:'Mensaje del equipo de rescate',notice:'ⓘ Al pulsar [Enviar mi ubicación], tu ubicación GPS y los datos introducidos se enviarán al equipo de rescate del Parque Nacional Seoraksan para la operación de rescate; se usan solo con fines de rescate y pulsar el botón constituye tu consentimiento.'},
+  fr:{closedT:'Réception de position terminée',closed:'L’équipe de secours a clôturé cette demande.<br>Si vous avez encore besoin d’aide, appelez le 119 ou recontactez les secours.',teamLabel:'Message de l’équipe de secours',notice:'ⓘ En appuyant sur [Envoyer ma position], votre position GPS et les informations saisies seront transmises aux secours du parc national de Seoraksan pour l’intervention ; elles ne sont utilisées qu’à des fins de secours et l’appui sur le bouton vaut consentement.'},
+  de:{closedT:'Standortempfang beendet',closed:'Das Rettungsteam hat diese Anfrage geschlossen.<br>Wenn Sie weiterhin Hilfe brauchen, rufen Sie 119 an oder kontaktieren Sie das Rettungsteam erneut.',teamLabel:'Nachricht des Rettungsteams',notice:'ⓘ Mit [Meinen Standort senden] werden Ihr GPS-Standort und Ihre Angaben zur Koordination des Rettungseinsatzes an die Bergrettung des Nationalparks Seoraksan übermittelt; sie werden nur für Rettungszwecke verwendet, das Drücken gilt als Einwilligung.'}
 };
 let _sosLang='ko';
 function _st(k){const a=(_SOS_T[_sosLang]||_SOS_T.en),b=(_SOS_T2[_sosLang]||_SOS_T2.en);return a[k]||b[k]||_SOS_T.en[k]||_SOS_T2.en[k]||k;}
@@ -4151,6 +4151,7 @@ function _sosBuildUI(){
       <div id="sosCoords" style="font-size:12px;color:#a5abb3;margin-top:8px;font-family:monospace;line-height:1.7;"></div>
     </div>
     <button id="sosStartBtn" onclick="_sosRequest()" style="margin-top:14px;width:100%;max-width:420px;padding:18px;border:none;border-radius:14px;background:linear-gradient(180deg,#e74c3c,#c0392b);color:#fff;font-size:18px;font-weight:800;cursor:pointer;box-shadow:0 4px 14px rgba(192,57,43,.5);">${_st('start')}</button>
+    <div style="margin-top:9px;width:100%;max-width:420px;font-size:11px;color:#8b95a1;line-height:1.65;text-align:left;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:9px;padding:9px 11px;">${_st('notice')}</div>
     <div style="margin-top:16px;width:100%;max-width:420px;">
       <div style="font-size:12px;color:#949aa2;font-weight:700;margin-bottom:6px;">${_st('info')}</div>
       <input id="sosName" placeholder="${_st('name')}" value="${_esc(_nm)}" oninput="_sosPushInfo()" style="width:100%;box-sizing:border-box;background:#1c1c1e;border:1px solid rgba(255,255,255,.15);color:#fff;border-radius:9px;padding:12px;font-size:15px;margin-bottom:7px;">
@@ -4305,7 +4306,7 @@ function _sosWrite(force){
   const name=String((document.getElementById('sosName')||{}).value||'').slice(0,40);
   const msg=String((document.getElementById('sosMsg')||{}).value||'').slice(0,250);
   const country=String((document.getElementById('sosCountry')||{}).value||'').slice(0,30);
-  const rec={id:_sosId,lat:+_sosLast.lat.toFixed(5),lng:+_sosLast.lng.toFixed(5),acc:Math.round(_sosLast.acc),ts:nowMs};
+  const rec={id:_sosId,lat:+_sosLast.lat.toFixed(5),lng:+_sosLast.lng.toFixed(5),acc:Math.round(_sosLast.acc),ts:nowMs,noticeVer:1}; // noticeVer: 위치수집 고지문이 표시된 화면에서 전송됐음을 기록(분쟁 대비)
   if(_sosLast.alt!=null)rec.alt=_sosLast.alt; // GPS 고도(m)
   if(name)rec.name=name;
   if(msg)rec.msg=msg;
@@ -4738,8 +4739,8 @@ function _sosTeamSend(id){
 }
 function _sosCopyBtnOk(btn){if(!btn)return;const o=btn.textContent;btn.textContent='✓ 복사됨';btn.style.background='#27ae60';setTimeout(function(){try{btn.textContent=o;btn.style.background='#1a4a6e';}catch(e){}},1600);}
 function _sosCopyUrl(tok,btn){const u=_sosVictimUrl(tok);if(navigator.clipboard)navigator.clipboard.writeText(u).then(function(){toast('📋 링크 복사됨 — 조난·사고자에게 보내세요');_sosCopyBtnOk(btn);}).catch(function(){_fallbackCopy(u);_sosCopyBtnOk(btn);});else{_fallbackCopy(u);_sosCopyBtnOk(btn);}}
-function _sosShareUrl(tok){const u=_sosVictimUrl(tok);if(navigator.share)navigator.share({title:'설악산 구조대 위치전송',text:'[설악산 구조대] 아래 1회용 링크를 열면 위치가 구조대에 전송됩니다(로그인 불필요).\n'+u}).catch(()=>{});}
-function _sosSms(tok){const u=_sosVictimUrl(tok);location.href='sms:?body='+encodeURIComponent('[설악산 구조대] 아래 1회용 링크를 열어 위치를 보내주세요(로그인 불필요): '+u);}
+function _sosShareUrl(tok){const u=_sosVictimUrl(tok);if(navigator.share)navigator.share({title:'설악산 구조대 위치전송',text:'[설악산국립공원 구조대] 안전사고 구조 출동을 위해 현 위치 확인이 필요합니다. 아래 1회용 링크를 열고 [위치 전송]을 누르시면 현재 위치가 구조대원에게 전송됩니다(구조 목적 외 사용하지 않음, 로그인 불필요).\n'+u}).catch(()=>{});}
+function _sosSms(tok){const u=_sosVictimUrl(tok);location.href='sms:?body='+encodeURIComponent('[설악산국립공원 구조대] 안전사고 구조 출동을 위해 현 위치 확인이 필요합니다. 아래 1회용 링크를 열고 [위치 전송]을 누르시면 현재 위치가 구조대원에게 전송됩니다(구조 목적 외 사용하지 않음, 로그인 불필요): '+u);}
 // 전화/위치요청 버튼 HTML (사고자·신고자 전화번호 옆)
 function _telBtnsHtml(tel,resId,role,name){
   const t=String(tel||'').replace(/[^0-9+]/g,'');if(!t)return '';
@@ -4773,10 +4774,11 @@ function _smsSosTo(tel,resId,role,name){
         }catch(e){}
       }
       const u=_sosVictimUrl(tok);
-      // 외국인 사고자면 한국어 아래 영어 병기
+      // 외국인 사고자면 한국어 아래 영어 병기 — 수집 목적·사용 범위 고지 포함(면책·동의 근거)
+      const _koMsg='[설악산국립공원 구조대] 안전사고 구조 출동을 위해 현 위치 확인이 필요합니다. 아래 링크를 열고 [위치 전송]을 누르시면 현재 위치가 구조대원에게 전송됩니다(구조 목적 외 사용하지 않음, 로그인 불필요)';
       const body=foreign
-        ?'[설악산 구조대] 아래 링크를 열면 현재 위치가 구조대에 전송됩니다(로그인 불필요).\n[Seoraksan Rescue Team] Open the link below to send your current location to the rescue team (no login required):\n'+u
-        :'[설악산 구조대] 아래 링크를 열면 현재 위치가 구조대에 전송됩니다(로그인 불필요): '+u;
+        ?_koMsg+'.\n[Seoraksan Rescue] To dispatch rescuers for a safety incident, we need your current location. Open the link and tap [Send Location] — your location is sent to the rescue team and used for rescue purposes only (no login required):\n'+u
+        :_koMsg+': '+u;
       location.href='sms:'+tel+'?&body='+encodeURIComponent(body);
     })
     .catch(function(){toast('링크 생성 실패 — 다시 시도');});
@@ -4904,7 +4906,7 @@ function sosToRescue(id){
 // 앱 자체 업데이트 (OTA · Capgo 자체호스팅) — APK 전용. 웹/PWA는 서비스워커가 자동 갱신.
 // 번들(www)의 새 버전을 ota.json으로 알리면, 설치된 앱이 받아서 그 자리에서 교체(재빌드 불필요).
 // ══════════════════════════════════════════
-const OTA_VER='2026.08.06.379';                         // ← 현재 번들 버전 (릴리스마다 올림 · build-ota.sh가 ota.json에 반영)
+const OTA_VER='2026.08.06.380';                         // ← 현재 번들 버전 (릴리스마다 올림 · build-ota.sh가 ota.json에 반영)
 const OTA_MANIFEST='https://seorak1275.github.io/seoraksan/ota.json';
 // 업데이트 확인 폴백 소스 — 일부 기관망·통신사에서 github.io가 막혀 '확인 실패(네트워크)'가 나는 경우 대비.
 // 순서대로 시도: ① GitHub Pages(원본·즉시 반영) ② jsDelivr CDN(공개저장소 미러·거의 모든 망 통과)
