@@ -4435,14 +4435,22 @@ function _initSosWatch(){
       const seen=window._sosSeen||(window._sosSeen={});
       const seenOpen=window._sosSeenOpen||(window._sosSeenOpen={});
       _sosPings.forEach(p=>{
+        // 🧪 검증 모드에서 발급된 테스트 링크(test:true): 전 직원 알림·토스트·푸시 전부 생략,
+        //    관리자 기기에서만 조용한 토스트로 동작 확인 (수신 기기 각자가 울리는 구조라 발신측 차단만으론 부족)
+        const _isTest=!!p.test;
+        const _adminHere=(typeof isAdminUser==='function'&&isAdminUser());
         // 링크 '접속' 즉시 알림 (위치 수신 전 단계 — 링크가 전달됐고 열렸다는 신호)
         if(p.openedAt&&!seenOpen[p.id]){seenOpen[p.id]=1;
-          if(window._sosInited&&!(p.lat&&p.lng)){try{toast('🔗 위치요청 링크 접속됨'+(p.name?': '+p.name:'')+' — 위치 수신 대기',6000);}catch(e){}
-            _sosNotiOnce('open:'+p.id,()=>{try{pushNoti('🔗 위치요청 링크 접속됨'+(p.name?': '+p.name:''),'🆘','sos',{app:'rescue',tab:1},null,{dedupeKey:'open:'+p.id});}catch(e){}});}
+          if(window._sosInited&&!(p.lat&&p.lng)){
+            if(_isTest){if(_adminHere)try{toast('🧪 [테스트] 위치요청 링크 접속됨 — 알림 미발송',5000);}catch(e){}}
+            else{try{toast('🔗 위치요청 링크 접속됨'+(p.name?': '+p.name:'')+' — 위치 수신 대기',6000);}catch(e){}
+            _sosNotiOnce('open:'+p.id,()=>{try{pushNoti('🔗 위치요청 링크 접속됨'+(p.name?': '+p.name:''),'🆘','sos',{app:'rescue',tab:1},null,{dedupeKey:'open:'+p.id});}catch(e){}});}}
         }
         if(p.lat&&p.lng&&!seen[p.id]){seen[p.id]=1;
-          if(window._sosInited){try{toast('🆘 조난·사고자 위치 수신: '+(p.name||'익명')+(p.acc?' (±'+p.acc+'m)':''),6000);}catch(e){}
-            _sosNotiOnce('loc:'+p.id,()=>{try{pushNoti('🆘 조난·사고자 위치 수신'+(p.name?': '+p.name:''),'🆘','sos',{app:'rescue',tab:1},null,{dedupeKey:'loc:'+p.id});}catch(e){}});}
+          if(window._sosInited){
+            if(_isTest){if(_adminHere)try{toast('🧪 [테스트] 조난·사고자 위치 수신'+(p.acc?' (±'+p.acc+'m)':'')+' — 알림 미발송',5000);}catch(e){}}
+            else{try{toast('🆘 조난·사고자 위치 수신: '+(p.name||'익명')+(p.acc?' (±'+p.acc+'m)':''),6000);}catch(e){}
+            _sosNotiOnce('loc:'+p.id,()=>{try{pushNoti('🆘 조난·사고자 위치 수신'+(p.name?': '+p.name:''),'🆘','sos',{app:'rescue',tab:1},null,{dedupeKey:'loc:'+p.id});}catch(e){}});}}
         }
       });
       window._sosInited=true;
@@ -4505,8 +4513,12 @@ function _sosNewLink(){
   if(!_fdb){toast('연결 준비 중 — 잠시 후 다시');return;}
   const tok=_sosGenToken();
   const by=(typeof getAuthor==='function')?getAuthor():'구조대';
-  _fdb.collection('sos').doc(tok).set({id:tok,active:true,issuedAt:Date.now(),by:by},{merge:true})
-    .then(function(){toast('🔗 1회용 링크 생성됨 — 조난자에게 보내세요',5000);openSosRequest();if(navigator.share)_sosShareUrl(tok);})
+  // 🧪 검증 모드 중 발급된 링크는 test:true — 접속·위치수신 시 전 직원 알림이 울리지 않음(관리자 기기 확인용 토스트만)
+  const _isTest=(typeof _testSilentOn==='function')&&_testSilentOn();
+  const doc={id:tok,active:true,issuedAt:Date.now(),by:by};
+  if(_isTest)doc.test=true;
+  _fdb.collection('sos').doc(tok).set(doc,{merge:true})
+    .then(function(){toast(_isTest?'🧪 [테스트] 링크 생성됨 — 접속·위치수신 알림이 직원들에게 가지 않습니다':'🔗 1회용 링크 생성됨 — 조난자에게 보내세요',5000);openSosRequest();if(navigator.share)_sosShareUrl(tok);})
     .catch(function(e){toast('생성 실패: '+(e&&(e.code||e.message)||''));});
 }
 // 접수 종료 (active:false → 그 링크로는 더 이상 수신 안 됨, 기록은 남음)
@@ -4892,7 +4904,7 @@ function sosToRescue(id){
 // 앱 자체 업데이트 (OTA · Capgo 자체호스팅) — APK 전용. 웹/PWA는 서비스워커가 자동 갱신.
 // 번들(www)의 새 버전을 ota.json으로 알리면, 설치된 앱이 받아서 그 자리에서 교체(재빌드 불필요).
 // ══════════════════════════════════════════
-const OTA_VER='2026.08.06.378';                         // ← 현재 번들 버전 (릴리스마다 올림 · build-ota.sh가 ota.json에 반영)
+const OTA_VER='2026.08.06.379';                         // ← 현재 번들 버전 (릴리스마다 올림 · build-ota.sh가 ota.json에 반영)
 const OTA_MANIFEST='https://seorak1275.github.io/seoraksan/ota.json';
 // 업데이트 확인 폴백 소스 — 일부 기관망·통신사에서 github.io가 막혀 '확인 실패(네트워크)'가 나는 경우 대비.
 // 순서대로 시도: ① GitHub Pages(원본·즉시 반영) ② jsDelivr CDN(공개저장소 미러·거의 모든 망 통과)

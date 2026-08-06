@@ -1,1 +1,1 @@
-{"version":"2026.08.06.378","url":"https://seorak1275.github.io/seoraksan/bundle.zip","notes":"동기화 안전장치: 기준 스냅샷 없는 기기의 배열 문서 저장이 서버 목록을 통째로 덮어쓰던 문제 수정(합집합 병합) — 오늘 새벽 loginLog·pendingUsers가 1건으로 줄어든 원인"}
+{"version":"2026.08.06.379","url":"https://seorak1275.github.io/seoraksan/bundle.zip","notes":"검증모드 보강: 검증모드 중 발급한 SOS 링크는 test 태그 — 접속·위치수신 시 전 직원 알림·토스트·푸시 미발송(관리자 기기 확인 토스트만). 수신측 각자 울리는 구조라 발신측 차단만으론 부족했음"}
