@@ -582,8 +582,11 @@ function _txMergeDoc(key,base,localVal){
       Object.keys(localVal).forEach(kk=>{if(JSON.stringify(localVal[kk])!==JSON.stringify(bv[kk]))merged[kk]=localVal[kk];});
       Object.keys(bv).forEach(kk=>{if(!(kk in localVal))delete merged[kk];});
     }else{
-      merged=(Array.isArray(localVal)&&Array.isArray(serverVal)&&Array.isArray(base))
-        ?_mergeSharedArray(base,localVal,serverVal):localVal;
+      // base(기준 스냅샷)가 없으면 삭제 의도를 알 수 없으므로 빈 base로 합집합 병합 —
+      // 새 기기·캐시 삭제 직후 서버 목록 도착 전에 저장해도 서버의 기존 항목(로그인 이력·직원 명단 등)을 통째로 덮어쓰지 않음
+      // (2026-08-06 실사고: 빈 기기 로그인이 loginLog·pendingUsers 전체를 1건으로 덮어씀)
+      merged=(Array.isArray(localVal)&&Array.isArray(serverVal))
+        ?_mergeSharedArray(Array.isArray(base)?base:[],localVal,serverVal):localVal;
     }
     t.set(ref,{d:JSON.stringify(merged)});
     return merged;
