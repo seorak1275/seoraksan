@@ -1,1 +1,1 @@
-{"version":"2026.08.06.380","url":"https://seorak1275.github.io/seoraksan/bundle.zip","notes":"SOS 위치수집 고지 추가: 위치요청 문자·공유 3종에 구조출동 목적·사용범위 문구, 조난자 페이지에 10개 언어 동의 고지(버튼 아래), 전송기록에 noticeVer 저장(고지 표시 상태 전송 증빙)"}
+{"version":"2026.08.06.381","url":"https://seorak1275.github.io/seoraksan/bundle.zip","notes":"지도 성능 개선: 경계·구역·용도지구 오버레이를 표시 직전 간략화(더글라스-포이커, 오차 8~13m) — 화면 꼭짓점 5.7만→1.5만(4배 감소), 팬·줌 부드러워짐. 원본 데이터·판정·내보내기 불변, 보정(zoneEdits) 있는 구역은 원본 유지"}

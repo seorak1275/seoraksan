@@ -265,6 +265,36 @@ function _applyMapVOff(){
   window._mapVOffPx=off;
   return off;
 }
+// ── 🚀 표시용 선 간략화 (더글라스-포이커) — 팬·줌 성능 개선 ──
+// 웹 SDK는 선·폴리곤을 DOM/SVG로 그려서 꼭짓점 수에 비례해 느려짐(경계 1.1만+구역 2.6만+지구 1.9만 점).
+// 화면 표시 직전에만 8~13m 오차로 간략화(약 4배 감소) — 원본 데이터·판정·내보내기는 전혀 건드리지 않음.
+const _dispRingCache=new WeakMap();
+function _dpSimp(pts,tol){
+  const n=pts.length;if(n<3)return pts;
+  const keep=new Uint8Array(n);keep[0]=1;keep[n-1]=1;
+  const st=[[0,n-1]];const t2=tol*tol;
+  while(st.length){
+    const seg=st.pop();const a=seg[0],b=seg[1];if(b-a<2)continue;
+    const ax=pts[a][0],ay=pts[a][1],bx=pts[b][0],by=pts[b][1];
+    const dx=bx-ax,dy=by-ay;const L2=dx*dx+dy*dy;
+    let mi=-1,md=0;
+    for(let i=a+1;i<b;i++){
+      const px=pts[i][0],py=pts[i][1];let d2;
+      if(L2<=1e-18){const ex=px-ax,ey=py-ay;d2=ex*ex+ey*ey;}
+      else{let t=((px-ax)*dx+(py-ay)*dy)/L2;t=t<0?0:(t>1?1:t);const ex=px-(ax+t*dx),ey=py-(ay+t*dy);d2=ex*ex+ey*ey;}
+      if(d2>md){md=d2;mi=i;}
+    }
+    if(md>t2){keep[mi]=1;st.push([a,mi],[mi,b]);}
+  }
+  const out=[];for(let i=0;i<n;i++)if(keep[i])out.push(pts[i]);
+  return out.length>=3?out:pts;
+}
+function _dispRing(ring,tol){
+  if(!Array.isArray(ring)||ring.length<40)return ring; // 짧은 링은 그대로
+  let s=_dispRingCache.get(ring);
+  if(!s){s=_dpSimp(ring,tol||0.00008);_dispRingCache.set(ring,s);}
+  return s;
+}
 // ── 설악산 국립공원 경계 오버레이 (park-boundary.json 1회 로드 후 여러 지도에 재사용) ──
 var _parkBoundary=null,_parkPendingMaps=[];
 function _paintPark(map,d){
@@ -272,7 +302,7 @@ function _paintPark(map,d){
   map._parkDrawn=true;
   map._parkLines=[]; // 진단 토글용 참조 보관
   (d.rings||[]).forEach(function(ring){
-    var path=ring.map(function(p){return new kakao.maps.LatLng(p[1],p[0]);});
+    var path=_dispRing(ring,0.00012).map(function(p){return new kakao.maps.LatLng(p[1],p[0]);});
     map._parkLines.push(new kakao.maps.Polyline({path:path,strokeWeight:3.5,strokeColor:'#ffffff',strokeOpacity:.4,strokeStyle:'solid',map:map,zIndex:1}));
     map._parkLines.push(new kakao.maps.Polyline({path:path,strokeWeight:2,strokeColor:d.color||'#ff3b30',strokeOpacity:.9,strokeStyle:'solid',map:map,zIndex:1}));
   });
@@ -289,7 +319,7 @@ function _drawUseZonePolys(map,onClick){
   items.sort((p,q)=>q.a-p.a); // 넓은 것 먼저
   const out=[];
   items.forEach((it,i)=>{
-    const pg=new kakao.maps.Polygon({path:it.r.map(p=>new kakao.maps.LatLng(p[1],p[0])),
+    const pg=new kakao.maps.Polygon({path:_dispRing(it.r,0.00008).map(p=>new kakao.maps.LatLng(p[1],p[0])),
       strokeWeight:2,strokeColor:it.z.color,strokeOpacity:.95,fillColor:it.z.color,fillOpacity:.34,zIndex:i+1,map:map});
     pg._uz=it.z;pg._uzBaseZ=i+1;
     kakao.maps.event.addListener(pg,'click',function(){onClick(pg);});
@@ -692,7 +722,10 @@ function _zoneOff(n){const e=DB.g('zoneEdits')||{};const o=e&&e[n];if(!o)return 
 // 원본 링 + 전체 이동 + 꼭짓점별 부분 보정 → 표시 경로 (그리기·편집·판정·원격 갱신이 전부 이 규칙 하나를 씀)
 function _zeRingPath(ring,ri,adj){
   const dla=(adj&&adj.dlat)||0,dln=(adj&&adj.dlng)||0,vs=(adj&&adj.verts)||null;
-  return ring.map((p,vi)=>{const vd=vs&&vs[ri+','+vi];
+  // 🚀 보정(zoneEdits)이 전혀 없는 링은 표시용 간략화 사용(≤9m 오차, 점수 ~4배 감소 → 팬·줌 성능↑).
+  //    verts는 원본 꼭짓점 번호(ri,vi) 기준이므로 보정이 하나라도 있으면 원본 그대로 그린다(번호 어긋남 방지).
+  const src=(dla||dln||vs)?ring:_dispRing(ring,0.00008);
+  return src.map((p,vi)=>{const vd=vs&&vs[ri+','+vi];
     return new kakao.maps.LatLng(p[0]+dla+(vd?vd[0]:0),p[1]+dln+(vd?vd[1]:0));});
 }
 // 구역의 '실제 사용할' 경계 링들: 불러온 경계(zoneGeom)가 있으면 그걸로 교체, 없으면 원본 park-zones.json 링
