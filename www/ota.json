@@ -1,1 +1,1 @@
-{"version":"2026.07.31.368","url":"https://seorak1275.github.io/seoraksan/bundle.zip","notes":"구역지도 보정: 대청봉 46구역 특수구역 구멍 복구(21구역이 메웠던 0.6km² 원상복구)·백담 파편 정리 — 공원 외곽 공식경계는 무변경"}
+{"version":"2026.08.06.369","url":"https://seorak1275.github.io/seoraksan/bundle.zip","notes":"구역지도: 라이브 zoneGeom(Firestore)에 백담·대청봉 내부 경계선 정본 반영 + park-zones.json 동기화 — 앱은 zoneGeom을 우선 표시하므로 이번부터 즉시 표시됨"}
