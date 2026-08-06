@@ -1726,8 +1726,20 @@ function _amDev(){
     return (typeof _isDeveloper==='function'&&_isDeveloper(u.kakaoId))||(typeof _isMasterAdmin==='function'&&_isMasterAdmin());
   }catch(e){return false;}
 }
+// 🔕 검증 모드(관리자 전용·기기 로컬): 이 기기에서 발생시키는 알림의 공유 브로드캐스트·OS푸시를 차단.
+//  - 관리자가 기능 검증할 때 전 직원에게 알림이 가는 것 방지. 60분 후 자동 해제(끄는 걸 잊어도 안전).
+//  - 로컬 키(testSilentUntil)라 다른 기기·다른 직원에게는 영향 없음. 내 기기 벨 표시는 유지(동작 확인용).
+function _testSilentOn(){
+  try{
+    const t=+DB.g('testSilentUntil')||0;
+    if(!t)return false;
+    if(Date.now()>t){DB.s('testSilentUntil',0);return false;} // 만료 자동 해제
+    return (typeof isAdminUser==='function'&&isAdminUser())||_amDev();
+  }catch(e){return false;}
+}
 function pushNoti(msg,ico,type='info',link=null,pushCat=null,opts){
   const adminOnly=!!(opts&&opts.adminOnly); // 관리자에게만 보낼 알림(권한 요청 등)
+  const _silent=_testSilentOn(); // 🔕 검증 모드: 아래에서 공유 브로드캐스트·OS푸시만 건너뜀
   // 【임시】 특보운영(op_*) 알림은 안정화 전까지 개발자 전용 — 전 직원 발송·푸시 중단 (2026-07 윤태종 지시)
   const devOnly=String(type).indexOf('op_')===0;
   // 특정 카카오ID들에게만 보낼 알림(시설물 담당자 등) — 전체 진동·푸시 없이 대상자 기기에서만 표시
@@ -1749,12 +1761,12 @@ function pushNoti(msg,ico,type='info',link=null,pushCat=null,opts){
     const ns=DB.g('notis')||[];ns.unshift({id,msg,ico,time:now(),read:false,link});
     if(ns.length>80)ns.splice(80);DB.s('notis',ns);updateBell();
   }
-  // 꺼진 폰까지 OS 푸시 — 관리자 전용·대상 지정·개발자 전용은 전체 OS푸시를 보내지 않음
-  if(!adminOnly&&!targets&&!devOnly)_sendFcmPush('설악산 현장관리',msg,pushCat||type,link);
+  // 꺼진 폰까지 OS 푸시 — 관리자 전용·대상 지정·개발자 전용·검증 모드는 전체 OS푸시를 보내지 않음
+  if(!adminOnly&&!targets&&!devOnly&&!_silent)_sendFcmPush('설악산 현장관리',msg,pushCat||type,link);
   // 특보(op_*) 알림은 설정 켠 사용자의 카카오톡(나와의 채팅)으로도 발송 — 【임시】개발자만
   try{if(String(type).indexOf('op_')===0&&_amDev()&&typeof _kakaoMsgOn==='function'&&_kakaoMsgOn()&&typeof _sendKakaoSelf==='function')_sendKakaoSelf(msg);}catch(e){}
-  // 기기 간 Firestore 브로드캐스트 (adminOnly·targetKakaoIds면 수신측에서 필터)
-  if(_fdb){
+  // 기기 간 Firestore 브로드캐스트 (adminOnly·targetKakaoIds면 수신측에서 필터) — 🔕검증 모드는 발송 안 함
+  if(_fdb&&!_silent){
     _fdb.collection('sharedNotis').doc(String(id)).set({
       id,msg,ico,type:type||'info',link:link||null,adminOnly:adminOnly,targetKakaoIds:targets||null,
       at:id,timeStr:now(),deviceId:_MY_DEVICE_ID,dk:dk||null,devOnly:devOnly||false
@@ -1888,6 +1900,7 @@ async function _gasAuth(){
 // 중요 알림을 꺼진 폰까지 발송 (Apps Script 경유). cat=알림설정 키, 'info'면 발송 안 함.
 async function _sendFcmPush(title,body,cat,link){
   if(!_fdb)return;
+  if(_testSilentOn())return; // 🔕 검증 모드: OS푸시 발송 차단
   const url=_FCM_PUSH_URL||(DB.g('fcmPushUrl')||'').trim();
   if(!url||!cat||cat==='info')return;
   try{
@@ -1922,6 +1935,7 @@ async function _sendFcmPush(title,body,cat,link){
 // 웹은 VAPID 미설정으로 토큰 없음 → 실질적으로 안드로이드 APK 기기에 도달.
 async function _sendFcmPushToKakao(kakaoId,title,body,link){
   if(!_fdb)return;
+  if(_testSilentOn())return; // 🔕 검증 모드: 대상지정 필수푸시도 검증 중에는 발송 차단
   const url=_FCM_PUSH_URL||(DB.g('fcmPushUrl')||'').trim();
   kakaoId=String(kakaoId||'');
   if(!url||!kakaoId)return;

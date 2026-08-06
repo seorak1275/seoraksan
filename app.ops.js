@@ -4633,6 +4633,13 @@ function _clearAccessLog(){
     Promise.all(ps).then(function(){if(el)el.innerHTML='<div style="font-size:11px;color:rgba(255,255,255,.25);">기록 없음</div>';toast('🗑️ 접근 기록 '+n+'건 삭제됨'+(n>=400?' (더 있으면 한 번 더)':''));});
   }).catch(function(){toast('삭제 실패');if(el)el.innerHTML='';});
 }
+// 🔕 검증 모드 토글 — 켜면 60분간 이 기기 발신 알림의 공유 브로드캐스트·OS푸시 차단 (app.core.js _testSilentOn 참조)
+function _toggleTestSilent(){
+  const on=(typeof _testSilentOn==='function')&&_testSilentOn();
+  if(on){DB.s('testSilentUntil',0);toast('🔔 검증 모드 해제 — 알림이 정상 발송됩니다');}
+  else{DB.s('testSilentUntil',Date.now()+60*60000);toast('🔕 검증 모드 켜짐 — 60분간 이 기기의 작업 알림이 직원들에게 발송되지 않습니다',4000);}
+  try{renderAdmSys();}catch(e){}
+}
 function renderAdmSys(){
   // pushLog는 온디맨드 문서 — 화면 열 때 1회 갱신(60초 내 재렌더는 캐시 재사용)
   if(typeof _refreshDoc==='function'&&(!window._pushLogFreshAt||Date.now()-window._pushLogFreshAt>60000)){
@@ -4645,6 +4652,16 @@ function renderAdmSys(){
       <button onclick="var c=document.getElementById('pushComposeCard');if(c)c.scrollIntoView({behavior:'smooth',block:'start'});" style="width:100%;background:#1a4a6e;color:#fff;border:none;padding:13px;border-radius:9px;font-size:13.5px;font-weight:800;cursor:pointer;">📲 직원에게 알림 보내기 →</button>
       <div style="font-size:10.5px;color:#6b7684;margin-top:6px;text-align:center;">전체·소속·개인 지정 발송 · 꺼진 폰까지 도달</div>
     </div>
+    ${(()=>{try{ // 🔕 검증 모드 — 이 기기의 작업 알림을 직원들에게 안 보냄 (기기 로컬, 60분 자동 해제)
+      const on=(typeof _testSilentOn==='function')&&_testSilentOn();
+      const until=+DB.g('testSilentUntil')||0;
+      const remain=on?Math.max(1,Math.ceil((until-Date.now())/60000)):0;
+      return `<div class="scard" style="margin-bottom:8px;${on?'background:rgba(255,170,0,.10);border:1px solid rgba(255,170,0,.45);':''}">
+        <div class="stitle">🔕 검증 모드 (알림 무음) ${on?`<span style="font-size:10px;color:#ffb020;font-weight:800;">켜짐 · ${remain}분 남음</span>`:''}</div>
+        <div style="font-size:11px;color:#8a94a3;line-height:1.5;margin:4px 0 8px;">기능 점검·테스트할 때 켜세요. <b>이 기기에서 하는 작업의 알림·OS푸시가 다른 직원들에게 발송되지 않습니다</b> (내 기기 벨 표시는 유지). 60분 뒤 자동으로 꺼집니다.</div>
+        <button onclick="_toggleTestSilent()" style="width:100%;padding:11px;border-radius:9px;border:none;font-size:13px;font-weight:800;cursor:pointer;${on?'background:#ffb020;color:#1a1a1e;':'background:rgba(255,170,0,.14);color:#ffb020;border:1px solid rgba(255,170,0,.4);'}">${on?'🔔 검증 모드 끄기 (알림 정상화)':'🔕 검증 모드 켜기'}</button>
+      </div>`;
+    }catch(e){return '';}})()}
     ${(()=>{try{ // 🗑 시설물 휴지통 — 삭제된 시설 복구(시설과·담당자), 영구삭제(개발자)
       const tr=DB.g('facTrash')||[];
       if(!tr.length)return '';
