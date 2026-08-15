@@ -1882,7 +1882,7 @@ function renderTimeline(r,viewMode,outId){
       ${_vit0?`<div style="font-size:10px;color:#a5abb3;margin-top:6px;">활력: ${_vit0}</div>`:''}`;
     const _div='<div style="height:1px;background:rgba(255,255,255,.06);margin:9px 0;"></div>';
     const _opB=(typeof _opBadges==='function')?_opBadges(r,false):''; // 좌표 공유는 위치 행 오른쪽 칩으로
-    const _climbBtn=(r.loctype==='암벽'||r.loctype==='빙벽')?`<button onclick="event.stopPropagation();openClimbRosterForRescue(${r.id})" style="margin-top:7px;padding:6px 11px;border-radius:8px;border:1px solid rgba(49,130,246,.4);background:rgba(49,130,246,.12);color:#3182f6;font-size:11px;font-weight:700;cursor:pointer;">🧗 그날(${_esc((r.date||'').slice(0,10))}) 암벽 이용명단 조회</button>`:'';
+    const _climbBtn=''; // [기능 제거 2026-08-06] 암벽 이용명단 조회
     // 팝업 카드와 동일 규격: 라벨 10px 고정폭(50px) 정렬 · 값 12.5px 한 줄 말줄임 (통일 타이포)
     const _pRow=(lbl,val,btns,valCol)=>val?`<div style="display:flex;align-items:center;gap:8px;min-height:26px;overflow:hidden;">
       <span style="width:50px;flex-shrink:0;font-size:10px;color:#6b7684;font-weight:700;letter-spacing:.2px;">${lbl}</span>
@@ -3047,7 +3047,7 @@ function render1BoForm(prefill=null){
         </div>
         <div id="permitRoster" style="display:${p.loctype&&(p.loctype==='암벽'||p.loctype==='빙벽')?'block':'none'};" class="fg">
           <span class="fl">🏔️ 암빙벽 허가 <span style="font-size:9px;color:#8b95a1;font-weight:400;">신청명단에서 찾으면 자동 표시됩니다</span></span>
-          <button type="button" onclick="openClimbVictimPick()" style="width:100%;background:linear-gradient(145deg,#3a2409,#5a3a12);color:#f0c88a;border:1px solid rgba(240,200,138,.35);border-radius:8px;padding:10px;font-size:12.5px;font-weight:800;cursor:pointer;">🧗 그날 암벽 신청명단에서 사고자 찾기</button>
+
           <div id="permitStatus" style="font-size:11px;font-weight:700;margin-top:6px;color:${p.permit==='허가자 있음'?'#5fcf8f':(p.permit==='무허가'?'#ff8a73':'#8b95a1')};">${p.permit==='허가자 있음'?'✅ 허가자(신청명단 확인됨)':(p.permit==='무허가'?'⛔ 무허가(명단에 없음)':'명단에서 찾거나, 없으면 아래 명단 창의 「허가자 아님」을 누르세요')}</div>
           <input type="hidden" id="r_permit" value="${_esc(p.permit||'해당없음')}">
         </div>
@@ -3219,8 +3219,7 @@ function render1BoForm(prefill=null){
     <!-- ══ 섹터3: 인적사항 ══ -->
     <div id="repSec3" class="rep-sec" style="display:none;padding:12px;overflow-y:auto;">
       <div class="rsec"><div class="rsec-t">🧑 사고자 인적사항 <button class="info-btn" onclick="openGuide('victim')">ℹ</button></div>
-        <!-- 암벽 명단 불러오기 — 장소구분=암벽일 때만 표시 (chkIllegal이 토글). 코스를 골랐으면 그 코스 명단만 뜸 -->
-        ${(DB.g('climbDates')||[]).length?`<div id="climbPickWrap3" style="display:${p.loctype==='암벽'?'block':'none'};"><button type="button" onclick="openClimbVictimPick()" style="width:100%;margin-bottom:9px;background:linear-gradient(145deg,#3a2409,#5a3a12);color:#f0c88a;border:1px solid rgba(240,200,138,.35);border-radius:8px;padding:10px;font-size:12.5px;font-weight:800;cursor:pointer;">🧗 암벽 명단에서 불러오기 (사고자·동반자 자동입력)</button></div>`:''}
+
         <div class="frow">
           <div class="fg"><span class="fl">성명</span><input type="text" id="r_vName" class="fi" value="${_esc(p.vName||'')}"></div>
           <div class="fg"><span class="fl">연락처</span><input type="tel" id="r_vTel" class="fi" value="${_esc(p.vTel||'')}"></div>

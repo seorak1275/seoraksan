@@ -143,13 +143,9 @@ const _FB_CFG={
 // history: 점검이력은 무제한으로 계속 쌓이는 로그성 데이터라 단일문서 그대로 두면 매 점검마다 전체가 전원에게 재전송됨 → 건별 문서로 전환
 const _SHARED_COLL=['rescues','hazards','facilities','history','facIssues'];
 // _SHARED_DOC: 단일 문서에 JSON 배열 저장 (관리자 전용, 동시 쓰기 없음)
-const _SHARED_DOC=['alertOps','alertLog','catFac','catFacMeta','pendingUsers','approvedUsers','deletedKakaoIds','adminOwnerKakaoId','adminApprovalCode','extAgencies','extAgencyCode','extAgencyDisplayName','geminiApiKey','kmaProxyUrl','walkProxyUrl','_acl','loginLog','trailStatus','crisisLevel','weatherBrief','weatherLog','trailLog','sosBlocked','autoApprove','pushLog','devKakaoId','notiPolicy','customResTypes','facManagers','climbDates','climbCancels','homeHidden','climbAccidents','otaInfo','climbAgg','facTrash','fcmVapidKey','zoneEdits','zoneGeom'];
+const _SHARED_DOC=['catFac','catFacMeta','pendingUsers','approvedUsers','deletedKakaoIds','adminOwnerKakaoId','adminApprovalCode','extAgencies','extAgencyCode','extAgencyDisplayName','geminiApiKey','kmaProxyUrl','walkProxyUrl','_acl','loginLog','sosBlocked','autoApprove','pushLog','devKakaoId','notiPolicy','customResTypes','facManagers','homeHidden','otaInfo','facTrash','fcmVapidKey','zoneEdits','zoneGeom']; // 2026-08-06 암벽·특보운영·장비 기능 제거로 alertOps/alertLog/trail*/crisis*/weather*/climb* 키 삭제
 // otaInfo: ota.json의 Firestore 미러 {version,url,notes,at} — 웹 방문자가 자동 갱신. github 계열이 막힌 망의 APK가 업데이트 정보를 받는 최후 폴백 통로
 // homeHidden: 관리자가 홈 화면에서 숨긴 메뉴 키 목록(미완성 기능 감추기용) — 전 직원 동기화 적용
-// climbAccidents: 수동 등록한 암벽 사고자 [{id,date,name,note,by,at}] — 엑셀 상태값은 다운로드 시점따라 달라 신뢰 불가라 사고는 직접 등록
-// climbAgg: 날짜별 인원 집계 {날짜:{t:팀수,p:인원}} (개인정보 없음) — 전체통계 등에서 명단 원본 없이 이용인원 표시용
-// climbDates: 암벽 이용현황 업로드된 '이용일자' 목록(날짜만·개인정보 아님) — 홈 업로드알림용. 실제 명단(PII)은 climbUsage 컬렉션에 별도 저장(전체 동기화 X).
-// climbCancels: 특보·우천 일괄취소한 이용일자 {날짜:{reason,by,at}} — 재업로드해도 유지, 통계에서 제외(날짜만·개인정보 아님).
 // 시설물 레거시(단일문서) 폴백/시드 동기화 상태
 let _legacyFacBackup=null; // appData/facilities(구버전)의 백업 — 컬렉션 비었을 때 화면 폴백
 let _facSeedReady=false;   // 시설물 첫 스냅샷·레거시 백업 확인 완료(시드 레이스 방지)
@@ -160,7 +156,7 @@ const _SHARED=[..._SHARED_COLL,..._SHARED_DOC]; // 하위 호환용
 const _HAZ_OFF=true;
 // 온디맨드 문서: 실시간 구독하지 않고 해당 화면을 열 때만 1회 읽음 — 관리자용 로그라 전 직원 실시간 수신이 낭비
 // (예: 푸시 1건마다 전 기기가 1읽기씩 소모하던 것 제거). append 전용만 등록할 것(제자리 수정·삭제되는 문서는 금지)
-const _ONDEMAND_DOC=['pushLog','weatherLog','trailLog'];
+const _ONDEMAND_DOC=['pushLog'];
 // 1년 이상 지난 구조/위험상황/점검이력 기록은 실시간 동기화 대상에서 빼고, 조회 시에만 1회 불러온다.
 // (수백 명이 동시 접속해도 매번 전체 역대기록을 받지 않도록 — id가 Date.now() 기반이라 시간 필터에 그대로 쓸 수 있음)
 const _ARCHIVE_COLLS=['rescues','hazards','history'];
@@ -554,11 +550,10 @@ function _mergeSharedArray(base,local,server){
 // 통째로 사라지지 않는다. base가 없거나 배열이 아니면(딕셔너리/스칼라) 기존처럼 로컬 우선.
 // 추가-전용 목록: base(직전 스냅샷)가 없어도 항상 서버와 합집합으로 병합.
 // 예전엔 base 없는 기기가 저장하면 '로컬 우선'으로 서버 목록을 통째로 교체 →
-// climbDates 63일이 새로 업로드한 기기의 4일로 덮어써지는 사고가 실제 발생(2026-07 점검에서 복구).
-const _UNION_DOC=['climbDates'];
+const _UNION_DOC=[];
 const _DICT_MERGE_DOC=['zoneEdits','zoneGeom']; // {키:값} 딕셔너리 문서 — 키 단위 3-way 병합(다른 관리자가 저장한 다른 구역 보정/경계 보존)
 // 온디맨드 로그 문서: 실시간 구독 없이 '화면 열 때만' 읽는 append 전용 로그 — 병합은 객체 합집합(항목 유실 없음)
-const _ONDEMAND_CAP={pushLog:30,weatherLog:60,trailLog:100};
+const _ONDEMAND_CAP={pushLog:30};
 function _txMergeDoc(key,base,localVal){
   const ref=_fdb.collection('appData').doc(key);
   return _fdb.runTransaction(t=>t.get(ref).then(snap=>{
@@ -762,7 +757,6 @@ function initFirebase(onReady){
           // 담당 업무함: 보이는 중이면 입력(회신 작성) 보호 위해 배지만 갱신, 숨겨져 있으면 재렌더
           try{var _vw=document.getElementById('v-inspect-work');
             if(_vw&&!_vw.classList.contains('on'))renderFacWork();else _updateFacWorkBadge();}catch(e){}}
-        else if(window.curApp==='alert')renderAlertView();
         else if(window.curApp==='stats')renderFullStats();
         // 열려 있는 사고 상세(v-report): 원격 변경 즉시 타임라인 갱신 — 저장된 기록이 화면에 안 나타나던 핵심 원인.
         // 입력 보호: 입력칸 포커스 중이거나, 기록카드에 고르다 만 단계·메모·댓글 초안이 있으면 건너뜀(다음 변경 때 반영)
@@ -893,7 +887,7 @@ function initFirebase(onReady){
           if(d.dk){const sk=window._notiSeenDk||(window._notiSeenDk={});if(sk['rx:'+d.dk])return;sk['rx:'+d.dk]=1;sk[d.dk]=1;}
           if(!_notiRecipientReady())return; // 미로그인 상태에는 알림 전달 안 함(로그인 화면만 봐야 함)
           if(d.adminOnly&&!(typeof isAdminUser==='function'&&isAdminUser()))return; // 관리자 전용 알림은 관리자만 수신
-          if((d.devOnly||String(d.type||'').indexOf('op_')===0)&&!_amDev())return; // 【임시】특보(op_*)는 개발자만 수신
+          if(d.devOnly&&!_amDev())return;
           if(d.targetKakaoIds&&d.targetKakaoIds.length){ // 대상 지정 알림: 지정된 카카오ID만 수신
             var _myK=String((DB.g('currentUser')||{}).kakaoId||'');
             if(!_myK||d.targetKakaoIds.map(String).indexOf(_myK)<0)return;
@@ -907,8 +901,6 @@ function initFirebase(onReady){
           DB.s('notis',ns);updateBell();
           // OS 시스템 알림 (앱이 백그라운드일 때만)
           _showSystemNoti(d.msg,d.ico);
-          // 특보(op_*) 알림: 설정 켠 사용자는 본인 카카오톡으로도 수신
-          try{if(String(d.type||'').indexOf('op_')===0&&typeof _kakaoMsgOn==='function'&&_kakaoMsgOn()&&typeof _sendKakaoSelf==='function'&&_notiOn(d.type))_sendKakaoSelf(d.msg);}catch(e){}
         });
       },()=>{});
     _migrateLegacyCollections();
@@ -1025,7 +1017,7 @@ function initDB(){
   if(!DB.g('rescues'))    DB.s('rescues',[]);
   if(!DB.g('hazards'))    DB.s('hazards',[]);
   if(!DB.g('history'))    DB.s('history',[]);
-  // ※ alertOps·alertLog·climbDates·climbCancels 빈 껍데기 시드는 제거 —
+  // ※ 빈 껍데기 시드는 제거 —
   //   모든 읽기가 ||[] / ||{} 폴백을 갖고 있어 서버 문서가 없어도 정상 동작.
   //   (첫 접속 기기가 아무 입력 없이 서버에 빈 문서를 쓰던 불필요 동기화의 원인이었음.
   //    각 문서는 실제 데이터가 처음 생길 때 그 쓰기로 자연 생성됨)
@@ -1507,7 +1499,7 @@ function _warnPeriodStr(w){
 function getAuthor(){const u=DB.g('currentUser')||{};return u.name||'미지정';}
 // ── 목록 이전/다음 순회 (사고·특보·시설 상세에서 위/아래 항목으로 빠르게 이동) ──
 // 각 목록 렌더 시 화면에 보이는 순서대로 id 배열을 저장 → 상세에서 그 순서대로 ◀▶ 이동
-var _navOrder={rescue:[],fac:[],alert:[]};
+var _navOrder={rescue:[],fac:[]};
 function _navBtns(type,curId,fn){
   var a=(_navOrder[type]||[]).map(String),i=a.indexOf(String(curId));
   if(i<0||a.length<2)return '';
@@ -1526,7 +1518,17 @@ function sPill(el,wrId){document.querySelectorAll(`#${wrId} .pill`).forEach(p=>p
 }
 // 여러 핀 그룹의 선택(.on) 일괄 해제
 function _resetPills(...ids){ids.forEach(id=>document.querySelectorAll(`#${id} .pill`).forEach(p=>p.classList.remove('on')));}
-// 암벽=지구별 그룹(암벽 이용관리와 동일 분류) / 빙벽=단일 목록 — 위치 선택 버튼 HTML (폼 템플릿·chkIllegal 공용)
+// 암벽 지구별 코스 분류 — 구조 보고서 사고위치 선택용 (2026-08 암벽 이용관리 기능 제거 후 이곳으로 이전)
+const CLIMB_DISTRICTS={
+  '천화대지구':['천화대','흑범길','염라길','석주길'],
+  '비선대지구':['적벽','장군봉','삼형제길','유선대'],
+  '울산바위지구':['울산암벽','하나되는길','돌잔치길','나들이길'],
+  '소토왕골지구':['소토왕골암장','한편의시를위한길'],
+  '토왕골지구':['솜다리의추억','경원대길','4인의우정길','별을따는소년들'],
+  '한계산성지구':['미륵장군봉','몽유도원도','아갈바위'],
+  '오색지구':['칠형제봉']
+};
+// 암벽=지구별 그룹 / 빙벽=단일 목록 — 위치 선택 버튼 HTML (폼 템플릿·chkIllegal 공용)
 function _climbLocBtnsHtml(kind,cur){
   cur=String(cur||'').trim();
   const btn=l=>`<button class="tog-btn${cur===l?' on':''}" onclick="selClimbLoc('${l.replace(/'/g,"\\'")}',this)">${l}</button>`;
@@ -1668,19 +1670,13 @@ const NOTI_GROUPS=[
     {k:'fac_issue',l:'시설물 점검',sub:'점검 등록·검토·현장확인 (담당자 위주)',def:true,push:true},
   ]},
   {title:'🌀 재난대응 (특보·위기경보)', items:[
-    {k:'op_start',l:'특보운영 시작',sub:'특보운영 개시',def:true,push:true},
-    {k:'op_change',l:'특보 상향·하향',sub:'단계 변경·추가 발령',def:true,push:true},
-    {k:'op_end',l:'특보운영 종료',sub:'운영 종료',def:true,push:true},
-    {k:'op_kma',l:'기상특보 수신',sub:'기상청 자동 특보',def:true,push:true},
-    {k:'crisis',l:'재난위기경보',sub:'관심·주의·경계·심각',def:true,push:true},
-    {k:'trail',l:'탐방로 통제',sub:'구간 통제·개방',def:true,push:true},
     {k:'weather',l:'기상 브리핑',sub:'정기 기상 브리핑',def:true,push:false},
   ]},
 ];
 const NOTI_PUSH=(()=>{const m={};NOTI_GROUPS.forEach(g=>g.items.forEach(it=>{m[it.k]=it.push;}));return m;})();
 const _NOTI_DEF=(()=>{const m={};NOTI_GROUPS.forEach(g=>g.items.forEach(it=>{m[it.k]=it.def;}));return m;})();
 // 알림 수준: 'all'(전체) / 'recommended'(추천=내가 준 기본값) / 'min'(최소·생명안전 위주)
-const _NOTI_MIN=new Set(['안전사고','낙석','위험수목','화재','기타','rescue_mobilize','crisis','op_kma','trail']);
+const _NOTI_MIN=new Set(['안전사고','낙석','위험수목','화재','기타','rescue_mobilize']);
 const _NOTI_LEVELS=[{v:'all',l:'전체',d:'모든 알림 받기'},{v:'recommended',l:'추천',d:'중요 알림 위주(기본)'},{v:'min',l:'최소',d:'생명·안전 핵심만'}];
 // 관리자가 정한 기본 정책(전원/관리자/멤버/소속별) — 개인이 직접 끈/켠 항목은 개인설정이 우선
 function _getNotiPolicy(){const p=DB.g('notiPolicy')||{};return{전원:p['전원']||'recommended',관리자:p['관리자']||'recommended',멤버:p['멤버']||'recommended',depts:p.depts||{}};}
@@ -1743,8 +1739,7 @@ function _testSilentOn(){
 function pushNoti(msg,ico,type='info',link=null,pushCat=null,opts){
   const adminOnly=!!(opts&&opts.adminOnly); // 관리자에게만 보낼 알림(권한 요청 등)
   const _silent=_testSilentOn(); // 🔕 검증 모드: 아래에서 공유 브로드캐스트·OS푸시만 건너뜀
-  // 【임시】 특보운영(op_*) 알림은 안정화 전까지 개발자 전용 — 전 직원 발송·푸시 중단 (2026-07 윤태종 지시)
-  const devOnly=String(type).indexOf('op_')===0;
+  const devOnly=false; // (특보운영 기능 제거로 op_* 전용 제한 해제 — 2026-08-06)
   // 특정 카카오ID들에게만 보낼 알림(시설물 담당자 등) — 전체 진동·푸시 없이 대상자 기기에서만 표시
   const targets=(opts&&Array.isArray(opts.targetKakaoIds))?opts.targetKakaoIds.map(String).filter(Boolean):null;
   // ※ 발신자 개인 알림설정으로 '전체 브로드캐스트'를 막지 않는다.
@@ -1766,8 +1761,6 @@ function pushNoti(msg,ico,type='info',link=null,pushCat=null,opts){
   }
   // 꺼진 폰까지 OS 푸시 — 관리자 전용·대상 지정·개발자 전용·검증 모드는 전체 OS푸시를 보내지 않음
   if(!adminOnly&&!targets&&!devOnly&&!_silent)_sendFcmPush('설악산 현장관리',msg,pushCat||type,link);
-  // 특보(op_*) 알림은 설정 켠 사용자의 카카오톡(나와의 채팅)으로도 발송 — 【임시】개발자만
-  try{if(String(type).indexOf('op_')===0&&_amDev()&&typeof _kakaoMsgOn==='function'&&_kakaoMsgOn()&&typeof _sendKakaoSelf==='function')_sendKakaoSelf(msg);}catch(e){}
   // 기기 간 Firestore 브로드캐스트 (adminOnly·targetKakaoIds면 수신측에서 필터) — 🔕검증 모드는 발송 안 함
   if(_fdb&&!_silent){
     _fdb.collection('sharedNotis').doc(String(id)).set({

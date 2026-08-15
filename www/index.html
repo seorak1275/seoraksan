@@ -289,7 +289,6 @@ try{history.replaceState({view:'home'},'','');history.pushState({view:'home'},''
     <span class="weather-wind skl" id="wWind" style="min-width:48px;">&nbsp;</span>
     <span style="font-size:10px;color:#454e5a;margin-left:auto;">▸</span>
   </div>
-  <div id="weatherAlertWrap" class="weather-alert-wrap" onclick="openApp('alert')" style="cursor:pointer;touch-action:manipulation;"></div>
 
   <!-- 권한 요청 배너 (위치·알림) -->
   <div id="permBanners" style="display:flex;flex-direction:column;gap:5px;flex-shrink:0;"></div>
@@ -298,11 +297,7 @@ try{history.replaceState({view:'home'},'','');history.pushState({view:'home'},''
   <div class="home-menu" style="flex:1;"><!-- min-height:0 제거 — 글씨 확대 시 버튼이 겹치지 않고 홈이 스크롤되도록 -->
     <button id="mbRescue" data-home-key="rescue" class="mbtn mb-red" onclick="openApp('rescue')"><div class="mbtn-ico">🚨</div><div><div class="mbtn-title">재난/구조</div><div class="mbtn-desc" id="hdR">구조보고·위험상황</div></div></button>
     <button id="mbInspect" data-home-key="inspect" class="mbtn mb-teal ext-hide" onclick="openApp('inspect')"><div class="mbtn-ico">🛠️</div><div><div class="mbtn-title">시설물 점검</div><div class="mbtn-desc" id="hdI">시설 관리·이력</div></div></button>
-    <button id="mbAlert" data-home-key="alert" class="mbtn mb-alert ext-hide" onclick="openApp('alert')"><div class="mbtn-ico">🌀</div><div><div class="mbtn-title">특보운영</div><div class="mbtn-desc" id="hdA">기상특보 비상근무</div></div></button>
     <button id="mbStats" data-home-key="stats" class="mbtn mb-purple ext-hide" onclick="openApp('stats')"><div class="mbtn-ico">📊</div><div><div class="mbtn-title">전체 통계</div><div class="mbtn-desc">현황 분석</div></div></button>
-    <button id="mbClimb" data-home-key="climb" class="mbtn mb-climb ext-hide" style="grid-column:1/-1;flex-direction:row;align-items:center;gap:11px;min-height:60px;" onclick="openClimb()"><div class="mbtn-ico" style="margin-bottom:0;">🧗</div><div style="flex:1;"><div class="mbtn-title">암벽 이용관리 <span id="climbMenuBadge" style="display:none;font-size:9px;font-weight:800;color:#241a0e;background:#f0c050;border-radius:7px;padding:1px 7px;margin-left:4px;vertical-align:middle;">업로드 필요</span></div><div class="mbtn-desc">당일 명단(지구·코스별) · 통계 · 특보취소</div></div><span style="font-size:16px;color:rgba(255,255,255,.4);">›</span></button>
-    <!-- 구조대 장비 관리: 특수산악구조대·관리자에게만 노출(_updateEquipMenu가 display 제어). 기본 숨김. -->
-    <button id="mbEquip" class="mbtn mb-equip ext-hide" style="display:none;grid-column:1/-1;flex-direction:row;align-items:center;gap:11px;min-height:60px;" onclick="openEquip()"><div class="mbtn-ico" style="margin-bottom:0;">🧰</div><div style="flex:1;"><div class="mbtn-title">구조대 장비 관리</div><div class="mbtn-desc">개별 장비대장 · 종류·수량 · 인원별 (특수산악구조대)</div></div><span style="font-size:16px;color:rgba(255,255,255,.4);">›</span></button>
   </div>
 
   <!-- 하단 2칸 소형 메뉴 -->
@@ -548,15 +543,7 @@ try{history.replaceState({view:'home'},'','');history.pushState({view:'home'},''
 </div>
 
 <!-- ══ 특보운영 ══ -->
-<div id="v-alert" class="view" style="flex-direction:column;overflow:hidden;">
-  <div id="crisisBanner" class="crisis-banner"></div>
-  <div class="bpad" id="alertViewWrap" style="flex:1;min-height:0;overflow-y:auto;padding-bottom:18px;"></div>
-  <div id="alertBnav" style="display:flex;flex-shrink:0;background:#0a0a0c;border-top:.5px solid rgba(255,255,255,.07);padding-bottom:env(safe-area-inset-bottom);">
-    <div class="navi on" id="anv1" onclick="alertTab(1)"><div class="navi-ico">📋</div><span class="navi-lbl">목록</span></div>
-    <div class="navi" id="anv2" onclick="alertTab(2)"><div class="navi-ico">📊</div><span class="navi-lbl">통계</span></div>
-    <div class="navi" id="anv3" onclick="alertTab(3)"><div class="navi-ico">🚨</div><span class="navi-lbl">입력</span></div>
-  </div>
-</div>
+<!-- [기능 제거 2026-08-06] v-alert (특보운영) -->
 
 <!-- ══ 전체 통계 ══ -->
 <!-- ══ 본부 상황판 (모니터 거치용) ══ -->
@@ -996,134 +983,22 @@ try{history.replaceState({view:'home'},'','');history.pushState({view:'home'},''
 </div>
 
 <!-- ══ 모달: 특보운영 시작 ══ -->
-<div id="modalAlertStart" class="modal">
-  <div class="mbox">
-    <div class="mhdr"><span class="mtitle" id="alertStartTitle">🌀 특보운영 시작</span><button class="mclose" onclick="closeM('modalAlertStart')">×</button></div>
-    <div class="fg"><span class="fl">특보 단계</span>
-      <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:4px;" id="alertLevelPills">
-        <div class="pill" onclick="selAlertLevel(this,'예비특보')">예비특보</div>
-        <div class="pill" onclick="selAlertLevel(this,'Ⅰ단계(주의보)')">Ⅰ단계(주의보)</div>
-        <div class="pill" onclick="selAlertLevel(this,'Ⅱ단계(경보)')">Ⅱ단계(경보)</div>
-        <div class="pill" onclick="selAlertLevel(this,'Ⅲ단계')">Ⅲ단계</div>
-      </div>
-    </div>
-    <div class="fg"><span class="fl">특보 종류</span>
-      <div style="display:flex;flex-wrap:wrap;gap:5px;margin-top:4px;" id="alertTypePills">
-        <div class="pill" onclick="selAlertType(this,'호우')">호우</div>
-        <div class="pill" onclick="selAlertType(this,'대설')">대설</div>
-        <div class="pill" onclick="selAlertType(this,'태풍')">태풍</div>
-        <div class="pill" onclick="selAlertType(this,'강풍')">강풍</div>
-        <div class="pill" onclick="selAlertType(this,'한파')">한파</div>
-        <div class="pill" onclick="selAlertType(this,'건조')">건조</div>
-        <div class="pill" onclick="selAlertType(this,'산불')">산불</div>
-        <div class="pill" onclick="selAlertType(this,'기타')">기타</div>
-      </div>
-    </div>
-    <div class="fg" id="alertItvRow"><span class="fl">관측 보고 주기</span>
-      <div style="display:flex;flex-wrap:wrap;gap:5px;margin-top:4px;" id="alertItvPills">
-        <div class="pill" onclick="selReportItv(this,30)">30분</div>
-        <div class="pill on" onclick="selReportItv(this,60)">1시간</div>
-        <div class="pill" onclick="selReportItv(this,120)">2시간</div>
-        <div class="pill" onclick="selReportItv(this,180)">3시간</div>
-      </div>
-    </div>
-    <div class="fg"><span class="fl">비고</span><input type="text" id="alertStartNote" class="fi" placeholder="특이사항 입력"></div>
-    <div id="alertReqTable" style="margin:8px 0;"></div>
-    <button class="btn btn-red" id="alertStartBtn" onclick="startAlertOps()">🌀 특보운영 시작</button>
-  </div>
-</div>
+<!-- [기능 제거 2026-08-06] modalAlertStart (특보운영) -->
 
 <!-- ══ 모달: 응소자 추가 ══ -->
-<div id="modalAlertResp" class="modal">
-  <div class="mbox">
-    <div class="mhdr"><span class="mtitle">👤 응소자 추가</span><button class="mclose" onclick="closeM('modalAlertResp')">×</button></div>
-    <div class="fg"><span class="fl">소속 (분소·대피소)</span>
-      <div style="display:flex;flex-wrap:wrap;gap:5px;margin-top:4px;" id="respLocPills"></div>
-    </div>
-    <div class="fg"><span class="fl">역할</span>
-      <div style="display:flex;flex-wrap:wrap;gap:5px;margin-top:4px;" id="respRolePills">
-        <div class="pill" onclick="selRespRole(this,'당직')">당직</div>
-        <div class="pill" onclick="selRespRole(this,'비상근무')">비상근무</div>
-        <div class="pill" onclick="selRespRole(this,'과장')">과장</div>
-        <div class="pill" onclick="selRespRole(this,'소장')">소장</div>
-        <div class="pill" onclick="selRespRole(this,'지원반')">지원반</div>
-      </div>
-    </div>
-    <div class="fg"><span class="fl">이름</span>
-      <div id="respNameQuickWrap" style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:6px;"></div>
-      <input type="text" id="respNameIn" class="fi" placeholder="이름 직접 입력">
-    </div>
-    <div class="fg"><span class="fl">도착시각 (비워두면 현재)</span><input type="text" id="respArrivedAt" class="fi" placeholder="예: 21:30"></div>
-    <input type="hidden" id="respTargetId">
-    <button class="btn btn-red" onclick="addAlertResponder()">✅ 추가</button>
-  </div>
-</div>
+<!-- [기능 제거 2026-08-06] modalAlertResp (특보운영) -->
 
 <!-- ══ 모달: 적설량·강우량 관측 보고 ══ -->
-<div id="modalAlertReport" class="modal">
-  <div class="mbox">
-    <div class="mhdr"><span class="mtitle">🌧️ 적설량·강우량 보고</span><button class="mclose" onclick="closeM('modalAlertReport')">×</button></div>
-    <div class="fg"><span class="fl">관측소 (분소·대피소)</span>
-      <div style="display:flex;flex-wrap:wrap;gap:5px;margin-top:4px;" id="reportLocPills"></div>
-    </div>
-    <div style="display:flex;gap:8px;">
-      <div class="fg" style="flex:1;"><span class="fl">누적 적설 (cm)</span><input type="number" inputmode="decimal" step="0.1" id="reportSnow" class="fi" placeholder="현재 적설 깊이"></div>
-      <div class="fg" style="flex:1;"><span class="fl">누적 강우 (mm)</span><input type="number" inputmode="decimal" step="0.1" id="reportRain" class="fi" placeholder="예: 124 (누적)"></div>
-    </div>
-    <div style="font-size:10px;color:#5a8aa0;margin:-4px 2px 8px;">※ 매 시각 <b>관측 시점까지의 누적값</b>을 입력하세요 (그 시간만의 강우량 아님). 시간당 증가량은 자동 계산됩니다.</div>
-    <div class="fg"><span class="fl">관측자</span>
-      <div id="reportObsQuick" style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:6px;"></div>
-      <input type="text" id="reportObserver" class="fi" placeholder="관측자 이름">
-    </div>
-    <div class="fg"><span class="fl">관측시각 (비워두면 현재)</span><input type="text" id="reportTime" class="fi" placeholder="예: 21:00"></div>
-    <div class="fg"><span class="fl">비고</span><input type="text" id="reportNote" class="fi" placeholder="적설 누계·결빙·시정 등"></div>
-    <button class="btn btn-red" onclick="addAlertReport()">🌧️ 관측 보고</button>
-  </div>
-</div>
+<!-- [기능 제거 2026-08-06] modalAlertReport (특보운영) -->
 
 <!-- ══ 모달: 체류인원 보고 ══ -->
-<div id="modalAlertOcc" class="modal">
-  <div class="mbox">
-    <div class="mhdr"><span class="mtitle">👥 체류인원 보고</span><button class="mclose" onclick="closeM('modalAlertOcc')">×</button></div>
-    <div class="fg"><span class="fl">거점</span>
-      <div id="occLocDisplay" style="font-size:13px;font-weight:700;color:#eaecef;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.25);border-radius:12px;padding:5px 12px;display:inline-block;margin-top:4px;"></div>
-    </div>
-    <div style="display:flex;gap:8px;">
-      <div class="fg" style="flex:1;"><span class="fl">직원 (명)</span><input type="number" inputmode="numeric" id="occStaff" class="fi" placeholder="0" min="0"></div>
-      <div class="fg" style="flex:1;"><span class="fl">탐방객 (명)</span><input type="number" inputmode="numeric" id="occVisitors" class="fi" placeholder="0" min="0"></div>
-    </div>
-    <div style="display:flex;gap:8px;">
-      <div class="fg" style="flex:1;"><span class="fl">🌙 숙박객 (명)</span><input type="number" inputmode="numeric" id="occLodging" class="fi" placeholder="야간 숙박" min="0"></div>
-      <div class="fg" style="flex:1;"><span class="fl">🚶 익일 출퇴근 (명)</span><input type="number" inputmode="numeric" id="occCommute" class="fi" placeholder="다음날 예정" min="0"></div>
-    </div>
-    <div class="fg"><span class="fl">비고</span><input type="text" id="occNote" class="fi" placeholder="특이사항 (예: 하산지시, 탐방로 통제 등)"></div>
-    <input type="hidden" id="occOpId"><input type="hidden" id="occLoc">
-    <button class="btn btn-red" onclick="addAlertOccupancy()">👥 체류인원 보고</button>
-  </div>
-</div>
+<!-- [기능 제거 2026-08-06] modalAlertOcc (특보운영) -->
 
 <!-- ══ 모달: 탐방로 통제 현황 ══ -->
-<div id="modalTrailCtrl" class="modal">
-  <div class="mbox">
-    <div class="mhdr"><span class="mtitle">🚧 탐방로 통제 현황</span><button class="mclose" onclick="closeM('modalTrailCtrl')">×</button></div>
-    <div style="display:flex;gap:5px;margin-bottom:8px;">
-      <button onclick="_trailBatch('통제')" class="ao-loc-btn" style="flex:1;font-size:11px;padding:7px 0;background:rgba(231,76,60,.14);border-color:#e74c3c66;color:#ff8a73;">⛔ 전체 통제</button>
-      <button onclick="_trailBatch('주의')" class="ao-loc-btn" style="flex:1;font-size:11px;padding:7px 0;background:rgba(241,196,15,.13);border-color:#f1c40f55;color:#f1c40f;">⚠️ 전체 주의</button>
-      <button onclick="_trailBatch('개방')" class="ao-loc-btn" style="flex:1;font-size:11px;padding:7px 0;background:rgba(46,204,113,.12);border-color:#2ecc7155;color:#2ecc71;">✅ 전체 개방</button>
-    </div>
-    <div id="trailCtrlBody" style="max-height:60vh;overflow-y:auto;"></div>
-    <div class="fg" style="margin-top:8px;"><span class="fl">일괄 메모</span><input type="text" id="trailCtrlNote" class="fi" placeholder="예: 호우 주의보로 전 구간 통제"></div>
-    <button class="btn btn-red" onclick="saveTrailCtrl()">🚧 통제 현황 저장</button>
-  </div>
-</div>
+<!-- [기능 제거 2026-08-06] modalTrailCtrl (특보운영) -->
 
 <!-- ══ 모달: 특보운영 기록 보관함 상세 ══ -->
-<div id="modalAlertHistory" class="modal">
-  <div class="mbox">
-    <div class="mhdr"><span class="mtitle">📜 특보운영 기록</span><button class="mclose" onclick="closeM('modalAlertHistory')">×</button></div>
-    <div id="alertHistBody"></div>
-  </div>
-</div>
+<!-- [기능 제거 2026-08-06] modalAlertHistory (특보운영) -->
 
 <!-- ══ 모달: 가이드 ══ -->
 <div id="modalGuide" class="modal">

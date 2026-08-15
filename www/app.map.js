@@ -1624,17 +1624,7 @@ function renderBoard(){
   const _td=today();
   const todayList=res.filter(r=>(r.date||'').slice(0,10)===_td).sort((a,b)=>(b.date||'').localeCompare(a.date||''));
   const recentList=res.filter(r=>(r.date||'').slice(0,10)!==_td).sort((a,b)=>(b.date||'').localeCompare(a.date||'')).slice(0,15);
-  const aops=DB.g('alertOps')||[];
-  const activeOp=aops.find(o=>!o.closedAt);
-  const opRespCnt=activeOp?(activeOp.responders||[]).length:0;
-  // 응소는 호우·대설 특보에서만 집계·표시 (그 외 특보는 발효 특보 수 표시)
-  const opMt=activeOp&&typeof _alertMeasureType==='function'?_alertMeasureType(activeOp):'';
-  const opAlertCnt=activeOp?_opAlerts(activeOp).length:0;
-  const ts=DB.g('trailStatus')||{};
-  const trailCtrlCnt=Object.values(ts).filter(v=>v.status==='통제').length;
-  const trailWarnCnt=Object.values(ts).filter(v=>v.status==='주의').length;
-  const trailActive=_boardView==='trail';
-  const rescueActive=_boardView==='rescue', hazActive=_boardView==='hazard', alertActive=_boardView==='alert';
+  const rescueActive=_boardView==='rescue', hazActive=_boardView==='hazard';
   // 시설물 점검 — 종결 안 된 점검 이슈
   const facOpen=(DB.g('facIssues')||[]).filter(x=>x.status!=='closed');
   const facActive=_boardView==='fac';
@@ -1650,101 +1640,12 @@ function renderBoard(){
       <div class="bd-num" style="font-size:30px;font-weight:900;color:${hazUnhandled?'#e05050':'#e67e22'};">${haz.length}</div>
       <div class="bd-lbl" style="font-size:12px;color:${hazActive?'#eaecef':'rgba(255,255,255,.5)'};font-weight:${hazActive?'700':'400'};">⚠️ 미조치 위험상황${hazActive?' ▾':''}</div>
     </div>`}
-    <div onclick="setBoardView('alert')" class="bd-stat" style="flex:1;min-width:0;background:${activeOp?'rgba(255,255,255,.12)':'rgba(39,174,96,.08)'};border:1px solid ${alertActive?(activeOp?'rgba(255,255,255,.9)':'rgba(39,174,96,.75)'):(activeOp?'rgba(255,255,255,.45)':'rgba(39,174,96,.25)')};border-radius:12px;padding:12px 16px;text-align:center;cursor:pointer;transition:all .15s;${alertActive?'box-shadow:inset 0 0 0 2px rgba(255,255,255,.3);':''}">
-      <div class="bd-num" style="font-size:30px;font-weight:900;color:${activeOp?'#3182f6':'#27ae60'};">${activeOp?(opMt?opRespCnt:opAlertCnt):0}</div>
-      <div class="bd-lbl" style="font-size:12px;color:${alertActive?'#eaecef':'rgba(255,255,255,.5)'};font-weight:${alertActive?'700':'400'};">🌀 ${activeOp?(opMt?'특보 응소':'발효 특보'):'특보운영'}${alertActive?' ▾':''}</div>
-    </div>
     <div onclick="setBoardView('fac')" class="bd-stat" style="flex:1;min-width:0;background:${facOpen.length?'rgba(230,126,34,.1)':'rgba(39,174,96,.08)'};border:1px solid ${facActive?(facOpen.length?'rgba(230,126,34,.9)':'rgba(39,174,96,.75)'):(facOpen.length?'rgba(230,126,34,.35)':'rgba(39,174,96,.25)')};border-radius:12px;padding:12px 16px;text-align:center;cursor:pointer;transition:all .15s;${facActive?'box-shadow:inset 0 0 0 2px rgba(230,126,34,.3);':''}">
       <div class="bd-num" style="font-size:30px;font-weight:900;color:${facOpen.length?'#e67e22':'#27ae60'};">${facOpen.length}</div>
       <div class="bd-lbl" style="font-size:12px;color:${facActive?'#eaecef':'rgba(255,255,255,.5)'};font-weight:${facActive?'700':'400'};">🔧 시설물 점검${facActive?' ▾':''}</div>
     </div>
-  </div>
-  ${trailCtrlCnt||trailWarnCnt?`<div onclick="setBoardView('trail')" style="display:flex;align-items:center;gap:12px;background:rgba(231,76,60,.1);border:1px solid ${trailActive?'rgba(231,76,60,.85)':'rgba(231,76,60,.35)'};border-radius:12px;padding:10px 16px;margin-bottom:10px;cursor:pointer;">
-    <div style="font-size:26px;font-weight:900;color:#e74c3c;">${trailCtrlCnt}</div>
-    <div>
-      <div style="font-size:13px;font-weight:800;color:#eaecef;">🚧 탐방로 통제 중${trailActive?' ▾':''}</div>
-      <div style="font-size:11px;color:#ff9e80;margin-top:2px;">통제 ${trailCtrlCnt}구간${trailWarnCnt?' · 주의 '+trailWarnCnt+'구간':''}</div>
-    </div>
-  </div>`:''}`;
-  if(trailActive){
-    const zones=[...new Set(SEORAK_TRAILS.map(t=>t.zone))];
-    html+=`<div style="background:#131316;border:1.5px solid rgba(231,76,60,.4);border-radius:14px;padding:16px 18px;">
-      <div style="font-size:16px;font-weight:900;color:#e74c3c;margin-bottom:12px;">🚧 탐방로 통제 현황</div>`;
-    zones.forEach(z=>{
-      const zTrails=SEORAK_TRAILS.filter(t=>t.zone===z);
-      html+=`<div style="font-size:10px;color:#6b7684;font-weight:800;letter-spacing:.5px;margin:8px 0 4px;">${z.toUpperCase()}</div>`;
-      zTrails.forEach(t=>{
-        const st=(ts[t.id]||{}).status||'개방';
-        const col=TRAIL_STATUS_COLORS[st]||'#27ae60';
-        html+=`<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-top:1px solid rgba(255,255,255,.04);">
-          <span style="width:8px;height:8px;border-radius:50%;background:${col};flex-shrink:0;box-shadow:0 0 6px ${col}66;"></span>
-          <span style="font-size:12px;color:${st==='개방'?'rgba(255,255,255,.55)':'#eaecef'};flex:1;">${_esc(t.name)}</span>
-          <span style="font-size:11px;font-weight:800;color:${col};">${st}</span>
-        </div>`;
-      });
-    });
-    html+=`</div>`;
-  } else if(alertActive){
-    if(!activeOp){
-      html+=`<div style="text-align:center;padding:50px 0 30px;font-size:17px;color:rgba(255,255,255,.3);">✅ 진행중인 특보운영 없음</div>`;
-    } else {
-      const al=_opAlerts(activeOp);
-      const chips=al.map(a=>`<span style="display:inline-block;font-size:13px;font-weight:800;color:#aab4c0;background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.3);border-radius:7px;padding:4px 10px;margin:0 5px 5px 0;">${_esc(a.type)} ${_stageShort(a.stage)}</span>`).join('');
-      const elp=_elapsedStr(activeOp.startedAt);
-      const resps=activeOp.responders||[];
-      const groupRows=ALERT_GROUPS.map(g=>{
-        const locs=g.stations.map(s=>s.loc);
-        const list=resps.filter(r=>locs.includes(r.loc||'사무소'));
-        return {name:g.name,ico:g.ico,cnt:list.length,names:list.map(r=>_esc(r.name)).join(', ')};
-      });
-      const reps=(activeOp.reports||[]).slice().sort((a,b)=>(b.at||0)-(a.at||0)).slice(0,6);
-      html+=`<div style="background:#131316;border:1.5px solid rgba(255,255,255,.4);border-radius:14px;padding:16px 18px;margin-bottom:12px;">
-        <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:11px;">
-          <span style="font-size:18px;font-weight:900;color:#aab4c0;"><span class="ao-pulse" style="display:inline-block;vertical-align:middle;margin-right:5px;"></span>특보운영 중</span>
-          ${elp?`<span class="js-elapsed" data-d="${_esc(activeOp.startedAt)}" style="font-size:15px;font-weight:800;color:#f0a500;font-family:monospace;">⏱ ${elp}</span>`:''}
-        </div>
-        <div style="margin-bottom:13px;">${chips||'<span style="font-size:12px;color:#565f6b;">발령된 특보 없음</span>'}</div>
-        ${opMt?`<div style="font-size:13px;color:#a5abb3;font-weight:700;margin-bottom:4px;">👤 분소별 응소 (총 ${resps.length}명)</div>
-        ${groupRows.map(gr=>`<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-top:1px solid rgba(255,255,255,.05);">
-          <span style="font-size:13px;font-weight:700;color:#d5d8dc;min-width:118px;flex-shrink:0;">${gr.ico} ${_esc(gr.name)}</span>
-          <span style="font-size:14px;font-weight:800;color:${gr.cnt?'#5dbf8a':'rgba(255,255,255,.22)'};min-width:42px;flex-shrink:0;">${gr.cnt}명</span>
-          <span style="font-size:12px;color:#8b95a1;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${gr.names||'-'}</span>
-        </div>`).join('')}`:''}
-        ${(()=>{
-          // 체류인원 요약 — 대피소(shelter) 위치만 집계
-          const shelterLocs=new Set(ALERT_STATIONS.filter(s=>s.shelter).map(s=>s.loc));
-          const occMap={};(activeOp.occupancy||[]).filter(o=>shelterLocs.has(o.loc||'')).forEach(o=>{const k=o.loc;if(!occMap[k]||(o.at||0)>(occMap[k].at||0))occMap[k]=o;});
-          const occEntries=Object.entries(occMap);
-          if(!occEntries.length)return'';
-          const totalV=occEntries.reduce((s,[,o])=>s+(o.visitors||0),0);
-          return`<div style="font-size:13px;color:#a5abb3;font-weight:700;margin:13px 0 4px;">⛺ 대피소 체류인원 (탐방객 총 ${totalV}명)</div>
-          ${occEntries.map(([loc,o])=>`<div style="display:flex;gap:8px;font-size:12px;padding:4px 0;border-top:1px solid rgba(255,255,255,.04);">
-            <span style="color:#6b7684;min-width:100px;flex-shrink:0;">${_esc(_stationLabel(loc))}</span>
-            <span style="color:#7ec8a0;font-weight:700;">직원 ${o.staff??'-'}명</span>
-            <span style="color:#a8cdf5;font-weight:700;">탐방객 ${o.visitors??'-'}명</span>
-            <span style="color:#565f6b;font-size:10px;">${(o.time||'').slice(11,16)}</span>
-          </div>`).join('')}`;
-        })()}
-        ${reps.length?`<div style="font-size:13px;color:#a5abb3;font-weight:700;margin:13px 0 4px;">📊 최근 관측 (누적)</div>
-          ${reps.map(r=>`<div style="display:flex;gap:10px;font-size:12px;padding:4px 0;border-top:1px solid rgba(255,255,255,.04);">
-            <span style="color:#6b7684;min-width:96px;flex-shrink:0;">${_esc(_stationLabel(r.loc))}</span>
-            <span style="color:#8b95a1;min-width:46px;flex-shrink:0;">${_esc((r.time||'').slice(11,16))}</span>
-            <span style="color:#d5d8dc;font-weight:700;">${r.snow!=null&&r.snow!==''?'❄️ '+_esc(r.snow)+'cm  ':''}${r.rain!=null&&r.rain!==''?'🌧️ '+_esc(r.rain)+'mm':''}</span>
-          </div>`).join('')}`:''}
-        ${(()=>{
-          // 탐방로 통제 현황 요약
-          const ts=DB.g('trailStatus')||{};
-          const ctrl=SEORAK_TRAILS.filter(t=>(ts[t.id]||{}).status==='통제');
-          const warn=SEORAK_TRAILS.filter(t=>(ts[t.id]||{}).status==='주의');
-          if(!ctrl.length&&!warn.length)return'';
-          return`<div style="font-size:13px;color:#e67e22;font-weight:700;margin:13px 0 4px;">🚧 탐방로 통제 ${ctrl.length}구간${warn.length?' · 주의 '+warn.length+'구간':''}</div>
-          ${ctrl.map(t=>`<div style="font-size:11px;color:#ff9e80;padding:2px 0;">🔴 통제 — ${_esc(t.name)}</div>`).join('')}
-          ${warn.map(t=>`<div style="font-size:11px;color:#ffa040;padding:2px 0;">🟠 주의 — ${_esc(t.name)}</div>`).join('')}`;
-        })()}
-        <button onclick="closeBoard();openApp('alert');" style="width:100%;margin-top:13px;padding:9px;border-radius:9px;border:1px solid rgba(255,255,255,.35);background:rgba(255,255,255,.1);color:#3182f6;font-size:13px;font-weight:700;cursor:pointer;">🌀 특보운영 상세 열기</button>
-      </div>`;
-    }
-  } else if(facActive){
+  </div>`;
+  if(facActive){
     if(!facOpen.length){
       html+=`<div style="text-align:center;padding:50px 0 30px;font-size:17px;color:rgba(255,255,255,.3);">✅ 진행중인 시설물 점검 없음</div>`;
     } else {
@@ -1829,39 +1730,7 @@ function renderBoard(){
       <span style="flex-shrink:0;color:#6a93b5;font-family:monospace;">${dd} ${tm}</span>
     </div>`;
   };
-  if(alertActive){
-    // 특보 뷰 하단: 분소별 누적 관측 + 최근 종료된 특보운영
-    if(activeOp){
-      const cum={};
-      (activeOp.reports||[]).forEach(r=>{
-        const loc=r.loc||'사무소';if(!cum[loc])cum[loc]={snow:0,rain:0};
-        if(r.snow!=null&&r.snow!=='')cum[loc].snow+=parseFloat(r.snow)||0;
-        if(r.rain!=null&&r.rain!=='')cum[loc].rain+=parseFloat(r.rain)||0;
-      });
-      const locs=Object.keys(cum);
-      html+=`<div style="margin-top:20px;font-size:12px;color:#8ab0c8;font-weight:700;margin-bottom:6px;">📈 누적 관측 (분소별)</div>`;
-      if(!locs.length){
-        html+=`<div style="padding:10px 12px;background:rgba(255,255,255,.02);border-radius:8px;font-size:12px;color:rgba(255,255,255,.42);">관측 보고 없음</div>`;
-      } else {
-        locs.forEach(loc=>{const c=cum[loc];
-          html+=`<div style="display:flex;align-items:center;gap:8px;padding:8px 12px;background:rgba(255,255,255,.02);border-radius:8px;margin-bottom:4px;font-size:12px;border-left:3px solid #3182f6;">
-            <span style="flex:1;color:rgba(255,255,255,.7);">${_esc(_stationLabel(loc))}</span>
-            <span style="color:#d5d8dc;font-weight:700;">${c.snow?'❄️ '+c.snow.toFixed(1)+'cm  ':''}${c.rain?'🌧️ '+c.rain.toFixed(1)+'mm':''}${(!c.snow&&!c.rain)?'-':''}</span>
-          </div>`;
-        });
-      }
-    }
-    const closedOps=aops.filter(o=>o.closedAt).sort((a,b)=>(b.startedAtMs||0)-(a.startedAtMs||0)).slice(0,6);
-    if(closedOps.length){
-      html+=`<div style="margin-top:18px;font-size:12px;color:#8ab0c8;font-weight:700;margin-bottom:6px;">📜 최근 종료된 특보운영 <span style="color:#6b7684;font-weight:400;">(${closedOps.length}건)</span></div>`;
-      closedOps.forEach(o=>{const al=_opAlerts(o);const lbl=al.map(a=>_esc(a.type)+_stageShort(a.stage)).join(', ')||'특보';
-        html+=`<div onclick="openAlertHistory(${o.id})" style="display:flex;align-items:center;gap:8px;padding:8px 12px;background:rgba(255,255,255,.02);border-radius:8px;margin-bottom:4px;font-size:12px;cursor:pointer;border-left:3px solid #5d82a0;">
-          <span style="flex:1;color:rgba(255,255,255,.6);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">🌀 ${lbl}</span>
-          <span style="flex-shrink:0;color:#6a93b5;font-family:monospace;">${(o.startedAt||'').slice(5,10)}~${(o.closedAt||'').slice(5,10)}</span>
-        </div>`;
-      });
-    }
-  } else if(hazActive){
+  if(hazActive){
     // 위험 뷰 하단: 조치완료된 위험상황
     const doneHaz=(DB.g('hazards')||[]).filter(h=>h.hazStatus&&h.hazStatus!=='미조치'&&h.hazStatus!=='조치중').sort((a,b)=>(b.date||'').localeCompare(a.date||'')).slice(0,15);
     html+=`<div style="margin-top:20px;font-size:12px;color:rgba(255,255,255,.35);font-weight:700;margin-bottom:6px;">✅ 조치완료 위험상황 <span style="color:rgba(255,255,255,.25);font-weight:400;">(${doneHaz.length}건)</span></div>`;
@@ -1932,7 +1801,7 @@ function openApp(mode){
   try{_applyAppLock();}catch(e){} // 진입 시 잠금 재평가(관리자 로그인·승인 직후 즉시 해제)
   // 지도 생성은 부팅 시 지연됨 → 지도 탭 진입 시 아직 없으면 지금 생성(initMaps는 중복 생성 방지 가드 있음)
   if((mode==='rescue'||mode==='inspect')&&window._KR){try{if(typeof mapI==='undefined'||!mapI||!mapR)initMaps();}catch(e){}}
-  if(isExternal()&&['inspect','stats','admin','settings','alert'].includes(mode)){toast('⚠️ 외부기관 계정은 해당 메뉴에 접근할 수 없습니다');return;}
+  if(isExternal()&&['inspect','stats','admin','settings'].includes(mode)){toast('⚠️ 외부기관 계정은 해당 메뉴에 접근할 수 없습니다');return;}
   // 작성 폼에서 다른 메뉴로 이동: 미저장 입력은 임시저장만 남기고 작성모드 해제
   if(window._reportMode==='form'){try{_saveDraftNow();}catch(e){}window._reportMode='';clearInterval(_draftAutoTimer);}
   curApp=mode;
@@ -1959,10 +1828,6 @@ function openApp(mode){
     showV('v-inspect-map');bn.style.display='flex';setNv();updateInspectCross();
     history.pushState({view:mode},'','');
     rMaps();setTimeout(()=>{try{renderInspectMap();if(mapI&&!window._mapIInited){window._mapIInited=true;mapI.setCenter(new kakao.maps.LatLng(DC.lat,DC.lng));mapI.setLevel(9);}}catch(e){renderFacList();}},200);
-  } else if(mode==='alert'){
-    document.getElementById('topTitle').textContent='특보운영';
-    _alertTab=1; // 진입 시 항상 목록 탭부터
-    bn.style.display='none';showV('v-alert');history.pushState({view:mode},'','');renderAlertView();
   } else if(mode==='admin'){
     // 관리자 판정은 isAdminUser() 단일 기준(개발자 마스터 OR _acl.admins OR devKakaoId).
     // 강등(_acl)되면 즉시 막히고, 멤버/일반은 권한없음 안내. (옛 소유자 자동승격 제거)
@@ -3095,23 +2960,6 @@ function initWAlerts(prefill){
       for(const lv of lvs){if(s.endsWith(lv)){_weatherAlerts.push({type:s.slice(0,-lv.length),level:lv});return;}}
       _weatherAlerts.push({type:s,level:''});
     });
-  } else {
-    // 신규 보고 + 진행 중 특보운영(주의보·경보)이 있으면 그 특보를 자동 기록
-    try{
-      const _op=(DB.g('alertOps')||[]).find(o=>!o.closedAt);
-      if(_op){
-        const _al=(_op.alerts&&_op.alerts.length)?_op.alerts:(typeof _opAlerts==='function'?_opAlerts(_op):[]);
-        const _seen={};
-        _al.forEach(a=>{
-          const st=a.stage||'';let lv='';
-          if(st.indexOf('주의보')>=0)lv='주의보';
-          else if(st.indexOf('경보')>=0||st.indexOf('Ⅲ')>=0)lv='경보';
-          else return; // 예비특보 등은 자동 기록 제외
-          const key=(a.type||'')+lv;if(_seen[key])return;_seen[key]=1;
-          _weatherAlerts.push({type:a.type||'',level:lv});
-        });
-      }
-    }catch(e){}
   }
   _wAlertType='';_wAlertLevel='';
   renderWAlerts();
@@ -3266,8 +3114,6 @@ function _setTileAutoMode(m){
   try{renderSettings();}catch(e){}
 }
 function preloadParkTiles(auto){
-  // 오프라인 대비: 지도 타일과 함께 암벽 당일명단도 미리 받아둔다(무통신 산악지역 현장 확인용)
-  try{if(typeof _climbLoadAll==='function')_climbLoadAll().catch(function(){});}catch(e){}
   if(!('caches' in window)||!('serviceWorker' in navigator)){if(!auto)toast('⚠️ 이 브라우저는 오프라인 저장을 지원하지 않습니다');return;}
   if(!navigator.serviceWorker.controller){if(!auto)toast('⚠️ 저장 준비가 아직 안 됐습니다 — 앱을 완전히 닫았다 다시 열어 재시도하세요');return;}
   if(!(window.kakao&&kakao.maps&&window._KR)){if(!auto)toast('⚠️ 지도가 아직 로드되지 않았습니다 — 잠시 후 재시도');return;}
