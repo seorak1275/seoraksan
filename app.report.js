@@ -3038,7 +3038,7 @@ function render1BoForm(prefill=null){
         </div>
         <div class="fg"><span class="fl">🧭 장소 구분</span>
           <div style="display:flex;gap:5px;flex-wrap:wrap;" id="loctypeBtns">
-            ${['법정탐방로','비법정탐방로','암벽','빙벽'].map(o=>{const off=(o==='암벽'&&typeof _climbInSeason==='function'&&!_climbInSeason())||(o==='빙벽'&&typeof _iceInSeason==='function'&&!_iceInSeason());return `<button class="tog-btn${(p.loctype||'법정탐방로')===o?' on':''}" data-val="${o}" onclick="${off?`_loctypeSeasonWarn('${o}')`:`selLoctype('${o}')`}"${off?' style="opacity:.45;"':''}>${o}${off?'<span style="font-size:8px;opacity:.85;"> ·비시즌</span>':''}</button>`;}).join('')}
+            ${['법정탐방로','비법정탐방로','암벽','빙벽'].map(o=>`<button class="tog-btn${(p.loctype||'법정탐방로')===o?' on':''}" data-val="${o}" onclick="selLoctype('${o}')">${o}</button>`).join('')}
           </div>
           <input type="hidden" id="r_loctype" value="${_esc(p.loctype||'법정탐방로')}">
         </div>

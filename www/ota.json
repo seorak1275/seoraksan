@@ -1,1 +1,1 @@
-{"version":"2026.08.15.382","url":"https://seorak1275.github.io/seoraksan/bundle.zip","notes":"기능 3종 완전 제거: 🧗암벽 이용관리·🌀특보운영(발령/응소/관측/위기경보/브리핑/탐방로통제/KMA특보수신/카톡특보알림)·🧰구조대 장비관리 — 코드·홈메뉴·모달·알림카테고리·동기화키 삭제, Firestore 데이터 전체 삭제(사전 백업 완료), 구조보고서 암벽 위치선택은 유지"}
+{"version":"2026.08.15.383","url":"https://seorak1275.github.io/seoraksan/bundle.zip","notes":"긴급수정: 기능제거 때 공용 함수가 같이 잘려 신규구조접수 폼이 안 열리던 문제 복구 — getTeamMembers·sortStaff·RANKS/DEPTS(직원 정렬)·_handleKakaoCode·kakaoLogout(카카오 인증)·fetchWeather 등 날씨 카드·상세 복원, 홈 특보배너는 날씨상세 연결로 변경. 헤드리스 스모크 테스트 통과"}

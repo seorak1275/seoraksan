@@ -746,7 +746,6 @@ function initFirebase(onReady){
       }catch(e){}
       // 승인 대기 중인 사용자: _acl 동기화 즉시 멤버 판정 → 재로그인 없이 자동 입장
       try{var _g=document.getElementById('approvalGate');if(_g&&_g.style.display!=='none'){if(_isAutoApprove()){var _u=DB.g('currentUser')||{};if(_u.kakaoId)_aclSelfApprove(_u.kakaoId);}if(_isMember()){_g.style.display='none';_stopApprovalPoll();updateUserUI();try{goHome();}catch(e){}toast('✅ 승인 완료 — 환영합니다');}}}catch(e){}
-      try{_updateCrisisBanner();}catch(e){}
       try{if(!_fcmTokenCache)_initFCM();}catch(e){} // VAPID 키가 방금 동기화됐으면 재시작 없이 웹푸시 토큰 등록
       clearTimeout(_remoteUpdateTimer);
       _remoteUpdateTimer=setTimeout(function(){

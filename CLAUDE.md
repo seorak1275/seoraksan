@@ -62,10 +62,11 @@ JS가 기능별 6개로 분리됨 (2026-06 단일 app.js 11.6k줄 → 분리. �
 
 ## 제거된 기능 (2026-08-06 — 코드·데이터 완전 삭제, 복구는 백업 JSON으로만 가능)
 
-- 🧗 암벽 이용관리 · 🌀 특보운영(발령·응소·관측·위기경보·기상브리핑·탐방로통제·KMA특보수신) · 🧰 구조대 장비관리(equipInv)
+- 🧗 암벽 이용관리 · 🌀 특보운영(발령·응소·관측·위기경보·기상브리핑·탐방로통제·자동발령 폴링·특보수신 진단) · 🧰 구조대 장비관리(equipInv)
 - Firestore 삭제: climbUsage·equipInv 컬렉션, appData의 climbDates/climbCancels/climbAccidents/climbAgg/alertOps/alertLog/crisisLevel/weatherBrief/trailStatus 등
 - 구조 보고서의 암벽 위치 선택(`CLIMB_DISTRICTS`)은 app.core.js로 이전해 유지
-- 날씨 예보(홈 날씨 카드, KMA 격자 예보·프록시)는 유지 — 특보(경보/주의보) 관련만 제거
+- 날씨 예보(홈 날씨 카드·상세, KMA 격자 예보·프록시)와 홈 특보 배너 '표시'(fetchWeather 내 수신)는 유지 — 특보운영 화면·자동발령만 제거
+- ⚠️ 제거 시 주의: getTeamMembers/sortStaff/RANKS/DEPTS/_handleKakaoCode/kakaoLogout/fetchWeather는 공용이라 복원됨 (제거 커밋 fce4b1c 참고)
 
 ## 보안 (절대 변경 금지)
 
