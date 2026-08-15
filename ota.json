@@ -1,1 +1,1 @@
-{"version":"2026.08.15.383","url":"https://seorak1275.github.io/seoraksan/bundle.zip","notes":"긴급수정: 기능제거 때 공용 함수가 같이 잘려 신규구조접수 폼이 안 열리던 문제 복구 — getTeamMembers·sortStaff·RANKS/DEPTS(직원 정렬)·_handleKakaoCode·kakaoLogout(카카오 인증)·fetchWeather 등 날씨 카드·상세 복원, 홈 특보배너는 날씨상세 연결로 변경. 헤드리스 스모크 테스트 통과"}
+{"version":"2026.08.15.384","url":"https://seorak1275.github.io/seoraksan/bundle.zip","notes":"직원 목록 복구: 부팅·재인증 시 로그인 이력 자동 재기록(재방문 직원이 명단에 다시 나타나도록, 하루 1회) + 8/6 유실분 중 확인된 3명(정유진·염원종·장기수) 서버 복원"}

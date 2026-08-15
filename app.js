@@ -141,6 +141,7 @@ async function _signInWithKakaoToken(kakaoAccessToken){
       if(_authRole==='admin')localStorage.setItem('_tokenAdmin','1');
       else localStorage.removeItem('_tokenAdmin');
       _markMemberOk(); // 멤버 확인 → 오프라인 보호 플래그
+      try{_recordLoginLog();}catch(e){} // 재인증(토큰 재발급) 경로에서도 로그인 이력 갱신 — 재방문 직원이 명단에 계속 나타나도록
       window._memberAuthWarned=false;window._mintNetWarned=false;window._lastMintErr=''; // 복구됨 → 경고 상태 초기화
       try{var _ab=document.getElementById('authFixBanner');if(_ab)_ab.remove();}catch(e){}
       try{_enforceAccessGate();}catch(e){} // 멤버 확인 → 혹시 떠있던 게이트 해제
@@ -2897,7 +2898,7 @@ function sosToRescue(id){
 // 앱 자체 업데이트 (OTA · Capgo 자체호스팅) — APK 전용. 웹/PWA는 서비스워커가 자동 갱신.
 // 번들(www)의 새 버전을 ota.json으로 알리면, 설치된 앱이 받아서 그 자리에서 교체(재빌드 불필요).
 // ══════════════════════════════════════════
-const OTA_VER='2026.08.15.383';                         // ← 현재 번들 버전 (릴리스마다 올림 · build-ota.sh가 ota.json에 반영)
+const OTA_VER='2026.08.15.384';                         // ← 현재 번들 버전 (릴리스마다 올림 · build-ota.sh가 ota.json에 반영)
 const OTA_MANIFEST='https://seorak1275.github.io/seoraksan/ota.json';
 // 업데이트 확인 폴백 소스 — 일부 기관망·통신사에서 github.io가 막혀 '확인 실패(네트워크)'가 나는 경우 대비.
 // 순서대로 시도: ① GitHub Pages(원본·즉시 반영) ② jsDelivr CDN(공개저장소 미러·거의 모든 망 통과)
@@ -3067,6 +3068,11 @@ window.onload=function(){
     // 여기서 별도로 더 일찍 강제 전환하지 않아야 Firestore 데이터가
     // 도착하기 전에 빈 화면이 먼저 보이는 문제(로딩 중 데이터 미리 받기)를 막을 수 있다.
   })();
+
+  // 부팅 시 로그인 이력 자동 재기록 — 예전엔 신규 카카오 로그인(_handleKakaoCode)에서만 기록해,
+  // 토큰이 살아있는 재방문 직원은 다시 기록되지 않았다(8/6 명단 유실 후 직원 목록이 안 채워진 원인).
+  // 함수 자체의 20시간 중복가드로 실제 저장은 하루 1회. 첫 동기화가 내려온 뒤 기록되게 지연.
+  setTimeout(function(){try{_recordLoginLog();}catch(e){}},12000);
 
   // 안드로이드 하드웨어 뒤로가기: Capacitor App 플러그인 콜백 → history.back() 위임.
   // (이 리스너를 등록하면 Capacitor 기본 동작인 "즉시 앱 종료"가 꺼지고, 아래
